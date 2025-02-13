@@ -1935,6 +1935,8 @@ pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_last_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressData for Address {
@@ -1954,6 +1956,18 @@ impl AddressData for Address {
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("phone"))
+    }
+
+    fn get_optional_first_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_first_name())
+    }
+
+    fn get_optional_last_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_last_name())
     }
 }
 pub trait PaymentsPreProcessingRequestData {

@@ -1375,6 +1375,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Getnet => {
+            //     getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -2026,7 +2030,7 @@ impl DefaultFallbackRoutingConfigUpdate<'_> {
             };
             if default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.retain(|mca| {
-                    (mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id))
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
 
                 profile_wrapper
