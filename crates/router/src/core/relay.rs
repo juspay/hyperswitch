@@ -1,10 +1,11 @@
+use std::marker::PhantomData;
+
 use api_models::relay as relay_api_models;
 use async_trait::async_trait;
 use common_enums::RelayStatus;
-use common_utils::id_type::GenerateId;
-use common_utils::{self, id_type};
+use common_utils::{self, id_type, id_type::GenerateId};
 use error_stack::ResultExt;
-use std::marker::PhantomData;
+use hyperswitch_domain_models::relay;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
@@ -17,7 +18,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use hyperswitch_domain_models::relay;
 
 pub mod utils;
 
