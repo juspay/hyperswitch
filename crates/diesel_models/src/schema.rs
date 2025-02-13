@@ -404,6 +404,8 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         dispute_currency -> Nullable<Currency>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 

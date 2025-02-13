@@ -440,6 +440,7 @@ pub async fn generate_sample_data(
                     dispute_amount: amount * 100,
                     organization_id: org_id.clone(),
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
+                    platform_merchant_id: None,
                 })
             } else {
                 None

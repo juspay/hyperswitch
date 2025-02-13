@@ -1191,6 +1191,7 @@ async fn get_or_update_dispute_object(
                 dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
                 organization_id: organization_id.clone(),
                 dispute_currency: Some(dispute_details.currency),
+                platform_merchant_id: payment_attempt.platform_merchant_id.clone(),
             };
             state
                 .store
