@@ -565,6 +565,8 @@ pub enum Flow {
     CreateCardsInfo,
     /// Update Cards Info flow
     UpdateCardsInfo,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
 }
 
 /// Trait for providing generic behaviour to flow metric
