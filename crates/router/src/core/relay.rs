@@ -22,7 +22,7 @@ use hyperswitch_domain_models::relay;
 pub mod utils;
 
 pub trait Validate {
-    type Error;
+    type Error: error_stack::Context;
     fn validate(&self) -> Result<(), Self::Error>;
 }
 
@@ -39,10 +39,7 @@ impl Validate for relay_api_models::RelayRefundRequestData {
 }
 
 #[async_trait]
-pub trait RelayInterface
-where
-    <Self::Request as Validate>::Error: error_stack::Context,
-{
+pub trait RelayInterface {
     type Request: Validate;
     fn validate_relay_request(req: &Self::Request) -> RouterResult<()> {
         req.validate()
