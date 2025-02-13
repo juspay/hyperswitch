@@ -74,3 +74,7 @@ export function validateEnv(baseUrl, keyIdType) {
 
   return prefix;
 }
+
+export function generateRandomAmount() {
+  return Math.floor(10000 + Math.random() * 90000);
+}
