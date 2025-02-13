@@ -28,7 +28,7 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
+        self, AddressData, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
         PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
@@ -1467,7 +1467,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             enums::AuthenticationType::NoThreeDs => None,
         };
         let test_mode = get_test_mode(item.test_mode);
-        let req_address = item.get_billing_address()?.to_owned();
+        let req_address = item.get_optional_billing();
 
         let billing = NovalnetPaymentsRequestBilling {
             house_no: item.get_optional_billing_line1(),
@@ -1477,10 +1477,12 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             country_code: item.get_optional_billing_country(),
         };
 
+        let email = item.get_billing_email().or(item.request.get_email())?;
+
         let customer = NovalnetPaymentsRequestCustomer {
-            first_name: req_address.get_optional_first_name(),
-            last_name: req_address.get_optional_last_name(),
-            email: item.request.get_email()?.clone(),
+            first_name: req_address.and_then(|addr| addr.get_optional_first_name()),
+            last_name: req_address.and_then(|addr| addr.get_optional_last_name()),
+            email,
             mobile: item.get_optional_billing_phone_number(),
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
@@ -1504,7 +1506,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                     card_expiry_month: req_card.card_exp_month.clone(),
                     card_expiry_year: req_card.card_exp_year.clone(),
                     card_cvc: req_card.card_cvc.clone(),
-                    card_holder: req_address.get_full_name()?.clone(),
+                    card_holder: item.get_billing_address()?.get_full_name()?,
                 });
 
                 let transaction = NovalnetPaymentsRequestTransaction {

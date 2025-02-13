@@ -787,7 +787,10 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
             .map(ToOwned::to_owned),
         // TODO: Create unified address
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-        auth_type: payment_data.payment_intent.authentication_type,
+        auth_type: payment_data
+            .payment_intent
+            .authentication_type
+            .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: None,
         request,
@@ -1647,6 +1650,8 @@ where
             merchant_connector_id,
             browser_info: None,
             error,
+            authentication_type: payment_intent.authentication_type,
+            applied_authentication_type: payment_attempt.authentication_type,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((

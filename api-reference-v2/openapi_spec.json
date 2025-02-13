@@ -9968,13 +9968,11 @@
       },
       "GpayTokenParameters": {
         "type": "object",
-        "required": [
-          "gateway"
-        ],
         "properties": {
           "gateway": {
             "type": "string",
-            "description": "The name of the connector"
+            "description": "The name of the connector",
+            "nullable": true
           },
           "gateway_merchant_id": {
             "type": "string",
@@ -9987,6 +9985,16 @@
           },
           "stripe:publishableKey": {
             "type": "string",
+            "nullable": true
+          },
+          "protocol_version": {
+            "type": "string",
+            "description": "The protocol version for encryption",
+            "nullable": true
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key provided by the merchant",
             "nullable": true
           }
         }
@@ -15043,7 +15051,8 @@
           "created",
           "payment_method_type",
           "payment_method_subtype",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "applied_authentication_type"
         ],
         "properties": {
           "id": {
@@ -15142,6 +15151,17 @@
               }
             ],
             "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "applied_authentication_type": {
+            "$ref": "#/components/schemas/AuthenticationType"
           }
         }
       },
@@ -15500,7 +15520,6 @@
           "client_secret",
           "profile_id",
           "capture_method",
-          "authentication_type",
           "customer_id",
           "customer_present",
           "setup_future_usage",
@@ -15552,7 +15571,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "no_three_ds"
+            "nullable": true
           },
           "billing": {
             "allOf": [
