@@ -9025,6 +9025,14 @@
               }
             ],
             "nullable": true
+          },
+          "revenue_recovery_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
