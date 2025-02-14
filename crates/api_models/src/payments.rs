@@ -4854,6 +4854,10 @@ pub struct PaymentsResponse {
 
     /// Connector Identifier for the payment method
     pub connector_mandate_id: Option<String>,
+
+    /// Method through which card was discovered
+    #[schema(value_type = Option<CardDiscovery>, example = "manual")]
+    pub card_discovery: Option<enums::CardDiscovery>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
@@ -5552,6 +5556,8 @@ pub struct PaymentListFilterConstraints {
     pub card_network: Option<Vec<enums::CardNetwork>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
+    /// Indicates the method by which a card is discovered during a payment
+    pub card_discovery: Option<Vec<enums::CardDiscovery>>,
 }
 
 impl PaymentListFilterConstraints {
@@ -5562,6 +5568,7 @@ impl PaymentListFilterConstraints {
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
+            && self.card_discovery.is_none()
     }
 }
 
@@ -5595,6 +5602,8 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
     /// The list of available card networks
     pub card_network: Vec<enums::CardNetwork>,
+    /// The list of available Card discovery methods
+    pub card_discovery: Vec<enums::CardDiscovery>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
