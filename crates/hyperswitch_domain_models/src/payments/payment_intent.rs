@@ -290,6 +290,7 @@ pub enum PaymentIntentUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum PaymentIntentUpdate {
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
