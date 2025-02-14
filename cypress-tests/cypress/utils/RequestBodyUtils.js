@@ -83,13 +83,16 @@ export function generateRandomAmount() {
 
 export function setLatestPaymentIntentAmount(amount) {
   console.log("Setting latest PaymentIntent amount:", amount);
-  latestPaymentIntentAmount = amount;  // Properly update the value
+  latestPaymentIntentAmount = amount; // Properly update the value
 }
 
 export function getLatestPaymentIntentAmount() {
   if (latestPaymentIntentAmount === null) {
     throw new Error("No PaymentIntent amount has been set yet!");
   }
-  console.log("Fetching latest PaymentIntent amount:", latestPaymentIntentAmount);
+  console.log(
+    "Fetching latest PaymentIntent amount:",
+    latestPaymentIntentAmount
+  );
   return latestPaymentIntentAmount;
 }
