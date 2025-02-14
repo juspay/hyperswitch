@@ -93,11 +93,11 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .clone()
             .fetch_contract_score(request)
             .await
-            .or_else(|err| match err.code() {
-                Code::NotFound => Err(DynamicRoutingError::ContractNotFound),
-                _ => Err(DynamicRoutingError::ContractBasedRoutingFailure(
+            .map_err(|err| match err.code() {
+                Code::NotFound => DynamicRoutingError::ContractNotFound,
+                _ => DynamicRoutingError::ContractBasedRoutingFailure(
                     "Failed to fetch the contract score".to_string(),
-                )),
+                ),
             })?
             .into_inner();
 
