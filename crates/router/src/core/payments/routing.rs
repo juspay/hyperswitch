@@ -26,8 +26,9 @@ use euclid::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
-    contract_routing_client::{CalContractScoreResponse, ContractBasedDynamicRouting},
+    contract_routing_client::ContractBasedDynamicRouting,
     success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
+    DynamicRoutingError,
 };
 use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
@@ -1599,19 +1600,49 @@ pub async fn perform_contract_based_routing(
         .change_context(errors::RoutingError::ContractBasedRoutingConfigError)
         .attach_printable("unable to fetch contract based dynamic routing configs")?;
 
-        let contract_based_connectors: CalContractScoreResponse = client
+        let contract_based_connectors_result = client
             .calculate_contract_score(
                 profile_id.get_string_repr().into(),
-                contract_based_routing_configs,
+                contract_based_routing_configs.clone(),
                 "".to_string(),
                 routable_connectors,
                 state.get_grpc_headers(),
             )
             .await
-            .change_context(errors::RoutingError::ContractScoreCalculationError)
             .attach_printable(
                 "unable to calculate/fetch contract score from dynamic routing service",
-            )?;
+            );
+
+        let contract_based_connectors = match contract_based_connectors_result {
+            Ok(resp) => resp,
+            Err(err) => match err.current_context() {
+                DynamicRoutingError::ContractNotFound => {
+                    let label_info = contract_based_routing_configs
+                        .label_info
+                        .ok_or(errors::RoutingError::ContractBasedRoutingConfigError)
+                        .attach_printable(
+                            "Label information not found in contract routing configs",
+                        )?;
+
+                    client
+                        .update_contracts(
+                            profile_id.get_string_repr().into(),
+                            label_info,
+                            "".to_string(),
+                            vec![],
+                            u64::default(),
+                            state.get_grpc_headers(),
+                        )
+                        .await
+                        .change_context(errors::RoutingError::ContractScoreUpdationError)
+                        .attach_printable(
+                            "unable to update contract based routing window in dynamic routing service",
+                        )?;
+                    return Err((errors::RoutingError::ContractScoreCalculationError).into());
+                }
+                _ => return Err((errors::RoutingError::ContractScoreCalculationError).into()),
+            },
+        };
 
         let mut connectors = Vec::with_capacity(contract_based_connectors.labels_with_score.len());
 

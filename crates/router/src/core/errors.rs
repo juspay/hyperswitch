@@ -402,6 +402,8 @@ pub enum RoutingError {
     ContractBasedRoutingParamsNotFoundError,
     #[error("Unable to calculate contract score from dynamic routing service")]
     ContractScoreCalculationError,
+    #[error("Unable to udpate contract score on dynamic routing service")]
+    ContractScoreUpdationError,
     #[error("contract routing client from dynamic routing gRPC service not initialized")]
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
