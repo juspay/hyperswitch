@@ -119,6 +119,10 @@ pub enum WebhookResponseTracker {
         mandate_id: String,
         status: common_enums::MandateStatus,
     },
+    PaymentMethod {
+        payment_method_id: String,
+        status: common_enums::PaymentMethodStatus,
+    },
     NoEffect,
     Relay {
         relay_id: common_utils::id_type::RelayId,
@@ -133,10 +137,26 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
+        }
+    }
+
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        match self {
+            Self::PaymentMethod {
+                payment_method_id, ..
+            } => Some(payment_method_id.to_owned()),
+            Self::Payment { .. }
+            | Self::Refund { .. }
+            | Self::Dispute { .. }
+            | Self::NoEffect
+            | Self::Mandate { .. }
+            | Self::Relay { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
         }
     }
 
@@ -146,7 +166,7 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,

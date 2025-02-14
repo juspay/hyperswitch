@@ -139,6 +139,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + callback_mapper::CallbackMapperInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
