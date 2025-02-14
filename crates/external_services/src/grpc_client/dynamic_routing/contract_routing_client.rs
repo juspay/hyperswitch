@@ -26,8 +26,9 @@ use crate::grpc_client::{self, GrpcHeaders};
 pub mod contract_routing {
     tonic::include_proto!("contract_routing");
 }
-use super::{Client, DynamicRoutingError, DynamicRoutingResult};
 pub use tonic::Code;
+
+use super::{Client, DynamicRoutingError, DynamicRoutingResult};
 /// The trait ContractBasedDynamicRouting would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait ContractBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
