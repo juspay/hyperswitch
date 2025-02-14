@@ -1257,8 +1257,9 @@ pub async fn get_fingerprint_id_from_vault<
 >(
     state: &routes::SessionState,
     data: &D,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<String, errors::VaultError> {
-    let key = data.get_vaulting_data_key();
+    let key = customer_id.get_string_repr().to_owned();
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;

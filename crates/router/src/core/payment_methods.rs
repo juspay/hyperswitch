@@ -906,6 +906,7 @@ pub async fn create_payment_method(
         merchant_account,
         key_store,
         None,
+        &customer_id,
     )
     .await;
 
@@ -1078,6 +1079,7 @@ pub async fn payment_method_intent_confirm(
         merchant_account,
         key_store,
         None,
+        &customer_id,
     )
     .await;
 
@@ -1501,11 +1503,12 @@ pub async fn vault_payment_method(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<(pm_types::AddVaultResponse, String)> {
     let db = &*state.store;
 
     // get fingerprint_id from vault
-    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd)
+    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd, customer_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get fingerprint_id from vault")?;
@@ -2048,6 +2051,7 @@ pub async fn update_payment_method(
         &merchant_account,
         &key_store,
         current_vault_id, // using current vault_id for now, will have to refactor this
+        &payment_method.customer_id
     ) // to generate new one on each vaulting later on
     .await
     .attach_printable("Failed to add payment method in vault")?;
