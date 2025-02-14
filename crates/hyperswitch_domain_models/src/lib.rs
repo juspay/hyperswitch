@@ -40,10 +40,17 @@ use api_models::payments::{
     RecurringPaymentIntervalUnit as ApiRecurringPaymentIntervalUnit,
     RedirectResponse as ApiRedirectResponse,
 };
+#[cfg(feature = "v2")]
+use api_models::payments::{
+    BillingConnectorPaymentDetails as ApiBillingConnectorPaymentDetails,
+    PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
+};
 use diesel_models::types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
     OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
 };
+#[cfg(feature = "v2")]
+use diesel_models::types::{BillingConnectorPaymentDetails, PaymentRevenueRecoveryMetadata};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
@@ -78,6 +85,7 @@ pub trait ApiModelToDieselModelConvertor<F> {
     fn convert_back(self) -> F;
 }
 
+#[cfg(feature = "v1")]
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         let ApiFeatureMetadata {
@@ -85,6 +93,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
         } = from;
+
         Self {
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
             search_tags,
@@ -99,11 +108,52 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
         } = self;
+
         ApiFeatureMetadata {
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
+                .map(|value| value.convert_back()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
+    fn convert_from(from: ApiFeatureMetadata) -> Self {
+        let ApiFeatureMetadata {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
+            payment_revenue_recovery_metadata,
+        } = from;
+
+        Self {
+            redirect_response: redirect_response.map(RedirectResponse::convert_from),
+            search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(ApplePayRecurringDetails::convert_from),
+            payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
+                .map(PaymentRevenueRecoveryMetadata::convert_from),
+        }
+    }
+
+    fn convert_back(self) -> ApiFeatureMetadata {
+        let Self {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
+            payment_revenue_recovery_metadata,
+        } = self;
+
+        ApiFeatureMetadata {
+            redirect_response: redirect_response
+                .map(|redirect_response| redirect_response.convert_back()),
+            search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(|value| value.convert_back()),
+            payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(|value| value.convert_back()),
         }
     }
@@ -200,6 +250,56 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
             regular_billing: self.regular_billing.convert_back(),
             billing_agreement: self.billing_agreement,
             management_url: self.management_url,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentRevenueRecoveryMetadata {
+    fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
+        Self {
+            total_retry_count: from.total_retry_count,
+            payment_connector_transmission: from.payment_connector_transmission,
+            billing_connector_id: from.billing_connector_id,
+            active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
+            billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
+                from.billing_connector_payment_details,
+            ),
+            payment_method_type: from.payment_method_type,
+            payment_method_subtype: from.payment_method_subtype,
+        }
+    }
+
+    fn convert_back(self) -> ApiRevenueRecoveryMetadata {
+        ApiRevenueRecoveryMetadata {
+            total_retry_count: self.total_retry_count,
+            payment_connector_transmission: self.payment_connector_transmission,
+            billing_connector_id: self.billing_connector_id,
+            active_attempt_payment_connector_id: self.active_attempt_payment_connector_id,
+            billing_connector_payment_details: self
+                .billing_connector_payment_details
+                .convert_back(),
+            payment_method_type: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
+    for BillingConnectorPaymentDetails
+{
+    fn convert_from(from: ApiBillingConnectorPaymentDetails) -> Self {
+        Self {
+            payment_processor_token: from.payment_processor_token,
+            connector_customer_id: from.connector_customer_id,
+        }
+    }
+
+    fn convert_back(self) -> ApiBillingConnectorPaymentDetails {
+        ApiBillingConnectorPaymentDetails {
+            payment_processor_token: self.payment_processor_token,
+            connector_customer_id: self.connector_customer_id,
         }
     }
 }
