@@ -79,10 +79,10 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
-     "3DSAutoCapture": getCustomExchange({
+    "3DSAutoCapture": getCustomExchange({
       Request: {
-         payment_method: "card",
-         amount: 5000,
+        payment_method: "card",
+        amount: 5000,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -290,7 +290,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-         amount: 5000,
+        amount: 5000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
