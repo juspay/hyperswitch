@@ -4874,7 +4874,7 @@ pub async fn get_payment_filters(
                         .extend(
                             payment_method_types_vec
                                 .iter()
-                                .filter_map(|p| p.get_payment_method_type()), // Ensures only Some values are inserted
+                                .filter_map(|p| p.get_payment_method_type()), 
                         );
                 }
             });

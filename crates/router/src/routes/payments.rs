@@ -1348,7 +1348,7 @@ pub async fn get_payment_filters_profile(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantPaymentRead,
+            permission: Permission::ProfilePaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
