@@ -1344,7 +1344,7 @@ pub async fn vault_payment_method(
     let db = &*state.store;
 
     // get fingerprint_id from vault
-    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd, customer_id)
+    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get fingerprint_id from vault")?;
