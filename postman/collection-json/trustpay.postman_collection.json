@@ -636,7 +636,6 @@
                       "",
                       "// Add a delay of 10 seconds after the last",
                       "setTimeout(function () {",
-                      "  console.log(\"Waitinge for 10 seconds for testing Refunds efficiently.\");",
                       "  console.log(\"Delay of 10 seconds completed.\");",
                       "}, 10000);"
                     ],
@@ -2906,7 +2905,6 @@
                           "",
                           "// Add a delay of 10 seconds after the last",
                           "setTimeout(function () {",
-                          "  console.log(\"Waitinge for 10 seconds for testing Refunds efficiently.\");",
                           "  console.log(\"Delay of 10 seconds completed.\");",
                           "}, 10000);"
                         ],
