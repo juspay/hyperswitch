@@ -1834,7 +1834,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "olap", feature = "v1"))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,

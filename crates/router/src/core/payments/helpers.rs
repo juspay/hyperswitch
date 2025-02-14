@@ -2888,7 +2888,7 @@ where
     Some(func(option1?, option2?))
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
     constraints: &PaymentIntentFetchConstraints,

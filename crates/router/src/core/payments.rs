@@ -5058,7 +5058,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -5127,6 +5127,84 @@ pub async fn list_payments(
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
             size: data.len(),
+            data,
+        },
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn list_payments(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    constraints: api::PaymentListConstraints,
+) -> RouterResponse<payments_api::PaymentListResponse> {
+    use hyperswitch_domain_models::errors::StorageError;
+    helpers::validate_payment_list_request(&constraints)?;
+    let merchant_id = merchant.get_id();
+    let db = state.store.as_ref();
+    let payment_intents = helpers::filter_by_constraints(
+        &state,
+        &constraints.into(),
+        merchant_id,
+        &key_store,
+        merchant.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let collected_futures = payment_intents.into_iter().map(|pi| {
+        async {
+            let active_attempt_id = match &pi.active_attempt_id {
+                Some(val) => val,
+                None => return Some(Ok((pi, None))),
+            };
+            match db
+                .find_payment_attempt_by_id(
+                    &(&state).into(),
+                    &key_store,
+                    active_attempt_id,
+                    // since OLAP doesn't have KV. Force to get the data from PSQL.
+                    storage_enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await
+            {
+                Ok(pa) => Some(Ok((pi, Some(pa)))),
+                Err(error) => {
+                    if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
+                        logger::warn!(
+                            ?error,
+                            "payment_attempts missing for payment_id : {:?}",
+                            pi.id,
+                        );
+                        return None;
+                    }
+                    Some(Err(error))
+                }
+            }
+        }
+    });
+
+    //If any of the response are Err, we will get Result<Err(_)>
+    let pi_pa_tuple_vec: Result<Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>, _> =
+        join_all(collected_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Result<Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>, _>>();
+    //Will collect responses in same order async, leading to sorted responses
+
+    //Converting Intent-Attempt array to Response if no error
+    let data: Vec<payments_api::PaymentsListResponseItem> = pi_pa_tuple_vec
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        payments_api::PaymentListResponse {
+            count: data.len(),
+            total_count: 100,
             data,
         },
     ))

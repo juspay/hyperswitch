@@ -11,7 +11,8 @@ use super::{
 ))]
 use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(feature = "v1")]
-use crate::payments::{PaymentListResponse, PaymentListResponseV2};
+use crate::payments::PaymentListResponseV2;
+use crate::payments::PaymentListResponse;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
@@ -373,7 +374,6 @@ impl ApiEventMetric for PaymentListConstraints {
     }
 }
 
-#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)

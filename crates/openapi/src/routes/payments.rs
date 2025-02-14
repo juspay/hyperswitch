@@ -457,6 +457,7 @@ pub fn payments_cancel() {}
 /// Payments - List
 ///
 /// To list the *payments*
+#[cfg(feature = "v1")]
 #[utoipa::path(
     get,
     path = "/payments/list",
@@ -846,3 +847,31 @@ pub(crate) enum ForceSync {
     security(("publishable_key" = []))
 )]
 pub fn list_payment_methods() {}
+
+/// Payments - List
+///
+/// To list the *payments*
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/list",
+    params(
+        ("customer_id" = String, Query, description = "The identifier for the customer"),
+        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
+        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
+        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
+        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
+        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
+        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
+    ),
+    responses(
+        (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
+        (status = 404, description = "No payments found")
+    ),
+    tag = "Payments",
+    operation_id = "List all Payments",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub fn payments_list() {}
