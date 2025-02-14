@@ -24,16 +24,16 @@ use crate::{
 };
 
 use super::utils::convert_amount;
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
 #[derive(Clone)]
 pub struct Threedsecureio {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Threedsecureio {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMajorUnitForConnector,
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
@@ -358,7 +358,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data =
-            threedsecureio::ThreedsecureioRouterData::try_from((StringMajorUnit::zero, req))?;
+            threedsecureio::ThreedsecureioRouterData::try_from((StringMinorUnit::new("0".to_string()), req))?;
         let req_obj = threedsecureio::ThreedsecureioPreAuthenticationRequest::try_from(
             &connector_router_data,
         )?;

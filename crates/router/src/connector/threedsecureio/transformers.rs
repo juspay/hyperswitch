@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
-use common_utils::{date_time, types::StringMajorUnit};
+use common_utils::{date_time, types::StringMinorUnit};
 use error_stack::ResultExt;
 use iso_currency::Currency;
 use isocountry;
@@ -23,13 +23,13 @@ use crate::{
 };
 
 pub struct ThreedsecureioRouterData<T> {
-    pub amount: StringMajorUnit,
+    pub amount: StringMinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for ThreedsecureioRouterData<T> {
+impl<T> TryFrom<(StringMinorUnit, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (StringMinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -37,9 +37,9 @@ impl<T> TryFrom<(StringMajorUnit, T)> for ThreedsecureioRouterData<T> {
     }
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for ThreedsecureioRouterData<T> {
+impl<T> TryFrom<(StringMinorUnit, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, router_data): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (StringMinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
