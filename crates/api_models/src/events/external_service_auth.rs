@@ -7,13 +7,13 @@ use crate::external_service_auth::{
 
 impl ApiEventMetric for ExternalTokenResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Hypersense)
+        Some(ApiEventsType::ExternalServiceAuth)
     }
 }
 
 impl ApiEventMetric for ExternalVerifyTokenRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Hypersense)
+        Some(ApiEventsType::ExternalServiceAuth)
     }
 }
 
@@ -27,6 +27,6 @@ impl ApiEventMetric for ExternalVerifyTokenResponse {
 
 impl ApiEventMetric for ExternalSignoutTokenRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Hypersense)
+        Some(ApiEventsType::ExternalServiceAuth)
     }
 }
