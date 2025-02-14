@@ -966,7 +966,7 @@ pub async fn payments_redirect_response(
         creds_identifier: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -984,7 +984,7 @@ pub async fn payments_redirect_response(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 
@@ -1016,7 +1016,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     };
     let flow = Flow::PaymentsRedirect;
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -1034,7 +1034,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 
@@ -1066,7 +1066,7 @@ pub async fn payments_complete_authorize_redirect(
         creds_identifier: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -1085,7 +1085,7 @@ pub async fn payments_complete_authorize_redirect(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 
