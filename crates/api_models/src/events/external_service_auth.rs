@@ -19,9 +19,7 @@ impl ApiEventMetric for ExternalVerifyTokenRequest {
 
 impl ApiEventMetric for ExternalVerifyTokenResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::User {
-            user_id: self.get_user_id().to_string(),
-        })
+        Some(ApiEventsType::ExternalServiceAuth)
     }
 }
 
