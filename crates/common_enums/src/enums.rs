@@ -2421,6 +2421,2709 @@ pub enum CanadaStatesAbbreviation {
 }
 
 #[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum AlbaniaStatesAbbreviation {
+    #[serde(rename = "01")]
+    Berat,
+    #[serde(rename = "09")]
+    Diber,
+    #[serde(rename = "02")]
+    Durres,
+    #[serde(rename = "03")]
+    Elbasan,
+    #[serde(rename = "04")]
+    Fier,
+    #[serde(rename = "05")]
+    Gjirokaster,
+    #[serde(rename = "06")]
+    Korce,
+    #[serde(rename = "07")]
+    Kukes,
+    #[serde(rename = "08")]
+    Lezhe,
+    #[serde(rename = "10")]
+    Shkoder,
+    #[serde(rename = "11")]
+    Tirane,
+    #[serde(rename = "12")]
+    Vlore,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum AndorraStatesAbbreviation {
+    #[serde(rename = "07")]
+    AndorraLaVella,
+    #[serde(rename = "02")]
+    Canillo,
+    #[serde(rename = "03")]
+    Encamp,
+    #[serde(rename = "08")]
+    EscaldesEngordany,
+    #[serde(rename = "04")]
+    LaMassana,
+    #[serde(rename = "05")]
+    Ordino,
+    #[serde(rename = "06")]
+    SantJuliaDeLoria,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum AustriaStatesAbbreviation {
+    #[serde(rename = "1")]
+    Burgenland,
+    #[serde(rename = "2")]
+    Carinthia,
+    #[serde(rename = "3")]
+    LowerAustria,
+    #[serde(rename = "5")]
+    Salzburg,
+    #[serde(rename = "6")]
+    Styria,
+    #[serde(rename = "7")]
+    Tyrol,
+    #[serde(rename = "4")]
+    UpperAustria,
+    #[serde(rename = "9")]
+    Vienna,
+    #[serde(rename = "8")]
+    Vorarlberg,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BelarusStatesAbbreviation {
+    #[serde(rename = "BR")]
+    BrestRegion,
+    #[serde(rename = "HO")]
+    GomelRegion,
+    #[serde(rename = "HR")]
+    GrodnoRegion,
+    #[serde(rename = "HM")]
+    Minsk,
+    #[serde(rename = "MI")]
+    MinskRegion,
+    #[serde(rename = "MA")]
+    MogilevRegion,
+    #[serde(rename = "VI")]
+    VitebskRegion,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BosniaAndHerzegovinaStatesAbbreviation {
+    #[serde(rename = "05")]
+    BosnianPodrinjeCanton,
+    #[serde(rename = "BRC")]
+    BrckoDistrict,
+    #[serde(rename = "10")]
+    Canton10,
+    #[serde(rename = "06")]
+    CentralBosniaCanton,
+    #[serde(rename = "BIH")]
+    FederationOfBosniaAndHerzegovina,
+    #[serde(rename = "07")]
+    HerzegovinaNeretvaCanton,
+    #[serde(rename = "02")]
+    PosavinaCanton,
+    #[serde(rename = "SRP")]
+    RepublikaSrpska,
+    #[serde(rename = "09")]
+    SarajevoCanton,
+    #[serde(rename = "03")]
+    TuzlaCanton,
+    #[serde(rename = "01")]
+    UnaSanaCanton,
+    #[serde(rename = "08")]
+    WestHerzegovinaCanton,
+    #[serde(rename = "04")]
+    ZenicaDobojCanton,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BulgariaStatesAbbreviation {
+    #[serde(rename = "01")]
+    BlagoevgradProvince,
+    #[serde(rename = "02")]
+    BurgasProvince,
+    #[serde(rename = "08")]
+    DobrichProvince,
+    #[serde(rename = "07")]
+    GabrovoProvince,
+    #[serde(rename = "26")]
+    HaskovoProvince,
+    #[serde(rename = "09")]
+    KardzhaliProvince,
+    #[serde(rename = "10")]
+    KyustendilProvince,
+    #[serde(rename = "11")]
+    LovechProvince,
+    #[serde(rename = "12")]
+    MontanaProvince,
+    #[serde(rename = "13")]
+    PazardzhikProvince,
+    #[serde(rename = "14")]
+    PernikProvince,
+    #[serde(rename = "15")]
+    PlevenProvince,
+    #[serde(rename = "16")]
+    PlovdivProvince,
+    #[serde(rename = "17")]
+    RazgradProvince,
+    #[serde(rename = "18")]
+    RuseProvince,
+    #[serde(rename = "27")]
+    Shumen,
+    #[serde(rename = "19")]
+    SilistraProvince,
+    #[serde(rename = "20")]
+    SlivenProvince,
+    #[serde(rename = "21")]
+    SmolyanProvince,
+    #[serde(rename = "22")]
+    SofiaCityProvince,
+    #[serde(rename = "23")]
+    SofiaProvince,
+    #[serde(rename = "24")]
+    StaraZagoraProvince,
+    #[serde(rename = "25")]
+    TargovishteProvince,
+    #[serde(rename = "03")]
+    VarnaProvince,
+    #[serde(rename = "04")]
+    VelikoTarnovoProvince,
+    #[serde(rename = "05")]
+    VidinProvince,
+    #[serde(rename = "06")]
+    VratsaProvince,
+    #[serde(rename = "28")]
+    YambolProvince,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum CroatiaStatesAbbreviation {
+    #[serde(rename = "07")]
+    BjelovarBilogoraCounty,
+    #[serde(rename = "12")]
+    BrodPosavinaCounty,
+    #[serde(rename = "19")]
+    DubrovnikNeretvaCounty,
+    #[serde(rename = "18")]
+    IstriaCounty,
+    #[serde(rename = "06")]
+    KoprivnicaKrizevciCounty,
+    #[serde(rename = "02")]
+    KrapinaZagorjeCounty,
+    #[serde(rename = "09")]
+    LikaSenjCounty,
+    #[serde(rename = "20")]
+    MedimurjeCounty,
+    #[serde(rename = "14")]
+    OsijekBaranjaCounty,
+    #[serde(rename = "11")]
+    PozegaSlavoniaCounty,
+    #[serde(rename = "08")]
+    PrimorjeGorskiKotarCounty,
+    #[serde(rename = "03")]
+    SisakMoslavinaCounty,
+    #[serde(rename = "17")]
+    SplitDalmatiaCounty,
+    #[serde(rename = "05")]
+    VarazdinCounty,
+    #[serde(rename = "10")]
+    ViroviticaPodravinaCounty,
+    #[serde(rename = "16")]
+    VukovarSyrmiaCounty,
+    #[serde(rename = "13")]
+    ZadarCounty,
+    #[serde(rename = "21")]
+    Zagreb,
+    #[serde(rename = "01")]
+    ZagrebCounty,
+    #[serde(rename = "15")]
+    SibenikKninCounty,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum CzechRepublicStatesAbbreviation {
+    #[serde(rename = "201")]
+    BenesovDistrict,
+    #[serde(rename = "202")]
+    BerounDistrict,
+    #[serde(rename = "641")]
+    BlanskoDistrict,
+    #[serde(rename = "642")]
+    BrnoCityDistrict,
+    #[serde(rename = "643")]
+    BrnoCountryDistrict,
+    #[serde(rename = "801")]
+    BruntalDistrict,
+    #[serde(rename = "644")]
+    BreclavDistrict,
+    #[serde(rename = "20")]
+    CentralBohemianRegion,
+    #[serde(rename = "411")]
+    ChebDistrict,
+    #[serde(rename = "422")]
+    ChomutovDistrict,
+    #[serde(rename = "531")]
+    ChrudimDistrict,
+    #[serde(rename = "321")]
+    DomazliceDistrict,
+    #[serde(rename = "421")]
+    DecinDistrict,
+    #[serde(rename = "802")]
+    FrydekMistekDistrict,
+    #[serde(rename = "631")]
+    HavlickuvBrodDistrict,
+    #[serde(rename = "645")]
+    HodoninDistrict,
+    #[serde(rename = "120")]
+    HorniPocernice,
+    #[serde(rename = "521")]
+    HradecKraloveDistrict,
+    #[serde(rename = "52")]
+    HradecKraloveRegion,
+    #[serde(rename = "512")]
+    JablonecNadNisouDistrict,
+    #[serde(rename = "711")]
+    JesenikDistrict,
+    #[serde(rename = "632")]
+    JihlavaDistrict,
+    #[serde(rename = "313")]
+    JindrichuvHradecDistrict,
+    #[serde(rename = "522")]
+    JicinDistrict,
+    #[serde(rename = "412")]
+    KarlovyVaryDistrict,
+    #[serde(rename = "41")]
+    KarlovyVaryRegion,
+    #[serde(rename = "803")]
+    KarvinaDistrict,
+    #[serde(rename = "203")]
+    KladnoDistrict,
+    #[serde(rename = "322")]
+    KlatovyDistrict,
+    #[serde(rename = "204")]
+    KolinDistrict,
+    #[serde(rename = "721")]
+    KromerizDistrict,
+    #[serde(rename = "513")]
+    LiberecDistrict,
+    #[serde(rename = "51")]
+    LiberecRegion,
+    #[serde(rename = "423")]
+    LitomericeDistrict,
+    #[serde(rename = "424")]
+    LounyDistrict,
+    #[serde(rename = "207")]
+    MladaBoleslavDistrict,
+    #[serde(rename = "80")]
+    MoravianSilesianRegion,
+    #[serde(rename = "425")]
+    MostDistrict,
+    #[serde(rename = "206")]
+    MelnikDistrict,
+    #[serde(rename = "804")]
+    NovyJicinDistrict,
+    #[serde(rename = "208")]
+    NymburkDistrict,
+    #[serde(rename = "523")]
+    NachodDistrict,
+    #[serde(rename = "712")]
+    OlomoucDistrict,
+    #[serde(rename = "71")]
+    OlomoucRegion,
+    #[serde(rename = "805")]
+    OpavaDistrict,
+    #[serde(rename = "806")]
+    OstravaCityDistrict,
+    #[serde(rename = "532")]
+    PardubiceDistrict,
+    #[serde(rename = "53")]
+    PardubiceRegion,
+    #[serde(rename = "633")]
+    PelhrimovDistrict,
+    #[serde(rename = "32")]
+    PlzenRegion,
+    #[serde(rename = "323")]
+    PlzenCityDistrict,
+    #[serde(rename = "325")]
+    PlzenNorthDistrict,
+    #[serde(rename = "324")]
+    PlzenSouthDistrict,
+    #[serde(rename = "315")]
+    PrachaticeDistrict,
+    #[serde(rename = "10")]
+    Prague,
+    #[serde(rename = "101")]
+    Prague1,
+    #[serde(rename = "110")]
+    Prague10,
+    #[serde(rename = "111")]
+    Prague11,
+    #[serde(rename = "112")]
+    Prague12,
+    #[serde(rename = "113")]
+    Prague13,
+    #[serde(rename = "114")]
+    Prague14,
+    #[serde(rename = "115")]
+    Prague15,
+    #[serde(rename = "116")]
+    Prague16,
+    #[serde(rename = "102")]
+    Prague2,
+    #[serde(rename = "121")]
+    Prague21,
+    #[serde(rename = "103")]
+    Prague3,
+    #[serde(rename = "104")]
+    Prague4,
+    #[serde(rename = "105")]
+    Prague5,
+    #[serde(rename = "106")]
+    Prague6,
+    #[serde(rename = "107")]
+    Prague7,
+    #[serde(rename = "108")]
+    Prague8,
+    #[serde(rename = "109")]
+    Prague9,
+    #[serde(rename = "209")]
+    PragueEastDistrict,
+    #[serde(rename = "20A")]
+    PragueWestDistrict,
+    #[serde(rename = "713")]
+    ProstejovDistrict,
+    #[serde(rename = "314")]
+    PisekDistrict,
+    #[serde(rename = "714")]
+    PrerovDistrict,
+    #[serde(rename = "20B")]
+    PribramDistrict,
+    #[serde(rename = "20C")]
+    RakovnikDistrict,
+    #[serde(rename = "326")]
+    RokycanyDistrict,
+    #[serde(rename = "524")]
+    RychnovNadKneznouDistrict,
+    #[serde(rename = "514")]
+    SemilyDistrict,
+    #[serde(rename = "413")]
+    SokolovDistrict,
+    #[serde(rename = "31")]
+    SouthBohemianRegion,
+    #[serde(rename = "64")]
+    SouthMoravianRegion,
+    #[serde(rename = "316")]
+    StrakoniceDistrict,
+    #[serde(rename = "533")]
+    SvitavyDistrict,
+    #[serde(rename = "327")]
+    TachovDistrict,
+    #[serde(rename = "426")]
+    TepliceDistrict,
+    #[serde(rename = "525")]
+    TrutnovDistrict,
+    #[serde(rename = "317")]
+    TaborDistrict,
+    #[serde(rename = "634")]
+    TrebicDistrict,
+    #[serde(rename = "722")]
+    UherskeHradisteDistrict,
+    #[serde(rename = "723")]
+    VsetinDistrict,
+    #[serde(rename = "63")]
+    VysocinaRegion,
+    #[serde(rename = "646")]
+    VyskovDistrict,
+    #[serde(rename = "724")]
+    ZlinDistrict,
+    #[serde(rename = "72")]
+    ZlinRegion,
+    #[serde(rename = "647")]
+    ZnojmoDistrict,
+    #[serde(rename = "427")]
+    UstiNadLabemDistrict,
+    #[serde(rename = "42")]
+    UstiNadLabemRegion,
+    #[serde(rename = "534")]
+    UstiNadOrliciDistrict,
+    #[serde(rename = "511")]
+    CeskaLipaDistrict,
+    #[serde(rename = "311")]
+    CeskeBudejoviceDistrict,
+    #[serde(rename = "312")]
+    CeskyKrumlovDistrict,
+    #[serde(rename = "715")]
+    SumperkDistrict,
+    #[serde(rename = "635")]
+    ZdarNadSazavouDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum DenmarkStatesAbbreviation {
+    #[serde(rename = "84")]
+    CapitalRegionOfDenmark,
+    #[serde(rename = "82")]
+    CentralDenmarkRegion,
+    #[serde(rename = "81")]
+    NorthDenmarkRegion,
+    #[serde(rename = "85")]
+    RegionZealand,
+    #[serde(rename = "83")]
+    RegionOfSouthernDenmark,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum FinlandStatesAbbreviation {
+    #[serde(rename = "08")]
+    CentralFinland,
+    #[serde(rename = "07")]
+    CentralOstrobothnia,
+    #[serde(rename = "IS")]
+    EasternFinlandProvince,
+    #[serde(rename = "19")]
+    FinlandProper,
+    #[serde(rename = "05")]
+    Kainuu,
+    #[serde(rename = "09")]
+    Kymenlaakso,
+    #[serde(rename = "LL")]
+    Lapland,
+    #[serde(rename = "13")]
+    NorthKarelia,
+    #[serde(rename = "14")]
+    NorthernOstrobothnia,
+    #[serde(rename = "15")]
+    NorthernSavonia,
+    #[serde(rename = "12")]
+    Ostrobothnia,
+    #[serde(rename = "OL")]
+    OuluProvince,
+    #[serde(rename = "11")]
+    Pirkanmaa,
+    #[serde(rename = "16")]
+    PaijanneTavastia,
+    #[serde(rename = "17")]
+    Satakunta,
+    #[serde(rename = "02")]
+    SouthKarelia,
+    #[serde(rename = "03")]
+    SouthernOstrobothnia,
+    #[serde(rename = "04")]
+    SouthernSavonia,
+    #[serde(rename = "06")]
+    TavastiaProper,
+    #[serde(rename = "18")]
+    Uusimaa,
+    #[serde(rename = "01")]
+    AlandIslands,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum FranceStatesAbbreviation {
+    #[serde(rename = "WF-AL")]
+    Alo,
+    #[serde(rename = "A")]
+    Alsace,
+    #[serde(rename = "B")]
+    Aquitaine,
+    #[serde(rename = "C")]
+    Auvergne,
+    #[serde(rename = "ARA")]
+    AuvergneRhoneAlpes,
+    #[serde(rename = "BFC")]
+    BourgogneFrancheComte,
+    #[serde(rename = "BRE")]
+    Brittany,
+    #[serde(rename = "D")]
+    Burgundy,
+    #[serde(rename = "CVL")]
+    CentreValDeLoire,
+    #[serde(rename = "G")]
+    ChampagneArdenne,
+    #[serde(rename = "COR")]
+    Corsica,
+    #[serde(rename = "I")]
+    FrancheComte,
+    #[serde(rename = "GF")]
+    FrenchGuiana,
+    #[serde(rename = "PF")]
+    FrenchPolynesia,
+    #[serde(rename = "GES")]
+    GrandEst,
+    #[serde(rename = "GP")]
+    Guadeloupe,
+    #[serde(rename = "HDF")]
+    HautsDeFrance,
+    #[serde(rename = "K")]
+    LanguedocRoussillon,
+    #[serde(rename = "L")]
+    Limousin,
+    #[serde(rename = "M")]
+    Lorraine,
+    #[serde(rename = "P")]
+    LowerNormandy,
+    #[serde(rename = "MQ")]
+    Martinique,
+    #[serde(rename = "YT")]
+    Mayotte,
+    #[serde(rename = "O")]
+    NordPasDeCalais,
+    #[serde(rename = "NOR")]
+    Normandy,
+    #[serde(rename = "NAQ")]
+    NouvelleAquitaine,
+    #[serde(rename = "OCC")]
+    Occitania,
+    #[serde(rename = "75")]
+    Paris,
+    #[serde(rename = "PDL")]
+    PaysDeLaLoire,
+    #[serde(rename = "S")]
+    Picardy,
+    #[serde(rename = "T")]
+    PoitouCharentes,
+    #[serde(rename = "PAC")]
+    ProvenceAlpesCoteDAzur,
+    #[serde(rename = "V")]
+    RhoneAlpes,
+    #[serde(rename = "RE")]
+    Reunion,
+    #[serde(rename = "BL")]
+    SaintBarthelemy,
+    #[serde(rename = "MF")]
+    SaintMartin,
+    #[serde(rename = "PM")]
+    SaintPierreAndMiquelon,
+    #[serde(rename = "WF-SG")]
+    Sigave,
+    #[serde(rename = "Q")]
+    UpperNormandy,
+    #[serde(rename = "WF-UV")]
+    Uvea,
+    #[serde(rename = "WF")]
+    WallisAndFutuna,
+    #[serde(rename = "IDF")]
+    IleDeFrance,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum GermanyStatesAbbreviation {
+    #[serde(rename = "BW")]
+    BadenWurttemberg,
+    #[serde(rename = "BY")]
+    Bavaria,
+    #[serde(rename = "BE")]
+    Berlin,
+    #[serde(rename = "BB")]
+    Brandenburg,
+    #[serde(rename = "HB")]
+    Bremen,
+    #[serde(rename = "HH")]
+    Hamburg,
+    #[serde(rename = "HE")]
+    Hesse,
+    #[serde(rename = "NI")]
+    LowerSaxony,
+    #[serde(rename = "MV")]
+    MecklenburgVorpommern,
+    #[serde(rename = "NW")]
+    NorthRhineWestphalia,
+    #[serde(rename = "RP")]
+    RhinelandPalatinate,
+    #[serde(rename = "SL")]
+    Saarland,
+    #[serde(rename = "SN")]
+    Saxony,
+    #[serde(rename = "ST")]
+    SaxonyAnhalt,
+    #[serde(rename = "SH")]
+    SchleswigHolstein,
+    #[serde(rename = "TH")]
+    Thuringia,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum GreeceStatesAbbreviation {
+    #[serde(rename = "13")]
+    AchaeaRegionalUnit,
+    #[serde(rename = "01")]
+    AetoliaAcarnaniaRegionalUnit,
+    #[serde(rename = "12")]
+    ArcadiaPrefecture,
+    #[serde(rename = "11")]
+    ArgolisRegionalUnit,
+    #[serde(rename = "I")]
+    AtticaRegion,
+    #[serde(rename = "03")]
+    BoeotiaRegionalUnit,
+    #[serde(rename = "H")]
+    CentralGreeceRegion,
+    #[serde(rename = "B")]
+    CentralMacedonia,
+    #[serde(rename = "94")]
+    ChaniaRegionalUnit,
+    #[serde(rename = "22")]
+    CorfuPrefecture,
+    #[serde(rename = "15")]
+    CorinthiaRegionalUnit,
+    #[serde(rename = "M")]
+    CreteRegion,
+    #[serde(rename = "52")]
+    DramaRegionalUnit,
+    #[serde(rename = "A2")]
+    EastAtticaRegionalUnit,
+    #[serde(rename = "A")]
+    EastMacedoniaAndThrace,
+    #[serde(rename = "D")]
+    EpirusRegion,
+    #[serde(rename = "04")]
+    Euboea,
+    #[serde(rename = "51")]
+    GrevenaPrefecture,
+    #[serde(rename = "53")]
+    ImathiaRegionalUnit,
+    #[serde(rename = "33")]
+    IoanninaRegionalUnit,
+    #[serde(rename = "F")]
+    IonianIslandsRegion,
+    #[serde(rename = "41")]
+    KarditsaRegionalUnit,
+    #[serde(rename = "56")]
+    KastoriaRegionalUnit,
+    #[serde(rename = "23")]
+    KefaloniaPrefecture,
+    #[serde(rename = "57")]
+    KilkisRegionalUnit,
+    #[serde(rename = "58")]
+    KozaniPrefecture,
+    #[serde(rename = "16")]
+    Laconia,
+    #[serde(rename = "42")]
+    LarissaPrefecture,
+    #[serde(rename = "24")]
+    LefkadaRegionalUnit,
+    #[serde(rename = "59")]
+    PellaRegionalUnit,
+    #[serde(rename = "J")]
+    PeloponneseRegion,
+    #[serde(rename = "06")]
+    PhthiotisPrefecture,
+    #[serde(rename = "34")]
+    PrevezaPrefecture,
+    #[serde(rename = "62")]
+    SerresPrefecture,
+    #[serde(rename = "L")]
+    SouthAegean,
+    #[serde(rename = "54")]
+    ThessalonikiRegionalUnit,
+    #[serde(rename = "G")]
+    WestGreeceRegion,
+    #[serde(rename = "C")]
+    WestMacedoniaRegion,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum HungaryStatesAbbreviation {
+    #[serde(rename = "BA")]
+    BaranyaCounty,
+    #[serde(rename = "BZ")]
+    BorsodAbaujZemplenCounty,
+    #[serde(rename = "BU")]
+    Budapest,
+    #[serde(rename = "BK")]
+    BacsKiskunCounty,
+    #[serde(rename = "BE")]
+    BekesCounty,
+    #[serde(rename = "BC")]
+    Bekescsaba,
+    #[serde(rename = "CS")]
+    CsongradCounty,
+    #[serde(rename = "DE")]
+    Debrecen,
+    #[serde(rename = "DU")]
+    Dunaujvaros,
+    #[serde(rename = "EG")]
+    Eger,
+    #[serde(rename = "FE")]
+    FejerCounty,
+    #[serde(rename = "GY")]
+    Gyor,
+    #[serde(rename = "GS")]
+    GyorMosonSopronCounty,
+    #[serde(rename = "HB")]
+    HajduBiharCounty,
+    #[serde(rename = "HE")]
+    HevesCounty,
+    #[serde(rename = "HV")]
+    Hodmezovasarhely,
+    #[serde(rename = "JN")]
+    JaszNagykunSzolnokCounty,
+    #[serde(rename = "KV")]
+    Kaposvar,
+    #[serde(rename = "KM")]
+    Kecskemet,
+    #[serde(rename = "MI")]
+    Miskolc,
+    #[serde(rename = "NK")]
+    Nagykanizsa,
+    #[serde(rename = "NY")]
+    Nyiregyhaza,
+    #[serde(rename = "NO")]
+    NogradCounty,
+    #[serde(rename = "PE")]
+    PestCounty,
+    #[serde(rename = "PS")]
+    Pecs,
+    #[serde(rename = "ST")]
+    Salgotarjan,
+    #[serde(rename = "SO")]
+    SomogyCounty,
+    #[serde(rename = "SN")]
+    Sopron,
+    #[serde(rename = "SZ")]
+    SzabolcsSzatmarBeregCounty,
+    #[serde(rename = "SD")]
+    Szeged,
+    #[serde(rename = "SS")]
+    Szekszard,
+    #[serde(rename = "SK")]
+    Szolnok,
+    #[serde(rename = "SH")]
+    Szombathely,
+    #[serde(rename = "SF")]
+    Szekesfehervar,
+    #[serde(rename = "TB")]
+    Tatabanya,
+    #[serde(rename = "TO")]
+    TolnaCounty,
+    #[serde(rename = "VA")]
+    VasCounty,
+    #[serde(rename = "VM")]
+    Veszprem,
+    #[serde(rename = "VE")]
+    VeszpremCounty,
+    #[serde(rename = "ZA")]
+    ZalaCounty,
+    #[serde(rename = "ZE")]
+    Zalaegerszeg,
+    #[serde(rename = "ER")]
+    Erd,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum IcelandStatesAbbreviation {
+    #[serde(rename = "1")]
+    CapitalRegion,
+    #[serde(rename = "7")]
+    EasternRegion,
+    #[serde(rename = "6")]
+    NortheasternRegion,
+    #[serde(rename = "5")]
+    NorthwesternRegion,
+    #[serde(rename = "2")]
+    SouthernPeninsulaRegion,
+    #[serde(rename = "8")]
+    SouthernRegion,
+    #[serde(rename = "3")]
+    WesternRegion,
+    #[serde(rename = "4")]
+    Westfjords,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum IrelandStatesAbbreviation {
+    #[serde(rename = "C")]
+    Connacht,
+    #[serde(rename = "CW")]
+    CountyCarlow,
+    #[serde(rename = "CN")]
+    CountyCavan,
+    #[serde(rename = "CE")]
+    CountyClare,
+    #[serde(rename = "CO")]
+    CountyCork,
+    #[serde(rename = "DL")]
+    CountyDonegal,
+    #[serde(rename = "D")]
+    CountyDublin,
+    #[serde(rename = "G")]
+    CountyGalway,
+    #[serde(rename = "KY")]
+    CountyKerry,
+    #[serde(rename = "KE")]
+    CountyKildare,
+    #[serde(rename = "KK")]
+    CountyKilkenny,
+    #[serde(rename = "LS")]
+    CountyLaois,
+    #[serde(rename = "LK")]
+    CountyLimerick,
+    #[serde(rename = "LD")]
+    CountyLongford,
+    #[serde(rename = "LH")]
+    CountyLouth,
+    #[serde(rename = "MO")]
+    CountyMayo,
+    #[serde(rename = "MH")]
+    CountyMeath,
+    #[serde(rename = "MN")]
+    CountyMonaghan,
+    #[serde(rename = "OY")]
+    CountyOffaly,
+    #[serde(rename = "RN")]
+    CountyRoscommon,
+    #[serde(rename = "SO")]
+    CountySligo,
+    #[serde(rename = "TA")]
+    CountyTipperary,
+    #[serde(rename = "WD")]
+    CountyWaterford,
+    #[serde(rename = "WH")]
+    CountyWestmeath,
+    #[serde(rename = "WX")]
+    CountyWexford,
+    #[serde(rename = "WW")]
+    CountyWicklow,
+    #[serde(rename = "L")]
+    Leinster,
+    #[serde(rename = "M")]
+    Munster,
+    #[serde(rename = "U")]
+    Ulster,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum LatviaStatesAbbreviation {
+    #[serde(rename = "001")]
+    AglonaMunicipality,
+    #[serde(rename = "002")]
+    AizkraukleMunicipality,
+    #[serde(rename = "003")]
+    AizputeMunicipality,
+    #[serde(rename = "004")]
+    AknīsteMunicipality,
+    #[serde(rename = "005")]
+    AlojaMunicipality,
+    #[serde(rename = "006")]
+    AlsungaMunicipality,
+    #[serde(rename = "007")]
+    AlūksneMunicipality,
+    #[serde(rename = "008")]
+    AmataMunicipality,
+    #[serde(rename = "009")]
+    ApeMunicipality,
+    #[serde(rename = "010")]
+    AuceMunicipality,
+    #[serde(rename = "012")]
+    BabīteMunicipality,
+    #[serde(rename = "013")]
+    BaldoneMunicipality,
+    #[serde(rename = "014")]
+    BaltinavaMunicipality,
+    #[serde(rename = "015")]
+    BalviMunicipality,
+    #[serde(rename = "016")]
+    BauskaMunicipality,
+    #[serde(rename = "017")]
+    BeverīnaMunicipality,
+    #[serde(rename = "018")]
+    BrocēniMunicipality,
+    #[serde(rename = "019")]
+    BurtniekiMunicipality,
+    #[serde(rename = "020")]
+    CarnikavaMunicipality,
+    #[serde(rename = "021")]
+    CesvaineMunicipality,
+    #[serde(rename = "023")]
+    CiblaMunicipality,
+    #[serde(rename = "022")]
+    CēsisMunicipality,
+    #[serde(rename = "024")]
+    DagdaMunicipality,
+    #[serde(rename = "DGV")]
+    Daugavpils,
+    #[serde(rename = "025")]
+    DaugavpilsMunicipality,
+    #[serde(rename = "026")]
+    DobeleMunicipality,
+    #[serde(rename = "027")]
+    DundagaMunicipality,
+    #[serde(rename = "028")]
+    DurbeMunicipality,
+    #[serde(rename = "029")]
+    EngureMunicipality,
+    #[serde(rename = "031")]
+    GarkalneMunicipality,
+    #[serde(rename = "032")]
+    GrobiņaMunicipality,
+    #[serde(rename = "033")]
+    GulbeneMunicipality,
+    #[serde(rename = "034")]
+    IecavaMunicipality,
+    #[serde(rename = "035")]
+    IkšķileMunicipality,
+    #[serde(rename = "036")]
+    IlūksteMunicipality,
+    #[serde(rename = "037")]
+    InčukalnsMunicipality,
+    #[serde(rename = "038")]
+    JaunjelgavaMunicipality,
+    #[serde(rename = "039")]
+    JaunpiebalgaMunicipality,
+    #[serde(rename = "040")]
+    JaunpilsMunicipality,
+    #[serde(rename = "JEL")]
+    Jelgava,
+    #[serde(rename = "041")]
+    JelgavaMunicipality,
+    #[serde(rename = "JKB")]
+    Jēkabpils,
+    #[serde(rename = "042")]
+    JēkabpilsMunicipality,
+    #[serde(rename = "JUR")]
+    Jūrmala,
+    #[serde(rename = "043")]
+    KandavaMunicipality,
+    #[serde(rename = "045")]
+    KocēniMunicipality,
+    #[serde(rename = "046")]
+    KokneseMunicipality,
+    #[serde(rename = "048")]
+    KrimuldaMunicipality,
+    #[serde(rename = "049")]
+    KrustpilsMunicipality,
+    #[serde(rename = "047")]
+    KrāslavaMunicipality,
+    #[serde(rename = "050")]
+    KuldīgaMunicipality,
+    #[serde(rename = "044")]
+    KārsavaMunicipality,
+    #[serde(rename = "053")]
+    LielvārdeMunicipality,
+    #[serde(rename = "LPX")]
+    Liepāja,
+    #[serde(rename = "054")]
+    LimbažiMunicipality,
+    #[serde(rename = "057")]
+    LubānaMunicipality,
+    #[serde(rename = "058")]
+    LudzaMunicipality,
+    #[serde(rename = "055")]
+    LīgatneMunicipality,
+    #[serde(rename = "056")]
+    LīvāniMunicipality,
+    #[serde(rename = "059")]
+    MadonaMunicipality,
+    #[serde(rename = "060")]
+    MazsalacaMunicipality,
+    #[serde(rename = "061")]
+    MālpilsMunicipality,
+    #[serde(rename = "062")]
+    MārupeMunicipality,
+    #[serde(rename = "063")]
+    MērsragsMunicipality,
+    #[serde(rename = "064")]
+    NaukšēniMunicipality,
+    #[serde(rename = "065")]
+    NeretaMunicipality,
+    #[serde(rename = "066")]
+    NīcaMunicipality,
+    #[serde(rename = "067")]
+    OgreMunicipality,
+    #[serde(rename = "068")]
+    OlaineMunicipality,
+    #[serde(rename = "069")]
+    OzolniekiMunicipality,
+    #[serde(rename = "073")]
+    PreiļiMunicipality,
+    #[serde(rename = "074")]
+    PriekuleMunicipality,
+    #[serde(rename = "075")]
+    PriekuļiMunicipality,
+    #[serde(rename = "070")]
+    PārgaujaMunicipality,
+    #[serde(rename = "071")]
+    PāvilostaMunicipality,
+    #[serde(rename = "072")]
+    PļaviņasMunicipality,
+    #[serde(rename = "076")]
+    RaunaMunicipality,
+    #[serde(rename = "078")]
+    RiebiņiMunicipality,
+    #[serde(rename = "RIX")]
+    Riga,
+    #[serde(rename = "079")]
+    RojaMunicipality,
+    #[serde(rename = "080")]
+    RopažiMunicipality,
+    #[serde(rename = "081")]
+    RucavaMunicipality,
+    #[serde(rename = "082")]
+    RugājiMunicipality,
+    #[serde(rename = "083")]
+    RundāleMunicipality,
+    #[serde(rename = "REZ")]
+    Rēzekne,
+    #[serde(rename = "077")]
+    RēzekneMunicipality,
+    #[serde(rename = "084")]
+    RūjienaMunicipality,
+    #[serde(rename = "085")]
+    SalaMunicipality,
+    #[serde(rename = "086")]
+    SalacgrīvaMunicipality,
+    #[serde(rename = "087")]
+    SalaspilsMunicipality,
+    #[serde(rename = "088")]
+    SaldusMunicipality,
+    #[serde(rename = "089")]
+    SaulkrastiMunicipality,
+    #[serde(rename = "091")]
+    SiguldaMunicipality,
+    #[serde(rename = "093")]
+    SkrundaMunicipality,
+    #[serde(rename = "092")]
+    SkrīveriMunicipality,
+    #[serde(rename = "094")]
+    SmilteneMunicipality,
+    #[serde(rename = "095")]
+    StopiņiMunicipality,
+    #[serde(rename = "096")]
+    StrenčiMunicipality,
+    #[serde(rename = "090")]
+    SējaMunicipality,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum ItalyStatesAbbreviation {
+    #[serde(rename = "65")]
+    Abruzzo,
+    #[serde(rename = "23")]
+    AostaValley,
+    #[serde(rename = "75")]
+    Apulia,
+    #[serde(rename = "77")]
+    Basilicata,
+    #[serde(rename = "BN")]
+    BeneventoProvince,
+    #[serde(rename = "78")]
+    Calabria,
+    #[serde(rename = "72")]
+    Campania,
+    #[serde(rename = "45")]
+    EmiliaRomagna,
+    #[serde(rename = "36")]
+    FriuliVeneziaGiulia,
+    #[serde(rename = "62")]
+    Lazio,
+    #[serde(rename = "42")]
+    Liguria,
+    #[serde(rename = "25")]
+    Lombardy,
+    #[serde(rename = "57")]
+    Marche,
+    #[serde(rename = "67")]
+    Molise,
+    #[serde(rename = "21")]
+    Piedmont,
+    #[serde(rename = "88")]
+    Sardinia,
+    #[serde(rename = "82")]
+    Sicily,
+    #[serde(rename = "32")]
+    TrentinoSouthTyrol,
+    #[serde(rename = "52")]
+    Tuscany,
+    #[serde(rename = "55")]
+    Umbria,
+    #[serde(rename = "34")]
+    Veneto,
+    #[serde(rename = "AG")]
+    Agrigento,
+    #[serde(rename = "CL")]
+    Caltanissetta,
+    #[serde(rename = "EN")]
+    Enna,
+    #[serde(rename = "RG")]
+    Ragusa,
+    #[serde(rename = "SR")]
+    Siracusa,
+    #[serde(rename = "TP")]
+    Trapani,
+    #[serde(rename = "BA")]
+    Bari,
+    #[serde(rename = "BO")]
+    Bologna,
+    #[serde(rename = "CA")]
+    Cagliari,
+    #[serde(rename = "CT")]
+    Catania,
+    #[serde(rename = "FI")]
+    Florence,
+    #[serde(rename = "GE")]
+    Genoa,
+    #[serde(rename = "ME")]
+    Messina,
+    #[serde(rename = "MI")]
+    Milan,
+    #[serde(rename = "NA")]
+    Naples,
+    #[serde(rename = "PA")]
+    Palermo,
+    #[serde(rename = "RC")]
+    ReggioCalabria,
+    #[serde(rename = "RM")]
+    Rome,
+    #[serde(rename = "TO")]
+    Turin,
+    #[serde(rename = "VE")]
+    Venice,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum LiechtensteinStatesAbbreviation {
+    #[serde(rename = "01")]
+    Balzers,
+    #[serde(rename = "02")]
+    Eschen,
+    #[serde(rename = "03")]
+    Gamprin,
+    #[serde(rename = "04")]
+    Mauren,
+    #[serde(rename = "05")]
+    Planken,
+    #[serde(rename = "06")]
+    Ruggell,
+    #[serde(rename = "07")]
+    Schaan,
+    #[serde(rename = "08")]
+    Schellenberg,
+    #[serde(rename = "09")]
+    Triesen,
+    #[serde(rename = "10")]
+    Triesenberg,
+    #[serde(rename = "11")]
+    Vaduz,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum LithuaniaStatesAbbreviation {
+    #[serde(rename = "01")]
+    AkmeneDistrictMunicipality,
+    #[serde(rename = "02")]
+    AlytusCityMunicipality,
+    #[serde(rename = "AL")]
+    AlytusCounty,
+    #[serde(rename = "03")]
+    AlytusDistrictMunicipality,
+    #[serde(rename = "05")]
+    BirstonasMunicipality,
+    #[serde(rename = "06")]
+    BirzaiDistrictMunicipality,
+    #[serde(rename = "07")]
+    DruskininkaiMunicipality,
+    #[serde(rename = "08")]
+    ElektrenaiMunicipality,
+    #[serde(rename = "09")]
+    IgnalinaDistrictMunicipality,
+    #[serde(rename = "10")]
+    JonavaDistrictMunicipality,
+    #[serde(rename = "11")]
+    JoniskisDistrictMunicipality,
+    #[serde(rename = "12")]
+    JurbarkasDistrictMunicipality,
+    #[serde(rename = "13")]
+    KaisiadorysDistrictMunicipality,
+    #[serde(rename = "14")]
+    KalvarijaMunicipality,
+    #[serde(rename = "15")]
+    KaunasCityMunicipality,
+    #[serde(rename = "KU")]
+    KaunasCounty,
+    #[serde(rename = "16")]
+    KaunasDistrictMunicipality,
+    #[serde(rename = "17")]
+    KazluRudaMunicipality,
+    #[serde(rename = "19")]
+    KelmeDistrictMunicipality,
+    #[serde(rename = "20")]
+    KlaipedaCityMunicipality,
+    #[serde(rename = "KL")]
+    KlaipedaCounty,
+    #[serde(rename = "21")]
+    KlaipedaDistrictMunicipality,
+    #[serde(rename = "22")]
+    KretingaDistrictMunicipality,
+    #[serde(rename = "23")]
+    KupiskisDistrictMunicipality,
+    #[serde(rename = "18")]
+    KedainiaiDistrictMunicipality,
+    #[serde(rename = "24")]
+    LazdijaiDistrictMunicipality,
+    #[serde(rename = "MR")]
+    MarijampoleCounty,
+    #[serde(rename = "25")]
+    MarijampoleMunicipality,
+    #[serde(rename = "26")]
+    MazeikiaiDistrictMunicipality,
+    #[serde(rename = "27")]
+    MoletaiDistrictMunicipality,
+    #[serde(rename = "28")]
+    NeringaMunicipality,
+    #[serde(rename = "29")]
+    PagegiaiMunicipality,
+    #[serde(rename = "30")]
+    PakruojisDistrictMunicipality,
+    #[serde(rename = "31")]
+    PalangaCityMunicipality,
+    #[serde(rename = "32")]
+    PanevezysCityMunicipality,
+    #[serde(rename = "PN")]
+    PanevezysCounty,
+    #[serde(rename = "33")]
+    PanevezysDistrictMunicipality,
+    #[serde(rename = "34")]
+    PasvalysDistrictMunicipality,
+    #[serde(rename = "35")]
+    PlungeDistrictMunicipality,
+    #[serde(rename = "36")]
+    PrienaiDistrictMunicipality,
+    #[serde(rename = "37")]
+    RadviliskisDistrictMunicipality,
+    #[serde(rename = "38")]
+    RaseiniaiDistrictMunicipality,
+    #[serde(rename = "39")]
+    RietavasMunicipality,
+    #[serde(rename = "40")]
+    RokiskisDistrictMunicipality,
+    #[serde(rename = "48")]
+    SkuodasDistrictMunicipality,
+    #[serde(rename = "TA")]
+    TaurageCounty,
+    #[serde(rename = "50")]
+    TaurageDistrictMunicipality,
+    #[serde(rename = "TE")]
+    TelsiaiCounty,
+    #[serde(rename = "51")]
+    TelsiaiDistrictMunicipality,
+    #[serde(rename = "52")]
+    TrakaiDistrictMunicipality,
+    #[serde(rename = "53")]
+    UkmergeDistrictMunicipality,
+    #[serde(rename = "UT")]
+    UtenaCounty,
+    #[serde(rename = "54")]
+    UtenaDistrictMunicipality,
+    #[serde(rename = "55")]
+    VarenaDistrictMunicipality,
+    #[serde(rename = "56")]
+    VilkaviskisDistrictMunicipality,
+    #[serde(rename = "57")]
+    VilniusCityMunicipality,
+    #[serde(rename = "VL")]
+    VilniusCounty,
+    #[serde(rename = "58")]
+    VilniusDistrictMunicipality,
+    #[serde(rename = "59")]
+    VisaginasMunicipality,
+    #[serde(rename = "60")]
+    ZarasaiDistrictMunicipality,
+    #[serde(rename = "41")]
+    SakiaiDistrictMunicipality,
+    #[serde(rename = "42")]
+    SalcininkaiDistrictMunicipality,
+    #[serde(rename = "43")]
+    SiauliaiCityMunicipality,
+    #[serde(rename = "SA")]
+    SiauliaiCounty,
+    #[serde(rename = "44")]
+    SiauliaiDistrictMunicipality,
+    #[serde(rename = "45")]
+    SilaleDistrictMunicipality,
+    #[serde(rename = "46")]
+    SiluteDistrictMunicipality,
+    #[serde(rename = "47")]
+    SirvintosDistrictMunicipality,
+    #[serde(rename = "49")]
+    SvencionysDistrictMunicipality,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum MaltaStatesAbbreviation {
+    #[serde(rename = "01")]
+    Attard,
+    #[serde(rename = "02")]
+    Balzan,
+    #[serde(rename = "03")]
+    Birgu,
+    #[serde(rename = "04")]
+    Birkirkara,
+    #[serde(rename = "05")]
+    Birzebbuga,
+    #[serde(rename = "06")]
+    Cospicua,
+    #[serde(rename = "07")]
+    Dingli,
+    #[serde(rename = "08")]
+    Fgura,
+    #[serde(rename = "09")]
+    Floriana,
+    #[serde(rename = "10")]
+    Fontana,
+    #[serde(rename = "11")]
+    Gudja,
+    #[serde(rename = "12")]
+    Gzira,
+    #[serde(rename = "13")]
+    Ghajnsielem,
+    #[serde(rename = "14")]
+    Gharb,
+    #[serde(rename = "15")]
+    Gharghur,
+    #[serde(rename = "16")]
+    Ghasri,
+    #[serde(rename = "17")]
+    Ghaxaq,
+    #[serde(rename = "18")]
+    Hamrun,
+    #[serde(rename = "19")]
+    Iklin,
+    #[serde(rename = "20")]
+    Senglea,
+    #[serde(rename = "21")]
+    Kalkara,
+    #[serde(rename = "22")]
+    Kercem,
+    #[serde(rename = "23")]
+    Kirkop,
+    #[serde(rename = "24")]
+    Lija,
+    #[serde(rename = "25")]
+    Luqa,
+    #[serde(rename = "26")]
+    Marsa,
+    #[serde(rename = "27")]
+    Marsaskala,
+    #[serde(rename = "28")]
+    Marsaxlokk,
+    #[serde(rename = "29")]
+    Mdina,
+    #[serde(rename = "30")]
+    Mellieha,
+    #[serde(rename = "31")]
+    Mgarr,
+    #[serde(rename = "32")]
+    Mosta,
+    #[serde(rename = "33")]
+    Mqabba,
+    #[serde(rename = "34")]
+    Msida,
+    #[serde(rename = "35")]
+    Mtarfa,
+    #[serde(rename = "36")]
+    Munxar,
+    #[serde(rename = "37")]
+    Nadur,
+    #[serde(rename = "38")]
+    Naxxar,
+    #[serde(rename = "39")]
+    Paola,
+    #[serde(rename = "40")]
+    Pembroke,
+    #[serde(rename = "41")]
+    Pieta,
+    #[serde(rename = "42")]
+    Qala,
+    #[serde(rename = "43")]
+    Qormi,
+    #[serde(rename = "44")]
+    Qrendi,
+    #[serde(rename = "45")]
+    Victoria,
+    #[serde(rename = "46")]
+    Rabat,
+    #[serde(rename = "48")]
+    StJulians,
+    #[serde(rename = "49")]
+    SanGwann,
+    #[serde(rename = "50")]
+    SaintLawrence,
+    #[serde(rename = "51")]
+    StPaulsBay,
+    #[serde(rename = "52")]
+    Sannat,
+    #[serde(rename = "53")]
+    SantaLucija,
+    #[serde(rename = "54")]
+    SantaVenera,
+    #[serde(rename = "55")]
+    Siggiewi,
+    #[serde(rename = "56")]
+    Sliema,
+    #[serde(rename = "57")]
+    Swieqi,
+    #[serde(rename = "58")]
+    TaXbiex,
+    #[serde(rename = "59")]
+    Tarxien,
+    #[serde(rename = "60")]
+    Valletta,
+    #[serde(rename = "61")]
+    Xaghra,
+    #[serde(rename = "62")]
+    Xewkija,
+    #[serde(rename = "63")]
+    Xghajra,
+    #[serde(rename = "64")]
+    Zabbar,
+    #[serde(rename = "65")]
+    ZebbugGozo,
+    #[serde(rename = "66")]
+    ZebbugMalta,
+    #[serde(rename = "67")]
+    Zejtun,
+    #[serde(rename = "68")]
+    Zurrieq,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum MoldovaStatesAbbreviation {
+    #[serde(rename = "AN")]
+    AneniiNoiDistrict,
+    #[serde(rename = "BS")]
+    BasarabeascaDistrict,
+    #[serde(rename = "BD")]
+    BenderMunicipality,
+    #[serde(rename = "BR")]
+    BriceniDistrict,
+    #[serde(rename = "BA")]
+    BaltiMunicipality,
+    #[serde(rename = "CA")]
+    CahulDistrict,
+    #[serde(rename = "CT")]
+    CantemirDistrict,
+    #[serde(rename = "CU")]
+    ChisinauMunicipality,
+    #[serde(rename = "CM")]
+    CimisliaDistrict,
+    #[serde(rename = "CR")]
+    CriuleniDistrict,
+    #[serde(rename = "CL")]
+    CalarasiDistrict,
+    #[serde(rename = "CS")]
+    CauseniDistrict,
+    #[serde(rename = "DO")]
+    DonduseniDistrict,
+    #[serde(rename = "DR")]
+    DrochiaDistrict,
+    #[serde(rename = "DU")]
+    DubasariDistrict,
+    #[serde(rename = "ED")]
+    EdinetDistrict,
+    #[serde(rename = "FL")]
+    FlorestiDistrict,
+    #[serde(rename = "FA")]
+    FalestiDistrict,
+    #[serde(rename = "GA")]
+    Gagauzia,
+    #[serde(rename = "GL")]
+    GlodeniDistrict,
+    #[serde(rename = "HI")]
+    HincestiDistrict,
+    #[serde(rename = "IA")]
+    IaloveniDistrict,
+    #[serde(rename = "NI")]
+    NisporeniDistrict,
+    #[serde(rename = "OC")]
+    OcnitaDistrict,
+    #[serde(rename = "OR")]
+    OrheiDistrict,
+    #[serde(rename = "RE")]
+    RezinaDistrict,
+    #[serde(rename = "RI")]
+    RiscaniDistrict,
+    #[serde(rename = "SO")]
+    SorocaDistrict,
+    #[serde(rename = "ST")]
+    StraseniDistrict,
+    #[serde(rename = "SI")]
+    SingereiDistrict,
+    #[serde(rename = "TA")]
+    TaracliaDistrict,
+    #[serde(rename = "TE")]
+    TelenestiDistrict,
+    #[serde(rename = "SN")]
+    TransnistriaAutonomousTerritorialUnit,
+    #[serde(rename = "UN")]
+    UngheniDistrict,
+    #[serde(rename = "SD")]
+    SoldanestiDistrict,
+    #[serde(rename = "SV")]
+    StefanVodaDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum MonacoStatesAbbreviation {
+    Monaco,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum MontenegroStatesAbbreviation {
+    #[serde(rename = "01")]
+    AndrijevicaMunicipality,
+    #[serde(rename = "02")]
+    BarMunicipality,
+    #[serde(rename = "03")]
+    BeraneMunicipality,
+    #[serde(rename = "04")]
+    BijeloPoljeMunicipality,
+    #[serde(rename = "05")]
+    BudvaMunicipality,
+    #[serde(rename = "07")]
+    DanilovgradMunicipality,
+    #[serde(rename = "22")]
+    GusinjeMunicipality,
+    #[serde(rename = "09")]
+    KolasinMunicipality,
+    #[serde(rename = "10")]
+    KotorMunicipality,
+    #[serde(rename = "11")]
+    MojkovacMunicipality,
+    #[serde(rename = "12")]
+    NiksicMunicipality,
+    #[serde(rename = "06")]
+    OldRoyalCapitalCetinje,
+    #[serde(rename = "23")]
+    PetnjicaMunicipality,
+    #[serde(rename = "13")]
+    PlavMunicipality,
+    #[serde(rename = "14")]
+    PljevljaMunicipality,
+    #[serde(rename = "15")]
+    PluzineMunicipality,
+    #[serde(rename = "16")]
+    PodgoricaMunicipality,
+    #[serde(rename = "17")]
+    RozajeMunicipality,
+    #[serde(rename = "19")]
+    TivatMunicipality,
+    #[serde(rename = "20")]
+    UlcinjMunicipality,
+    #[serde(rename = "18")]
+    SavnikMunicipality,
+    #[serde(rename = "21")]
+    ZabljakMunicipality,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum NetherlandsStatesAbbreviation {
+    #[serde(rename = "BQ1")]
+    Bonaire,
+    #[serde(rename = "DR")]
+    Drenthe,
+    #[serde(rename = "FL")]
+    Flevoland,
+    #[serde(rename = "FR")]
+    Friesland,
+    #[serde(rename = "GE")]
+    Gelderland,
+    #[serde(rename = "GR")]
+    Groningen,
+    #[serde(rename = "LI")]
+    Limburg,
+    #[serde(rename = "NB")]
+    NorthBrabant,
+    #[serde(rename = "NH")]
+    NorthHolland,
+    #[serde(rename = "OV")]
+    Overijssel,
+    #[serde(rename = "BQ2")]
+    Saba,
+    #[serde(rename = "BQ3")]
+    SintEustatius,
+    #[serde(rename = "ZH")]
+    SouthHolland,
+    #[serde(rename = "UT")]
+    Utrecht,
+    #[serde(rename = "ZE")]
+    Zeeland,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum NorthMacedoniaStatesAbbreviation {
+    #[serde(rename = "01")]
+    AerodromMunicipality,
+    #[serde(rename = "02")]
+    AracinovoMunicipality,
+    #[serde(rename = "03")]
+    BerovoMunicipality,
+    #[serde(rename = "04")]
+    BitolaMunicipality,
+    #[serde(rename = "05")]
+    BogdanciMunicipality,
+    #[serde(rename = "06")]
+    BogovinjeMunicipality,
+    #[serde(rename = "07")]
+    BosilovoMunicipality,
+    #[serde(rename = "08")]
+    BrvenicaMunicipality,
+    #[serde(rename = "09")]
+    ButelMunicipality,
+    #[serde(rename = "77")]
+    CentarMunicipality,
+    #[serde(rename = "78")]
+    CentarZupaMunicipality,
+    #[serde(rename = "22")]
+    DebarcaMunicipality,
+    #[serde(rename = "23")]
+    DelcevoMunicipality,
+    #[serde(rename = "25")]
+    DemirHisarMunicipality,
+    #[serde(rename = "24")]
+    DemirKapijaMunicipality,
+    #[serde(rename = "26")]
+    DojranMunicipality,
+    #[serde(rename = "27")]
+    DolneniMunicipality,
+    #[serde(rename = "28")]
+    DrugovoMunicipality,
+    #[serde(rename = "17")]
+    GaziBabaMunicipality,
+    #[serde(rename = "18")]
+    GevgelijaMunicipality,
+    #[serde(rename = "29")]
+    GjorcePetrovMunicipality,
+    #[serde(rename = "19")]
+    GostivarMunicipality,
+    #[serde(rename = "20")]
+    GradskoMunicipality,
+    #[serde(rename = "85")]
+    GreaterSkopje,
+    #[serde(rename = "34")]
+    IlindenMunicipality,
+    #[serde(rename = "35")]
+    JegunovceMunicipality,
+    #[serde(rename = "37")]
+    Karbinci,
+    #[serde(rename = "38")]
+    KarposMunicipality,
+    #[serde(rename = "36")]
+    KavadarciMunicipality,
+    #[serde(rename = "39")]
+    KiselaVodaMunicipality,
+    #[serde(rename = "40")]
+    KicevoMunicipality,
+    #[serde(rename = "41")]
+    KonceMunicipality,
+    #[serde(rename = "42")]
+    KocaniMunicipality,
+    #[serde(rename = "43")]
+    KratovoMunicipality,
+    #[serde(rename = "44")]
+    KrivaPalankaMunicipality,
+    #[serde(rename = "45")]
+    KrivogastaniMunicipality,
+    #[serde(rename = "46")]
+    KrusevoMunicipality,
+    #[serde(rename = "47")]
+    KumanovoMunicipality,
+    #[serde(rename = "48")]
+    LipkovoMunicipality,
+    #[serde(rename = "49")]
+    LozovoMunicipality,
+    #[serde(rename = "51")]
+    MakedonskaKamenicaMunicipality,
+    #[serde(rename = "52")]
+    MakedonskiBrodMunicipality,
+    #[serde(rename = "50")]
+    MavrovoAndRostusaMunicipality,
+    #[serde(rename = "53")]
+    MogilaMunicipality,
+    #[serde(rename = "54")]
+    NegotinoMunicipality,
+    #[serde(rename = "55")]
+    NovaciMunicipality,
+    #[serde(rename = "56")]
+    NovoSeloMunicipality,
+    #[serde(rename = "58")]
+    OhridMunicipality,
+    #[serde(rename = "57")]
+    OslomejMunicipality,
+    #[serde(rename = "60")]
+    PehcevoMunicipality,
+    #[serde(rename = "59")]
+    PetrovecMunicipality,
+    #[serde(rename = "61")]
+    PlasnicaMunicipality,
+    #[serde(rename = "62")]
+    PrilepMunicipality,
+    #[serde(rename = "63")]
+    ProbistipMunicipality,
+    #[serde(rename = "64")]
+    RadovisMunicipality,
+    #[serde(rename = "65")]
+    RankovceMunicipality,
+    #[serde(rename = "66")]
+    ResenMunicipality,
+    #[serde(rename = "67")]
+    RosomanMunicipality,
+    #[serde(rename = "68")]
+    SarajMunicipality,
+    #[serde(rename = "70")]
+    SopisteMunicipality,
+    #[serde(rename = "71")]
+    StaroNagoricaneMunicipality,
+    #[serde(rename = "72")]
+    StrugaMunicipality,
+    #[serde(rename = "73")]
+    StrumicaMunicipality,
+    #[serde(rename = "74")]
+    StudenicaniMunicipality,
+    #[serde(rename = "69")]
+    SvetiNikoleMunicipality,
+    #[serde(rename = "75")]
+    TearceMunicipality,
+    #[serde(rename = "76")]
+    TetovoMunicipality,
+    #[serde(rename = "10")]
+    ValandovoMunicipality,
+    #[serde(rename = "11")]
+    VasilevoMunicipality,
+    #[serde(rename = "13")]
+    VelesMunicipality,
+    #[serde(rename = "12")]
+    VevcaniMunicipality,
+    #[serde(rename = "14")]
+    VinicaMunicipality,
+    #[serde(rename = "15")]
+    VranesticaMunicipality,
+    #[serde(rename = "16")]
+    VrapcisteMunicipality,
+    #[serde(rename = "31")]
+    ZajasMunicipality,
+    #[serde(rename = "32")]
+    ZelenikovoMunicipality,
+    #[serde(rename = "33")]
+    ZrnovciMunicipality,
+    #[serde(rename = "79")]
+    CairMunicipality,
+    #[serde(rename = "80")]
+    CaskaMunicipality,
+    #[serde(rename = "81")]
+    CesinovoOblesevoMunicipality,
+    #[serde(rename = "82")]
+    CucerSandevoMunicipality,
+    #[serde(rename = "83")]
+    StipMunicipality,
+    #[serde(rename = "84")]
+    SutoOrizariMunicipality,
+    #[serde(rename = "30")]
+    ZelinoMunicipality,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum NorwayStatesAbbreviation {
+    #[serde(rename = "02")]
+    Akershus,
+    #[serde(rename = "06")]
+    Buskerud,
+    #[serde(rename = "20")]
+    Finnmark,
+    #[serde(rename = "04")]
+    Hedmark,
+    #[serde(rename = "12")]
+    Hordaland,
+    #[serde(rename = "22")]
+    JanMayen,
+    #[serde(rename = "15")]
+    MoreOgRomsdal,
+    #[serde(rename = "17")]
+    NordTrondelag,
+    #[serde(rename = "18")]
+    Nordland,
+    #[serde(rename = "05")]
+    Oppland,
+    #[serde(rename = "03")]
+    Oslo,
+    #[serde(rename = "11")]
+    Rogaland,
+    #[serde(rename = "14")]
+    SognOgFjordane,
+    #[serde(rename = "21")]
+    Svalbard,
+    #[serde(rename = "16")]
+    SorTrondelag,
+    #[serde(rename = "08")]
+    Telemark,
+    #[serde(rename = "19")]
+    Troms,
+    #[serde(rename = "50")]
+    Trondelag,
+    #[serde(rename = "10")]
+    VestAgder,
+    #[serde(rename = "07")]
+    Vestfold,
+    #[serde(rename = "01")]
+    Ostfold,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum PolandStatesAbbreviation {
+    #[serde(rename = "WP")]
+    GreaterPolandVoivodeship,
+    #[serde(rename = "KI")]
+    Kielce,
+    #[serde(rename = "KP")]
+    KuyavianPomeranianVoivodeship,
+    #[serde(rename = "MA")]
+    LesserPolandVoivodeship,
+    #[serde(rename = "DS")]
+    LowerSilesianVoivodeship,
+    #[serde(rename = "LU")]
+    LublinVoivodeship,
+    #[serde(rename = "LB")]
+    LubuszVoivodeship,
+    #[serde(rename = "MZ")]
+    MasovianVoivodeship,
+    #[serde(rename = "OP")]
+    OpoleVoivodeship,
+    #[serde(rename = "PK")]
+    PodkarpackieVoivodeship,
+    #[serde(rename = "PD")]
+    PodlaskieVoivodeship,
+    #[serde(rename = "PM")]
+    PomeranianVoivodeship,
+    #[serde(rename = "SL")]
+    SilesianVoivodeship,
+    #[serde(rename = "WN")]
+    WarmianMasurianVoivodeship,
+    #[serde(rename = "ZP")]
+    WestPomeranianVoivodeship,
+    #[serde(rename = "LD")]
+    LodzVoivodeship,
+    #[serde(rename = "SK")]
+    SwietokrzyskieVoivodeship,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum PortugalStatesAbbreviation {
+    #[serde(rename = "01")]
+    AveiroDistrict,
+    #[serde(rename = "20")]
+    Azores,
+    #[serde(rename = "02")]
+    BejaDistrict,
+    #[serde(rename = "03")]
+    BragaDistrict,
+    #[serde(rename = "04")]
+    BragancaDistrict,
+    #[serde(rename = "05")]
+    CasteloBrancoDistrict,
+    #[serde(rename = "06")]
+    CoimbraDistrict,
+    #[serde(rename = "08")]
+    FaroDistrict,
+    #[serde(rename = "09")]
+    GuardaDistrict,
+    #[serde(rename = "10")]
+    LeiriaDistrict,
+    #[serde(rename = "11")]
+    LisbonDistrict,
+    #[serde(rename = "30")]
+    Madeira,
+    #[serde(rename = "12")]
+    PortalegreDistrict,
+    #[serde(rename = "13")]
+    PortoDistrict,
+    #[serde(rename = "14")]
+    SantaremDistrict,
+    #[serde(rename = "15")]
+    SetubalDistrict,
+    #[serde(rename = "16")]
+    VianaDoCasteloDistrict,
+    #[serde(rename = "17")]
+    VilaRealDistrict,
+    #[serde(rename = "18")]
+    ViseuDistrict,
+    #[serde(rename = "07")]
+    EvoraDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SpainStatesAbbreviation {
+    #[serde(rename = "C")]
+    ACorunaProvince,
+    #[serde(rename = "AB")]
+    AlbaceteProvince,
+    #[serde(rename = "A")]
+    AlicanteProvince,
+    #[serde(rename = "AL")]
+    AlmeriaProvince,
+    #[serde(rename = "AN")]
+    Andalusia,
+    #[serde(rename = "VI")]
+    ArabaAlava,
+    #[serde(rename = "AR")]
+    Aragon,
+    #[serde(rename = "BA")]
+    BadajozProvince,
+    #[serde(rename = "PM")]
+    BalearicIslands,
+    #[serde(rename = "B")]
+    BarcelonaProvince,
+    #[serde(rename = "PV")]
+    BasqueCountry,
+    #[serde(rename = "BI")]
+    Biscay,
+    #[serde(rename = "BU")]
+    BurgosProvince,
+    #[serde(rename = "CN")]
+    CanaryIslands,
+    #[serde(rename = "S")]
+    Cantabria,
+    #[serde(rename = "CS")]
+    CastellonProvince,
+    #[serde(rename = "CL")]
+    CastileAndLeon,
+    #[serde(rename = "CM")]
+    CastileLaMancha,
+    #[serde(rename = "CT")]
+    Catalonia,
+    #[serde(rename = "CE")]
+    Ceuta,
+    #[serde(rename = "CR")]
+    CiudadRealProvince,
+    #[serde(rename = "MD")]
+    CommunityOfMadrid,
+    #[serde(rename = "CU")]
+    CuencaProvince,
+    #[serde(rename = "CC")]
+    CaceresProvince,
+    #[serde(rename = "CA")]
+    CadizProvince,
+    #[serde(rename = "CO")]
+    CordobaProvince,
+    #[serde(rename = "EX")]
+    Extremadura,
+    #[serde(rename = "GA")]
+    Galicia,
+    #[serde(rename = "SS")]
+    Gipuzkoa,
+    #[serde(rename = "GI")]
+    GironaProvince,
+    #[serde(rename = "GR")]
+    GranadaProvince,
+    #[serde(rename = "GU")]
+    GuadalajaraProvince,
+    #[serde(rename = "H")]
+    HuelvaProvince,
+    #[serde(rename = "HU")]
+    HuescaProvince,
+    #[serde(rename = "J")]
+    JaenProvince,
+    #[serde(rename = "RI")]
+    LaRioja,
+    #[serde(rename = "GC")]
+    LasPalmasProvince,
+    #[serde(rename = "LE")]
+    LeonProvince,
+    #[serde(rename = "L")]
+    LleidaProvince,
+    #[serde(rename = "LU")]
+    LugoProvince,
+    #[serde(rename = "M")]
+    MadridProvince,
+    #[serde(rename = "ML")]
+    Melilla,
+    #[serde(rename = "MU")]
+    MurciaProvince,
+    #[serde(rename = "MA")]
+    MalagaProvince,
+    #[serde(rename = "NC")]
+    Navarre,
+    #[serde(rename = "OR")]
+    OurenseProvince,
+    #[serde(rename = "P")]
+    PalenciaProvince,
+    #[serde(rename = "PO")]
+    PontevedraProvince,
+    #[serde(rename = "O")]
+    ProvinceOfAsturias,
+    #[serde(rename = "AV")]
+    ProvinceOfAvila,
+    #[serde(rename = "MC")]
+    RegionOfMurcia,
+    #[serde(rename = "SA")]
+    SalamancaProvince,
+    #[serde(rename = "TF")]
+    SantaCruzDeTenerifeProvince,
+    #[serde(rename = "SG")]
+    SegoviaProvince,
+    #[serde(rename = "SE")]
+    SevilleProvince,
+    #[serde(rename = "SO")]
+    SoriaProvince,
+    #[serde(rename = "T")]
+    TarragonaProvince,
+    #[serde(rename = "TE")]
+    TeruelProvince,
+    #[serde(rename = "TO")]
+    ToledoProvince,
+    #[serde(rename = "V")]
+    ValenciaProvince,
+    #[serde(rename = "VC")]
+    ValencianCommunity,
+    #[serde(rename = "VA")]
+    ValladolidProvince,
+    #[serde(rename = "ZA")]
+    ZamoraProvince,
+    #[serde(rename = "Z")]
+    ZaragozaProvince,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SwitzerlandStatesAbbreviation {
+    #[serde(rename = "AG")]
+    Aargau,
+    #[serde(rename = "AR")]
+    AppenzellAusserrhoden,
+    #[serde(rename = "AI")]
+    AppenzellInnerrhoden,
+    #[serde(rename = "BL")]
+    BaselLandschaft,
+    #[serde(rename = "FR")]
+    CantonOfFribourg,
+    #[serde(rename = "GE")]
+    CantonOfGeneva,
+    #[serde(rename = "JU")]
+    CantonOfJura,
+    #[serde(rename = "LU")]
+    CantonOfLucerne,
+    #[serde(rename = "NE")]
+    CantonOfNeuchatel,
+    #[serde(rename = "SH")]
+    CantonOfSchaffhausen,
+    #[serde(rename = "SO")]
+    CantonOfSolothurn,
+    #[serde(rename = "SG")]
+    CantonOfStGallen,
+    #[serde(rename = "VS")]
+    CantonOfValais,
+    #[serde(rename = "VD")]
+    CantonOfVaud,
+    #[serde(rename = "ZG")]
+    CantonOfZug,
+    #[serde(rename = "GL")]
+    Glarus,
+    #[serde(rename = "GR")]
+    Graubunden,
+    #[serde(rename = "NW")]
+    Nidwalden,
+    #[serde(rename = "OW")]
+    Obwalden,
+    #[serde(rename = "SZ")]
+    Schwyz,
+    #[serde(rename = "TG")]
+    Thurgau,
+    #[serde(rename = "TI")]
+    Ticino,
+    #[serde(rename = "UR")]
+    Uri,
+    #[serde(rename = "BE")]
+    CantonOfBern,
+    #[serde(rename = "ZH")]
+    CantonOfZurich,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum UnitedKingdomStatesAbbreviation {
+    #[serde(rename = "ABE")]
+    AberdeenCity,
+    #[serde(rename = "ABD")]
+    Aberdeenshire,
+    #[serde(rename = "ANS")]
+    Angus,
+    #[serde(rename = "ANN")]
+    AntrimAndNewtownabbey,
+    #[serde(rename = "AND")]
+    ArdsAndNorthDown,
+    #[serde(rename = "AGB")]
+    ArgyllAndBute,
+    #[serde(rename = "ABC")]
+    ArmaghCityBanbridgeAndCraigavon,
+    #[serde(rename = "BDG")]
+    BarkingAndDagenham,
+    #[serde(rename = "BNE")]
+    Barnet,
+    #[serde(rename = "BNS")]
+    Barnsley,
+    #[serde(rename = "BAS")]
+    BathAndNorthEastSomerset,
+    #[serde(rename = "BDF")]
+    Bedford,
+    #[serde(rename = "BFS")]
+    BelfastCity,
+    #[serde(rename = "BEX")]
+    Bexley,
+    #[serde(rename = "BIR")]
+    Birmingham,
+    #[serde(rename = "BBD")]
+    BlackburnWithDarwen,
+    #[serde(rename = "BPL")]
+    Blackpool,
+    #[serde(rename = "BGW")]
+    BlaenauGwent,
+    #[serde(rename = "BOL")]
+    Bolton,
+    #[serde(rename = "BCP")]
+    BournemouthChristchurchAndPoole,
+    #[serde(rename = "BRC")]
+    BracknellForest,
+    #[serde(rename = "BRD")]
+    Bradford,
+    #[serde(rename = "BEN")]
+    Brent,
+    #[serde(rename = "BGE")]
+    Bridgend,
+    #[serde(rename = "BNH")]
+    BrightonAndHove,
+    #[serde(rename = "BST")]
+    BristolCityOf,
+    #[serde(rename = "BRY")]
+    Bromley,
+    #[serde(rename = "BKM")]
+    Buckinghamshire,
+    #[serde(rename = "BUR")]
+    Bury,
+    #[serde(rename = "CAY")]
+    Caerphilly,
+    #[serde(rename = "CLD")]
+    Calderdale,
+    #[serde(rename = "CAM")]
+    Cambridgeshire,
+    #[serde(rename = "CMD")]
+    Camden,
+    #[serde(rename = "CRF")]
+    Cardiff,
+    #[serde(rename = "CMN")]
+    Carmarthenshire,
+    #[serde(rename = "CCG")]
+    CausewayCoastAndGlens,
+    #[serde(rename = "CBF")]
+    CentralBedfordshire,
+    #[serde(rename = "CGN")]
+    Ceredigion,
+    #[serde(rename = "CHE")]
+    CheshireEast,
+    #[serde(rename = "CHW")]
+    CheshireWestAndChester,
+    #[serde(rename = "CLK")]
+    Clackmannanshire,
+    #[serde(rename = "CWY")]
+    Conwy,
+    #[serde(rename = "CON")]
+    Cornwall,
+    #[serde(rename = "COV")]
+    Coventry,
+    #[serde(rename = "CRY")]
+    Croydon,
+    #[serde(rename = "CMA")]
+    Cumbria,
+    #[serde(rename = "DAL")]
+    Darlington,
+    #[serde(rename = "DEN")]
+    Denbighshire,
+    #[serde(rename = "DER")]
+    Derby,
+    #[serde(rename = "DBY")]
+    Derbyshire,
+    #[serde(rename = "DRS")]
+    DerryAndStrabane,
+    #[serde(rename = "DEV")]
+    Devon,
+    #[serde(rename = "DNC")]
+    Doncaster,
+    #[serde(rename = "DOR")]
+    Dorset,
+    #[serde(rename = "DUD")]
+    Dudley,
+    #[serde(rename = "DGY")]
+    DumfriesAndGalloway,
+    #[serde(rename = "DND")]
+    DundeeCity,
+    #[serde(rename = "DUR")]
+    DurhamCounty,
+    #[serde(rename = "EAL")]
+    Ealing,
+    #[serde(rename = "EAY")]
+    EastAyrshire,
+    #[serde(rename = "EDU")]
+    EastDunbartonshire,
+    #[serde(rename = "ELN")]
+    EastLothian,
+    #[serde(rename = "ERW")]
+    EastRenfrewshire,
+    #[serde(rename = "ERY")]
+    EastRidingOfYorkshire,
+    #[serde(rename = "ESX")]
+    EastSussex,
+    #[serde(rename = "EDH")]
+    EdinburghCityOf,
+    #[serde(rename = "ELS")]
+    EileanSiar,
+    #[serde(rename = "ENF")]
+    Enfield,
+    #[serde(rename = "ESS")]
+    Essex,
+    #[serde(rename = "FAL")]
+    Falkirk,
+    #[serde(rename = "FMO")]
+    FermanaghAndOmagh,
+    #[serde(rename = "FIF")]
+    Fife,
+    #[serde(rename = "FLN")]
+    Flintshire,
+    #[serde(rename = "GAT")]
+    Gateshead,
+    #[serde(rename = "GLG")]
+    GlasgowCity,
+    #[serde(rename = "GLS")]
+    Gloucestershire,
+    #[serde(rename = "GRE")]
+    Greenwich,
+    #[serde(rename = "GWN")]
+    Gwynedd,
+    #[serde(rename = "HCK")]
+    Hackney,
+    #[serde(rename = "HAL")]
+    Halton,
+    #[serde(rename = "HMF")]
+    HammersmithAndFulham,
+    #[serde(rename = "HAM")]
+    Hampshire,
+    #[serde(rename = "HRY")]
+    Haringey,
+    #[serde(rename = "HRW")]
+    Harrow,
+    #[serde(rename = "HPL")]
+    Hartlepool,
+    #[serde(rename = "HAV")]
+    Havering,
+    #[serde(rename = "HEF")]
+    Herefordshire,
+    #[serde(rename = "HRT")]
+    Hertfordshire,
+    #[serde(rename = "HLD")]
+    Highland,
+    #[serde(rename = "HIL")]
+    Hillingdon,
+    #[serde(rename = "HNS")]
+    Hounslow,
+    #[serde(rename = "IVC")]
+    Inverclyde,
+    #[serde(rename = "AGY")]
+    IsleOfAnglesey,
+    #[serde(rename = "IOW")]
+    IsleOfWight,
+    #[serde(rename = "IOS")]
+    IslesOfScilly,
+    #[serde(rename = "ISL")]
+    Islington,
+    #[serde(rename = "KEC")]
+    KensingtonAndChelsea,
+    #[serde(rename = "KEN")]
+    Kent,
+    #[serde(rename = "KHL")]
+    KingstonUponHull,
+    #[serde(rename = "KTT")]
+    KingstonUponThames,
+    #[serde(rename = "KIR")]
+    Kirklees,
+    #[serde(rename = "KWL")]
+    Knowsley,
+    #[serde(rename = "LBH")]
+    Lambeth,
+    #[serde(rename = "LAN")]
+    Lancashire,
+    #[serde(rename = "LDS")]
+    Leeds,
+    #[serde(rename = "LCE")]
+    Leicester,
+    #[serde(rename = "LEC")]
+    Leicestershire,
+    #[serde(rename = "LEW")]
+    Lewisham,
+    #[serde(rename = "LIN")]
+    Lincolnshire,
+    #[serde(rename = "LBC")]
+    LisburnAndCastlereagh,
+    #[serde(rename = "LIV")]
+    Liverpool,
+    #[serde(rename = "LND")]
+    LondonCityOf,
+    #[serde(rename = "LUT")]
+    Luton,
+    #[serde(rename = "MAN")]
+    Manchester,
+    #[serde(rename = "MDW")]
+    Medway,
+    #[serde(rename = "MTY")]
+    MerthyrTydfil,
+    #[serde(rename = "MRT")]
+    Merton,
+    #[serde(rename = "MEA")]
+    MidAndEastAntrim,
+    #[serde(rename = "MUL")]
+    MidUlster,
+    #[serde(rename = "MDB")]
+    Middlesbrough,
+    #[serde(rename = "MLN")]
+    Midlothian,
+    #[serde(rename = "MIK")]
+    MiltonKeynes,
+    #[serde(rename = "MON")]
+    Monmouthshire,
+    #[serde(rename = "MRY")]
+    Moray,
+    #[serde(rename = "NTL")]
+    NeathPortTalbot,
+    #[serde(rename = "NET")]
+    NewcastleUponTyne,
+    #[serde(rename = "NWM")]
+    Newham,
+    #[serde(rename = "NWP")]
+    Newport,
+    #[serde(rename = "NMD")]
+    NewryMourneAndDown,
+    #[serde(rename = "NFK")]
+    Norfolk,
+    #[serde(rename = "NAY")]
+    NorthAyrshire,
+    #[serde(rename = "NEL")]
+    NorthEastLincolnshire,
+    #[serde(rename = "NLK")]
+    NorthLanarkshire,
+    #[serde(rename = "NLN")]
+    NorthLincolnshire,
+    #[serde(rename = "NSM")]
+    NorthSomerset,
+    #[serde(rename = "NTY")]
+    NorthTyneside,
+    #[serde(rename = "NYK")]
+    NorthYorkshire,
+    #[serde(rename = "NTH")]
+    Northamptonshire,
+    #[serde(rename = "NBL")]
+    Northumberland,
+    #[serde(rename = "NGM")]
+    Nottingham,
+    #[serde(rename = "NTT")]
+    Nottinghamshire,
+    #[serde(rename = "OLD")]
+    Oldham,
+    #[serde(rename = "ORK")]
+    OrkneyIslands,
+    #[serde(rename = "OXF")]
+    Oxfordshire,
+    #[serde(rename = "PEM")]
+    Pembrokeshire,
+    #[serde(rename = "PKN")]
+    PerthAndKinross,
+    #[serde(rename = "PTE")]
+    Peterborough,
+    #[serde(rename = "PLY")]
+    Plymouth,
+    #[serde(rename = "POR")]
+    Portsmouth,
+    #[serde(rename = "POW")]
+    Powys,
+    #[serde(rename = "RDG")]
+    Reading,
+    #[serde(rename = "RDB")]
+    Redbridge,
+    #[serde(rename = "RCC")]
+    RedcarAndCleveland,
+    #[serde(rename = "RFW")]
+    Renfrewshire,
+    #[serde(rename = "RCT")]
+    RhonddaCynonTaff,
+    #[serde(rename = "RIC")]
+    RichmondUponThames,
+    #[serde(rename = "RCH")]
+    Rochdale,
+    #[serde(rename = "ROT")]
+    Rotherham,
+    #[serde(rename = "RUT")]
+    Rutland,
+    #[serde(rename = "SLF")]
+    Salford,
+    #[serde(rename = "SAW")]
+    Sandwell,
+    #[serde(rename = "SCB")]
+    ScottishBorders,
+    #[serde(rename = "SFT")]
+    Sefton,
+    #[serde(rename = "SHF")]
+    Sheffield,
+    #[serde(rename = "ZET")]
+    ShetlandIslands,
+    #[serde(rename = "SHR")]
+    Shropshire,
+    #[serde(rename = "SLG")]
+    Slough,
+    #[serde(rename = "SOL")]
+    Solihull,
+    #[serde(rename = "SOM")]
+    Somerset,
+    #[serde(rename = "SAY")]
+    SouthAyrshire,
+    #[serde(rename = "SGC")]
+    SouthGloucestershire,
+    #[serde(rename = "SLK")]
+    SouthLanarkshire,
+    #[serde(rename = "STY")]
+    SouthTyneside,
+    #[serde(rename = "STH")]
+    Southampton,
+    #[serde(rename = "SOS")]
+    SouthendOnSea,
+    #[serde(rename = "SWK")]
+    Southwark,
+    #[serde(rename = "SHN")]
+    StHelens,
+    #[serde(rename = "STS")]
+    Staffordshire,
+    #[serde(rename = "STG")]
+    Stirling,
+    #[serde(rename = "SKP")]
+    Stockport,
+    #[serde(rename = "STT")]
+    StocktonOnTees,
+    #[serde(rename = "STE")]
+    StokeOnTrent,
+    #[serde(rename = "SFK")]
+    Suffolk,
+    #[serde(rename = "SND")]
+    Sunderland,
+    #[serde(rename = "SRY")]
+    Surrey,
+    #[serde(rename = "STN")]
+    Sutton,
+    #[serde(rename = "SWA")]
+    Swansea,
+    #[serde(rename = "SWD")]
+    Swindon,
+    #[serde(rename = "TAM")]
+    Tameside,
+    #[serde(rename = "TFW")]
+    TelfordAndWrekin,
+    #[serde(rename = "THR")]
+    Thurrock,
+    #[serde(rename = "TOB")]
+    Torbay,
+    #[serde(rename = "TOF")]
+    Torfaen,
+    #[serde(rename = "TWH")]
+    TowerHamlets,
+    #[serde(rename = "TRF")]
+    Trafford,
+    #[serde(rename = "VGL")]
+    ValeOfGlamorgan,
+    #[serde(rename = "WKF")]
+    Wakefield,
+    #[serde(rename = "WLL")]
+    Walsall,
+    #[serde(rename = "WFT")]
+    WalthamForest,
+    #[serde(rename = "WND")]
+    Wandsworth,
+    #[serde(rename = "WRT")]
+    Warrington,
+    #[serde(rename = "WAR")]
+    Warwickshire,
+    #[serde(rename = "WBK")]
+    WestBerkshire,
+    #[serde(rename = "WDU")]
+    WestDunbartonshire,
+    #[serde(rename = "WLN")]
+    WestLothian,
+    #[serde(rename = "WSX")]
+    WestSussex,
+    #[serde(rename = "WSM")]
+    Westminster,
+    #[serde(rename = "WGN")]
+    Wigan,
+    #[serde(rename = "WIL")]
+    Wiltshire,
+    #[serde(rename = "WNM")]
+    WindsorAndMaidenhead,
+    #[serde(rename = "WRL")]
+    Wirral,
+    #[serde(rename = "WOK")]
+    Wokingham,
+    #[serde(rename = "WLV")]
+    Wolverhampton,
+    #[serde(rename = "WOR")]
+    Worcestershire,
+    #[serde(rename = "WRX")]
+    Wrexham,
+    #[serde(rename = "YOR")]
+    York,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum RomaniaStatesAbbreviation {
+    #[serde(rename = "AB")]
+    Alba,
+    #[serde(rename = "AR")]
+    AradCounty,
+    #[serde(rename = "AG")]
+    Arges,
+    #[serde(rename = "BC")]
+    BacauCounty,
+    #[serde(rename = "BH")]
+    BihorCounty,
+    #[serde(rename = "BN")]
+    BistritaNasaudCounty,
+    #[serde(rename = "BT")]
+    BotosaniCounty,
+    #[serde(rename = "BR")]
+    Braila,
+    #[serde(rename = "BV")]
+    BrasovCounty,
+    #[serde(rename = "B")]
+    Bucharest,
+    #[serde(rename = "BZ")]
+    BuzauCounty,
+    #[serde(rename = "CS")]
+    CarasSeverinCounty,
+    #[serde(rename = "CJ")]
+    ClujCounty,
+    #[serde(rename = "CT")]
+    ConstantaCounty,
+    #[serde(rename = "CV")]
+    CovasnaCounty,
+    #[serde(rename = "CL")]
+    CalarasiCounty,
+    #[serde(rename = "DJ")]
+    DoljCounty,
+    #[serde(rename = "DB")]
+    DambovitaCounty,
+    #[serde(rename = "GL")]
+    GalatiCounty,
+    #[serde(rename = "GR")]
+    GiurgiuCounty,
+    #[serde(rename = "GJ")]
+    GorjCounty,
+    #[serde(rename = "HR")]
+    HarghitaCounty,
+    #[serde(rename = "HD")]
+    HunedoaraCounty,
+    #[serde(rename = "IL")]
+    IalomitaCounty,
+    #[serde(rename = "IS")]
+    IasiCounty,
+    #[serde(rename = "IF")]
+    IlfovCounty,
+    #[serde(rename = "MH")]
+    MehedintiCounty,
+    #[serde(rename = "MM")]
+    MuresCounty,
+    #[serde(rename = "NT")]
+    NeamtCounty,
+    #[serde(rename = "OT")]
+    OltCounty,
+    #[serde(rename = "PH")]
+    PrahovaCounty,
+    #[serde(rename = "SM")]
+    SatuMareCounty,
+    #[serde(rename = "SB")]
+    SibiuCounty,
+    #[serde(rename = "SV")]
+    SuceavaCounty,
+    #[serde(rename = "SJ")]
+    SalajCounty,
+    #[serde(rename = "TR")]
+    TeleormanCounty,
+    #[serde(rename = "TM")]
+    TimisCounty,
+    #[serde(rename = "TL")]
+    TulceaCounty,
+    #[serde(rename = "VS")]
+    VasluiCounty,
+    #[serde(rename = "VN")]
+    VranceaCounty,
+    #[serde(rename = "VL")]
+    ValceaCounty,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
