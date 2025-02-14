@@ -552,25 +552,25 @@ impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
-
-                .service(
-                    web::resource("/create-intent").route(web::post().to(payments::payments_create_intent)),
-                )
-                .service(
-                    web::resource("/v2/filter").route(web::get().to(payments::get_payment_filters)),
-                )
-                .service(
-                    web::resource("/v2/profile/filter")
-                        .route(web::get().to(payments::get_payment_filters_profile)),
-                )
-                .service(
-                    web::resource("")
-                        .route(web::post().to(payments::payments_create_and_confirm_intent)),
-                )
-                .service(
-                    web::resource("/create-intent")
-                        .route(web::post().to(payments::payments_create_intent)),
-                );
+            .service(
+                web::resource("/create-intent")
+                    .route(web::post().to(payments::payments_create_intent)),
+            )
+            .service(
+                web::resource("/v2/filter").route(web::get().to(payments::get_payment_filters)),
+            )
+            .service(
+                web::resource("/v2/profile/filter")
+                    .route(web::get().to(payments::get_payment_filters_profile)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
+            )
+            .service(
+                web::resource("/create-intent")
+                    .route(web::post().to(payments::payments_create_intent)),
+            );
 
         route =
             route

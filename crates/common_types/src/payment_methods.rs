@@ -19,14 +19,14 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_subtypes: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
-impl PaymentMethodsEnabled{
+impl PaymentMethodsEnabled {
     /// Get payment_method_type
     #[cfg(feature = "v2")]
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         Some(self.payment_method_type)
     }
 
-    /// Get payment_method_subtypes 
+    /// Get payment_method_subtypes
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<Vec<RequestPaymentMethodTypes>> {
         self.payment_method_subtypes.clone()
@@ -88,7 +88,6 @@ impl RequestPaymentMethodTypes {
     pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
         Some(self.payment_method_subtype)
     }
-
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]

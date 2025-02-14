@@ -1507,7 +1507,6 @@ impl RequestPaymentMethodTypes {
     pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
         Some(self.payment_method_type)
     }
-
 }
 
 #[cfg(all(

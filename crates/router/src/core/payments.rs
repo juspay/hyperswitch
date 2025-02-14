@@ -5296,22 +5296,29 @@ pub async fn get_payment_filters(
                     payment_method_enabled
                         .get_payment_method_type()
                         .as_ref()
-                        .map(|types_vec| (payment_method_enabled.get_payment_method(), types_vec.clone()))
+                        .map(|types_vec| {
+                            (
+                                payment_method_enabled.get_payment_method(),
+                                types_vec.clone(),
+                            )
+                        })
                 })
         })
         .for_each(|payment_methods_enabled| {
-            payment_methods_enabled.for_each(|(payment_method_option, payment_method_types_vec)| {
-                if let Some(payment_method) = payment_method_option {
-                    payment_method_types_map
-                        .entry(payment_method)
-                        .or_default()
-                        .extend(
-                            payment_method_types_vec
-                                .iter()
-                                .filter_map(|p| p.get_payment_method_type()), 
-                        );
-                }
-            });
+            payment_methods_enabled.for_each(
+                |(payment_method_option, payment_method_types_vec)| {
+                    if let Some(payment_method) = payment_method_option {
+                        payment_method_types_map
+                            .entry(payment_method)
+                            .or_default()
+                            .extend(
+                                payment_method_types_vec
+                                    .iter()
+                                    .filter_map(|p| p.get_payment_method_type()),
+                            );
+                    }
+                },
+            );
         });
 
     Ok(services::ApplicationResponse::Json(

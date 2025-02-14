@@ -1645,7 +1645,7 @@ pub struct PaymentMethodsEnabled {
     #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
-impl PaymentMethodsEnabled{
+impl PaymentMethodsEnabled {
     /// Get payment_method
     #[cfg(feature = "v1")]
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
@@ -1653,10 +1653,11 @@ impl PaymentMethodsEnabled{
     }
     /// Get payment_method_types
     #[cfg(feature = "v1")]
-    pub fn get_payment_method_type(&self) -> Option<Vec<payment_methods::RequestPaymentMethodTypes>> {
+    pub fn get_payment_method_type(
+        &self,
+    ) -> Option<Vec<payment_methods::RequestPaymentMethodTypes>> {
         self.payment_method_types.clone()
     }
-
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
