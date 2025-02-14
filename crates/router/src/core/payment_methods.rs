@@ -1344,10 +1344,11 @@ pub async fn vault_payment_method(
     let db = &*state.store;
 
     // get fingerprint_id from vault
-    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault")?;
+    let fingerprint_id_from_vault =
+        vault::get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get fingerprint_id from vault")?;
 
     // throw back error if payment method is duplicated
     when(
@@ -1623,7 +1624,7 @@ pub async fn update_payment_method_core(
         &merchant_account,
         &key_store,
         current_vault_id, // using current vault_id for now, will have to refactor this
-        &payment_method.customer_id
+        &payment_method.customer_id,
     ) // to generate new one on each vaulting later on
     .await
     .attach_printable("Failed to add payment method in vault")?;
