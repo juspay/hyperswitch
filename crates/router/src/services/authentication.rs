@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use common_enums::TokenPurpose;
 #[cfg(feature = "v2")]
 use common_utils::fp_utils;
-use common_utils::{date_time, id_type};
+use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
@@ -3895,13 +3895,13 @@ impl ExternalToken {
         &self,
         required_service_type: &ExternalServiceType,
     ) -> RouterResult<()> {
-        if &self.external_service_type == required_service_type {
-            Ok(())
-        } else {
-            Err(errors::ApiErrorResponse::AccessForbidden {
-                resource: required_service_type.to_string(),
-            }
-            .into())
-        }
+        Ok(fp_utils::when(
+            &self.external_service_type != required_service_type,
+            || {
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: required_service_type.to_string(),
+                })
+            },
+        )?)
     }
 }
