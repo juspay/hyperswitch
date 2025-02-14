@@ -603,7 +603,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data: None,
                 scheme: None,
             },
-            PaymentMethodUpdate::GenericUpdate {
+            PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
                 status,
                 locker_id,

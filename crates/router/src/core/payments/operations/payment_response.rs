@@ -26,6 +26,9 @@ use tracing_futures::Instrument;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
+#[cfg(feature = "v2")]
+use crate::utils::OptionExt;
+
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -51,7 +54,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse, ErrorResponse,
     },
-    utils::{self, OptionExt},
+    utils,
 };
 
 #[cfg(feature = "v1")]
@@ -2551,80 +2554,83 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         // Then we either update the payment method or create a new payment method
         // The case for updating the payment method is when the payment is created from the payment method service
 
-        match &router_data.response {
-            Ok(payments_response) => {
-                let connector_request_reference_id = payment_data
-                    .payment_attempt
-                    .connector_token_details
-                    .as_ref()
-                    .and_then(|token_details| {
-                        token_details.get_connector_mandate_request_reference_id()
-                    });
+        let Ok(payments_response) = &router_data.response else {
+            // In case there was an error response from the connector
+            // We do not take any action related to the payment method
+            return Ok(());
+        };
 
-                let connector_token = payments_response
-                    .get_updated_connector_token_details(connector_request_reference_id);
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_token_details
+            .as_ref()
+            .and_then(|token_details| token_details.get_connector_mandate_request_reference_id());
 
-                let payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
+        let connector_token =
+            payments_response.get_updated_connector_token_details(connector_request_reference_id);
 
-                // TODO: check what all conditions we will need to see if card need to be saved
-                match connector_token
-                    .as_ref()
-                    .and_then(|connector_token| connector_token.connector_mandate_id.clone())
-                    .zip(payment_method_id)
-                {
-                    Some((token, payment_method_id)) => {
-                        if matches!(
-                            router_data.status,
-                            enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
-                        ) {
-                            let connector_id = payment_data
-                                .payment_attempt
-                                .merchant_connector_id
-                                .clone()
-                                .get_required_value("merchant_connector_id")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("missing connector id")?;
+        let payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
 
-                            let net_amount =
-                                payment_data.payment_attempt.amount_details.get_net_amount();
-                            let currency = payment_data.payment_intent.amount_details.currency;
-
-                            let connector_token_details_for_payment_method_update =
-                                api_models::payment_methods::ConnectorTokenDetails {
-                                    connector_id,
-                                    status: common_enums::ConnectorMandateStatus::Active,
-                                    connector_token_request_reference_id: connector_token.and_then(
-                                        |details| details.connector_mandate_request_reference_id,
-                                    ),
-                                    original_payment_authorized_amount: Some(net_amount),
-                                    original_payment_authorized_currency: Some(currency),
-                                    metadata: None,
-                                    token,
-                                };
-
-                            let payment_method_update_request =
-                                api_models::payment_methods::PaymentMethodUpdate {
-                                    payment_method_data: None,
-                                    connector_token_details: Some(
-                                        connector_token_details_for_payment_method_update,
-                                    ),
-                                };
-
-                            payment_methods::update_payment_method_core(
-                                state,
-                                merchant_account,
-                                key_store,
-                                payment_method_update_request,
-                                &payment_method_id,
-                            )
-                            .await
-                            .attach_printable("Failed to update payment method")?;
-                        }
-                    }
-                    None => {}
+        // TODO: check what all conditions we will need to see if card need to be saved
+        match (
+            connector_token
+                .as_ref()
+                .and_then(|connector_token| connector_token.connector_mandate_id.clone()),
+            payment_method_id,
+        ) {
+            (Some(token), Some(payment_method_id)) => {
+                if !matches!(
+                    router_data.status,
+                    enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                ) {
+                    return Ok(());
                 }
+                let connector_id = payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .get_required_value("merchant_connector_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing connector id")?;
+
+                let net_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                let currency = payment_data.payment_intent.amount_details.currency;
+
+                let connector_token_details_for_payment_method_update =
+                    api_models::payment_methods::ConnectorTokenDetails {
+                        connector_id,
+                        status: common_enums::ConnectorMandateStatus::Active,
+                        connector_token_request_reference_id: connector_token
+                            .and_then(|details| details.connector_mandate_request_reference_id),
+                        original_payment_authorized_amount: Some(net_amount),
+                        original_payment_authorized_currency: Some(currency),
+                        metadata: None,
+                        token,
+                        token_type: common_enums::TokenizationType::MultiUse,
+                    };
+
+                let payment_method_update_request =
+                    api_models::payment_methods::PaymentMethodUpdate {
+                        payment_method_data: None,
+                        connector_token_details: Some(
+                            connector_token_details_for_payment_method_update,
+                        ),
+                    };
+
+                payment_methods::update_payment_method_core(
+                    state,
+                    merchant_account,
+                    key_store,
+                    payment_method_update_request,
+                    &payment_method_id,
+                )
+                .await
+                .attach_printable("Failed to update payment method")?;
             }
-            Err(_) => {}
+            (Some(_), None) => {
+                // TODO: create a new payment method
+            }
+            (None, Some(_)) | (None, None) => {}
         }
 
         Ok(())

@@ -1291,6 +1291,7 @@ pub async fn create_payment_method_for_intent(
     Ok(response)
 }
 
+#[cfg(feature = "v2")]
 /// Update the connector_mandate_details of the payment method with
 /// new token details for the payment
 fn create_connector_mandate_details_update(

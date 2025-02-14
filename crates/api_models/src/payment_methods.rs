@@ -873,6 +873,9 @@ pub struct ConnectorTokenDetails {
     #[schema(value_type = String, example = "mca_")]
     pub connector_id: id_type::MerchantConnectorAccountId,
 
+    #[schema(value_type = TokenizationType)]
+    pub token_type: common_enums::TokenizationType,
+
     /// The status of connector token
     #[schema(value_type = ConnectorMandateStatus)]
     pub status: common_enums::ConnectorMandateStatus,

@@ -1,9 +1,4 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
-
 use api_models::{enums as api_enums, payment_methods::Card};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -1014,6 +1009,7 @@ impl
     }
 }
 
+#[cfg(feature = "v2")]
 impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetails>
     for hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord
 {
@@ -1041,6 +1037,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
     }
 }
 
+#[cfg(feature = "v2")]
 impl
     transformers::ForeignFrom<(
         id_type::MerchantConnectorAccountId,
@@ -1071,6 +1068,8 @@ impl
             original_payment_authorized_currency,
             metadata,
             token: connector_token,
+            // Token that is derived from payments mandate reference will always be multi use token
+            token_type: common_enums::TokenizationType::MultiUse,
         }
     }
 }
