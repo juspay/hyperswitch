@@ -246,8 +246,6 @@ pub enum PazeDecryptionError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GooglePayDecryptionError {
-    #[error("Recipient ID not found")]
-    RecipientIdNotFound,
     #[error("Invalid expiration time")]
     InvalidExpirationTime,
     #[error("Failed to base64 decode input data")]
@@ -444,4 +442,6 @@ pub enum NetworkTokenizationError {
     DeleteNetworkTokenFailed,
     #[error("Network token service not configured")]
     NetworkTokenizationServiceNotConfigured,
+    #[error("Failed while calling Network Token Service API")]
+    ApiError,
 }

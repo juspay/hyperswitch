@@ -47,8 +47,8 @@ use openssl::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use ring::hmac;
 use router_env::{instrument, logger, tracing};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -5273,7 +5273,7 @@ where
     Ok(connector_data_list)
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApplePayData {
     version: masking::Secret<String>,
     data: masking::Secret<String>,
@@ -5281,7 +5281,7 @@ pub struct ApplePayData {
     header: ApplePayHeader,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayHeader {
     ephemeral_public_key: masking::Secret<String>,
@@ -5436,13 +5436,10 @@ impl ApplePayData {
     }
 }
 
-pub(crate) const SENDER_ID: &[u8] = b"Google";
-pub(crate) const PROTOCOL: &str = "ECv2";
-
 // Structs for keys and the main decryptor
 pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
-    recipient_id: Option<masking::Secret<String>>,
+    recipient_id: masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
 }
 
@@ -5549,12 +5546,16 @@ fn filter_root_signing_keys(
 impl GooglePayTokenDecryptor {
     pub fn new(
         root_keys: masking::Secret<String>,
-        recipient_id: Option<masking::Secret<String>>,
+        recipient_id: masking::Secret<String>,
         private_key: masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
             .decode(private_key.expose())
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+        // base64 decode the root signing keys
+        let decoded_root_signing_keys = BASE64_ENGINE
+            .decode(root_keys.expose())
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
@@ -5562,8 +5563,7 @@ impl GooglePayTokenDecryptor {
             .attach_printable("cannot convert private key from decode_key")?;
 
         // parse the root signing keys
-        let root_keys_vector: Vec<GooglePayRootSigningKey> = root_keys
-            .expose()
+        let root_keys_vector: Vec<GooglePayRootSigningKey> = decoded_root_signing_keys
             .parse_struct("GooglePayRootSigningKey")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
@@ -5669,13 +5669,13 @@ impl GooglePayTokenDecryptor {
         }
 
         // get the sender id i.e. Google
-        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+        let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // construct the signed data
         let signed_data = self.construct_signed_data_for_intermediate_signing_key_verification(
             &sender_id,
-            PROTOCOL,
+            consts::PROTOCOL,
             encrypted_data.intermediate_signing_key.signed_key.peek(),
         )?;
 
@@ -5776,7 +5776,7 @@ impl GooglePayTokenDecryptor {
             .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
         // get the sender id i.e. Google
-        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+        let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // serialize the signed message to string
@@ -5786,7 +5786,7 @@ impl GooglePayTokenDecryptor {
         // construct the signed data
         let signed_data = self.construct_signed_data_for_signature_verification(
             &sender_id,
-            PROTOCOL,
+            consts::PROTOCOL,
             &signed_message,
         )?;
 
@@ -5833,11 +5833,7 @@ impl GooglePayTokenDecryptor {
         protocol_version: &str,
         signed_key: &str,
     ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
-        let recipient_id = self
-            .recipient_id
-            .clone()
-            .ok_or(errors::GooglePayDecryptionError::RecipientIdNotFound)?
-            .expose();
+        let recipient_id = self.recipient_id.clone().expose();
         let length_of_sender_id = u32::try_from(sender_id.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
         let length_of_recipient_id = u32::try_from(recipient_id.len())
@@ -5917,13 +5913,14 @@ impl GooglePayTokenDecryptor {
 
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
-        hkdf.expand(SENDER_ID, &mut output_key).map_err(|err| {
-            logger::error!(
+        hkdf.expand(consts::SENDER_ID, &mut output_key)
+            .map_err(|err| {
+                logger::error!(
                 "Failed to derive the shared ephemeral key for Google Pay decryption flow: {:?}",
                 err
             );
-            report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
-        })?;
+                report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
+            })?;
 
         Ok(output_key)
     }
@@ -5936,8 +5933,8 @@ impl GooglePayTokenDecryptor {
         tag: &[u8],
         encrypted_message: &[u8],
     ) -> CustomResult<(), errors::GooglePayDecryptionError> {
-        let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, mac_key);
-        hmac::verify(&hmac_key, encrypted_message, tag)
+        let hmac_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, mac_key);
+        ring::hmac::verify(&hmac_key, encrypted_message, tag)
             .change_context(errors::GooglePayDecryptionError::HmacVerificationFailed)
     }
 
@@ -6030,7 +6027,7 @@ pub fn decrypt_paze_token(
     Ok(parsed_decrypted)
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JwsBody {
     pub payload_id: String,

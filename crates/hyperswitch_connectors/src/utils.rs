@@ -19,6 +19,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
+    network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
@@ -1380,6 +1381,27 @@ impl AddressDetailsData for AddressDetails {
     }
 }
 
+pub trait AdditionalCardInfo {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+}
+
+impl AdditionalCardInfo for payments::AdditionalCardInfo {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -1935,6 +1957,8 @@ pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_last_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressData for Address {
@@ -1954,6 +1978,18 @@ impl AddressData for Address {
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("phone"))
+    }
+
+    fn get_optional_first_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_first_name())
+    }
+
+    fn get_optional_last_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_last_name())
     }
 }
 pub trait PaymentsPreProcessingRequestData {
@@ -2922,18 +2958,78 @@ impl CardData for api_models::payouts::CardPayout {
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
+    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token_expiry_month(&self) -> Secret<String>;
+    fn get_network_token_expiry_year(&self) -> Secret<String>;
+    fn get_cryptogram(&self) -> Option<Secret<String>>;
 }
 
 impl NetworkTokenData for payment_method_data::NetworkTokenData {
+    #[cfg(feature = "v1")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.token_number.peek())
     }
 
+    #[cfg(feature = "v2")]
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.network_token.peek())
+    }
+
+    #[cfg(feature = "v1")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
             year = format!("20{}", year);
         }
         Secret::new(year)
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.network_token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.token_number.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.network_token.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.token_exp_month.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.network_token_exp_month.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.token_exp_year.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.network_token_exp_year.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        self.token_cryptogram.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        self.cryptogram.clone()
     }
 }

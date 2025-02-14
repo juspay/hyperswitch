@@ -1470,6 +1470,44 @@ export const connectorDetails = {
         },
       },
     },
+    DuplicatePaymentID: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "The payment with the specified payment_id already exists in our records",
+            code: "HE_01",
+          },
+        },
+      },
+    },
+    DuplicateRefundID: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Duplicate refund request. Refund already attempted with the refund ID",
+            code: "HE_01",
+          },
+        },
+      },
+    },
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
