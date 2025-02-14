@@ -12,7 +12,7 @@ use crate::{
 };
 
 const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
-const EVENT_DELIVERY_LIMIT_DAYS: i64 = 90;
+const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS: i64 = 90;
 
 #[derive(Debug)]
 enum MerchantAccountOrProfile {
@@ -37,10 +37,11 @@ pub async fn list_initial_delivery_attempts(
         get_account_and_key_store(state.clone(), merchant_id.clone(), profile_id.clone()).await?;
 
     let now = common_utils::date_time::now();
-    let past_90_days_ago = now - time::Duration::days(EVENT_DELIVERY_LIMIT_DAYS);
+    let events_list_begin_time =
+        (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let events = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id  } => {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
             match account {
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_primary_object_id(key_manager_state,
@@ -78,24 +79,21 @@ pub async fn list_initial_delivery_attempts(
                 _ => None,
             };
 
-            let now = common_utils::date_time::now();
-            let past_90_days_ago = now - time::Duration::days(EVENT_DELIVERY_LIMIT_DAYS);
-
             let created_after = match created_after {
                 Some(created_after) => {
-                    if created_after < past_90_days_ago {
-                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request this data from the past {EVENT_DELIVERY_LIMIT_DAYS} days or earlier.") })
+                    if created_after < events_list_begin_time {
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("`created_after` must be a timestamp within the past {INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS} days.") })
                     }else{
                         Ok(created_after)
                     }
                 },
-                None => Ok(past_90_days_ago)
+                None => Ok(events_list_begin_time)
             }?;
 
             let created_before = match created_before{
                 Some(created_before) => {
-                    if created_before < past_90_days_ago{
-                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request this data from the past {EVENT_DELIVERY_LIMIT_DAYS} days or earlier.") })
+                    if created_before < events_list_begin_time{
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("`created_before` must be a timestamp within the past {INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS} days.") })
                     }
                     else{
                         Ok(created_before)
@@ -136,7 +134,9 @@ pub async fn list_initial_delivery_attempts(
         .map(api::webhook_events::EventListItemResponse::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let created_after = api_constraints.created_after.unwrap_or(past_90_days_ago);
+    let created_after = api_constraints
+        .created_after
+        .unwrap_or(events_list_begin_time);
     let created_before = api_constraints.created_before.unwrap_or(now);
 
     let total_count = store

@@ -210,7 +210,7 @@ impl Event {
     fn apply_filters<T>(
         mut query: T,
         profile_id: Option<common_utils::id_type::ProfileId>,
-        from_to: (
+        (column, created_after, created_before): (
             dsl::created_at,
             time::PrimitiveDateTime,
             time::PrimitiveDateTime,
@@ -239,8 +239,8 @@ impl Event {
         }
 
         query = query
-            .filter(from_to.0.ge(from_to.1))
-            .filter(from_to.0.le(from_to.2));
+            .filter(column.ge(created_after))
+            .filter(column.le(created_before));
 
         if let Some(limit) = limit {
             query = query.limit(limit);
@@ -293,7 +293,7 @@ impl Event {
             DatabaseOperation::Count,
         )
         .await
-        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .change_context(DatabaseError::Others)
         .attach_printable("Error counting events by constraints")
     }
 }

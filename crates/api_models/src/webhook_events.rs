@@ -44,7 +44,7 @@ pub enum EventListConstraintsInternal {
 }
 
 /// The response body for each item when listing events.
-#[derive(Debug, Serialize, ToSchema, Deserialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct EventListItemResponse {
     /// The identifier for the Event.
     #[schema(max_length = 64, example = "evt_018e31720d1b7a2b82677d3032cab959")]
@@ -82,9 +82,12 @@ pub struct EventListItemResponse {
     pub created: PrimitiveDateTime,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+/// The response body of list initial delivery attempts api call.
+#[derive(Debug, Serialize)]
 pub struct TotalEventsResponse {
+    /// The list of events
     pub events: Vec<EventListItemResponse>,
+    /// Count of total events
     pub total_count: i64,
 }
 
