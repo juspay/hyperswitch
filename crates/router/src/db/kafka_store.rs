@@ -1715,6 +1715,7 @@ impl PaymentAttemptInterface for KafkaStore {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1727,6 +1728,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 authentication_type,
                 merchant_connector_id,
                 card_network,
+                card_discovery,
                 storage_scheme,
             )
             .await
