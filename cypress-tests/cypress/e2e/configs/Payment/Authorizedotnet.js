@@ -1,4 +1,4 @@
-import { generateRandomAmount } from "../../../utils/RequestBodyUtils";
+import { generateRandomAmount, getLatestPaymentIntentAmount, setLatestPaymentIntentAmount } from "../../../utils/RequestBodyUtils";
 
 const successfulTestCardDetails = {
   card_number: "4007000000027",
@@ -8,13 +8,15 @@ const successfulTestCardDetails = {
   card_cvc: "737",
 };
 
-var randomAmount;
-
-export const connectorDetails = {
+export let connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        amount: generateRandomAmount(),
+        amount: (() => {
+          let amount = generateRandomAmount();
+          setLatestPaymentIntentAmount(amount);
+          return amount;
+        })(),
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -98,7 +100,7 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        amount_to_capture: randomAmount,
+        amount_to_capture: getLatestPaymentIntentAmount(),
         payment_method: "card",
         payment_method_data: {
           card: successfulTestCardDetails,

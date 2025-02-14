@@ -75,6 +75,21 @@ export function validateEnv(baseUrl, keyIdType) {
   return prefix;
 }
 
+let latestPaymentIntentAmount = null;
+
 export function generateRandomAmount() {
   return Math.floor(10000 + Math.random() * 90000);
+}
+
+export function setLatestPaymentIntentAmount(amount) {
+  console.log("Setting latest PaymentIntent amount:", amount);
+  latestPaymentIntentAmount = amount;  // Properly update the value
+}
+
+export function getLatestPaymentIntentAmount() {
+  if (latestPaymentIntentAmount === null) {
+    throw new Error("No PaymentIntent amount has been set yet!");
+  }
+  console.log("Fetching latest PaymentIntent amount:", latestPaymentIntentAmount);
+  return latestPaymentIntentAmount;
 }
