@@ -571,6 +571,13 @@ impl Payments {
             .service(
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
+            )
+            .service(
+                web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
+            )
+            .service(
+                web::resource("/profile/aggregate")
+                    .route(web::get().to(payments::get_payments_aggregates_profile)),
             );
 
         route =

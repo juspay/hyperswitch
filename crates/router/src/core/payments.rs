@@ -5408,7 +5408,7 @@ pub async fn get_payment_filters(
     ))
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 pub async fn get_aggregates_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
