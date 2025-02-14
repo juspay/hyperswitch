@@ -85,7 +85,7 @@ cd hyperswitch
 docker compose up -d
 ```
 
-Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
+Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component-wise. This takes 15 minuites and gives the following output: 
 ```shell
 [+] Running 2/2
 ✔ hyperswitch-control-center Pulled 2.9s
@@ -111,9 +111,9 @@ The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
 
    <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml"><img src="https://github.com/juspay/hyperswitch/blob/main/docs/imgs/aws_button.png?raw=true" height="35"></a>
 
-2. Sign-in to your AWS console.
+2. Sign in to your AWS console.
 
-3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 30-45mins and gives the following output 
+3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 30-45 minuites and gives the following output: 
 
 | Service| Host|
 |----------------------------------------------|----------------------------------------------|
@@ -147,7 +147,7 @@ For any support, join the conversation in [Slack](https://join.slack.com/t/hyper
 
 For new product features, enhancements, roadmap discussions, or to share queries and ideas, visit our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
-For reporting a bug, please read the issue guidelines and search for [existing and closed issues]. If your problem or idea is not addressed yet, please [open a new issue].
+To report a bug, please read the issue guidelines and search for [existing and closed issues]. If your problem or idea is not addressed yet, please [open a new issue].
 
 [existing and closed issues]: https://github.com/juspay/hyperswitch/issues
 [open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
