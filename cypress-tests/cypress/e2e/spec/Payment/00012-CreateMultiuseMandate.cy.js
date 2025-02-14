@@ -34,7 +34,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           "new_mandate",
@@ -53,7 +53,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -67,7 +67,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -95,7 +95,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           "new_mandate",
@@ -111,7 +111,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -125,7 +125,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -137,7 +137,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -151,7 +151,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -163,7 +163,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -190,7 +190,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           "new_mandate",
@@ -206,7 +206,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -220,7 +220,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "automatic",
           globalState
