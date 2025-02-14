@@ -551,7 +551,6 @@ pub enum AdyenPaymentMethod<'a> {
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     #[serde(rename = "gcash")]
     Gcash(Box<GcashData>),
-    Giropay(Box<PmdForPaymentType>),
     Gpay(Box<AdyenGPay>),
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
@@ -585,8 +584,6 @@ pub enum AdyenPaymentMethod<'a> {
     PayBright,
     #[serde(rename = "doku_permata_lite_atm")]
     PermataBankTransfer(Box<DokuBankData>),
-    #[serde(rename = "directEbanking")]
-    Sofort,
     #[serde(rename = "trustly")]
     Trustly,
     #[serde(rename = "walley")]
@@ -1310,7 +1307,6 @@ pub enum PaymentType {
     Dana,
     Eps,
     Gcash,
-    Giropay,
     Googlepay,
     #[serde(rename = "gopay_wallet")]
     GoPay,
@@ -1346,8 +1342,6 @@ pub enum PaymentType {
     PayBright,
     Paypal,
     Scheme,
-    #[serde(rename = "directEbanking")]
-    Sofort,
     #[serde(rename = "networkToken")]
     NetworkToken,
     Trustly,
@@ -2075,13 +2069,11 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             | storage_enums::PaymentMethodType::BancontactCard
             | storage_enums::PaymentMethodType::Blik
             | storage_enums::PaymentMethodType::Eps
-            | storage_enums::PaymentMethodType::Giropay
             | storage_enums::PaymentMethodType::Ideal
             | storage_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | storage_enums::PaymentMethodType::OnlineBankingFinland
             | storage_enums::PaymentMethodType::OnlineBankingPoland
             | storage_enums::PaymentMethodType::OnlineBankingSlovakia
-            | storage_enums::PaymentMethodType::Sofort
             | storage_enums::PaymentMethodType::Trustly
             | storage_enums::PaymentMethodType::GooglePay
             | storage_enums::PaymentMethodType::AliPay
@@ -2459,11 +2451,6 @@ impl
                     ),
                 }),
             )),
-            domain::BankRedirectData::Giropay { .. } => {
-                Ok(AdyenPaymentMethod::Giropay(Box::new(PmdForPaymentType {
-                    payment_type: PaymentType::Giropay,
-                })))
-            }
             domain::BankRedirectData::Ideal { bank_name, .. } => {
                 let issuer = if test_mode.unwrap_or(true) {
                     Some(
@@ -2534,11 +2521,12 @@ impl
                     },
                 })),
             ),
-            domain::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
             domain::BankRedirectData::Trustly { .. } => Ok(AdyenPaymentMethod::Trustly),
-            domain::BankRedirectData::Interac { .. }
+            domain::BankRedirectData::Giropay { .. }
+            | domain::BankRedirectData::Interac { .. }
             | domain::BankRedirectData::LocalBankRedirect {}
-            | domain::BankRedirectData::Przelewy24 { .. } => {
+            | domain::BankRedirectData::Przelewy24 { .. }
+            | domain::BankRedirectData::Sofort { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -3221,20 +3209,13 @@ fn get_redirect_extra_details(
 ) -> errors::CustomResult<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError>
 {
     match item.request.payment_method_data {
-        domain::PaymentMethodData::BankRedirect(ref redirect_data) => match redirect_data {
-            domain::BankRedirectData::Sofort {
-                preferred_language, ..
-            } => {
-                let country = item.get_optional_billing_country();
-                Ok((preferred_language.clone(), country))
-            }
+        domain::PaymentMethodData::BankRedirect(
             domain::BankRedirectData::Trustly { .. }
-            | domain::BankRedirectData::OpenBankingUk { .. } => {
-                let country = item.get_optional_billing_country();
-                Ok((None, country))
-            }
-            _ => Ok((None, None)),
-        },
+            | domain::BankRedirectData::OpenBankingUk { .. },
+        ) => {
+            let country = item.get_optional_billing_country();
+            Ok((None, country))
+        }
         _ => Ok((None, None)),
     }
 }
@@ -4075,7 +4056,6 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Dana
         | PaymentType::Eps
         | PaymentType::Gcash
-        | PaymentType::Giropay
         | PaymentType::Googlepay
         | PaymentType::GoPay
         | PaymentType::Ideal
@@ -4095,7 +4075,6 @@ pub fn get_wait_screen_metadata(
         | PaymentType::PayBright
         | PaymentType::Paypal
         | PaymentType::Scheme
-        | PaymentType::Sofort
         | PaymentType::NetworkToken
         | PaymentType::Trustly
         | PaymentType::TouchNGo
@@ -4192,7 +4171,6 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Dana
         | PaymentType::Eps
         | PaymentType::Gcash
-        | PaymentType::Giropay
         | PaymentType::Googlepay
         | PaymentType::GoPay
         | PaymentType::Ideal
@@ -4214,7 +4192,6 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::PayBright
         | PaymentType::Paypal
         | PaymentType::Scheme
-        | PaymentType::Sofort
         | PaymentType::NetworkToken
         | PaymentType::Trustly
         | PaymentType::TouchNGo

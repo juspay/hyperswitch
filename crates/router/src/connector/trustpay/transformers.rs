@@ -1364,10 +1364,12 @@ impl From<GpayTokenizationSpecification> for api_models::payments::GpayTokenizat
 impl From<GpayTokenParameters> for api_models::payments::GpayTokenParameters {
     fn from(value: GpayTokenParameters) -> Self {
         Self {
-            gateway: value.gateway,
+            gateway: Some(value.gateway),
             gateway_merchant_id: Some(value.gateway_merchant_id.expose()),
             stripe_version: None,
             stripe_publishable_key: None,
+            public_key: None,
+            protocol_version: None,
         }
     }
 }

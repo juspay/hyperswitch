@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
 #[cfg(feature = "v2")]
-use api_models::ephemeral_key::EphemeralKeyResponse;
+use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
@@ -47,8 +47,8 @@ use openssl::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use ring::hmac;
 use router_env::{instrument, logger, tracing};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -3061,76 +3061,70 @@ pub async fn make_ephemeral_key(
 }
 
 #[cfg(feature = "v2")]
-pub async fn make_ephemeral_key(
+pub async fn make_client_secret(
     state: SessionState,
-    customer_id: id_type::GlobalCustomerId,
+    resource_id: api_models::ephemeral_key::ResourceId,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     headers: &actix_web::http::header::HeaderMap,
-) -> errors::RouterResponse<EphemeralKeyResponse> {
+) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
     let key_manager_state = &((&state).into());
-    db.find_customer_by_global_id(
-        key_manager_state,
-        &customer_id,
-        merchant_account.get_id(),
-        &key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let resource_type = services::authentication::get_header_value_by_key(
-        headers::X_RESOURCE_TYPE.to_string(),
-        headers,
-    )?
-    .map(ephemeral_key::ResourceType::from_str)
-    .transpose()
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
-    })?
-    .get_required_value("ResourceType")
-    .attach_printable("Failed to convert ResourceType from string")?;
+    match &resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            db.find_customer_by_global_id(
+                key_manager_state,
+                global_customer_id,
+                merchant_account.get_id(),
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        }
+    }
 
-    let ephemeral_key = create_ephemeral_key(
-        &state,
-        &customer_id,
-        merchant_account.get_id(),
-        resource_type,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to create ephemeral key")?;
+    let resource_id = match resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            common_utils::types::authentication::ResourceId::Customer(global_customer_id)
+        }
+    };
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let client_secret = create_client_secret(&state, merchant_account.get_id(), resource_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create client secret")?;
+
+    let response = ClientSecretResponse::foreign_try_from(client_secret)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
-pub async fn create_ephemeral_key(
+pub async fn create_client_secret(
     state: &SessionState,
-    customer_id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
-    resource_type: ephemeral_key::ResourceType,
-) -> RouterResult<ephemeral_key::EphemeralKeyType> {
+    resource_id: common_utils::types::authentication::ResourceId,
+) -> RouterResult<ephemeral_key::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
 
     let store = &state.store;
-    let id = id_type::EphemeralKeyId::generate();
-    let secret = masking::Secret::new(generate_time_ordered_id("epk"));
-    let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
+    let id = id_type::ClientSecretId::generate();
+    let secret = masking::Secret::new(generate_time_ordered_id("cs"));
+
+    let client_secret = ephemeral_key::ClientSecretTypeNew {
         id,
-        customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
         secret,
-        resource_type,
+        resource_id,
     };
-    let ephemeral_key = store
-        .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
+    let client_secret = store
+        .create_client_secret(client_secret, state.conf.eph_key.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create ephemeral key")?;
-    Ok(ephemeral_key)
+        .attach_printable("Unable to create client secret")?;
+    Ok(client_secret)
 }
 
 #[cfg(feature = "v1")]
@@ -3148,13 +3142,13 @@ pub async fn delete_ephemeral_key(
 }
 
 #[cfg(feature = "v2")]
-pub async fn delete_ephemeral_key(
+pub async fn delete_client_secret(
     state: SessionState,
     ephemeral_key_id: String,
-) -> errors::RouterResponse<EphemeralKeyResponse> {
+) -> errors::RouterResponse<ClientSecretResponse> {
     let db = state.store.as_ref();
     let ephemeral_key = db
-        .delete_ephemeral_key(&ephemeral_key_id)
+        .delete_client_secret(&ephemeral_key_id)
         .await
         .map_err(|err| match err.current_context() {
             errors::StorageError::ValueNotFound(_) => {
@@ -3166,7 +3160,8 @@ pub async fn delete_ephemeral_key(
         })
         .attach_printable("Unable to delete ephemeral key")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let response = ClientSecretResponse::foreign_try_from(ephemeral_key)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -5278,7 +5273,7 @@ where
     Ok(connector_data_list)
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApplePayData {
     version: masking::Secret<String>,
     data: masking::Secret<String>,
@@ -5286,7 +5281,7 @@ pub struct ApplePayData {
     header: ApplePayHeader,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayHeader {
     ephemeral_public_key: masking::Secret<String>,
@@ -5441,13 +5436,10 @@ impl ApplePayData {
     }
 }
 
-pub(crate) const SENDER_ID: &[u8] = b"Google";
-pub(crate) const PROTOCOL: &str = "ECv2";
-
 // Structs for keys and the main decryptor
 pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
-    recipient_id: Option<masking::Secret<String>>,
+    recipient_id: masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
 }
 
@@ -5554,12 +5546,16 @@ fn filter_root_signing_keys(
 impl GooglePayTokenDecryptor {
     pub fn new(
         root_keys: masking::Secret<String>,
-        recipient_id: Option<masking::Secret<String>>,
+        recipient_id: masking::Secret<String>,
         private_key: masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
             .decode(private_key.expose())
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+        // base64 decode the root signing keys
+        let decoded_root_signing_keys = BASE64_ENGINE
+            .decode(root_keys.expose())
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
@@ -5567,8 +5563,7 @@ impl GooglePayTokenDecryptor {
             .attach_printable("cannot convert private key from decode_key")?;
 
         // parse the root signing keys
-        let root_keys_vector: Vec<GooglePayRootSigningKey> = root_keys
-            .expose()
+        let root_keys_vector: Vec<GooglePayRootSigningKey> = decoded_root_signing_keys
             .parse_struct("GooglePayRootSigningKey")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
@@ -5674,13 +5669,13 @@ impl GooglePayTokenDecryptor {
         }
 
         // get the sender id i.e. Google
-        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+        let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // construct the signed data
         let signed_data = self.construct_signed_data_for_intermediate_signing_key_verification(
             &sender_id,
-            PROTOCOL,
+            consts::PROTOCOL,
             encrypted_data.intermediate_signing_key.signed_key.peek(),
         )?;
 
@@ -5781,7 +5776,7 @@ impl GooglePayTokenDecryptor {
             .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
         // get the sender id i.e. Google
-        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+        let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // serialize the signed message to string
@@ -5791,7 +5786,7 @@ impl GooglePayTokenDecryptor {
         // construct the signed data
         let signed_data = self.construct_signed_data_for_signature_verification(
             &sender_id,
-            PROTOCOL,
+            consts::PROTOCOL,
             &signed_message,
         )?;
 
@@ -5838,11 +5833,7 @@ impl GooglePayTokenDecryptor {
         protocol_version: &str,
         signed_key: &str,
     ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
-        let recipient_id = self
-            .recipient_id
-            .clone()
-            .ok_or(errors::GooglePayDecryptionError::RecipientIdNotFound)?
-            .expose();
+        let recipient_id = self.recipient_id.clone().expose();
         let length_of_sender_id = u32::try_from(sender_id.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
         let length_of_recipient_id = u32::try_from(recipient_id.len())
@@ -5922,13 +5913,14 @@ impl GooglePayTokenDecryptor {
 
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
-        hkdf.expand(SENDER_ID, &mut output_key).map_err(|err| {
-            logger::error!(
+        hkdf.expand(consts::SENDER_ID, &mut output_key)
+            .map_err(|err| {
+                logger::error!(
                 "Failed to derive the shared ephemeral key for Google Pay decryption flow: {:?}",
                 err
             );
-            report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
-        })?;
+                report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
+            })?;
 
         Ok(output_key)
     }
@@ -5941,8 +5933,8 @@ impl GooglePayTokenDecryptor {
         tag: &[u8],
         encrypted_message: &[u8],
     ) -> CustomResult<(), errors::GooglePayDecryptionError> {
-        let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, mac_key);
-        hmac::verify(&hmac_key, encrypted_message, tag)
+        let hmac_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, mac_key);
+        ring::hmac::verify(&hmac_key, encrypted_message, tag)
             .change_context(errors::GooglePayDecryptionError::HmacVerificationFailed)
     }
 
@@ -6035,7 +6027,7 @@ pub fn decrypt_paze_token(
     Ok(parsed_decrypted)
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JwsBody {
     pub payload_id: String,

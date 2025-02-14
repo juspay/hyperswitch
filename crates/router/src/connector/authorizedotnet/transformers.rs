@@ -1361,11 +1361,12 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>> for Cr
 impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
-            AuthorizedotnetRefundStatus::Approved => Self::Success,
             AuthorizedotnetRefundStatus::Declined | AuthorizedotnetRefundStatus::Error => {
                 Self::Failure
             }
-            AuthorizedotnetRefundStatus::HeldForReview => Self::Pending,
+            AuthorizedotnetRefundStatus::Approved | AuthorizedotnetRefundStatus::HeldForReview => {
+                Self::Pending
+            }
         }
     }
 }

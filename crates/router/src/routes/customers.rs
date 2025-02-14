@@ -85,19 +85,21 @@ pub async fn customers_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::GlobalCustomerId>,
 ) -> HttpResponse {
+    use crate::services::authentication::api_or_client_auth;
+
     let flow = Flow::CustomersRetrieve;
 
     let id = path.into_inner();
 
+    let v2_client_auth = auth::V2ClientAuth(
+        common_utils::types::authentication::ResourceId::Customer(id.clone()),
+    );
     let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth {
+        &auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
-        })
-    } else {
-        match auth::is_ephemeral_auth(req.headers()) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
         }
+    } else {
+        api_or_client_auth(&auth::V2ApiKeyAuth, &v2_client_auth, req.headers())
     };
 
     Box::pin(api::server_wrap(
@@ -108,7 +110,7 @@ pub async fn customers_retrieve(
         |state, auth: auth::AuthenticationData, id, _| {
             retrieve_customer(state, auth.merchant_account, auth.key_store, id)
         },
-        &*auth,
+        auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

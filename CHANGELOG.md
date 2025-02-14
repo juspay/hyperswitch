@@ -4,6 +4,84 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.14.0
+
+### Features
+
+- **connector:** [Moneris] add template code ([#7216](https://github.com/juspay/hyperswitch/pull/7216)) ([`b09905e`](https://github.com/juspay/hyperswitch/commit/b09905ecb4c7b33576b3ca1f13affe5341ea6e6f))
+- **core:** Add support to generate session token response from both `connector_wallets_details` and `metadata` ([#7140](https://github.com/juspay/hyperswitch/pull/7140)) ([`66d9c73`](https://github.com/juspay/hyperswitch/commit/66d9c731f528cd33a1a94815485d6efceb493742))
+
+### Bug Fixes
+
+- **connectors:** [fiuu] zero amount mandate flow for wallets ([#7251](https://github.com/juspay/hyperswitch/pull/7251)) ([`6aac16e`](https://github.com/juspay/hyperswitch/commit/6aac16e0c997d36e653f91be0f2a6660a3378dd5))
+
+**Full Changelog:** [`2025.02.13.0...2025.02.14.0`](https://github.com/juspay/hyperswitch/compare/2025.02.13.0...2025.02.14.0)
+
+- - -
+
+## 2025.02.13.0
+
+### Features
+
+- **core:** 3ds decision manager for v2 ([#7089](https://github.com/juspay/hyperswitch/pull/7089)) ([`52ae92b`](https://github.com/juspay/hyperswitch/commit/52ae92bc5df3612d4a15f23c00883db7a5d8d44d))
+
+### Bug Fixes
+
+- **v2:** Trait gating in v2 ([#7223](https://github.com/juspay/hyperswitch/pull/7223)) ([`fd81197`](https://github.com/juspay/hyperswitch/commit/fd8119782a5d78a4be4561b44d0f68f498fe25b9))
+
+### Refactors
+
+- **connector:** [Adyen] Removed deprecated PMTs from Ayden (Giropay, Sofort) ([#7100](https://github.com/juspay/hyperswitch/pull/7100)) ([`40a36fd`](https://github.com/juspay/hyperswitch/commit/40a36fd319ccdb495deb077005ffcaea9cdf2427))
+- **cypress:** Make amount configurable ([#7219](https://github.com/juspay/hyperswitch/pull/7219)) ([`055f628`](https://github.com/juspay/hyperswitch/commit/055f62858e6d0bcc6d27f563b30804365106d4a6))
+- **schema:** Add a new column for storing large connector transaction IDs ([#7017](https://github.com/juspay/hyperswitch/pull/7017)) ([`fa09db1`](https://github.com/juspay/hyperswitch/commit/fa09db1534884037947c6d488e33a3ce600c2a0c))
+
+**Full Changelog:** [`2025.02.12.0...2025.02.13.0`](https://github.com/juspay/hyperswitch/compare/2025.02.12.0...2025.02.13.0)
+
+- - -
+
+## 2025.02.12.0
+
+### Features
+
+- **connector:**
+  - [INESPAY] Enable Inespay In Dashboard ([#7233](https://github.com/juspay/hyperswitch/pull/7233)) ([`90ea076`](https://github.com/juspay/hyperswitch/commit/90ea0764aeb8524cac88031e1e887966a5c4fa76))
+  - [GETNET] add Connector Template Code ([#7105](https://github.com/juspay/hyperswitch/pull/7105)) ([`60310b4`](https://github.com/juspay/hyperswitch/commit/60310b485dd78d601a7e25f9b4bc8da53b425ce3))
+- **payment_methods_session_v2:** Add payment methods session endpoints ([#7107](https://github.com/juspay/hyperswitch/pull/7107)) ([`9615382`](https://github.com/juspay/hyperswitch/commit/96153824a73f359623bf77f199013d2ca9ff5e43))
+
+### Bug Fixes
+
+- **payments:** [Payment links] Add fix for payment link redirection url ([#7232](https://github.com/juspay/hyperswitch/pull/7232)) ([`1d607d7`](https://github.com/juspay/hyperswitch/commit/1d607d7970abe204bc6101a81ba26652eadcbd04))
+
+### Refactors
+
+- **core:** Add support for expand attempt list in psync v2 ([#7209](https://github.com/juspay/hyperswitch/pull/7209)) ([`d093317`](https://github.com/juspay/hyperswitch/commit/d09331701997b70672d4d768e8139c12fffb7ad1))
+
+**Full Changelog:** [`2025.02.11.0...2025.02.12.0`](https://github.com/juspay/hyperswitch/compare/2025.02.11.0...2025.02.12.0)
+
+- - -
+
+## 2025.02.11.0
+
+### Features
+
+- **connector:** [Datatrans] Add Wasm Changes ([#7229](https://github.com/juspay/hyperswitch/pull/7229)) ([`7b015c5`](https://github.com/juspay/hyperswitch/commit/7b015c5de061f6d6794dfcf5c7711809d325f46b))
+- **router:** Add adyen split payments support ([#6952](https://github.com/juspay/hyperswitch/pull/6952)) ([`323d763`](https://github.com/juspay/hyperswitch/commit/323d763087fd7453f05153b97d6b53e211cf74ba))
+
+### Bug Fixes
+
+- **connector:**
+  - [fiuu] update PSync and webhooks response ([#7211](https://github.com/juspay/hyperswitch/pull/7211)) ([`1c54211`](https://github.com/juspay/hyperswitch/commit/1c54211b2f8aa650fc4dbb7ab3d796e21d50461a))
+  - Fix incorrect mapping of attempt status in NMI connector ([#7200](https://github.com/juspay/hyperswitch/pull/7200)) ([`76c3459`](https://github.com/juspay/hyperswitch/commit/76c34595ef612ca1a3b750653e6460b980163d63))
+
+### Refactors
+
+- **connector:** [Authorizedotnet] fix refund status mapping ([#7208](https://github.com/juspay/hyperswitch/pull/7208)) ([`bfcaf00`](https://github.com/juspay/hyperswitch/commit/bfcaf003427caf9580a2520b3f2efc8773818905))
+- **router:** Add feature_metadata for merchant_connector_account create v2 flow ([#7144](https://github.com/juspay/hyperswitch/pull/7144)) ([`647e163`](https://github.com/juspay/hyperswitch/commit/647e163117a564f4be56b7b6a31b13007d3066f0))
+
+**Full Changelog:** [`2025.02.10.0...2025.02.11.0`](https://github.com/juspay/hyperswitch/compare/2025.02.10.0...2025.02.11.0)
+
+- - -
+
 ## 2025.02.10.0
 
 ### Features

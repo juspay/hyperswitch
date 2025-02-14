@@ -71,7 +71,7 @@ export const connectorDetails = {
         currency: "IDR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        amount: 6500000,
+        amount: 6000000,
         billing: billingDetails,
       },
       Response: {
@@ -91,13 +91,13 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 100,
-          amount: 6500000,
+          amount: 6000000,
         },
       },
     },
     PaymentConfirmWithShippingCost: {
       Request: {
-        amount: 6500000,
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -110,7 +110,7 @@ export const connectorDetails = {
         body: {
           status: "processing",
           shipping_cost: 100,
-          amount: 6500000,
+          amount: 6000000,
         },
       },
     },
@@ -123,7 +123,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
-        amount: 6500000,
+        amount: 6000000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: billingDetails,
@@ -148,7 +148,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
-        amount: 6500000,
+        amount: 6000000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: billingDetails,
@@ -166,12 +166,7 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
+        amount: 2000000,
       },
       Response: {
         status: 200,
@@ -182,12 +177,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
+        amount: 6000000,
       },
       Response: {
         status: 200,
@@ -406,7 +396,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
-        amount: 6500000,
+        amount: 6000000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: billingDetails,
@@ -423,7 +413,7 @@ export const connectorDetails = {
     },
     "3DSManualCapture": {
       Request: {
-        amount: 6500000,
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -450,7 +440,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
-        amount: 6500000,
+        amount: 6000000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: billingDetails,
@@ -473,21 +463,15 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        amount: 6500000,
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
+        amount_to_capture: 6000000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500000,
+          amount: 6000000,
           amount_capturable: 0,
-          amount_received: 6500000,
+          amount_received: 6000000,
         },
       },
     },
@@ -499,26 +483,21 @@ export const connectorDetails = {
         },
       },
       Request: {
-        amount: 6500000,
+        amount_to_capture: 2000000,
       },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500000,
+          amount: 2000000,
           amount_capturable: 0,
-          amount_received: 100,
+          amount_received: 2000000,
         },
       },
     },
     Refund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
+        amount: 6000000,
       },
       Response: {
         status: 200,
@@ -542,12 +521,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
+        amount: 2000000,
       },
       Response: {
         status: 200,
@@ -557,14 +531,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {
