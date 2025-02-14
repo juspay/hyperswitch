@@ -512,6 +512,7 @@ pub(crate) async fn fetch_raw_secrets(
         payouts: conf.payouts,
         applepay_decrypt_keys,
         paze_decrypt_keys,
+        google_pay_decrypt_keys: conf.google_pay_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,

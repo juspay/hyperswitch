@@ -6,11 +6,31 @@ let globalState;
 let connector;
 
 describe("Card - Mandates using Network Transaction Id flow test", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      connector = globalState.get("connectorId");
-    });
+  before(function () {
+    // Changed to regular function instead of arrow function
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        // Skip the test if the connector is not in the inclusion list
+        // This is done because only cybersource is known to support at present
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.MANDATES_USING_NTID_PROXY
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
@@ -20,12 +40,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic MIT payment flow test",
     () => {
-      beforeEach(function () {
-        if (connector !== "cybersource") {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -34,7 +48,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -46,12 +60,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual MIT payment flow test",
     () => {
-      beforeEach(function () {
-        if (connector !== "cybersource") {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -60,7 +68,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "manual",
           globalState
@@ -72,12 +80,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      beforeEach(function () {
-        if (connector !== "cybersource") {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -86,7 +88,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -100,7 +102,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -114,12 +116,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
     () => {
       let shouldContinue = true;
 
-      beforeEach(function () {
-        if (connector !== "cybersource") {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS MIT 1", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -128,7 +124,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -140,7 +136,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -154,7 +150,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -166,7 +162,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -177,12 +173,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - ThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      beforeEach(function () {
-        if (connector !== "cybersource") {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -191,7 +181,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -205,7 +195,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -217,12 +207,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - ThreeDS Create and Confirm Manual multiple MITs payment flow",
     () => {
-      beforeEach(function () {
-        if (connector !== "cybersource") {
-          this.skip();
-        }
-      });
-
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -231,7 +215,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState

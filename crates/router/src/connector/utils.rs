@@ -753,6 +753,40 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     }
 }
 
+pub trait SplitPaymentData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest>;
+}
+
+impl SplitPaymentData for types::PaymentsCaptureData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for types::PaymentsAuthorizeData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for types::PaymentsSyncData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for PaymentsCancelData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for types::SetupMandateRequestData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
 pub trait RevokeMandateRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
@@ -2744,6 +2778,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPayRedirect,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -2771,7 +2806,6 @@ pub enum PaymentMethodDataType {
     SwishQr,
     KlarnaRedirect,
     KlarnaSdk,
-    KlarnaCheckout,
     AffirmRedirect,
     AfterpayClearpayRedirect,
     PayBrightRedirect,
@@ -2862,6 +2896,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -2895,7 +2930,6 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
                 domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
-                domain::payments::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout,
                 domain::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
                 domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect

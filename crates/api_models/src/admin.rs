@@ -732,6 +732,10 @@ pub struct MerchantConnectorCreate {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -907,6 +911,28 @@ pub enum AdditionalMerchantData {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Feature metadata for merchant connector account
+pub struct MerchantConnectorAccountFeatureMetadata {
+    /// Revenue recovery metadata for merchant connector account
+    pub revenue_recovery: Option<RevenueRecoveryMetadata>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Revenue recovery metadata for merchant connector account
+pub struct RevenueRecoveryMetadata {
+    /// The maximum number of retries allowed for an invoice. This limit is set by the merchant for each `billing connector`. Once this limit is reached, no further retries will be attempted.
+    #[schema(value_type = u16, example = "15")]
+    pub max_retry_count: u16,
+    /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
+    #[schema(value_type = u16, example = "10")]
+    pub billing_connector_retry_threshold: u16,
+    /// Billing account reference id is payment gateway id at billing connector end.
+    /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
+    #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
+    pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
     Iban {
@@ -1070,6 +1096,10 @@ pub struct MerchantConnectorResponse {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1474,6 +1504,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub paze: Option<pii::SecretSerdeValue>,
+    /// This field contains the Google Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub google_pay: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1534,6 +1568,10 @@ pub struct MerchantConnectorUpdate {
 
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
