@@ -83,7 +83,7 @@ pub struct EventListItemResponse {
 }
 
 /// The response body of list initial delivery attempts api call.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TotalEventsResponse {
     /// The list of events
     pub events: Vec<EventListItemResponse>,
