@@ -18,7 +18,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData},
+    utils::{
+        BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData,
+        RouterData as OtherRouterData,
+    },
 };
 
 const CLIENT_CREDENTIALS: &str = "client_credentials";
@@ -85,6 +88,12 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
     fn try_from(
         item: &MonerisRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "Moneris",
+            })?
+        };
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ref req_card) => {
                 let idempotency_key = uuid::Uuid::new_v4().to_string();
@@ -221,7 +230,7 @@ impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
             MonerisPaymentStatus::Authorized => Self::Authorized,
             MonerisPaymentStatus::Canceled => Self::Voided,
             MonerisPaymentStatus::Declined | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
-            MonerisPaymentStatus::Processing => Self::Authorizing,
+            MonerisPaymentStatus::Processing => Self::Pending,
         }
     }
 }

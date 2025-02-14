@@ -293,7 +293,19 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     }
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Moneris {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Moneris {
+    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Moneris".to_string())
+                .into(),
+        )
+    }
+}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Moneris {
     fn get_headers(
@@ -486,7 +498,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
             self.amount_converter,
-            req.request.minor_payment_amount,
+            req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
 
