@@ -44,7 +44,7 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
-      SCCACHE_GHA_ENABLED: "1"
+      SCCACHE_GHA_ENABLED: "true"
 
     strategy:
       fail-fast: true
@@ -78,11 +78,14 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+      
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
 
       # - name: Install rust cache
       #   uses: Swatinem/rust-cache@v2.7.7
@@ -143,7 +146,7 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
-      SCCACHE_GHA_ENABLED: "1"
+      SCCACHE_GHA_ENABLED: "true"
 
     strategy:
       fail-fast: true
@@ -191,11 +194,14 @@ jobs:
       #   uses: baptiste0928/cargo-install@v2.2.0
       #   with:
       #     crate: cargo-nextest
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
 
       # - name: Install rust cache
       #   uses: Swatinem/rust-cache@v2.7.7
@@ -233,7 +239,7 @@ jobs:
 
     env:
       RUSTC_WRAPPER: "sccache"
-      SCCACHE_GHA_ENABLED: "1"
+      SCCACHE_GHA_ENABLED: "true"
 
     steps:
       - name: Checkout repository
@@ -255,11 +261,14 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
+
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
 
       # - name: Install rust cache
       #   uses: Swatinem/rust-cache@v2.7.7

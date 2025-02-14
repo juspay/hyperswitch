@@ -240,12 +240,13 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
       # - name: Install rust cache
       #   uses: Swatinem/rust-cache@v2.7.7
       #   with: 
@@ -335,11 +336,13 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
       # - name: Install rust cache
       #   uses: Swatinem/rust-cache@v2.7.7
       #   with: 
