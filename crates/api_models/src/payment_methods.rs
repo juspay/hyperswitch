@@ -1398,6 +1398,14 @@ pub struct RequestPaymentMethodTypes {
     #[schema(default = true, example = false)]
     pub installment_payment_enabled: bool,
 }
+impl RequestPaymentMethodTypes {
+    /// Get payment_method_type
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_type(&self) -> Option<api_enums::PaymentMethodType> {
+        Some(self.payment_method_type)
+    }
+
+}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
