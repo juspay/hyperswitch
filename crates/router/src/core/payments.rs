@@ -5132,6 +5132,80 @@ pub async fn list_payments(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn list_payments(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    constraints: api::PaymentListConstraints,
+) -> RouterResponse<payments_api::PaymentListResponse> {
+    common_utils::metrics::utils::record_operation_time(
+        async {
+            let limit = &constraints.limit;
+            helpers::validate_payment_list_request_for_joins(*limit)?;
+            let db: &dyn StorageInterface = state.store.as_ref();
+            let fetch_constraints = constraints.clone().into();
+            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
+                .get_filtered_payment_intents_attempt(
+                    &(&state).into(),
+                    merchant.get_id(),
+                    &fetch_constraints,
+                    &key_store,
+                    merchant.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let data: Vec<api_models::payments::PaymentsListResponseItem> =
+                list.into_iter().map(ForeignFrom::foreign_from).collect();
+
+            let active_attempt_ids = db
+                .get_filtered_active_attempt_ids_for_total_count(
+                    merchant.get_id(),
+                    &fetch_constraints,
+                    merchant.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+            let total_count = if constraints.has_no_attempt_filters() {
+                i64::try_from(active_attempt_ids.len())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while converting from usize to i64")
+            } else {
+                let active_attempt_ids = active_attempt_ids
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<String>>();
+
+                db.get_total_count_of_filtered_payment_attempts(
+                    merchant.get_id(),
+                    &active_attempt_ids,
+                    constraints.connector,
+                    constraints.payment_method,
+                    constraints.payment_method_type,
+                    constraints.authentication_type,
+                    constraints.merchant_connector_id,
+                    constraints.card_network,
+                    merchant.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+            }?;
+
+            Ok(services::ApplicationResponse::Json(
+                api_models::payments::PaymentListResponse {
+                    count: data.len(),
+                    total_count,
+                    data,
+                },
+            ))
+        },
+        &metrics::PAYMENT_LIST_LATENCY,
+        router_env::metric_attributes!(("merchant_id", merchant.get_id().clone())),
+    )
+    .await
+}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn apply_filters_on_payments(
     state: SessionState,

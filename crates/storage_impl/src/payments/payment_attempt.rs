@@ -505,6 +505,44 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })
     }
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[instrument(skip_all)]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<api_models::enums::Connector>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        authentication_type: Option<common_enums::AuthenticationType>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+        card_network: Option<common_enums::CardNetwork>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let conn = self
+            .db_store
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
+
+        DieselPaymentAttempt::get_total_count_of_attempts(
+            &conn,
+            merchant_id,
+            active_attempt_ids,
+            connector.map(|val| val.to_string()),
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            card_network,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+    }
 }
 
 #[async_trait::async_trait]
@@ -1404,6 +1442,34 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.router_store
+            .get_total_count_of_filtered_payment_attempts(
+                merchant_id,
+                active_attempt_ids,
+                connector,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                merchant_connector_id,
+                card_network,
+                storage_scheme,
+            )
+            .await
+    }
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[instrument(skip_all)]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<api_models::enums::Connector>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        authentication_type: Option<common_enums::AuthenticationType>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+        card_network: Option<common_enums::CardNetwork>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store

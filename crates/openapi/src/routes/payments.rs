@@ -457,6 +457,7 @@ pub fn payments_cancel() {}
 /// Payments - List
 ///
 /// To list the *payments*
+#[cfg(feature = "v1")]
 #[utoipa::path(
     get,
     path = "/payments/list",
@@ -846,3 +847,45 @@ pub(crate) enum ForceSync {
     security(("publishable_key" = []))
 )]
 pub fn list_payment_methods() {}
+
+/// Payments - List
+///
+/// To list the *payments*
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/list",
+    params(
+        ("payment_id" = String, Query, description = "The identifier for payment"),
+        ("profile_id" = String, Query, description = "The identifier for business profile"),
+        ("customer_id" = String, Query, description = "The identifier for the customer"),
+        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
+        ("offset" = i64, Query, description = "The starting point within a list of objects"),
+        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
+        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
+        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
+        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
+        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time"),
+        ("amount_filter" = AmountFilter, Query, description = "The amount to filter payments list"),
+        ("connector" = Connector, Query, description = "The connector to filter payments list"),
+        ("currency" = Currency, Query, description = "The currency to filter payments list"),
+        ("status" = IntentStatus, Query, description = "The payment status to filter payments list"),
+        ("payment_method" = PaymentMethod, Query, description = "The payment method to filter payments list"),
+        ("payment_method_type" = PaymentMethodType, Query, description = "The payment method type to filter payments list"),
+        ("authentication_type" = AuthenticationType, Query, description = "The authentication type to filter payments list"),
+        ("merchant_connector_id" = String, Query, description = "The merchant connector ids to filter payments list for selected label"),
+        ("order" = Order, Query, description = "The order in which payments list should be sorted"),
+        ("card_network" = CardNetwork, Query, description = "The card networks to filter payments list"),
+        ("merchant_order_reference_id" = String, Query, description = "The identifier for merchant order reference id")
+    ),
+    responses(
+        (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
+        (status = 404, description = "No payments found")
+    ),
+    tag = "Payments",
+    operation_id = "List all Payments",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub fn payments_list() {}
