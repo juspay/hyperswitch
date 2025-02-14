@@ -26,7 +26,7 @@ if (jsonData?.status) {
   );
 }
 
-// Response body should have value "6540" for "amount"
+// Response body should have value "540" for "amount"
 if (jsonData?.status && pm.collectionVariables.get("refund_id") !== null) {
   pm.test(
     "[POST]::/refunds - Content check if value for 'amount' matches '540'",
