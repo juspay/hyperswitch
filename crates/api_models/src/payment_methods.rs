@@ -478,8 +478,11 @@ pub struct PaymentMethodUpdate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
-    /// payment method data to be passed
-    pub payment_method_data: PaymentMethodUpdateData,
+    /// Payment method details to be updated for the payment_method
+    pub payment_method_data: Option<PaymentMethodUpdateData>,
+
+    /// The connector token details to be updated for the payment_method
+    pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -865,6 +868,33 @@ pub struct PaymentMethodResponse {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
+pub struct ConnectorTokenDetails {
+    /// The unique identifier of the connector account through which the token was generated
+    #[schema(value_type = String, example = "mca_")]
+    pub connector_id: id_type::MerchantConnectorAccountId,
+
+    /// The status of connector token
+    #[schema(value_type = ConnectorMandateStatus)]
+    pub status: common_enums::ConnectorMandateStatus,
+
+    /// The mandate reference id of the connector token
+    pub connector_token_request_reference_id: Option<String>,
+
+    pub original_payment_authorized_amount: Option<MinorUnit>,
+
+    /// The currency of the original payment authorized amount
+    #[schema(value_type = Currency)]
+    pub original_payment_authorized_currency: Option<common_enums::Currency>,
+
+    /// Metadata associated with the connector token
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The value of the connector token
+    pub token: String,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -900,11 +930,16 @@ pub struct PaymentMethodResponse {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 
+    /// A timestamp (ISO 8601 code) that determines when the payment method was last used
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
+    /// The payment method details related to the payment method
     pub payment_method_data: Option<PaymentMethodResponseData>,
+
+    /// The connector token details if available
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

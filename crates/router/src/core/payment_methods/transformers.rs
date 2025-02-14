@@ -551,9 +551,9 @@ pub fn generate_pm_vaulting_req_from_update_request(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
-    pm: &domain::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
-    let pmd = pm
+    let pmd = payment_method
         .payment_method_data
         .clone()
         .map(|data| data.into_inner())
@@ -564,16 +564,29 @@ pub fn generate_payment_method_response(
             _ => None,
         });
 
+    let connector_tokens = payment_method
+        .connector_mandate_details
+        .as_ref()
+        .and_then(|connector_token_details| connector_token_details.payments.clone())
+        .map(|payment_token_details| payment_token_details.0)
+        .map(|payment_token_details| {
+            payment_token_details
+                .into_iter()
+                .map(transformers::ForeignFrom::foreign_from)
+                .collect::<Vec<_>>()
+        });
+
     let resp = api::PaymentMethodResponse {
-        merchant_id: pm.merchant_id.to_owned(),
-        customer_id: pm.customer_id.to_owned(),
-        id: pm.id.to_owned(),
-        payment_method_type: pm.get_payment_method_type(),
-        payment_method_subtype: pm.get_payment_method_subtype(),
-        created: Some(pm.created_at),
+        merchant_id: payment_method.merchant_id.to_owned(),
+        customer_id: payment_method.customer_id.to_owned(),
+        id: payment_method.id.to_owned(),
+        payment_method_type: payment_method.get_payment_method_type(),
+        payment_method_subtype: payment_method.get_payment_method_subtype(),
+        created: Some(payment_method.created_at),
         recurring_enabled: false,
-        last_used_at: Some(pm.last_used_at),
+        last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
+        connector_tokens,
     };
 
     Ok(resp)
@@ -997,6 +1010,67 @@ impl
             network_tokenization: session.network_tokenization,
             expires_at: session.expires_at,
             client_secret,
+        }
+    }
+}
+
+impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetails>
+    for hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord
+{
+    fn foreign_from(item: api_models::payment_methods::ConnectorTokenDetails) -> Self {
+        let api_models::payment_methods::ConnectorTokenDetails {
+            status,
+            connector_token_request_reference_id,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            token,
+            ..
+        } = item;
+
+        Self {
+            connector_token: token,
+            // TODO: check why do we need this field
+            payment_method_subtype: None,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status: status,
+            connector_token_request_reference_id,
+        }
+    }
+}
+
+impl
+    transformers::ForeignFrom<(
+        id_type::MerchantConnectorAccountId,
+        hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+    )> for api_models::payment_methods::ConnectorTokenDetails
+{
+    fn foreign_from(
+        (connector_id, mandate_reference_record): (
+            id_type::MerchantConnectorAccountId,
+            hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+        ),
+    ) -> Self {
+        let hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
+            connector_token_request_reference_id,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token,
+            connector_token_status,
+            ..
+        } = mandate_reference_record;
+
+        Self {
+            connector_id,
+            status: connector_token_status,
+            connector_token_request_reference_id,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            token: connector_token,
         }
     }
 }

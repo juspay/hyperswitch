@@ -286,7 +286,7 @@ pub enum PaymentMethodUpdate {
     StatusUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
     },
-    AdditionalDataUpdate {
+    GenericUpdate {
         payment_method_data: Option<Encryption>,
         status: Option<storage_enums::PaymentMethodStatus>,
         locker_id: Option<String>,
@@ -296,6 +296,7 @@ pub enum PaymentMethodUpdate {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: Option<Encryption>,
         locker_fingerprint_id: Option<String>,
+        connector_mandate_details: Option<CommonMandateReference>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<CommonMandateReference>,
@@ -602,7 +603,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data: None,
                 scheme: None,
             },
-            PaymentMethodUpdate::AdditionalDataUpdate {
+            PaymentMethodUpdate::GenericUpdate {
                 payment_method_data,
                 status,
                 locker_id,
@@ -791,7 +792,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
             },
-            PaymentMethodUpdate::AdditionalDataUpdate {
+            PaymentMethodUpdate::GenericUpdate {
                 payment_method_data,
                 status,
                 locker_id,
@@ -801,6 +802,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id,
                 network_token_payment_method_data,
                 locker_fingerprint_id,
+                connector_mandate_details,
             } => Self {
                 payment_method_data,
                 last_used_at: None,
@@ -808,7 +810,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 status,
                 locker_id,
                 payment_method_type_v2,
-                connector_mandate_details: None,
+                connector_mandate_details,
                 updated_by: None,
                 payment_method_subtype,
                 last_modified: common_utils::date_time::now(),
@@ -944,13 +946,13 @@ pub struct PaymentsMandateReferenceRecord {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
-    pub connector_mandate_id: String,
+    pub connector_token: String,
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
-    pub mandate_metadata: Option<pii::SecretSerdeValue>,
-    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
-    pub connector_mandate_request_reference_id: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_token_status: common_enums::ConnectorMandateStatus,
+    pub connector_token_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
@@ -1030,6 +1032,24 @@ impl CommonMandateReference {
             .change_context(ParsingError::StructParseFailure("payout mandate details"))?;
 
         Ok(payments)
+    }
+
+    /// Insert a new payment token reference for the given connector_id
+    pub fn insert_payment_token_reference_record(
+        &mut self,
+        connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        record: PaymentsMandateReferenceRecord,
+    ) {
+        match self.payments {
+            Some(ref mut payments_reference) => {
+                payments_reference.insert(connector_id.clone(), record);
+            }
+            None => {
+                let mut payments_reference = HashMap::new();
+                payments_reference.insert(connector_id.clone(), record);
+                self.payments = Some(PaymentsMandateReference(payments_reference));
+            }
+        }
     }
 }
 

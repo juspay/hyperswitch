@@ -280,13 +280,13 @@ pub struct PaymentsMandateReferenceRecord {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
-    pub connector_mandate_id: String,
+    pub connector_token: String,
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_amount: Option<MinorUnit>,
     pub original_payment_authorized_currency: Option<Currency>,
-    pub mandate_metadata: Option<pii::SecretSerdeValue>,
-    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
-    pub connector_mandate_request_reference_id: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_token_status: common_enums::ConnectorMandateStatus,
+    pub connector_token_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -361,6 +361,24 @@ impl CommonMandateReference {
             .change_context(ParsingError::StructParseFailure("payout mandate details"))?;
 
         Ok(payments)
+    }
+
+    /// Insert a new payment token reference for the given connector_id
+    pub fn insert_payment_token_reference_record(
+        &mut self,
+        connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        record: PaymentsMandateReferenceRecord,
+    ) {
+        match self.payments {
+            Some(ref mut payments_reference) => {
+                payments_reference.insert(connector_id.clone(), record);
+            }
+            None => {
+                let mut payments_reference = HashMap::new();
+                payments_reference.insert(connector_id.clone(), record);
+                self.payments = Some(PaymentsMandateReference(payments_reference));
+            }
+        }
     }
 }
 
@@ -486,13 +504,13 @@ impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateRefe
 impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateReferenceRecord {
     fn from(value: diesel_models::PaymentsMandateReferenceRecord) -> Self {
         Self {
-            connector_mandate_id: value.connector_mandate_id,
+            connector_token: value.connector_token,
             payment_method_subtype: value.payment_method_subtype,
             original_payment_authorized_amount: value.original_payment_authorized_amount,
             original_payment_authorized_currency: value.original_payment_authorized_currency,
-            mandate_metadata: value.mandate_metadata,
-            connector_mandate_status: value.connector_mandate_status,
-            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            metadata: value.metadata,
+            connector_token_status: value.connector_token_status,
+            connector_token_request_reference_id: value.connector_token_request_reference_id,
         }
     }
 }
@@ -501,13 +519,13 @@ impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateRefe
 impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateReferenceRecord {
     fn from(value: PaymentsMandateReferenceRecord) -> Self {
         Self {
-            connector_mandate_id: value.connector_mandate_id,
+            connector_token: value.connector_token,
             payment_method_subtype: value.payment_method_subtype,
             original_payment_authorized_amount: value.original_payment_authorized_amount,
             original_payment_authorized_currency: value.original_payment_authorized_currency,
-            mandate_metadata: value.mandate_metadata,
-            connector_mandate_status: value.connector_mandate_status,
-            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            metadata: value.metadata,
+            connector_token_status: value.connector_token_status,
+            connector_token_request_reference_id: value.connector_token_request_reference_id,
         }
     }
 }

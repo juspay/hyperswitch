@@ -218,6 +218,17 @@ impl PaymentMethod {
             })
         }
     }
+
+    pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
+        self.payment_method_type = Some(payment_method_type);
+    }
+
+    pub fn set_payment_method_subtype(
+        &mut self,
+        payment_method_subtype: common_enums::PaymentMethodType,
+    ) {
+        self.payment_method_subtype = Some(payment_method_subtype);
+    }
 }
 
 #[cfg(all(
