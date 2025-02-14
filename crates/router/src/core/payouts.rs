@@ -1203,6 +1203,7 @@ pub async fn complete_create_recipient(
     Ok(())
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn create_recipient(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1262,7 +1263,7 @@ pub async fn create_recipient(
                         customers::update_connector_customer_in_customers(
                             &connector_label,
                             Some(&customer),
-                            &recipient_create_data.connector_payout_id.clone(),
+                            recipient_create_data.connector_payout_id.clone(),
                         )
                         .await
                     {
@@ -1400,6 +1401,17 @@ pub async fn create_recipient(
         }
     }
     Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn create_recipient(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
+    todo!()
 }
 
 pub async fn complete_payout_eligibility(

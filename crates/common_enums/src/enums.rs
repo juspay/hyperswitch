@@ -194,6 +194,7 @@ impl AttemptStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -3766,4 +3767,13 @@ pub enum AdyenSplitType {
     TopUp,
     /// The value-added tax charged on the payment, booked to your platforms liable balance account.
     Vat,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename = "snake_case")]
+pub enum PaymentConnectorTransmission {
+    /// Failed to call the payment connector
+    ConnectorCallFailed,
+    /// Payment Connector call succeeded
+    ConnectorCallSucceeded,
 }

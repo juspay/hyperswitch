@@ -415,6 +415,7 @@ pub async fn list_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
+            // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,

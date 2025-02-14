@@ -3016,6 +3016,16 @@ where
             id: merchant_connector_id.get_string_repr().to_owned(),
         })?;
 
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        &merchant_connector_account,
+        payment_data,
+    )
+    .await?;
+
     let mut router_data = payment_data
         .construct_router_data(
             state,
@@ -3068,8 +3078,7 @@ where
             payment_data.clone(),
             customer.clone(),
             merchant_account.storage_scheme,
-            // TODO: update the customer with connector customer id
-            None,
+            updated_customer,
             key_store,
             frm_suggestion,
             header_payload.clone(),
@@ -3894,7 +3903,6 @@ where
                 merchant_connector_account.get_mca_id(),
             )?;
 
-            #[cfg(feature = "v1")]
             let label = {
                 let connector_label = core_utils::get_connector_label(
                     payment_data.get_payment_intent().business_country,
@@ -3925,15 +3933,6 @@ where
                 }
             };
 
-            #[cfg(feature = "v2")]
-            let label = {
-                merchant_connector_account
-                    .get_mca_id()
-                    .get_required_value("merchant_connector_account_id")?
-                    .get_string_repr()
-                    .to_owned()
-            };
-
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
                     state, &connector, customer, &label,
@@ -3961,7 +3960,90 @@ where
                 let customer_update = customers::update_connector_customer_in_customers(
                     &label,
                     customer.as_ref(),
-                    &connector_customer_id,
+                    connector_customer_id.clone(),
+                )
+                .await;
+
+                payment_data.set_connector_customer_id(connector_customer_id);
+                Ok(customer_update)
+            } else {
+                // Customer already created in previous calls use the same value, no need to update
+                payment_data.set_connector_customer_id(
+                    existing_connector_customer_id.map(ToOwned::to_owned),
+                );
+                Ok(None)
+            }
+        }
+        None => Ok(None),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn call_create_connector_customer_if_required<F, Req, D>(
+    state: &SessionState,
+    customer: &Option<domain::Customer>,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    payment_data: &mut D,
+) -> RouterResult<Option<storage::CustomerUpdate>>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+{
+    let connector_name = payment_data.get_payment_attempt().connector.clone();
+
+    match connector_name {
+        Some(connector_name) => {
+            let connector = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+                Some(merchant_connector_account.get_id()),
+            )?;
+
+            let merchant_connector_id = merchant_connector_account.get_id();
+
+            let (should_call_connector, existing_connector_customer_id) =
+                customers::should_call_connector_create_customer(
+                    state,
+                    &connector,
+                    customer,
+                    &merchant_connector_id,
+                );
+
+            if should_call_connector {
+                // Create customer at connector and update the customer table to store this data
+                let router_data = payment_data
+                    .construct_router_data(
+                        state,
+                        connector.connector.id(),
+                        merchant_account,
+                        key_store,
+                        customer,
+                        merchant_connector_account,
+                        None,
+                        None,
+                    )
+                    .await?;
+
+                let connector_customer_id = router_data
+                    .create_connector_customer(state, &connector)
+                    .await?;
+
+                let customer_update = customers::update_connector_customer_in_customers(
+                    merchant_connector_id,
+                    customer.as_ref(),
+                    connector_customer_id.clone(),
                 )
                 .await;
 
@@ -5182,6 +5264,7 @@ pub async fn apply_filters_on_payments(
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
                     constraints.card_network,
+                    constraints.card_discovery,
                     merchant.storage_scheme,
                 )
                 .await
@@ -5320,6 +5403,7 @@ pub async fn get_payment_filters(
             payment_method: payment_method_types_map,
             authentication_type: enums::AuthenticationType::iter().collect(),
             card_network: enums::CardNetwork::iter().collect(),
+            card_discovery: enums::CardDiscovery::iter().collect(),
         },
     ))
 }
