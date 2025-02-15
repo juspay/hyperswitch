@@ -45,7 +45,7 @@ clippy_v2 *FLAGS:
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }} {{ FLAGS }}
+    cargo clippy {{ FLAGS }} {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }}
     set +x
 
 check_v2 *FLAGS:
@@ -108,7 +108,7 @@ check *FLAGS:
     ')"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}" {{ FLAGS }}
+    cargo check {{ FLAGS }} {{ check_flags }} --features "${FEATURES}"
     set +x
 
 alias cl := clippy
