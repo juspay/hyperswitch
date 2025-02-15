@@ -273,8 +273,8 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy -jobs 2
-        
+        run: just clippy --jobs 2
+
       - name: Monitor memory usage
         run: |
           free -m
@@ -355,7 +355,7 @@ jobs:
 
       - name: Run cargo clippy with v2 features enabled
         shell: bash
-        run: just clippy_v2 -jobs 2
+        run: just clippy_v2 --jobs 2
       - name: Monitor memory usage
         run: |
           free -m
