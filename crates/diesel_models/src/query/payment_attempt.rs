@@ -424,6 +424,7 @@ impl PaymentAttempt {
         authentication_type: Option<Vec<enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<enums::CardNetwork>>,
+        card_discovery: Option<Vec<enums::CardDiscovery>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -449,6 +450,9 @@ impl PaymentAttempt {
         }
         if let Some(card_network) = card_network {
             filter = filter.filter(dsl::card_network.eq_any(card_network))
+        }
+        if let Some(card_discovery) = card_discovery {
+            filter = filter.filter(dsl::card_discovery.eq_any(card_discovery))
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());

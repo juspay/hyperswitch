@@ -541,6 +541,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
             nick_name: update_card.nick_name,
             card_cvc: None,
         }),
+        _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.
     }
 }
 

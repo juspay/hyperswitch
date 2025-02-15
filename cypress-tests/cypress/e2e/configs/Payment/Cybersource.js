@@ -136,7 +136,7 @@ export const connectorDetails = {
       },
       Request: {
         currency: "USD",
-        amount: 6500,
+        amount: 6000,
         authentication_type: "no_three_ds",
         customer_acceptance: null,
         setup_future_usage: "off_session",
@@ -176,7 +176,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 50,
-          amount: 6500,
+          amount: 6000,
         },
       },
     },
@@ -194,9 +194,9 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
-          amount_received: 6550,
-          amount: 6500,
-          net_amount: 6550,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
         },
       },
     },
@@ -306,19 +306,14 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
+          amount: 6000,
+          amount_capturable: 6000,
           amount_received: null,
         },
       },
@@ -329,13 +324,15 @@ export const connectorDetails = {
           value: "connector_1",
         },
       },
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
+          amount: 6000,
+          amount_capturable: 6000,
           amount_received: null,
         },
       },
@@ -361,12 +358,7 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -382,12 +374,7 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 400,
@@ -408,12 +395,7 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 400,
@@ -434,12 +416,7 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -454,14 +431,6 @@ export const connectorDetails = {
           value: "connector_1",
         },
       },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {
@@ -471,14 +440,14 @@ export const connectorDetails = {
     },
     IncrementalAuth: {
       Request: {
-        amount: 7000,
+        amount: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_capture",
-          amount: 7000,
-          amount_capturable: 7000,
+          amount: 6000,
+          amount_capturable: 6000,
           amount_received: null,
         },
       },
