@@ -13788,6 +13788,14 @@
             ],
             "nullable": true
           },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
           "network_tokenization": {
             "allOf": [
               {
@@ -14536,6 +14544,7 @@
           "last_used_at": {
             "type": "string",
             "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
@@ -14545,6 +14554,14 @@
                 "$ref": "#/components/schemas/PaymentMethodResponseData"
               }
             ],
+            "nullable": true
+          },
+          "connector_tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorTokenDetails"
+            },
+            "description": "The connector token details if available",
             "nullable": true
           }
         }
@@ -14785,12 +14802,22 @@
       },
       "PaymentMethodUpdate": {
         "type": "object",
-        "required": [
-          "payment_method_data"
-        ],
         "properties": {
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodUpdateData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodUpdateData"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_token_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorTokenDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
