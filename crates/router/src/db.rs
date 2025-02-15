@@ -126,7 +126,6 @@ pub trait StorageInterface:
     + RedisConnInterface
     + RequestIdStore
     + business_profile::ProfileInterface
-    + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
@@ -159,9 +158,18 @@ pub trait GlobalStorageInterface:
 {
 }
 
-pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send + Sync + dyn_clone::DynClone + OrganizationInterface + 'static
+{
+}
+
+pub trait CommonStorageInterface:
+    StorageInterface + GlobalStorageInterface + AccountsStorageInterface
+{
     fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -198,6 +206,8 @@ impl StorageInterface for Store {
 #[async_trait::async_trait]
 impl GlobalStorageInterface for Store {}
 
+impl AccountsStorageInterface for Store {}
+
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
@@ -212,11 +222,17 @@ impl StorageInterface for MockDb {
 #[async_trait::async_trait]
 impl GlobalStorageInterface for MockDb {}
 
+impl AccountsStorageInterface for MockDb {}
+
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -226,6 +242,9 @@ impl CommonStorageInterface for Store {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -267,6 +286,7 @@ where
 
 dyn_clone::clone_trait_object!(StorageInterface);
 dyn_clone::clone_trait_object!(GlobalStorageInterface);
+dyn_clone::clone_trait_object!(AccountsStorageInterface);
 
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {

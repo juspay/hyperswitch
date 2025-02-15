@@ -102,7 +102,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1113,6 +1113,7 @@ pub struct PaymentIntentListParams {
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
+    pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
 }
 
@@ -1148,6 +1149,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
             card_network: None,
+            card_discovery: None,
             merchant_order_reference_id: None,
         }))
     }
@@ -1174,6 +1176,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             limit: None,
             order: Default::default(),
             card_network: None,
+            card_discovery: None,
             merchant_order_reference_id: None,
         }))
     }
@@ -1198,6 +1201,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            card_discovery,
             merchant_order_reference_id,
         } = value;
         if let Some(payment_intent_id) = payment_id {
@@ -1222,6 +1226,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
                 card_network,
+                card_discovery,
                 merchant_order_reference_id,
             }))
         }
