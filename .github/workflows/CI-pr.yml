@@ -273,7 +273,11 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy
+        run: just clippy -jobs 2
+        
+      - name: Monitor memory usage
+        run: |
+          free -m
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -351,8 +355,10 @@ jobs:
 
       - name: Run cargo clippy with v2 features enabled
         shell: bash
-        run: just clippy_v2
-
+        run: just clippy_v2 -jobs 2
+      - name: Monitor memory usage
+        run: |
+          free -m
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
         env:
