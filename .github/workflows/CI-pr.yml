@@ -97,7 +97,7 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-          - ubuntu-latest
+          - ubuntu-22.04-large
           - hyperswitch-runners
 
     steps:
@@ -196,7 +196,7 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-          - ubuntu-latest
+          - ubuntu-22.04-large
           - hyperswitch-runners
 
     steps:
@@ -305,7 +305,7 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-large
     env:
       RUSTC_WRAPPER: "sccache"
       SCCACHE_GHA_ENABLED: "true"
