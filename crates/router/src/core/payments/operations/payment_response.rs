@@ -28,7 +28,6 @@ use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v2")]
 use crate::utils::OptionExt;
-
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
