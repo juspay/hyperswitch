@@ -92,7 +92,6 @@ jobs:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_LOG : "debug" 
       SCCACHE_NO_DAEMON: "1"
 
     strategy:
@@ -193,7 +192,6 @@ jobs:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_LOG : "debug" 
       SCCACHE_NO_DAEMON: "1"
 
     strategy:
@@ -313,7 +311,6 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_LOG : "debug" 
       SCCACHE_NO_DAEMON: "1"
 
     steps:
