@@ -114,7 +114,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_capture",
         },
       },
     },
@@ -308,7 +308,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_capture",
         },
       },
     },

@@ -80,7 +80,8 @@ use crate::{
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
         unified_translations::UnifiedTranslationsInterface,
-        CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
+        AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
+        MasterKeyInterface, StorageInterface,
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
@@ -1875,8 +1876,7 @@ impl PaymentIntentInterface for KafkaStore {
             )
             .await
     }
-
-    #[cfg(all(feature = "olap", feature = "v1"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -3095,12 +3095,16 @@ impl StorageInterface for KafkaStore {
 }
 
 impl GlobalStorageInterface for KafkaStore {}
+impl AccountsStorageInterface for KafkaStore {}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }

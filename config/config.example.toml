@@ -778,6 +778,7 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = ""
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"               # URL of the tenant
 schema = "public"                                # Postgres db schema
+accounts_schema = "public"
 redis_key_prefix = ""                            # Redis key distinguisher
 clickhouse_database = "default"                  # Clickhouse database
 
