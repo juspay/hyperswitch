@@ -79,7 +79,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
                 // handle the call connector field once it has been added
-                pcr::decide_execute_pcr_workflow(
+                pcr::perform_execute_task(
                     state,
                     &process,
                     &tracking_data,
@@ -90,7 +90,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 .await
             }
             Some("PSYNC_WORKFLOW") => {
-                Box::pin(pcr::decide_execute_psync_workflow(
+                Box::pin(pcr::perform_psync_task(
                     state,
                     &process,
                     &tracking_data,
@@ -103,7 +103,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             }
 
             Some("REVIEW_WORKFLOW") => {
-                pcr::review_workflow(
+                pcr::perform_review_task(
                     state,
                     &process,
                     &tracking_data,
@@ -209,20 +209,4 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, merchant_id, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
-}
-
-#[cfg(feature = "v2")]
-pub(crate) async fn retry_pcr_payment_task(
-    db: &dyn StorageInterface,
-    merchant_id: common_utils::id_type::MerchantId,
-    mut pt: storage::ProcessTracker,
-) -> pcr_types::Action {
-    let schedule_time =
-        get_schedule_time_to_retry_mit_payments(db, &merchant_id, pt.retry_count + 1).await;
-    pt.schedule_time = schedule_time;
-    match schedule_time {
-        Some(_) => pcr_types::Action::RetryPayment(pt),
-
-        None => pcr_types::Action::TerminalFailure,
-    }
 }

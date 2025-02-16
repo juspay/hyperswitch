@@ -29,9 +29,9 @@ use crate::{
     workflows::passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments,
 };
 
-pub async fn decide_execute_pcr_workflow(
+pub async fn perform_execute_task(
     state: &SessionState,
-    process: &storage::ProcessTracker,
+    execute_task_process: &storage::ProcessTracker,
     tracking_data: &pcr::PCRWorkflowTrackingData,
     pcr_data: &pcr::PCRPaymentData,
     key_manager_state: &KeyManagerState,
@@ -55,7 +55,7 @@ pub async fn decide_execute_pcr_workflow(
                 db,
                 pcr_data.merchant_account.get_id(),
                 payment_intent,
-                process,
+                execute_task_process,
             )
             .await?;
             action
@@ -65,7 +65,7 @@ pub async fn decide_execute_pcr_workflow(
                     payment_intent,
                     key_manager_state,
                     &pcr_data.key_store,
-                    process,
+                    execute_task_process,
                     &pcr_data.profile,
                 )
                 .await?;
@@ -79,20 +79,19 @@ pub async fn decide_execute_pcr_workflow(
                 "{runner}_{task}_{}",
                 payment_intent.get_id().get_string_repr()
             );
-            let process_tracker_entry = db.find_process_by_id(&process_tracker_id).await?;
+            let psync_task_process = db.find_process_by_id(&process_tracker_id).await?;
 
-            // validate if its a psync task
-            match process_tracker_entry {
-                Some(process_tracker) => {
+            match psync_task_process {
+                Some(psync_process) => {
                     let pcr_status: pcr_types::PCRAttemptStatus =
                         payment_attempt.status.foreign_into();
 
                     pcr_status
-                        .perform_action_based_on_status(
+                        .update_pt_status_based_on_attempt_status(
                             db,
                             pcr_data.merchant_account.get_id(),
-                            process_tracker,
-                            process,
+                            psync_process,
+                            execute_task_process,
                             key_manager_state,
                             payment_intent.clone(),
                             &pcr_data.key_store,
@@ -102,6 +101,7 @@ pub async fn decide_execute_pcr_workflow(
                 }
 
                 None => {
+                    // insert new psync task
                     insert_psync_pcr_task(
                         db,
                         pcr_data.merchant_account.get_id().clone(),
@@ -109,6 +109,13 @@ pub async fn decide_execute_pcr_workflow(
                         pcr_data.profile.get_id().clone(),
                         payment_intent.active_attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                    )
+                    .await?;
+
+                    // finish the current task
+                    db.finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
                     )
                     .await?;
                 }
@@ -122,14 +129,14 @@ pub async fn decide_execute_pcr_workflow(
             )
             .await?;
             db.finish_process_with_business_status(
-                process.clone(),
-                business_status::PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW,
+                execute_task_process.clone(),
+                business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW,
             )
             .await?;
         }
         pcr_types::Decision::InvalidTask => {
             db.finish_process_with_business_status(
-                process.clone(),
+                execute_task_process.clone(),
                 business_status::EXECUTE_WORKFLOW_COMPLETE,
             )
             .await?;
@@ -179,33 +186,7 @@ async fn insert_psync_pcr_task(
     Ok(response)
 }
 
-async fn terminal_payment_failure_handling(
-    db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
-    payment_intent: PaymentIntent,
-    merchant_key_store: &MerchantKeyStore,
-    storage_scheme: common_enums::MerchantStorageScheme,
-) -> Result<(), errors::ProcessTrackerError> {
-    let payment_intent_update = storage::PaymentIntentUpdate::ConfirmIntent {
-        status: IntentStatus::Failed,
-        updated_by: storage_scheme.to_string(),
-        active_attempt_id: None,
-    };
-    // mark the intent as failure
-    db.update_payment_intent(
-        key_manager_state,
-        payment_intent,
-        payment_intent_update,
-        merchant_key_store,
-        storage_scheme,
-    )
-    .await
-    .to_not_found_response(api_error_response::ApiErrorResponse::PaymentNotFound)
-    .attach_printable("Error while updating payment_intent")?;
-
-    Ok(())
-}
-pub async fn decide_execute_psync_workflow(
+pub async fn perform_psync_task(
     state: &SessionState,
     process: &storage::ProcessTracker,
     tracking_data: &pcr::PCRWorkflowTrackingData,
@@ -228,7 +209,7 @@ pub async fn decide_execute_psync_workflow(
 
             let pcr_status: pcr_types::PCRAttemptStatus = payment_attempt.status.foreign_into();
             pcr_status
-                .perform_action_based_on_status_for_psync_task(
+                .update_pt_status_based_on_attempt_status_for_psync_task(
                     state,
                     process.clone(),
                     pcr_data,
@@ -338,7 +319,7 @@ pub async fn perform_psync_call(
     Ok(payment_data)
 }
 
-pub async fn review_workflow(
+pub async fn perform_review_task(
     state: &SessionState,
     process: &storage::ProcessTracker,
     _tracking_data: &pcr::PCRWorkflowTrackingData,
@@ -363,31 +344,34 @@ pub async fn review_workflow(
         "{runner}_{task}_{}",
         payment_intent.get_id().get_string_repr()
     );
-    let pt = db.find_process_by_id(&process_tracker_id).await?;
+    let pt = db
+        .find_process_by_id(&process_tracker_id)
+        .await?
+        .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
     match decision_task {
         types::Decision::ExecuteTask => {
             // get a reschedule time , without increasing the retry cpunt
             let schedule_time = get_schedule_time_to_retry_mit_payments(
                 db,
                 pcr_data.merchant_account.get_id(),
-                process.retry_count,
+                pt.retry_count,
             )
             .await;
 
             // check if retry is possible
-            if let (Some(schedule_time), Some(pt)) = (schedule_time, pt) {
+            if let Some(schedule_time) = schedule_time {
                 // schedule a requeue for execute_task
                 db.retry_process(pt.clone(), schedule_time).await?;
             } else {
-                terminal_payment_failure_handling(
-                    db,
-                    key_manager_state,
-                    payment_intent.clone(),
-                    &pcr_data.key_store,
-                    pcr_data.merchant_account.storage_scheme,
-                )
-                .await?;
+                // TODO: send back the failure webhook
             }
+
+            // finish current review task as the payment was a success
+            db.finish_process_with_business_status(
+                process.clone(),
+                business_status::REVIEW_WORKFLOW_COMPLETE,
+            )
+            .await?;
         }
         types::Decision::PsyncTask(payment_attempt) => {
             // create a Psync task
@@ -417,18 +401,11 @@ pub async fn review_workflow(
             .await;
 
             // check if retry is possible
-            if let (Some(schedule_time), Some(pt)) = (schedule_time, pt) {
+            if let Some(schedule_time) = schedule_time {
                 // schedule a retry for execute_task
                 db.retry_process(pt.clone(), schedule_time).await?;
             } else {
-                terminal_payment_failure_handling(
-                    db,
-                    key_manager_state,
-                    payment_intent.clone(),
-                    &pcr_data.key_store,
-                    pcr_data.merchant_account.storage_scheme,
-                )
-                .await?;
+                // TODO: send back the failure webhook
             }
             // a retry has been scheduled
             // TODO: set the connector called as false and active attempt id field None
