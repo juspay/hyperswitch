@@ -45,7 +45,7 @@ clippy_v2 *FLAGS:
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }} {{ FLAGS }}
+    cargo clippy {{ FLAGS }} {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }}
     set +x
 
 check_v2 *FLAGS:
