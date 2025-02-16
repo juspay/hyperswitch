@@ -3518,7 +3518,7 @@ common_utils::impl_to_sql_from_sql_json!(RedirectForm);
 )]
 #[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
 pub struct PaymentAttemptFeatureMetadata {
-    pub passive_churn_recovery: Option<PassiveChurnRecoveryData>,
+    pub revenue_recovery: Option<PaymentAttemptRecoveryData>,
 }
 
 #[cfg(feature = "v2")]
@@ -3526,19 +3526,8 @@ pub struct PaymentAttemptFeatureMetadata {
     Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
 )]
 #[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
-pub struct PassiveChurnRecoveryData {
-    pub triggered_by: TriggeredBy,
-}
-
-#[cfg(feature = "v2")]
-#[derive(
-    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
-)]
-#[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
-#[serde(rename_all = "snake_case")]
-pub enum TriggeredBy {
-    Internal,
-    External,
+pub struct PaymentAttemptRecoveryData {
+    pub attempt_triggered_by: common_enums::TriggeredBy,
 }
 
 #[cfg(feature = "v2")]

@@ -4205,6 +4205,10 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             payment_method_id: attempt.payment_method_id.clone(),
             client_source: attempt.client_source.clone(),
             client_version: attempt.client_version.clone(),
+            feature_metadata: attempt
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
         }
     }
 }
@@ -4249,6 +4253,25 @@ impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ErrorDeta
             unified_code,
             unified_message,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    ForeignFrom<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    > for api_models::payments::PaymentAttemptFeatureMetadata
+{
+    fn foreign_from(
+        feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    ) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|data| {
+            api_models::payments::PaymentAttemptRevenueRecoveryData {
+                attempt_triggered_by: data.attempt_triggered_by,
+            }
+        });
+
+        Self { revenue_recovery }
     }
 }
 

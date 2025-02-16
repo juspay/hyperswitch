@@ -32,7 +32,6 @@ pub async fn recovery_incoming_webhook_flow(
 
     match source_verified {
         true => {
-            let _db = &*state.store;
             let invoice_details = connector
                 .get_recovery_details(request_details)
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -45,10 +44,11 @@ pub async fn recovery_incoming_webhook_flow(
 
             let passive_churn_recovery_data = payment_attempt
                 .feature_metadata
-                .and_then(|metadata| metadata.passive_churn_recovery);
-            let triggered_by = passive_churn_recovery_data.map(|data| data.triggered_by);
+                .and_then(|metadata| metadata.revenue_recovery);
+            let attempt_triggered_by =
+                passive_churn_recovery_data.map(|data| data.attempt_triggered_by);
 
-            let action = RecoveryAction::find_action(event_type, triggered_by);
+            let action = RecoveryAction::find_action(event_type, attempt_triggered_by);
 
             match action {
                 RecoveryAction::CancelInvoice => todo!(),

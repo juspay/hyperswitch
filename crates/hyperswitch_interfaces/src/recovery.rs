@@ -1,5 +1,5 @@
 use api_models::webhooks::IncomingWebhookEvent;
-use diesel_models::payment_attempt::TriggeredBy;
+use common_enums::TriggeredBy;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
@@ -7,10 +7,10 @@ use hyperswitch_domain_models::{
 use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct RecoveryPayload {
     /// amount
-    pub amount: String,
+    pub amount: common_utils::types::MinorUnit,
     /// currency
     pub currency: common_enums::enums::Currency,
     /// merchant reference id ex: invoice_id
@@ -27,8 +27,14 @@ pub struct RecoveryPayload {
     pub connector_customer_id: Option<String>,
     /// payment merchant connnector account reference id
     pub connector_account_reference_id: Option<String>,
-    /// created_at
-    pub created_at: Option<PrimitiveDateTime>,
+    /// timestamp at which transaction has been created at billing connector
+    pub transaction_created_at: Option<PrimitiveDateTime>,
+    /// status of the transaction
+    pub status: common_enums::enums::AttemptStatus,
+    /// payment method of payment attempt
+    pub payment_method_type: common_enums::enums::PaymentMethod,
+    /// payment method sub type of the payment attempt
+    pub payment_method_sub_type: common_enums::enums::PaymentMethodType,
 }
 
 /// Trait definition
@@ -70,11 +76,17 @@ pub enum RecoveryAction {
 /// add docs
 pub trait RecoveryActionTrait {
     /// add docs
-    fn find_action(event_type: IncomingWebhookEvent, triggered_by: Option<TriggeredBy>) -> Self;
+    fn find_action(
+        event_type: IncomingWebhookEvent,
+        attempt_triggered_by: Option<TriggeredBy>,
+    ) -> Self;
 }
 
 impl RecoveryActionTrait for RecoveryAction {
-    fn find_action(event_type: IncomingWebhookEvent, triggered_by: Option<TriggeredBy>) -> Self {
+    fn find_action(
+        event_type: IncomingWebhookEvent,
+        attempt_triggered_by: Option<TriggeredBy>,
+    ) -> Self {
         match event_type {
             IncomingWebhookEvent::PaymentIntentFailure
             | IncomingWebhookEvent::PaymentIntentSuccess
@@ -112,11 +124,11 @@ impl RecoveryActionTrait for RecoveryAction {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::InvalidAction,
-            IncomingWebhookEvent::RecoveryPaymentFailure => match triggered_by {
+            IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {
                 Some(TriggeredBy::Internal) => Self::NoAction,
                 Some(TriggeredBy::External) | None => Self::FailPaymentExternal,
             },
-            IncomingWebhookEvent::RecoveryPaymentSuccess => match triggered_by {
+            IncomingWebhookEvent::RecoveryPaymentSuccess => match attempt_triggered_by {
                 Some(TriggeredBy::Internal) => Self::NoAction,
                 Some(TriggeredBy::External) | None => Self::SuccessPaymentExternal,
             },

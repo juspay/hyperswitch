@@ -251,6 +251,13 @@ pub enum ObjectReferenceId {
     ExternalAuthenticationID(AuthenticationIdType),
     #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
+    InvoiceId(InvoiceIdType),
+}
+
+#[cfg(feature = "recovery")]
+#[derive(Clone)]
+pub enum InvoiceIdType {
+    ConnectorInvoiceId(String),
 }
 
 pub struct IncomingWebhookDetails {

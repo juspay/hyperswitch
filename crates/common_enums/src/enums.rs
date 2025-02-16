@@ -3777,3 +3777,28 @@ pub enum PaymentConnectorTransmission {
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TriggeredBy {
+    /// Denotes payment attempt is been created my hyperswitch system.
+    #[default]
+    Internal,
+    /// Denotes payment attempt is been created by external system.
+    External,
+}

@@ -1480,6 +1480,21 @@ pub struct PaymentAttemptResponse {
     pub client_source: Option<String>,
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentAttemptFeatureMetadata {
+    pub revenue_recovery: Option<PaymentAttemptRevenueRecoveryData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentAttemptRevenueRecoveryData {
+    pub attempt_triggered_by: enums::TriggeredBy,
 }
 
 #[derive(
