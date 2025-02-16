@@ -47,11 +47,11 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
     feature = "customer_v2"
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
