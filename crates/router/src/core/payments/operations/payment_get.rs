@@ -9,7 +9,11 @@ use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::operations::{self, ValidateStatusForOperation},
+        payments::{
+            helpers,
+            operations::{self, ValidateStatusForOperation},
+        },
+        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -119,7 +123,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -130,6 +134,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        payment_intent
+            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         let payment_attempt = payment_intent
             .active_attempt_id
@@ -169,11 +176,32 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             Some(true),
         );
 
+        let attempts = match request.expand_attempts {
+            true => payment_intent
+                .active_attempt_id
+                .as_ref()
+                .async_map(|active_attempt| async {
+                    db.find_payment_attempts_by_payment_intent_id(
+                        key_manager_state,
+                        payment_id,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not find payment attempts for the given the intent id")
+                })
+                .await
+                .transpose()?,
+            false => None,
+        };
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
             payment_address,
+            attempts,
             should_sync_with_connector,
         };
 

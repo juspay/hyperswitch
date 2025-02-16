@@ -15,6 +15,7 @@ use crate::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,
         },
+        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -48,7 +49,7 @@ impl<F: Send + Clone + Sync>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -76,6 +77,9 @@ impl<F: Send + Clone + Sync>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        payment_intent
+            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,

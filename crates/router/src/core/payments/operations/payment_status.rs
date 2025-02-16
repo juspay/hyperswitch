@@ -214,7 +214,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -226,6 +226,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             request,
             self,
             merchant_account.storage_scheme,
+            platform_merchant_account,
         )
         .await
     }
@@ -253,6 +254,7 @@ async fn get_tracker_for_sync<
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
 ))]
+#[allow(clippy::too_many_arguments)]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -265,6 +267,7 @@ async fn get_tracker_for_sync<
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
+    platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
@@ -275,6 +278,7 @@ async fn get_tracker_for_sync<
         merchant_account.get_id(),
         key_store,
         storage_scheme,
+        platform_merchant_account,
     )
     .await?;
 
@@ -581,6 +585,7 @@ pub async fn get_payment_intent_payment_attempt(
     merchant_id: &common_utils::id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
+    _platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
@@ -664,4 +669,6 @@ pub async fn get_payment_intent_payment_attempt(
     get_pi_pa()
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+
+    // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
 }

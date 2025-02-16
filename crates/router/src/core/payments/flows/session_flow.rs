@@ -1,4 +1,4 @@
-use api_models::payments as payment_types;
+use api_models::{admin as admin_types, payments as payment_types};
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::ByteSliceExt,
@@ -8,10 +8,11 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, ExposeOptionInterface};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
@@ -828,6 +829,21 @@ fn create_gpay_session_token(
     connector: &api::ConnectorData,
     business_profile: &domain::Profile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
+    // connector_wallet_details is being parse into admin types to check specifically if google_pay field is present
+    // this is being done because apple_pay details from metadata is also being filled into connector_wallets_details
+    let connector_wallets_details = router_data
+        .connector_wallets_details
+        .clone()
+        .parse_value::<admin_types::ConnectorWalletDetails>("ConnectorWalletDetails")
+        .change_context(errors::ConnectorError::NoConnectorWalletDetails)
+        .attach_printable(format!(
+            "cannot parse connector_wallets_details from the given value {:?}",
+            router_data.connector_wallets_details
+        ))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_wallets_details".to_string(),
+            expected_format: "admin_types_connector_wallets_details_format".to_string(),
+        })?;
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
 
@@ -849,18 +865,6 @@ fn create_gpay_session_token(
             ..router_data.clone()
         })
     } else {
-        let gpay_data = connector_metadata
-            .clone()
-            .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
-            .change_context(errors::ConnectorError::NoConnectorMetaData)
-            .attach_printable(format!(
-                "cannot parse gpay metadata from the given value {connector_metadata:?}"
-            ))
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "connector_metadata".to_string(),
-                expected_format: "gpay_metadata_format".to_string(),
-            })?;
-
         let always_collect_billing_details_from_wallet_connector = business_profile
             .always_collect_billing_details_from_wallet_connector
             .unwrap_or(false);
@@ -883,27 +887,6 @@ fn create_gpay_session_token(
             false
         };
 
-        let billing_address_parameters =
-            is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
-                phone_number_required: is_billing_details_required,
-                format: payment_types::GpayBillingAddressFormat::FULL,
-            });
-
-        let gpay_allowed_payment_methods = gpay_data
-            .data
-            .allowed_payment_methods
-            .into_iter()
-            .map(
-                |allowed_payment_methods| payment_types::GpayAllowedPaymentMethods {
-                    parameters: payment_types::GpayAllowedMethodsParameters {
-                        billing_address_required: Some(is_billing_details_required),
-                        billing_address_parameters: billing_address_parameters.clone(),
-                        ..allowed_payment_methods.parameters
-                    },
-                    ..allowed_payment_methods
-                },
-            )
-            .collect();
         let required_amount_type = StringMajorUnitForConnector;
         let google_pay_amount = required_amount_type
             .convert(
@@ -945,37 +928,184 @@ fn create_gpay_session_token(
                 false
             };
 
-        Ok(types::PaymentsSessionRouterData {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::GooglePay(Box::new(
-                    payment_types::GpaySessionTokenResponse::GooglePaySession(
-                        payment_types::GooglePaySessionResponse {
-                            merchant_info: gpay_data.data.merchant_info,
-                            allowed_payment_methods: gpay_allowed_payment_methods,
-                            transaction_info,
-                            connector: connector.connector_name.to_string(),
-                            sdk_next_action: payment_types::SdkNextAction {
-                                next_action: payment_types::NextActionCall::Confirm,
-                            },
-                            delayed_session_token: false,
-                            secrets: None,
-                            shipping_address_required: required_shipping_contact_fields,
-                            // We pass Email as a required field irrespective of
-                            // collect_billing_details_from_wallet_connector or
-                            // collect_shipping_details_from_wallet_connector as it is common to both.
-                            email_required: required_shipping_contact_fields
-                                || is_billing_details_required,
-                            shipping_address_parameters:
-                                api_models::payments::GpayShippingAddressParameters {
-                                    phone_number_required: required_shipping_contact_fields,
+        if connector_wallets_details.google_pay.is_some() {
+            let gpay_data = router_data
+                .connector_wallets_details
+                .clone()
+                .parse_value::<payment_types::GooglePayWalletDetails>("GooglePayWalletDetails")
+                .change_context(errors::ConnectorError::NoConnectorWalletDetails)
+                .attach_printable(format!(
+                    "cannot parse gpay connector_wallets_details from the given value {:?}",
+                    router_data.connector_wallets_details
+                ))
+                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_wallets_details".to_string(),
+                    expected_format: "gpay_connector_wallets_details_format".to_string(),
+                })?;
+
+            let payment_types::GooglePayProviderDetails::GooglePayMerchantDetails(gpay_info) =
+                gpay_data.google_pay.provider_details.clone();
+
+            let gpay_allowed_payment_methods = get_allowed_payment_methods_from_cards(
+                gpay_data,
+                &gpay_info.merchant_info.tokenization_specification,
+                is_billing_details_required,
+            )?;
+
+            Ok(types::PaymentsSessionRouterData {
+                response: Ok(types::PaymentsResponseData::SessionResponse {
+                    session_token: payment_types::SessionToken::GooglePay(Box::new(
+                        payment_types::GpaySessionTokenResponse::GooglePaySession(
+                            payment_types::GooglePaySessionResponse {
+                                merchant_info: payment_types::GpayMerchantInfo {
+                                    merchant_name: gpay_info.merchant_info.merchant_name,
+                                    merchant_id: gpay_info.merchant_info.merchant_id,
                                 },
+                                allowed_payment_methods: vec![gpay_allowed_payment_methods],
+                                transaction_info,
+                                connector: connector.connector_name.to_string(),
+                                sdk_next_action: payment_types::SdkNextAction {
+                                    next_action: payment_types::NextActionCall::Confirm,
+                                },
+                                delayed_session_token: false,
+                                secrets: None,
+                                shipping_address_required: required_shipping_contact_fields,
+                                // We pass Email as a required field irrespective of
+                                // collect_billing_details_from_wallet_connector or
+                                // collect_shipping_details_from_wallet_connector as it is common to both.
+                                email_required: required_shipping_contact_fields
+                                    || is_billing_details_required,
+                                shipping_address_parameters:
+                                    api_models::payments::GpayShippingAddressParameters {
+                                        phone_number_required: required_shipping_contact_fields,
+                                    },
+                            },
+                        ),
+                    )),
+                }),
+                ..router_data.clone()
+            })
+        } else {
+            let billing_address_parameters = is_billing_details_required.then_some(
+                payment_types::GpayBillingAddressParameters {
+                    phone_number_required: is_billing_details_required,
+                    format: payment_types::GpayBillingAddressFormat::FULL,
+                },
+            );
+
+            let gpay_data = connector_metadata
+                .clone()
+                .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
+                .change_context(errors::ConnectorError::NoConnectorMetaData)
+                .attach_printable(format!(
+                    "cannot parse gpay metadata from the given value {connector_metadata:?}"
+                ))
+                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_metadata".to_string(),
+                    expected_format: "gpay_metadata_format".to_string(),
+                })?;
+
+            let gpay_allowed_payment_methods = gpay_data
+                .data
+                .allowed_payment_methods
+                .into_iter()
+                .map(
+                    |allowed_payment_methods| payment_types::GpayAllowedPaymentMethods {
+                        parameters: payment_types::GpayAllowedMethodsParameters {
+                            billing_address_required: Some(is_billing_details_required),
+                            billing_address_parameters: billing_address_parameters.clone(),
+                            ..allowed_payment_methods.parameters
                         },
-                    ),
-                )),
-            }),
-            ..router_data.clone()
-        })
+                        ..allowed_payment_methods
+                    },
+                )
+                .collect();
+
+            Ok(types::PaymentsSessionRouterData {
+                response: Ok(types::PaymentsResponseData::SessionResponse {
+                    session_token: payment_types::SessionToken::GooglePay(Box::new(
+                        payment_types::GpaySessionTokenResponse::GooglePaySession(
+                            payment_types::GooglePaySessionResponse {
+                                merchant_info: gpay_data.data.merchant_info,
+                                allowed_payment_methods: gpay_allowed_payment_methods,
+                                transaction_info,
+                                connector: connector.connector_name.to_string(),
+                                sdk_next_action: payment_types::SdkNextAction {
+                                    next_action: payment_types::NextActionCall::Confirm,
+                                },
+                                delayed_session_token: false,
+                                secrets: None,
+                                shipping_address_required: required_shipping_contact_fields,
+                                // We pass Email as a required field irrespective of
+                                // collect_billing_details_from_wallet_connector or
+                                // collect_shipping_details_from_wallet_connector as it is common to both.
+                                email_required: required_shipping_contact_fields
+                                    || is_billing_details_required,
+                                shipping_address_parameters:
+                                    api_models::payments::GpayShippingAddressParameters {
+                                        phone_number_required: required_shipping_contact_fields,
+                                    },
+                            },
+                        ),
+                    )),
+                }),
+                ..router_data.clone()
+            })
+        }
     }
+}
+
+/// Card Type for Google Pay Allowerd Payment Methods
+pub(crate) const CARD: &str = "CARD";
+
+fn get_allowed_payment_methods_from_cards(
+    gpay_info: payment_types::GooglePayWalletDetails,
+    gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
+    is_billing_details_required: bool,
+) -> RouterResult<payment_types::GpayAllowedPaymentMethods> {
+    let billing_address_parameters =
+        is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
+            phone_number_required: is_billing_details_required,
+            format: payment_types::GpayBillingAddressFormat::FULL,
+        });
+
+    let protocol_version: Option<String> = gpay_token_specific_data
+        .parameters
+        .public_key
+        .as_ref()
+        .map(|_| PROTOCOL.to_string());
+
+    Ok(payment_types::GpayAllowedPaymentMethods {
+        parameters: payment_types::GpayAllowedMethodsParameters {
+            billing_address_required: Some(is_billing_details_required),
+            billing_address_parameters: billing_address_parameters.clone(),
+            ..gpay_info.google_pay.cards
+        },
+        payment_method_type: CARD.to_string(),
+        tokenization_specification: payment_types::GpayTokenizationSpecification {
+            token_specification_type: gpay_token_specific_data.tokenization_type.to_string(),
+            parameters: payment_types::GpayTokenParameters {
+                protocol_version,
+                public_key: gpay_token_specific_data.parameters.public_key.clone(),
+                gateway: gpay_token_specific_data.parameters.gateway.clone(),
+                gateway_merchant_id: gpay_token_specific_data
+                    .parameters
+                    .gateway_merchant_id
+                    .clone()
+                    .expose_option(),
+                stripe_publishable_key: gpay_token_specific_data
+                    .parameters
+                    .stripe_publishable_key
+                    .clone()
+                    .expose_option(),
+                stripe_version: gpay_token_specific_data
+                    .parameters
+                    .stripe_version
+                    .clone()
+                    .expose_option(),
+            },
+        },
+    })
 }
 
 fn is_session_response_delayed(
