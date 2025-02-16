@@ -14,8 +14,6 @@ use common_utils::{
         ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::types::RevenueRecoveryMetadata;
 use diesel_models::{
     ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
     PaymentAttemptNew as DieselPaymentAttemptNew,

@@ -13,8 +13,6 @@ use common_utils::{
         StringMajorUnitForConnector,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::types::BillingConnectorMitTokenDetails;
 use diesel_models::{
     ephemeral_key,
     payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
@@ -320,9 +318,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .payment_intent
         .feature_metadata
         .as_ref()
-        .and_then(|fm| fm.revenue_recovery_metadata.as_ref())
+        .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
         .map(|rrm| {
-            rrm.billing_connector_mit_token_details
+            rrm.billing_connector_payment_details
                 .connector_customer_id
                 .clone()
         });
