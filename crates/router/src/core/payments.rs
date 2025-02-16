@@ -7333,7 +7333,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
         &state,
         None,
-        payment_intent.billing_address_id.as_deref(),
+        payment_attempt
+            .payment_method_billing_address_id
+            .as_deref()
+            .or(payment_intent.billing_address_id.as_deref()),
         merchant_id,
         payment_intent.customer_id.as_ref(),
         &key_store,
