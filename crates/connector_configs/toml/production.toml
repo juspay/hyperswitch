@@ -107,10 +107,6 @@ merchant_secret="Source verification key"
 [[adyen.bank_redirect]]
   payment_method_type = "ideal"
 [[adyen.bank_redirect]]
-  payment_method_type = "giropay"
-[[adyen.bank_redirect]]
-  payment_method_type = "sofort"
-[[adyen.bank_redirect]]
   payment_method_type = "eps"
 [[adyen.wallet]]
   payment_method_type = "apple_pay"
@@ -1143,6 +1139,14 @@ type="Text"
 [deutschebank]
 [[deutschebank.bank_debit]]
   payment_method_type = "sepa"
+[[deutschebank.credit]]
+  payment_method_type = "Visa"
+[[deutschebank.credit]]
+  payment_method_type = "Mastercard"
+[[deutschebank.debit]]
+  payment_method_type = "Visa"
+[[deutschebank.debit]]
+  payment_method_type = "Mastercard"
 [deutschebank.connector_auth.SignatureKey]
 api_key="Client ID"
 key1="Merchant ID"
@@ -1483,6 +1487,10 @@ key1="Client Secret"
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
+  payment_experience = "invoke_sdk_client"
+[[klarna.pay_later]]
+  payment_method_type = "klarna"
+  payment_experience = "redirect_to_url"
 [klarna.connector_auth.BodyKey]
 key1="Klarna Merchant Username"
 api_key="Klarna Merchant ID Password"
@@ -2282,6 +2290,8 @@ merchant_secret="Source verification key"
   payment_method_type = "bacs"
 [[stripe.bank_transfer]]
   payment_method_type = "sepa"
+[[stripe.wallet]]
+  payment_method_type = "amazon_pay"
 [[stripe.wallet]]
   payment_method_type = "apple_pay"
 [[stripe.wallet]]
@@ -3135,6 +3145,25 @@ key2 ="Merchant Id"
 api_key = "Passcode"
 key1 = "datatrans MerchantId"
 
+[datatrans.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[datatrans.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[datatrans.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
+
 [wellsfargo]
 [[wellsfargo.credit]]
   payment_method_type = "Mastercard"
@@ -3382,3 +3411,12 @@ api_secret="Pin"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+
+[inespay]
+[[inespay.bank_debit]]
+  payment_method_type = "sepa"
+[inespay.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Token"
+[inespay.connector_webhook_details]
+merchant_secret="API Key"

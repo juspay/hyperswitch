@@ -196,9 +196,11 @@ cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
+coingate.base_url = "https://api-sandbox.coingate.com/v2"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
+datatrans.secondary_base_url = "https://pay.sandbox.datatrans.com/"
 deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
 digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://sandbox.dlocal.com/"
@@ -211,6 +213,7 @@ fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
 fiuu.third_base_url="https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
+getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
@@ -224,6 +227,7 @@ jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
@@ -310,6 +314,7 @@ cards = [
   "adyenplatform",
   "authorizedotnet",
   "coinbase",
+    "coingate",
   "cryptopay",
   "braintree",
   "checkout",
@@ -323,6 +328,7 @@ cards = [
   "gpayments",
   "helcim",
   "mollie",
+    "moneris",
   "paypal",
   "shift4",
   "square",
@@ -450,7 +456,8 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource,bankofamerica" }           # Mandate supported payment method type and connector for card
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"
 wallet.paypal = { connector_list = "adyen" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -458,10 +465,11 @@ bank_debit.becs = { connector_list = "gocardless" }                             
 bank_debit.bacs = { connector_list = "adyen" }                                        # Mandate supported payment method type and connector for bank_debit
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
+bank_redirect.sofort = { connector_list = "stripe,globalpay" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
+wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.google_pay = { connector_list = "bankofamerica" }
-bank_redirect.giropay = { connector_list = "adyen,globalpay" }
+bank_redirect.giropay = { connector_list = "globalpay" }
 
 
 [mandates.update_mandate_supported]
@@ -584,6 +592,9 @@ paypal = { country = "AD,AE,AL,AM,AR,AT,AU,AZ,BA,BB,BD,BE,BG,BH,BI,BM,BN,BO,BR,B
 [pm_filters.mifinity]
 mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL,PT,SE,RU,TR,TW,HK,MO,AX,AL,DZ,AS,AO,AI,AG,AM,AW,AU,AT,AZ,BS,BH,BD,BB,BE,BZ,BJ,BM,BT,BQ,BA,BW,IO,BN,BG,BF,BI,KH,CM,CA,CV,KY,CF,TD,CX,CC,KM,CG,CK,CI,CW,CY,CZ,DJ,DM,EG,GQ,ER,EE,ET,FK,FO,FJ,GF,PF,TF,GA,GM,GE,GH,GL,GD,GP,GU,GG,GN,GW,GY,HT,HM,VA,IS,IN,ID,IE,IM,IL,JE,JO,KZ,KE,KI,KW,KG,LA,LV,LB,LS,LI,LT,LU,MK,MG,MW,MV,ML,MT,MH,MQ,MR,MU,YT,FM,MD,MC,MN,ME,MS,MA,MZ,NA,NR,NP,NC,NZ,NE,NG,NU,NF,MP,OM,PK,PW,PS,PG,PH,PN,QA,RE,RO,RW,BL,SH,KN,LC,MF,PM,VC,WS,SM,ST,SA,SN,RS,SC,SL,SX,SK,SI,SB,SO,ZA,GS,KR,LK,SR,SJ,SZ,TH,TL,TG,TK,TO,TT,TN,TM,TC,TV,UG,UA,AE,UZ,VU,VN,VG,VI,WF,EH,ZM", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD,EGP,UYU,UZS" }
 
+[pm_filters.fiuu]
+duit_now = { country = "MY", currency = "MYR" }
+
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
 payout_connector_list = "stripe,wise"
@@ -605,6 +616,9 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" # Private key
 [paze_decrypt_keys]
 paze_private_key = "PAZE_PRIVATE_KEY"                       # Base 64 Encoded Private Key File cakey.pem generated for Paze  -> Command to create private key: openssl req -newkey rsa:2048 -x509 -keyout cakey.pem -out cacert.pem -days 365
 paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE" # PEM Passphrase used for generating Private Key File cakey.pem
+
+[google_pay_decrypt_keys]
+google_pay_root_signing_keys = "GOOGLE_PAY_ROOT_SIGNING_KEYS" # Base 64 Encoded Root Signing Keys provided by Google Pay (https://developers.google.com/pay/api/web/guides/resources/payment-data-cryptography)
 
 [applepay_merchant_configs]
 # Run below command to get common merchant identifier for applepay in shell
@@ -764,6 +778,7 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = ""
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"               # URL of the tenant
 schema = "public"                                # Postgres db schema
+accounts_schema = "public"
 redis_key_prefix = ""                            # Redis key distinguisher
 clickhouse_database = "default"                  # Clickhouse database
 
