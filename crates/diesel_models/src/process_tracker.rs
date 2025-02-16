@@ -275,6 +275,10 @@ pub mod business_status {
     /// This status indicates that the execute task was completed to trigger the psync task
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
 
+    /// This status indicates that the execute task was completed to trigger the review task
+    pub const EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW: &str =
+        "COMPLETED_EXECUTE_TASK_TO_TRIGGER_REVIEW";
+
     /// This status indicates the completion of a psync task
     pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
 }

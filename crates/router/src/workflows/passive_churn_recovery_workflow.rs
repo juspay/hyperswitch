@@ -1,4 +1,6 @@
 #[cfg(feature = "v2")]
+use api_models::payments::PaymentsGetIntentRequest;
+#[cfg(feature = "v2")]
 use common_utils::ext_traits::{StringExt, ValueExt};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
@@ -48,12 +50,14 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
-            "PCRExecuteWorkflowTrackingData",
+            .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
+            "PCRWorkflowTrackingData",
         )?;
-
+        let request = PaymentsGetIntentRequest {
+            id: tracking_data.global_payment_id.clone(),
+        };
         let key_manager_state = &state.into();
-        let pcr_data = extract_data_and_perform_action(state, &process).await?;
+        let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,
@@ -66,23 +70,22 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             pcr_data.profile.clone(),
             pcr_data.key_store.clone(),
             payments::operations::PaymentGetIntent,
-            tracking_data.request,
-            pcr_data.global_payment_id.clone(),
+            request,
+            tracking_data.global_payment_id.clone(),
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            pcr_data.platform_merchant_account,
+            pcr_data.platform_merchant_account.clone(),
         )
         .await?;
+
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                // handle the call connector field once it has been added
-                pcr::decide_execute_pcr_workflow(
+                pcr::perform_execute_task(
                     state,
                     &process,
-                    &payment_data.payment_intent,
+                    &tracking_data,
+                    &pcr_data,
                     key_manager_state,
-                    &pcr_data.key_store,
-                    &pcr_data.merchant_account,
-                    &pcr_data.profile,
+                    &payment_data.payment_intent,
                 )
                 .await
             }
@@ -93,19 +96,12 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         }
     }
 }
-
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
-    process: &storage::ProcessTracker,
+    tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
 ) -> Result<pcr_storage_types::PCRPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
-    let tracking_data = process
-        .tracking_data
-        .clone()
-        .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
-        "PCRExecuteWorkflowTrackingData",
-    )?;
 
     let key_manager_state = &state.into();
     let key_store = db
@@ -132,11 +128,11 @@ pub(crate) async fn extract_data_and_perform_action(
         )
         .await?;
     let platform_merchant_account =
-        if let Some(platform_merchant_id) = tracking_data.platform_merchant_id {
+        if let Some(platform_merchant_id) = &tracking_data.platform_merchant_id {
             Some(
                 db.find_merchant_account_by_merchant_id(
                     key_manager_state,
-                    &platform_merchant_id,
+                    platform_merchant_id,
                     &key_store,
                 )
                 .await?,
@@ -145,13 +141,11 @@ pub(crate) async fn extract_data_and_perform_action(
             None
         };
 
-    let global_payment_id = tracking_data.global_payment_id.clone();
     let pcr_payment_data = pcr_storage_types::PCRPaymentData {
         merchant_account,
         profile,
         platform_merchant_account,
         key_store,
-        global_payment_id,
     };
     Ok(pcr_payment_data)
 }
@@ -169,21 +163,21 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         .map(|value| value.config)
         .and_then(|config| {
             config
-                .parse_struct("PCRPaymentRetryProcessTrackerMapping")
+                .parse_struct("RevenueRecoveryPaymentProcessTrackerMapping")
                 .change_context(StorageError::DeserializationFailed)
         });
 
     let mapping = result.map_or_else(
         |error| {
             if error.current_context().is_db_not_found() {
-                logger::debug!("Outgoing webhooks retry config `{key}` not found, ignoring");
+                logger::debug!("Revenue Recovery retry config `{key}` not found, ignoring");
             } else {
                 logger::error!(
                     ?error,
-                    "Failed to read outgoing webhooks retry config `{key}`"
+                    "Failed to read Revenue Recovery retry config `{key}`"
                 );
             }
-            process_data::PCRPaymentRetryProcessTrackerMapping::default()
+            process_data::RevenueRecoveryPaymentProcessTrackerMapping::default()
         },
         |mapping| {
             logger::debug!(?mapping, "Using custom pcr payments retry config");

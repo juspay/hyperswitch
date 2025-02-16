@@ -6,8 +6,7 @@ use common_utils::{self, id_type, types::keymanager::KeyManagerState};
 use diesel_models::process_tracker::business_status;
 use error_stack::{self, report, ResultExt};
 use hyperswitch_domain_models::{
-    business_profile, errors::api_error_response, merchant_account,
-    merchant_key_store::MerchantKeyStore, payments::PaymentIntent,
+    errors::api_error_response, merchant_key_store::MerchantKeyStore, payments::PaymentIntent,
 };
 use scheduler::errors;
 use storage_impl::errors::StorageError;
@@ -26,14 +25,13 @@ use crate::{
     },
 };
 
-pub async fn decide_execute_pcr_workflow(
+pub async fn perform_execute_task(
     state: &SessionState,
-    process: &storage::ProcessTracker,
-    payment_intent: &PaymentIntent,
+    execute_task_process: &storage::ProcessTracker,
+    _tracking_data: &pcr::PCRWorkflowTrackingData,
+    pcr_data: &pcr::PCRPaymentData,
     key_manager_state: &KeyManagerState,
-    merchant_key_store: &MerchantKeyStore,
-    merchant_account: &merchant_account::MerchantAccount,
-    _profile: &business_profile::Profile,
+    payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
     let decision_task = pcr_types::Decision::get_decision_based_on_params(
@@ -42,8 +40,8 @@ pub async fn decide_execute_pcr_workflow(
         true,
         payment_intent.active_attempt_id.clone(),
         key_manager_state,
-        merchant_key_store,
-        merchant_account,
+        &pcr_data.key_store,
+        &pcr_data.merchant_account,
     )
     .await?;
 
@@ -51,19 +49,19 @@ pub async fn decide_execute_pcr_workflow(
         pcr_types::Decision::ExecuteTask => {
             let action = pcr_types::Action::execute_payment(
                 db,
-                merchant_account.get_id(),
+                pcr_data.merchant_account.get_id(),
                 payment_intent,
-                process,
+                execute_task_process,
             )
             .await?;
             action
                 .execute_payment_response_handler(
                     db,
-                    merchant_account,
+                    &pcr_data.merchant_account,
                     payment_intent,
                     key_manager_state,
-                    merchant_key_store,
-                    process,
+                    &pcr_data.key_store,
+                    execute_task_process,
                 )
                 .await?;
         }
@@ -76,24 +74,23 @@ pub async fn decide_execute_pcr_workflow(
                 "{runner}_{task}_{}",
                 payment_intent.get_id().get_string_repr()
             );
-            let process_tracker_entry = db.find_process_by_id(&process_tracker_id).await?;
+            let psync_task_process = db.find_process_by_id(&process_tracker_id).await?;
 
-            // validate if its a psync task
-            match process_tracker_entry {
-                Some(process_tracker) => {
+            match psync_task_process {
+                Some(psync_process) => {
                     let pcr_status: pcr_types::PCRAttemptStatus =
                         payment_attempt.status.foreign_into();
 
                     pcr_status
-                        .perform_action_based_on_status(
+                        .update_pt_status_based_on_attempt_status(
                             db,
-                            merchant_account.get_id(),
-                            process_tracker,
-                            process,
+                            pcr_data.merchant_account.get_id(),
+                            psync_process,
+                            execute_task_process,
                             key_manager_state,
                             payment_intent.clone(),
-                            merchant_key_store,
-                            merchant_account.storage_scheme,
+                            &pcr_data.key_store,
+                            pcr_data.merchant_account.storage_scheme,
                         )
                         .await?;
                 }
@@ -103,13 +100,20 @@ pub async fn decide_execute_pcr_workflow(
                         force_sync: false,
                         param: None,
                     };
-                    // create a process tracker task
+                    // insert new psync task
                     insert_psync_pcr_task(
                         db,
-                        merchant_account.get_id().clone(),
+                        pcr_data.merchant_account.get_id().clone(),
                         payment_intent.get_id().clone(),
                         req,
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                    )
+                    .await?;
+
+                    // finish the current task
+                    db.finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
                     )
                     .await?;
                 }
@@ -117,7 +121,7 @@ pub async fn decide_execute_pcr_workflow(
         }
         pcr_types::Decision::ReviewTask => {
             db.finish_process_with_business_status(
-                process.clone(),
+                execute_task_process.clone(),
                 business_status::EXECUTE_WORKFLOW_COMPLETE,
             )
             .await?;

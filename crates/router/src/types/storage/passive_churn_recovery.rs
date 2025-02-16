@@ -4,7 +4,7 @@ use api_models::payments::{PaymentsGetIntentRequest, PaymentsRetrieveRequest};
 use common_utils::id_type;
 use hyperswitch_domain_models::{business_profile, merchant_account, merchant_key_store};
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct PCRExecuteWorkflowTrackingData {
+pub struct PCRWorkflowTrackingData {
     pub request: PaymentsGetIntentRequest,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -25,5 +25,4 @@ pub struct PCRPaymentData {
     pub profile: business_profile::Profile,
     pub platform_merchant_account: Option<merchant_account::MerchantAccount>,
     pub key_store: merchant_key_store::MerchantKeyStore,
-    pub global_payment_id: id_type::GlobalPaymentId,
 }

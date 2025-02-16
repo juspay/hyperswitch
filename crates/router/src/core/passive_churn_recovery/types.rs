@@ -1,7 +1,7 @@
 use api_models::payments::PaymentsRetrieveRequest;
 use common_enums::{self, IntentStatus};
 use common_utils::{self, id_type, types::keymanager::KeyManagerState};
-use diesel_models::process_tracker::business_status;
+use diesel_models::{enums, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     merchant_account,
@@ -36,22 +36,22 @@ pub enum PCRAttemptStatus {
 
 impl PCRAttemptStatus {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn perform_action_based_on_status(
+    pub(crate) async fn update_pt_status_based_on_attempt_status(
         &self,
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
-        process_tracker: storage::ProcessTracker,
+        pt_psync_process: storage::ProcessTracker,
         process: &storage::ProcessTracker,
-        key_manager_state: &KeyManagerState,
-        payment_intent: PaymentIntent,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        _key_manager_state: &KeyManagerState,
+        _payment_intent: PaymentIntent,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> Result<(), errors::ProcessTrackerError> {
         match &self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
                 db.finish_process_with_business_status(
-                    process_tracker,
+                    pt_psync_process,
                     business_status::PSYNC_WORKFLOW_COMPLETE,
                 )
                 .await?;
@@ -68,7 +68,7 @@ impl PCRAttemptStatus {
             Self::Failed => {
                 // finish psync task
                 db.finish_process_with_business_status(
-                    process_tracker.clone(),
+                    pt_psync_process.clone(),
                     business_status::PSYNC_WORKFLOW_COMPLETE,
                 )
                 .await?;
@@ -77,7 +77,7 @@ impl PCRAttemptStatus {
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
                     db,
                     merchant_id,
-                    process_tracker.retry_count + 1,
+                    process.retry_count + 1,
                 )
                 .await;
 
@@ -86,15 +86,7 @@ impl PCRAttemptStatus {
                     // schedule a retry
                     db.retry_process(process.clone(), schedule_time).await?;
                 } else {
-                    let _ = core_pcr::terminal_payment_failure_handling(
-                        db,
-                        key_manager_state,
-                        payment_intent.clone(),
-                        merchant_key_store,
-                        storage_scheme,
-                    )
-                    .await
-                    .map_err(|error| logger::error!(?error, "Failed to update the payment intent"));
+                    // TODO: Record a failure back to the billing connector
                 }
             }
 
@@ -111,9 +103,17 @@ impl PCRAttemptStatus {
                 logger::debug!(
                     "Invalid Attempt Status for the Recovery Payment : {}",
                     action
-                )
+                );
+                let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                    status: enums::ProcessTrackerStatus::Review,
+                    business_status: Some(String::from(
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+                    )),
+                };
+                // update the process tracker status as Review
+                db.update_process(process.clone(), pt_update).await?;
             }
-        }
+        };
         Ok(())
     }
 }
