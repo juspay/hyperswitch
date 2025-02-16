@@ -482,7 +482,8 @@ impl
             .map(|fm| {
                 let mut updated_metadata = fm.clone();
                 if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
-                    rrm.payment_connector_transmission = common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded;
+                    rrm.payment_connector_transmission =
+                        common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded;
                 }
                 updated_metadata
             });
@@ -494,8 +495,11 @@ impl
                     .as_ref()
                     .map(|fm| {
                         let mut updated_metadata = fm.clone();
-                        if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
-                            rrm.payment_connector_transmission = common_enums::PaymentConnectorTransmission::ConnectorCallFailed;
+                        if let Some(ref mut rrm) =
+                            updated_metadata.payment_revenue_recovery_metadata
+                        {
+                            rrm.payment_connector_transmission =
+                                common_enums::PaymentConnectorTransmission::ConnectorCallFailed;
                         }
                         updated_metadata
                     });
@@ -1164,7 +1168,8 @@ impl
                 .map(|fm| {
                     let mut updated_metadata = fm.clone();
                     if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
-                        rrm.payment_connector_transmission = common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded;
+                        rrm.payment_connector_transmission =
+                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded;
                     }
                     updated_metadata
                 });
