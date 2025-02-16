@@ -112,9 +112,6 @@ impl ConnectorCommon for Getnet {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -165,7 +162,6 @@ impl ConnectorCommon for Getnet {
 }
 
 impl ConnectorValidation for Getnet {
-    //TODO: implement functions when support enabled
     fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
@@ -182,11 +178,28 @@ impl ConnectorValidation for Getnet {
             ),
         }
     }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if data.encoded_data.is_some()
+            || data
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .is_ok()
+        {
+            return Ok(());
+        }
+
+        Err(errors::ConnectorError::MissingConnectorTransactionID.into())
+    }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Getnet {
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Getnet {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Getnet {}
 
@@ -301,7 +314,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = getnet::GetnetAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let id = auth.merchant_id.peek();
+        let merchant_id = auth.merchant_id.peek();
 
         let endpoint = self.base_url(connectors);
         let transaction_id = req
@@ -312,7 +325,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
 
         Ok(format!(
             "{}/merchants/{}/payments/{}",
-            endpoint, id, transaction_id
+            endpoint, merchant_id, transaction_id
         ))
     }
 
