@@ -965,7 +965,7 @@ pub async fn payments_redirect_response(
         creds_identifier: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -983,7 +983,7 @@ pub async fn payments_redirect_response(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 
@@ -1015,7 +1015,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     };
     let flow = Flow::PaymentsRedirect;
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -1033,7 +1033,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 
@@ -1065,7 +1065,7 @@ pub async fn payments_complete_authorize_redirect(
         creds_identifier: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -1084,7 +1084,7 @@ pub async fn payments_complete_authorize_redirect(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 
@@ -1406,7 +1406,7 @@ pub async fn get_payment_filters_profile(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 pub async fn get_payments_aggregates(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -2217,6 +2217,35 @@ pub async fn get_payments_aggregates_profile(
                 state,
                 auth.merchant_account,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn get_payments_aggregates_profile(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_aggregates_for_payments(
+                state,
+                auth.merchant_account,
+                Some(vec![auth.profile.get_id().clone()]),
                 req,
             )
         },
