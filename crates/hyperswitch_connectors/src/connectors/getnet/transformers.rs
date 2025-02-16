@@ -86,7 +86,6 @@ pub struct Card {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-
 pub enum GetnetPaymentMethods {
     CreditCard,
 }
@@ -109,7 +108,6 @@ pub struct PaymentMethodContainer {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-
 pub enum NotificationFormat {
     #[serde(rename = "application/json-signed")]
     JsonSigned,
@@ -832,7 +830,6 @@ impl TryFrom<&PaymentsCancelRouterData> for GetnetCancelRequest {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-
 pub enum GetnetTransactionType {
     Purchase,
     #[serde(rename = "capture-authorization")]
@@ -850,7 +847,6 @@ pub enum GetnetTransactionType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-
 pub struct CancelResponseData {
     pub statuses: Statuses,
     pub descriptor: String,
