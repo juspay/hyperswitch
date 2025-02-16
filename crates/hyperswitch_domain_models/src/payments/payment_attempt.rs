@@ -14,16 +14,15 @@ use common_utils::{
         ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::{
-    PaymentAttemptFeatureMetadata as DieselPaymentAttemptFeatureMetadata,
-    PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
-};
-
 use diesel_models::{
     ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+};
+#[cfg(feature = "v2")]
+use diesel_models::{
+    PaymentAttemptFeatureMetadata as DieselPaymentAttemptFeatureMetadata,
+    PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
