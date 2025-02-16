@@ -85,7 +85,7 @@ impl Default for OutgoingWebhookRetryProcessTrackerMapping {
 
 /// Configuration for outgoing webhook retries.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PCRPaymentRetryProcessTrackerMapping {
+pub struct RevenueRecoveryPaymentProcessTrackerMapping {
     /// Default (fallback) retry configuration used when no merchant-specific retry configuration
     /// exists.
     pub default_mapping: RetryMapping,
@@ -94,7 +94,7 @@ pub struct PCRPaymentRetryProcessTrackerMapping {
     pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
 }
 
-impl Default for PCRPaymentRetryProcessTrackerMapping {
+impl Default for RevenueRecoveryPaymentProcessTrackerMapping {
     fn default() -> Self {
         Self {
             default_mapping: RetryMapping {

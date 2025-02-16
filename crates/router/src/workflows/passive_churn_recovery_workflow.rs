@@ -78,7 +78,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                // handle the call connector field once it has been added
                 pcr::perform_execute_task(
                     state,
                     &process,
@@ -118,7 +117,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         }
     }
 }
-
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
@@ -186,18 +184,21 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         .map(|value| value.config)
         .and_then(|config| {
             config
-                .parse_struct("PCRPaymentRetryProcessTrackerMapping")
+                .parse_struct("RevenueRecoveryPaymentProcessTrackerMapping")
                 .change_context(StorageError::DeserializationFailed)
         });
 
     let mapping = result.map_or_else(
         |error| {
             if error.current_context().is_db_not_found() {
-                logger::debug!("PCR retry config `{key}` not found, ignoring");
+                logger::debug!("Revenue Recovery retry config `{key}` not found, ignoring");
             } else {
-                logger::error!(?error, "Failed to read PCR retry config `{key}`");
+                logger::error!(
+                    ?error,
+                    "Failed to read Revenue Recovery retry config `{key}`"
+                );
             }
-            process_data::PCRPaymentRetryProcessTrackerMapping::default()
+            process_data::RevenueRecoveryPaymentProcessTrackerMapping::default()
         },
         |mapping| {
             logger::debug!(?mapping, "Using custom pcr payments retry config");

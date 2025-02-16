@@ -1,5 +1,5 @@
 use common_enums::{self, IntentStatus};
-use common_utils::{self, ext_traits::OptionExt, id_type, types::keymanager::KeyManagerState};
+use common_utils::{self, id_type, types::keymanager::KeyManagerState};
 use diesel_models::{enums, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
@@ -44,36 +44,39 @@ impl PCRAttemptStatus {
         merchant_id: &id_type::MerchantId,
         pt_psync_process: storage::ProcessTracker,
         process: &storage::ProcessTracker,
-        key_manager_state: &KeyManagerState,
-        payment_intent: PaymentIntent,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        _key_manager_state: &KeyManagerState,
+        _payment_intent: PaymentIntent,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> Result<(), errors::ProcessTrackerError> {
         match &self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
-                db.finish_process_with_business_status(
-                    pt_psync_process,
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        pt_psync_process,
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await?;
                 // TODO: send back the successful webhook
 
                 // finish the current execute task as the payment has been completed
-                db.finish_process_with_business_status(
-                    process.clone(),
-                    business_status::EXECUTE_WORKFLOW_COMPLETE,
-                )
-                .await?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE,
+                    )
+                    .await?;
             }
 
             Self::Failed => {
                 // finish psync task
-                db.finish_process_with_business_status(
-                    pt_psync_process.clone(),
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        pt_psync_process.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await?;
 
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
@@ -94,11 +97,12 @@ impl PCRAttemptStatus {
 
             Self::Processing => {
                 // finish the current execute task
-                db.finish_process_with_business_status(
-                    process.clone(),
-                    business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
-                )
-                .await?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+                    )
+                    .await?;
             }
 
             Self::InvalidAction(action) => {
@@ -113,11 +117,14 @@ impl PCRAttemptStatus {
                     )),
                 };
                 // update the process tracker status as Review
-                db.update_process(process.clone(), pt_update).await?;
+                db.as_scheduler()
+                    .update_process(process.clone(), pt_update)
+                    .await?;
             }
         };
         Ok(())
     }
+
     pub(crate) async fn update_pt_status_based_on_attempt_status_for_psync_task(
         &self,
         state: &SessionState,
@@ -132,20 +139,22 @@ impl PCRAttemptStatus {
         match self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
-                db.finish_process_with_business_status(
-                    process_tracker,
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        process_tracker,
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await?;
                 // TODO: send back the successful webhook
             }
             Self::Failed => {
                 // finish psync task
-                db.finish_process_with_business_status(
-                    process_tracker.clone(),
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        process_tracker.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await?;
 
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
@@ -158,7 +167,8 @@ impl PCRAttemptStatus {
                 // check if retry is possible
                 if let Some(schedule_time) = schedule_time {
                     // schedule a retry
-                    db.retry_process(process_tracker.clone(), schedule_time)
+                    db.as_scheduler()
+                        .retry_process(process_tracker.clone(), schedule_time)
                         .await?;
                 } else {
                     // TODO: Record a failure back to the billing connector
@@ -168,7 +178,7 @@ impl PCRAttemptStatus {
             }
             Self::Processing => {
                 // do a psync payment
-                let action = Box::pin(Action::execute_payment_for_psync(
+                let action = Box::pin(Action::payment_sync_call(
                     state,
                     pcr_data,
                     tracking_data,
@@ -178,7 +188,7 @@ impl PCRAttemptStatus {
 
                 //handle the resp
                 action
-                    .psync_payment_response_handler(
+                    .psync_response_handler(
                         db,
                         &process_tracker,
                         tracking_data,
@@ -196,7 +206,6 @@ impl PCRAttemptStatus {
         Ok(())
     }
 }
-#[derive(Debug, Clone)]
 pub enum Decision {
     ExecuteTask,
     PsyncTask(PaymentAttempt),
@@ -239,7 +248,7 @@ impl Decision {
 #[derive(Debug, Clone)]
 pub enum Action {
     SyncPayment,
-    RetryPayment(storage::ProcessTracker),
+    RetryPayment,
     TerminalFailure,
     SuccessfulPayment,
     ReviewPayment,
@@ -250,7 +259,7 @@ impl Action {
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
-        process: &storage::ProcessTracker,
+        execute_task_process: &storage::ProcessTracker,
     ) -> RecoveryResult<Self> {
         // call the proxy api
         let response = call_proxy_api::<api_types::Authorize>(payment_intent);
@@ -259,7 +268,8 @@ impl Action {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
                 PCRAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
                 PCRAttemptStatus::Failed => {
-                    Self::decide_retry_failure_action(db, merchant_id, process.clone()).await
+                    Self::decide_retry_failure_action(db, merchant_id, execute_task_process.clone())
+                        .await
                 }
 
                 PCRAttemptStatus::Processing => Ok(Self::SyncPayment),
@@ -280,16 +290,16 @@ impl Action {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn execute_payment_response_handler(
+    pub async fn execute_payment_task_response_handler(
         &self,
         db: &dyn StorageInterface,
         merchant_account: &merchant_account::MerchantAccount,
         payment_intent: &PaymentIntent,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        process: &storage::ProcessTracker,
+        execute_task_process: &storage::ProcessTracker,
         profile: &business_profile::Profile,
-    ) -> RecoveryResult<()> {
+    ) -> Result<(), errors::ProcessTrackerError> {
         match self {
             Self::SyncPayment => {
                 core_pcr::insert_psync_pcr_task(
@@ -304,32 +314,34 @@ impl Action {
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
                 .attach_printable("Failed to create a psync workflow in the process tracker")?;
 
-                db.finish_process_with_business_status(
-                    process.clone(),
-                    business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
-                )
-                .await
-                .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                .attach_printable("Failed to update the process tracker")?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
 
-            Self::RetryPayment(process_tracker) => {
-                let mut pt = process_tracker.clone();
+            Self::RetryPayment => {
+                let mut pt = execute_task_process.clone();
+                // update the schedule time
                 pt.schedule_time = get_schedule_time_to_retry_mit_payments(
                     db,
                     merchant_account.get_id(),
                     pt.retry_count + 1,
                 )
                 .await;
+
                 let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
                     status: storage::enums::ProcessTrackerStatus::Pending,
                     business_status: Some(business_status::PENDING.to_owned()),
                 };
-                db.update_process(pt.clone(), pt_task_update)
-                    .await
-                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                    .attach_printable("Failed to update the process tracker")?;
+                db.as_scheduler()
+                    .update_process(pt.clone(), pt_task_update)
+                    .await?;
                 // TODO: update the connector called field and make the active attempt None
 
                 Ok(())
@@ -342,12 +354,22 @@ impl Action {
             Self::ReviewPayment => Ok(()),
             Self::ManualReviewAction => {
                 logger::debug!("Invalid Payment Status For PCR Payment");
+                let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                    status: enums::ProcessTrackerStatus::Review,
+                    business_status: Some(String::from(
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+                    )),
+                };
+                // update the process tracker status as Review
+                db.as_scheduler()
+                    .update_process(execute_task_process.clone(), pt_update)
+                    .await?;
                 Ok(())
             }
         }
     }
 
-    pub async fn execute_payment_for_psync(
+    pub async fn payment_sync_call(
         state: &SessionState,
         pcr_data: &pcr_storage_types::PCRPaymentData,
         tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
@@ -390,10 +412,10 @@ impl Action {
             }
         }
     }
-    pub async fn psync_payment_response_handler(
+    pub async fn psync_response_handler(
         &self,
         db: &dyn StorageInterface,
-        process: &storage::ProcessTracker,
+        psync_task_process: &storage::ProcessTracker,
         tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
         pcr_data: &pcr_storage_types::PCRPaymentData,
         key_manager_state: &KeyManagerState,
@@ -406,22 +428,24 @@ impl Action {
                     status: storage::enums::ProcessTrackerStatus::Pending,
                     business_status: Some(business_status::PENDING.to_owned()),
                 };
-                db.update_process(process.clone(), pt_task_update)
+                db.as_scheduler()
+                    .update_process(psync_task_process.clone(), pt_task_update)
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
 
-            Self::RetryPayment(process_tracker) => {
+            Self::RetryPayment => {
                 // finish the psync task
-                db.finish_process_with_business_status(
-                    process_tracker.clone(),
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await
-                .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                .attach_printable("Failed to update the process tracker")?;
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        psync_task_process.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
 
                 // TODO: Update connecter called field and active attempt
 
@@ -432,35 +456,67 @@ impl Action {
                     "{runner}_{task}_{}",
                     tracking_data.global_payment_id.get_string_repr()
                 );
-                let pt = db
+                let execute_task_process = db
+                    .as_scheduler()
                     .find_process_by_id(&process_tracker_id)
                     .await
-                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                    .attach_printable("Failed to find a entry in process tracker")?;
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)?
+                    .ok_or(errors::RecoveryError::ProcessTrackerFailure)?;
+
                 let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
                     status: storage::enums::ProcessTrackerStatus::Pending,
                     business_status: Some(business_status::PENDING.to_owned()),
                 };
 
-                db.update_process(
-                    pt.get_required_value("ProcessTracker")
-                        .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                        .attach_printable("Failed to find a entry in process tracker")?,
-                    pt_task_update,
-                )
-                .await
-                .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                .attach_printable("Failed to update the process tracker")?;
+                db.as_scheduler()
+                    .update_process(execute_task_process, pt_task_update)
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
             Self::TerminalFailure => {
                 // TODO: Record a failure transaction back to Billing Connector
+                // finish the current psync task
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        psync_task_process.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
-            Self::SuccessfulPayment => todo!(),
+            Self::SuccessfulPayment => {
+                // TODO: Record a successful transaction back to Billing Connector
+                // finish the current psync task
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        psync_task_process.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+                Ok(())
+            }
             Self::ReviewPayment => todo!(),
             Self::ManualReviewAction => {
                 logger::debug!("Invalid Payment Status For PCR Payment");
+                let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                    status: enums::ProcessTrackerStatus::Review,
+                    business_status: Some(String::from(
+                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+                    )),
+                };
+                // update the process tracker status as Review
+                db.as_scheduler()
+                    .update_process(psync_task_process.clone(), pt_update)
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+
                 Ok(())
             }
         }
@@ -474,7 +530,7 @@ impl Action {
         let schedule_time =
             get_schedule_time_to_retry_mit_payments(db, merchant_id, pt.retry_count + 1).await;
         match schedule_time {
-            Some(_) => Ok(Self::RetryPayment(pt)),
+            Some(_) => Ok(Self::RetryPayment),
 
             None => Ok(Self::TerminalFailure),
         }

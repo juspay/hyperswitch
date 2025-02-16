@@ -59,7 +59,7 @@ pub async fn perform_execute_task(
             )
             .await?;
             action
-                .execute_payment_response_handler(
+                .execute_payment_task_response_handler(
                     db,
                     &pcr_data.merchant_account,
                     payment_intent,
@@ -228,11 +228,12 @@ pub async fn perform_psync_task(
             .await?;
 
             // finish the psync task as there is no active attempt
-            db.finish_process_with_business_status(
-                process.clone(),
-                business_status::PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW,
-            )
-            .await?;
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW,
+                )
+                .await?;
         }
     };
     Ok(())
@@ -345,6 +346,7 @@ pub async fn perform_review_task(
         payment_intent.get_id().get_string_repr()
     );
     let pt = db
+        .as_scheduler()
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
@@ -361,17 +363,20 @@ pub async fn perform_review_task(
             // check if retry is possible
             if let Some(schedule_time) = schedule_time {
                 // schedule a requeue for execute_task
-                db.retry_process(pt.clone(), schedule_time).await?;
+                db.as_scheduler()
+                    .retry_process(pt.clone(), schedule_time)
+                    .await?;
             } else {
                 // TODO: send back the failure webhook
             }
 
             // finish current review task as the payment was a success
-            db.finish_process_with_business_status(
-                process.clone(),
-                business_status::REVIEW_WORKFLOW_COMPLETE,
-            )
-            .await?;
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::REVIEW_WORKFLOW_COMPLETE,
+                )
+                .await?;
         }
         types::Decision::PsyncTask(payment_attempt) => {
             // create a Psync task
@@ -385,11 +390,12 @@ pub async fn perform_review_task(
             )
             .await?;
             // finish current review task as the payment was a success
-            db.finish_process_with_business_status(
-                process.clone(),
-                business_status::REVIEW_WORKFLOW_COMPLETE,
-            )
-            .await?;
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::REVIEW_WORKFLOW_COMPLETE,
+                )
+                .await?;
         }
         types::Decision::ReviewFailedPayment => {
             // get a reschedule time for the next retry
@@ -403,7 +409,9 @@ pub async fn perform_review_task(
             // check if retry is possible
             if let Some(schedule_time) = schedule_time {
                 // schedule a retry for execute_task
-                db.retry_process(pt.clone(), schedule_time).await?;
+                db.as_scheduler()
+                    .retry_process(pt.clone(), schedule_time)
+                    .await?;
             } else {
                 // TODO: send back the failure webhook
             }
@@ -414,19 +422,21 @@ pub async fn perform_review_task(
             // TODO: send back the successful webhook
 
             // finish current review task as the payment was a success
-            db.finish_process_with_business_status(
-                process.clone(),
-                business_status::REVIEW_WORKFLOW_COMPLETE,
-            )
-            .await?;
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::REVIEW_WORKFLOW_COMPLETE,
+                )
+                .await?;
         }
 
         types::Decision::InvalidTask => {
-            db.finish_process_with_business_status(
-                process.clone(),
-                business_status::EXECUTE_WORKFLOW_COMPLETE,
-            )
-            .await?;
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::EXECUTE_WORKFLOW_COMPLETE,
+                )
+                .await?;
             logger::warn!("Abnormal State Identified")
         }
     }

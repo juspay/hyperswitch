@@ -351,7 +351,7 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 }
 
 pub fn get_pcr_payments_retry_schedule_time(
-    mapping: process_data::PCRPaymentRetryProcessTrackerMapping,
+    mapping: process_data::RevenueRecoveryPaymentProcessTrackerMapping,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
