@@ -167,8 +167,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
 bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"     
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox"     
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox"      
 pay_later.klarna.connector_list = "adyen"                       
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
 wallet.samsung_pay.connector_list = "cybersource"
@@ -388,18 +388,19 @@ apple_pay = { country = "MY", currency = "MYR" }
 google_pay = { country = "MY", currency = "MYR" }
 
 [pm_filters.boku]
-
+dana = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+momo = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+gcash = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+go_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+kakao_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
 
 [pm_filters.datatrans]
-credit = { country = "",  currency = "" }
-debit = { country = "",  currency = "" }
-
-[pm_filters.cryptopay]
-
+credit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
+debit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
 
 [pm_filters.payeezy]
-credit = { country = "",  currency = "" }
-debit = { country = "",  currency = "" }
+credit = { country = "AE,AT,CA,DE,IE,NL,GB,US",  currency = "CAD,EUR,GBP,USD" }
+debit = { country = "AE,AT,CA,DE,IE,NL,GB,US",  currency = "CAD,EUR,GBP,USD" }
 
 [payout_method_filters.adyenplatform]
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }

@@ -410,18 +410,19 @@ sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,
 ach = { country = "US", currency = "USD" }
 
 [pm_filters.boku]
-
+dana = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+momo = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+gcash = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+go_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+kakao_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
 
 [pm_filters.datatrans]
-credit = { country = "",  currency = "" }
-debit = { country = "",  currency = "" }
-
-[pm_filters.cryptopay]
-
+credit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
+debit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
 
 [pm_filters.payeezy]
-credit = { country = "",  currency = "" }
-debit = { country = "",  currency = "" }
+credit = { country = "AE,AT,CA,DE,IE,NL,GB,US",  currency = "CAD,EUR,GBP,USD" }
+debit = { country = "AE,AT,CA,DE,IE,NL,GB,US",  currency = "CAD,EUR,GBP,USD" }
 
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"

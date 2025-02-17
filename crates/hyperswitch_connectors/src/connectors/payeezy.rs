@@ -49,9 +49,7 @@ use rand::distributions::DistString;
 use ring::hmac;
 use transformers as payeezy;
 
-use crate::{
-    constants::headers, types::ResponseRouterData, utils::construct_not_implemented_error_report,
-};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Debug, Clone)]
 pub struct Payeezy;
@@ -157,24 +155,7 @@ impl ConnectorCommon for Payeezy {
     }
 }
 
-impl ConnectorValidation for Payeezy {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _payment_method: PaymentMethod,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic
-            | CaptureMethod::Manual
-            | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Payeezy {}
 
 impl api::Payment for Payeezy {}
 
@@ -639,7 +620,7 @@ lazy_static! {
     };
     static ref PAYEEZY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Payeezy",
-        description: "",
+        description: "Payeezy, a powerful ecommerce platform, allows merchants to easily and safely take credit card payments online.",
         connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref PAYEEZY_SUPPORTED_WEBHOOK_FLOWS: Vec<common_enums::enums::EventClass> = Vec::new();
