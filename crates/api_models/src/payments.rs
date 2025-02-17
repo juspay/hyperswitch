@@ -130,10 +130,6 @@ pub struct CustomerDetailsResponse {
 /// Details of customer attached to this payment
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter)]
 pub struct CustomerDetailsResponse {
-    /// The identifier for the customer.
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: id_type::GlobalCustomerId,
-
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
     pub name: Option<Secret<String>>,

@@ -8242,14 +8242,6 @@
         "type": "object",
         "description": "Details of customer attached to this payment",
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "The identifier for the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 64,
-            "minLength": 1
-          },
           "name": {
             "type": "string",
             "description": "The customer's name",
