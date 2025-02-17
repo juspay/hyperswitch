@@ -2474,7 +2474,7 @@
             }
           },
           {
-            "name": "payment_method",
+            "name": "payment_method_type",
             "in": "path",
             "description": "The payment method to filter payments list",
             "required": true,
@@ -2488,7 +2488,7 @@
             }
           },
           {
-            "name": "payment_method_type",
+            "name": "payment_method_subtype",
             "in": "path",
             "description": "The payment method type to filter payments list",
             "required": true,
@@ -13901,7 +13901,7 @@
         "properties": {
           "count": {
             "type": "integer",
-            "description": "The number of payments included in the list for given constraints",
+            "description": "The number of payments included in the current response",
             "minimum": 0
           },
           "total_count": {
