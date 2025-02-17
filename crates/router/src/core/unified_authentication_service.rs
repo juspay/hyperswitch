@@ -456,6 +456,10 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
