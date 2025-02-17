@@ -18,6 +18,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
+    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
         SamsungPayWalletData, WalletData,
@@ -430,7 +431,7 @@ pub struct CaptureOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkTokenizedCard {
-    number: cards::CardNumber,
+    number: NetworkTokenNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Option<Secret<String>>,
@@ -1400,10 +1401,10 @@ impl
         let payment_information =
             PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
                 tokenized_card: NetworkTokenizedCard {
-                    number: token_data.token_number,
-                    expiration_month: token_data.token_exp_month,
-                    expiration_year: token_data.token_exp_year,
-                    cryptogram: token_data.token_cryptogram.clone(),
+                    number: token_data.get_network_token(),
+                    expiration_month: token_data.get_network_token_expiry_month(),
+                    expiration_year: token_data.get_network_token_expiry_year(),
+                    cryptogram: token_data.get_cryptogram().clone(),
                     transaction_type: "1".to_string(),
                 },
             }));
@@ -2667,7 +2668,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed,
-                charge_id: None,
+                charges: None,
             })
         }
     }
@@ -2761,7 +2762,7 @@ impl<F>
                             .unwrap_or(info_response.id.clone()),
                     ),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -3171,7 +3172,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     })
@@ -3422,7 +3423,7 @@ impl
                     incremental_authorization_allowed: Some(
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
-                    charge_id: None,
+                    charges: None,
                 }),
             },
             connector_response,
@@ -3540,7 +3541,7 @@ impl<F>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     })
@@ -3556,7 +3557,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
