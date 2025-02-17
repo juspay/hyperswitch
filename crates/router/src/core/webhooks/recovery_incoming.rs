@@ -1,5 +1,5 @@
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::types::MinorUnit;
+use common_utils::{transformers::ForeignFrom, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::{
     recovery::{
@@ -23,7 +23,6 @@ use crate::{
         domain,
     },
 };
-use common_utils::transformers::ForeignFrom;
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -297,7 +296,7 @@ impl RevenueRecoveryTransaction for RevenueRecoveryTransactionData {
         ))
         .await;
         router_env::logger::info!(?attempt_response);
-        let response  = match attempt_response {
+        let response = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
                 let final_attempt = payments_response.attempts.as_ref().and_then(|attempts| {
                     attempts.iter().find(|attempt| {

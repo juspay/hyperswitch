@@ -127,7 +127,6 @@ impl RecoveryActionTrait for RecoveryAction {
     }
 }
 
-
 impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateIntentRequest {
     fn from(data: &RevenueRecoveryInvoiceData) -> Self {
         let amount_details = api_models::payments::AmountDetails::from(data);

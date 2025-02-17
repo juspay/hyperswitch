@@ -339,30 +339,33 @@ impl api::IncomingWebhook for ConnectorEnum {
         }
     }
 
-    #[cfg(all(feature = "revenue_recovery",feature= "v2"))]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_transaction_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<hyperswitch_interfaces::recovery::RevenueRecoveryTransactionData, errors::ConnectorError>
-    {
+    ) -> CustomResult<
+        hyperswitch_interfaces::recovery::RevenueRecoveryTransactionData,
+        errors::ConnectorError,
+    > {
         match self {
             Self::Old(connector) => connector.get_revenue_recovery_transaction_details(request),
             Self::New(connector) => connector.get_revenue_recovery_transaction_details(request),
         }
     }
-    
-    #[cfg(all(feature = "revenue_recovery",feature= "v2"))]
+
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<hyperswitch_interfaces::recovery::RevenueRecoveryInvoiceData, errors::ConnectorError>
-    {
+    ) -> CustomResult<
+        hyperswitch_interfaces::recovery::RevenueRecoveryInvoiceData,
+        errors::ConnectorError,
+    > {
         match self {
             Self::Old(connector) => connector.get_revenue_recovery_invoice_details(request),
             Self::New(connector) => connector.get_revenue_recovery_invoice_details(request),
         }
     }
-
 }
 
 impl api::ConnectorTransactionId for ConnectorEnum {
