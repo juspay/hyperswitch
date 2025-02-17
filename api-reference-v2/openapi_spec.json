@@ -6045,6 +6045,23 @@
           }
         }
       },
+      "BillingConnectorPaymentDetails": {
+        "type": "object",
+        "required": [
+          "payment_processor_token",
+          "connector_customer_id"
+        ],
+        "properties": {
+          "payment_processor_token": {
+            "type": "string",
+            "description": "Payment Processor Token to process the Revenue Recovery Payment"
+          },
+          "connector_customer_id": {
+            "type": "string",
+            "description": "Billing Connector's Customer Id"
+          }
+        }
+      },
       "BlikBankRedirectAdditionalData": {
         "type": "object",
         "properties": {
@@ -9274,6 +9291,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ApplePayRecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_revenue_recovery_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
               }
             ],
             "nullable": true
@@ -13434,6 +13459,13 @@
           "bank_acquirer"
         ]
       },
+      "PaymentConnectorTransmission": {
+        "type": "string",
+        "enum": [
+          "ConnectorCallFailed",
+          "ConnectorCallSucceeded"
+        ]
+      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -14136,6 +14168,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
               }
             ],
             "nullable": true
@@ -15313,6 +15353,49 @@
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
+          }
+        }
+      },
+      "PaymentRevenueRecoveryMetadata": {
+        "type": "object",
+        "required": [
+          "total_retry_count",
+          "payment_connector_transmission",
+          "billing_connector_id",
+          "active_attempt_payment_connector_id",
+          "billing_connector_payment_details",
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "total_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of billing connector + recovery retries for a payment intent.",
+            "example": "1",
+            "minimum": 0
+          },
+          "payment_connector_transmission": {
+            "$ref": "#/components/schemas/PaymentConnectorTransmission"
+          },
+          "billing_connector_id": {
+            "type": "string",
+            "description": "Billing Connector Id to update the invoices",
+            "example": "mca_1234567890"
+          },
+          "active_attempt_payment_connector_id": {
+            "type": "string",
+            "description": "Payment Connector Id to retry the payments",
+            "example": "mca_1234567890"
+          },
+          "billing_connector_payment_details": {
+            "$ref": "#/components/schemas/BillingConnectorPaymentDetails"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           }
         }
       },
