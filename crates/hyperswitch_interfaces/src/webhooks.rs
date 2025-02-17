@@ -277,7 +277,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     }
 
     /// get revenue recovery invoice details
-    #[cfg(all(feature = "recovery", feature = "v2"))]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_transaction_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -289,7 +289,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     }
 
     /// get revenue recovery transaction details
-    #[cfg(all(feature = "recovery", feature = "v2"))]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,

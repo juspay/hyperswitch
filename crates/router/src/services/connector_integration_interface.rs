@@ -339,7 +339,7 @@ impl api::IncomingWebhook for ConnectorEnum {
         }
     }
 
-    #[cfg(all(feature = "recovery",feature= "v2"))]
+    #[cfg(all(feature = "revenue_recovery",feature= "v2"))]
     fn get_revenue_recovery_transaction_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -351,7 +351,7 @@ impl api::IncomingWebhook for ConnectorEnum {
         }
     }
     
-    #[cfg(all(feature = "recovery",feature= "v2"))]
+    #[cfg(all(feature = "revenue_recovery",feature= "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,

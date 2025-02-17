@@ -57,13 +57,13 @@ pub enum IncomingWebhookEvent {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
-    #[cfg(feature = "recovery")]
+    #[cfg(feature = "revenue_recovery")]
     RecoveryPaymentFailure, // rename events
-    #[cfg(feature = "recovery")]
+    #[cfg(feature = "revenue_recovery")]
     RecoveryPaymentSuccess,
-    #[cfg(feature = "recovery")]
+    #[cfg(feature = "revenue_recovery")]
     RecoveryPaymentPending,
-    #[cfg(feature = "recovery")]
+    #[cfg(feature = "revenue_recovery")]
     RecoveryInvoiceCancel,
 }
 
@@ -79,7 +79,7 @@ pub enum WebhookFlow {
     Mandate,
     ExternalAuthentication,
     FraudCheck,
-    #[cfg(feature = "recovery")]
+    #[cfg(feature = "revenue_recovery")]
     Recovery,
 }
 
@@ -207,7 +207,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
-            #[cfg(feature = "recovery")]
+            #[cfg(feature = "revenue_recovery")]
             IncomingWebhookEvent::RecoveryInvoiceCancel
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
@@ -251,11 +251,11 @@ pub enum ObjectReferenceId {
     ExternalAuthenticationID(AuthenticationIdType),
     #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
-    #[cfg(all(feature = "recovery", feature = "v2"))]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
 }
 
-#[cfg(all(feature = "recovery", feature = "v2"))]
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 #[derive(Clone)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
@@ -327,7 +327,7 @@ pub struct ConnectorWebhookSecrets {
     pub additional_secret: Option<masking::Secret<String>>,
 }
 
-#[cfg(all(feature = "v2", feature = "recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl IncomingWebhookEvent {
     pub fn is_recovery_transaction_event(&self) -> bool {
         match self {

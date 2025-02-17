@@ -27,7 +27,7 @@ use common_utils::transformers::ForeignFrom;
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-#[cfg(feature = "recovery")]
+#[cfg(feature = "revenue_recovery")]
 pub async fn recovery_incoming_webhook_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

@@ -46,7 +46,7 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
-#[cfg(all(feature = "v2", feature = "recovery", feature = "oltp"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(feature = "olap")]
 use super::routing;
@@ -1621,7 +1621,7 @@ impl Webhooks {
                     ),
             );
 
-        #[cfg(all(feature = "recovery", feature = "v2"))]
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         {
             route = route.service(
                 web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
