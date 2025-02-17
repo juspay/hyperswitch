@@ -14,36 +14,48 @@
             "created_after" = Option<PrimitiveDateTime>,
             Query,
             description = "Only include Events created after the specified time. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified."
         ),
         (
             "created_before" = Option<PrimitiveDateTime>,
             Query,
             description = "Only include Events created before the specified time. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified."
         ),
         (
             "limit" = Option<i64>,
             Query,
             description = "The maximum number of Events to include in the response. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified."
         ),
         (
             "offset" = Option<i64>,
             Query,
             description = "The number of Events to skip when retrieving the list of Events.
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified."
         ),
         (
             "object_id" = Option<String>,
             Query,
             description = "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified."
         ),
         (
             "profile_id" = Option<String>,
             Query,
             description = "Only include Events associated with the Profile identified by the specified Profile ID."
+        ),
+        (
+            "event_class" = Option<HashSet<EventClass>>,
+            Query,
+            description = "Only include events associated with the specified event class. \
+                            Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.."
+        ),
+        (
+            "event_type" = Option<HashSet<EventType>>,
+            Query,
+            description = "Only include events associated with the specified event type. \
+                            Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.."
         ),
     ),
     responses(

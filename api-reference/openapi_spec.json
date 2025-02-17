@@ -5327,7 +5327,7 @@
           {
             "name": "created_after",
             "in": "query",
-            "description": "Only include Events created after the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "description": "Only include Events created after the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
             "required": false,
             "schema": {
               "type": "string",
@@ -5338,7 +5338,7 @@
           {
             "name": "created_before",
             "in": "query",
-            "description": "Only include Events created before the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "description": "Only include Events created before the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
             "required": false,
             "schema": {
               "type": "string",
@@ -5349,7 +5349,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "The maximum number of Events to include in the response. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "description": "The maximum number of Events to include in the response. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -5360,7 +5360,7 @@
           {
             "name": "offset",
             "in": "query",
-            "description": "The number of Events to skip when retrieving the list of Events.\n                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "description": "The number of Events to skip when retrieving the list of Events.\n                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -5371,7 +5371,7 @@
           {
             "name": "object_id",
             "in": "query",
-            "description": "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
+            "description": "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
             "required": false,
             "schema": {
               "type": "string",
@@ -5385,6 +5385,32 @@
             "required": false,
             "schema": {
               "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "event_class",
+            "in": "query",
+            "description": "Only include events associated with the specified event class. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be provided.",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "description": "Only include events associated with the specified event type. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
               "nullable": true
             }
           }
