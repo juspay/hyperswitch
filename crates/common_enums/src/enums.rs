@@ -5037,6 +5037,591 @@ pub enum UnitedKingdomStatesAbbreviation {
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
+pub enum BelgiumStatesAbbreviation {
+    #[strum(serialize = "VAN")]
+    Antwerp,
+    #[strum(serialize = "BRU")]
+    BrusselsCapitalRegion,
+    #[strum(serialize = "VOV")]
+    EastFlanders,
+    #[strum(serialize = "VLG")]
+    Flanders,
+    #[strum(serialize = "VBR")]
+    FlemishBrabant,
+    #[strum(serialize = "WHT")]
+    Hainaut,
+    #[strum(serialize = "VLI")]
+    Limburg,
+    #[strum(serialize = "WLG")]
+    Liege,
+    #[strum(serialize = "WLX")]
+    Luxembourg,
+    #[strum(serialize = "WNA")]
+    Namur,
+    #[strum(serialize = "WAL")]
+    Wallonia,
+    #[strum(serialize = "WBR")]
+    WalloonBrabant,
+    #[strum(serialize = "VWV")]
+    WestFlanders,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum LuxembourgStatesAbbreviation {
+    #[strum(serialize = "CA")]
+    CantonOfCapellen,
+    #[strum(serialize = "CL")]
+    CantonOfClervaux,
+    #[strum(serialize = "DI")]
+    CantonOfDiekirch,
+    #[strum(serialize = "EC")]
+    CantonOfEchternach,
+    #[strum(serialize = "ES")]
+    CantonOfEschSurAlzette,
+    #[strum(serialize = "GR")]
+    CantonOfGrevenmacher,
+    #[strum(serialize = "LU")]
+    CantonOfLuxembourg,
+    #[strum(serialize = "ME")]
+    CantonOfMersch,
+    #[strum(serialize = "RD")]
+    CantonOfRedange,
+    #[strum(serialize = "RM")]
+    CantonOfRemich,
+    #[strum(serialize = "VD")]
+    CantonOfVianden,
+    #[strum(serialize = "WI")]
+    CantonOfWiltz,
+    #[strum(serialize = "D")]
+    DiekirchDistrict,
+    #[strum(serialize = "G")]
+    GrevenmacherDistrict,
+    #[strum(serialize = "L")]
+    LuxembourgDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum RussiaStatesAbbreviation {
+    #[strum(serialize = "ALT")]
+    AltaiKrai,
+    #[strum(serialize = "AL")]
+    AltaiRepublic,
+    #[strum(serialize = "AMU")]
+    AmurOblast,
+    #[strum(serialize = "ARK")]
+    Arkhangelsk,
+    #[strum(serialize = "AST")]
+    AstrakhanOblast,
+    #[strum(serialize = "BEL")]
+    BelgorodOblast,
+    #[strum(serialize = "BRY")]
+    BryanskOblast,
+    #[strum(serialize = "CE")]
+    ChechenRepublic,
+    #[strum(serialize = "CHE")]
+    ChelyabinskOblast,
+    #[strum(serialize = "CHU")]
+    ChukotkaAutonomousOkrug,
+    #[strum(serialize = "CU")]
+    ChuvashRepublic,
+    #[strum(serialize = "IRK")]
+    Irkutsk,
+    #[strum(serialize = "IVA")]
+    IvanovoOblast,
+    #[strum(serialize = "YEV")]
+    JewishAutonomousOblast,
+    #[strum(serialize = "KB")]
+    KabardinoBalkarRepublic,
+    #[strum(serialize = "KGD")]
+    Kaliningrad,
+    #[strum(serialize = "KLU")]
+    KalugaOblast,
+    #[strum(serialize = "KAM")]
+    KamchatkaKrai,
+    #[strum(serialize = "KC")]
+    KarachayCherkessRepublic,
+    #[strum(serialize = "KEM")]
+    KemerovoOblast,
+    #[strum(serialize = "KHA")]
+    KhabarovskKrai,
+    #[strum(serialize = "KHM")]
+    KhantyMansiAutonomousOkrug,
+    #[strum(serialize = "KIR")]
+    KirovOblast,
+    #[strum(serialize = "KO")]
+    KomiRepublic,
+    #[strum(serialize = "KOS")]
+    KostromaOblast,
+    #[strum(serialize = "KDA")]
+    KrasnodarKrai,
+    #[strum(serialize = "KYA")]
+    KrasnoyarskKrai,
+    #[strum(serialize = "KGN")]
+    KurganOblast,
+    #[strum(serialize = "KRS")]
+    KurskOblast,
+    #[strum(serialize = "LEN")]
+    LeningradOblast,
+    #[strum(serialize = "LIP")]
+    LipetskOblast,
+    #[strum(serialize = "MAG")]
+    MagadanOblast,
+    #[strum(serialize = "ME")]
+    MariElRepublic,
+    #[strum(serialize = "MOW")]
+    Moscow,
+    #[strum(serialize = "MOS")]
+    MoscowOblast,
+    #[strum(serialize = "MUR")]
+    MurmanskOblast,
+    #[strum(serialize = "NEN")]
+    NenetsAutonomousOkrug,
+    #[strum(serialize = "NIZ")]
+    NizhnyNovgorodOblast,
+    #[strum(serialize = "NGR")]
+    NovgorodOblast,
+    #[strum(serialize = "NVS")]
+    Novosibirsk,
+    #[strum(serialize = "OMS")]
+    OmskOblast,
+    #[strum(serialize = "ORE")]
+    OrenburgOblast,
+    #[strum(serialize = "ORL")]
+    OryolOblast,
+    #[strum(serialize = "PNZ")]
+    PenzaOblast,
+    #[strum(serialize = "PER")]
+    PermKrai,
+    #[strum(serialize = "PRI")]
+    PrimorskyKrai,
+    #[strum(serialize = "PSK")]
+    PskovOblast,
+    #[strum(serialize = "AD")]
+    RepublicOfAdygea,
+    #[strum(serialize = "BA")]
+    RepublicOfBashkortostan,
+    #[strum(serialize = "BU")]
+    RepublicOfBuryatia,
+    #[strum(serialize = "DA")]
+    RepublicOfDagestan,
+    #[strum(serialize = "IN")]
+    RepublicOfIngushetia,
+    #[strum(serialize = "KL")]
+    RepublicOfKalmykia,
+    #[strum(serialize = "KR")]
+    RepublicOfKarelia,
+    #[strum(serialize = "KK")]
+    RepublicOfKhakassia,
+    #[strum(serialize = "MO")]
+    RepublicOfMordovia,
+    #[strum(serialize = "SE")]
+    RepublicOfNorthOssetiaAlania,
+    #[strum(serialize = "TA")]
+    RepublicOfTatarstan,
+    #[strum(serialize = "ROS")]
+    RostovOblast,
+    #[strum(serialize = "RYA")]
+    RyazanOblast,
+    #[strum(serialize = "SPE")]
+    SaintPetersburg,
+    #[strum(serialize = "SA")]
+    SakhaRepublic,
+    #[strum(serialize = "SAK")]
+    Sakhalin,
+    #[strum(serialize = "SAM")]
+    SamaraOblast,
+    #[strum(serialize = "SAR")]
+    SaratovOblast,
+    #[strum(serialize = "UA-40")]
+    Sevastopol,
+    #[strum(serialize = "SMO")]
+    SmolenskOblast,
+    #[strum(serialize = "STA")]
+    StavropolKrai,
+    #[strum(serialize = "SVE")]
+    Sverdlovsk,
+    #[strum(serialize = "TAM")]
+    TambovOblast,
+    #[strum(serialize = "TOM")]
+    TomskOblast,
+    #[strum(serialize = "TUL")]
+    TulaOblast,
+    #[strum(serialize = "TY")]
+    TuvaRepublic,
+    #[strum(serialize = "TVE")]
+    TverOblast,
+    #[strum(serialize = "TYU")]
+    TyumenOblast,
+    #[strum(serialize = "UD")]
+    UdmurtRepublic,
+    #[strum(serialize = "ULY")]
+    UlyanovskOblast,
+    #[strum(serialize = "VLA")]
+    VladimirOblast,
+    #[strum(serialize = "VLG")]
+    VologdaOblast,
+    #[strum(serialize = "VOR")]
+    VoronezhOblast,
+    #[strum(serialize = "YAN")]
+    YamaloNenetsAutonomousOkrug,
+    #[strum(serialize = "YAR")]
+    YaroslavlOblast,
+    #[strum(serialize = "ZAB")]
+    ZabaykalskyKrai,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SanMarinoStatesAbbreviation {
+    #[strum(serialize = "01")]
+    Acquaviva,
+    #[strum(serialize = "06")]
+    BorgoMaggiore,
+    #[strum(serialize = "02")]
+    Chiesanuova,
+    #[strum(serialize = "03")]
+    Domagnano,
+    #[strum(serialize = "04")]
+    Faetano,
+    #[strum(serialize = "05")]
+    Fiorentino,
+    #[strum(serialize = "08")]
+    Montegiardino,
+    #[strum(serialize = "07")]
+    SanMarino,
+    #[strum(serialize = "09")]
+    Serravalle,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SerbiaStatesAbbreviation {
+    #[strum(serialize = "00")]
+    Belgrade,
+
+    #[strum(serialize = "01")]
+    BorDistrict,
+
+    #[strum(serialize = "02")]
+    BraničevoDistrict,
+
+    #[strum(serialize = "03")]
+    CentralBanatDistrict,
+
+    #[strum(serialize = "04")]
+    JablanicaDistrict,
+
+    #[strum(serialize = "05")]
+    KolubaraDistrict,
+
+    #[strum(serialize = "06")]
+    MačvaDistrict,
+
+    #[strum(serialize = "07")]
+    MoravicaDistrict,
+
+    #[strum(serialize = "08")]
+    NišavaDistrict,
+
+    #[strum(serialize = "09")]
+    NorthBanatDistrict,
+
+    #[strum(serialize = "10")]
+    NorthBačkaDistrict,
+
+    #[strum(serialize = "11")]
+    PirotDistrict,
+
+    #[strum(serialize = "12")]
+    PodunavljeDistrict,
+
+    #[strum(serialize = "13")]
+    PomoravljeDistrict,
+
+    #[strum(serialize = "14")]
+    PčinjaDistrict,
+
+    #[strum(serialize = "15")]
+    RasinaDistrict,
+
+    #[strum(serialize = "16")]
+    RaškaDistrict,
+
+    #[strum(serialize = "17")]
+    SouthBanatDistrict,
+
+    #[strum(serialize = "18")]
+    SouthBačkaDistrict,
+
+    #[strum(serialize = "19")]
+    SremDistrict,
+
+    #[strum(serialize = "20")]
+    ToplicaDistrict,
+
+    #[strum(serialize = "21")]
+    Vojvodina,
+
+    #[strum(serialize = "22")]
+    WestBačkaDistrict,
+
+    #[strum(serialize = "23")]
+    ZaječarDistrict,
+
+    #[strum(serialize = "24")]
+    ZlatiborDistrict,
+
+    #[strum(serialize = "25")]
+    ŠumadijaDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SlovakiaStatesAbbreviation {
+    #[strum(serialize = "BC")]
+    BanskaBystricaRegion,
+    #[strum(serialize = "BL")]
+    BratislavaRegion,
+    #[strum(serialize = "KI")]
+    KosiceRegion,
+    #[strum(serialize = "NI")]
+    NitraRegion,
+    #[strum(serialize = "PV")]
+    PresovRegion,
+    #[strum(serialize = "TC")]
+    TrencinRegion,
+    #[strum(serialize = "TA")]
+    TrnavaRegion,
+    #[strum(serialize = "ZI")]
+    ZilinaRegion,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SloveniaStatesAbbreviation {
+    #[strum(serialize = "001")]
+    Ajdovščina,
+    #[strum(serialize = "213")]
+    Ankaran,
+    #[strum(serialize = "002")]
+    Beltinci,
+    #[strum(serialize = "148")]
+    Benedikt,
+    #[strum(serialize = "149")]
+    BistricaObSotli,
+    #[strum(serialize = "003")]
+    Bled,
+    #[strum(serialize = "150")]
+    Bloke,
+    #[strum(serialize = "004")]
+    Bohinj,
+    #[strum(serialize = "005")]
+    Borovnica,
+    #[strum(serialize = "006")]
+    Bovec,
+    #[strum(serialize = "151")]
+    Braslovče,
+    #[strum(serialize = "007")]
+    Brda,
+    #[strum(serialize = "008")]
+    Brezovica,
+    #[strum(serialize = "009")]
+    Brežice,
+    #[strum(serialize = "152")]
+    Cankova,
+    #[strum(serialize = "012")]
+    CerkljeNaGorenjskem,
+    #[strum(serialize = "013")]
+    Cerknica,
+    #[strum(serialize = "014")]
+    Cerkno,
+    #[strum(serialize = "153")]
+    Cerkvenjak,
+    #[strum(serialize = "011")]
+    CityMunicipalityOfCelje,
+    #[strum(serialize = "085")]
+    CityMunicipalityOfNovoMesto,
+    #[strum(serialize = "018")]
+    Destrnik,
+    #[strum(serialize = "019")]
+    Divača,
+    #[strum(serialize = "154")]
+    Dobje,
+    #[strum(serialize = "020")]
+    Dobrepolje,
+    #[strum(serialize = "155")]
+    Dobrna,
+    #[strum(serialize = "021")]
+    DobrovaPolhovGradec,
+    #[strum(serialize = "156")]
+    Dobrovnik,
+    #[strum(serialize = "022")]
+    DolPriLjubljani,
+    #[strum(serialize = "157")]
+    DolenjskeToplice,
+    #[strum(serialize = "023")]
+    Domžale,
+    #[strum(serialize = "024")]
+    Dornava,
+    #[strum(serialize = "025")]
+    Dravograd,
+    #[strum(serialize = "026")]
+    Duplek,
+    #[strum(serialize = "027")]
+    GorenjaVasPoljane,
+    #[strum(serialize = "028")]
+    Gorišnica,
+    #[strum(serialize = "207")]
+    Gorje,
+    #[strum(serialize = "029")]
+    GornjaRadgona,
+    #[strum(serialize = "030")]
+    GornjiGrad,
+    #[strum(serialize = "031")]
+    GornjiPetrovci,
+    #[strum(serialize = "158")]
+    Grad,
+    #[strum(serialize = "032")]
+    Grosuplje,
+    #[strum(serialize = "159")]
+    Hajdina,
+    #[strum(serialize = "161")]
+    Hodoš,
+    #[strum(serialize = "162")]
+    Horjul,
+    #[strum(serialize = "160")]
+    HočeSlivnica,
+    #[strum(serialize = "034")]
+    Hrastnik,
+    #[strum(serialize = "035")]
+    HrpeljeKozina,
+    #[strum(serialize = "036")]
+    Idrija,
+    #[strum(serialize = "037")]
+    Ig,
+    #[strum(serialize = "039")]
+    IvančnaGorica,
+    #[strum(serialize = "040")]
+    Izola,
+    #[strum(serialize = "041")]
+    Jesenice,
+    #[strum(serialize = "163")]
+    Jezersko,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SwedenStatesAbbreviation {
+    #[strum(serialize = "K")]
+    Blekinge,
+    #[strum(serialize = "W")]
+    DalarnaCounty,
+    #[strum(serialize = "I")]
+    GotlandCounty,
+    #[strum(serialize = "X")]
+    GävleborgCounty,
+    #[strum(serialize = "N")]
+    HallandCounty,
+    #[strum(serialize = "F")]
+    JönköpingCounty,
+    #[strum(serialize = "H")]
+    KalmarCounty,
+    #[strum(serialize = "G")]
+    KronobergCounty,
+    #[strum(serialize = "BD")]
+    NorrbottenCounty,
+    #[strum(serialize = "M")]
+    SkåneCounty,
+    #[strum(serialize = "AB")]
+    StockholmCounty,
+    #[strum(serialize = "D")]
+    SödermanlandCounty,
+    #[strum(serialize = "C")]
+    UppsalaCounty,
+    #[strum(serialize = "S")]
+    VärmlandCounty,
+    #[strum(serialize = "AC")]
+    VästerbottenCounty,
+    #[strum(serialize = "Y")]
+    VästernorrlandCounty,
+    #[strum(serialize = "U")]
+    VästmanlandCounty,
+    #[strum(serialize = "O")]
+    VästraGötalandCounty,
+    #[strum(serialize = "T")]
+    ÖrebroCounty,
+    #[strum(serialize = "E")]
+    ÖstergötlandCounty,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum UkraineStatesAbbreviation {
+    #[strum(serialize = "43")]
+    AutonomousRepublicOfCrimea,
+    #[strum(serialize = "71")]
+    CherkasyOblast,
+    #[strum(serialize = "74")]
+    ChernihivOblast,
+    #[strum(serialize = "77")]
+    ChernivtsiOblast,
+    #[strum(serialize = "12")]
+    DnipropetrovskOblast,
+    #[strum(serialize = "14")]
+    DonetskOblast,
+    #[strum(serialize = "26")]
+    IvanoFrankivskOblast,
+    #[strum(serialize = "63")]
+    KharkivOblast,
+    #[strum(serialize = "65")]
+    KhersonOblast,
+    #[strum(serialize = "68")]
+    KhmelnytskyOblast,
+    #[strum(serialize = "30")]
+    Kiev,
+    #[strum(serialize = "35")]
+    KirovohradOblast,
+    #[strum(serialize = "32")]
+    KyivOblast,
+    #[strum(serialize = "09")]
+    LuhanskOblast,
+    #[strum(serialize = "46")]
+    LvivOblast,
+    #[strum(serialize = "48")]
+    MykolaivOblast,
+    #[strum(serialize = "51")]
+    OdessaOblast,
+    #[strum(serialize = "56")]
+    RivneOblast,
+    #[strum(serialize = "59")]
+    SumyOblast,
+    #[strum(serialize = "61")]
+    TernopilOblast,
+    #[strum(serialize = "05")]
+    VinnytsiaOblast,
+    #[strum(serialize = "07")]
+    VolynOblast,
+    #[strum(serialize = "21")]
+    ZakarpattiaOblast,
+    #[strum(serialize = "23")]
+    ZaporizhzhyaOblast,
+    #[strum(serialize = "18")]
+    ZhytomyrOblast,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
 pub enum RomaniaStatesAbbreviation {
     #[strum(serialize = "AB")]
     Alba,
