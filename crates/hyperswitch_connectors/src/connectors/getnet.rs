@@ -172,8 +172,8 @@ impl ConnectorValidation for Getnet {
         match capture_method {
             enums::CaptureMethod::Automatic
             | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple => Ok(()),
-            enums::CaptureMethod::Scheduled | enums::CaptureMethod::SequentialAutomatic => Err(
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
+            enums::CaptureMethod::Scheduled | enums::CaptureMethod::ManualMultiple => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
@@ -203,7 +203,19 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Getnet {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Getnet {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Getnet {
+    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Getnet".to_string())
+                .into(),
+        )
+    }
+}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Getnet {
     fn get_headers(
@@ -706,7 +718,7 @@ fn get_webhook_object_from_body(
     let parsed_param: getnet::GetnetWebhookNotificationResponse =
         parse_url_encoded_to_struct(body_bytes)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    let response_base64 = &parsed_param.response_base64;
+    let response_base64 = &parsed_param.response_base64.peek();
     let decoded_response = BASE64_ENGINE
         .decode(response_base64)
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -750,8 +762,9 @@ impl webhooks::IncomingWebhook for Getnet {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let response_base64 = &notif_item.response_base64.peek();
         BASE64_ENGINE
-            .decode(&notif_item.response_base64)
+            .decode(response_base64)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
