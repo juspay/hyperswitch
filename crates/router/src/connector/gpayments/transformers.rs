@@ -69,7 +69,7 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNVersionCallRou
         let router_data = value.router_data;
         let metadata = GpaymentsMetaData::try_from(&router_data.connector_meta_data)?;
         Ok(Self {
-            acct_number: router_data.request.card_holder_account_number.clone(),
+            acct_number: router_data.request.card.card_number.clone(),
             merchant_id: metadata.merchant_id,
         })
     }
@@ -141,7 +141,7 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
         let router_data = value.router_data;
         let metadata = GpaymentsMetaData::try_from(&router_data.connector_meta_data)?;
         Ok(Self {
-            acct_number: router_data.request.card_holder_account_number.clone(),
+            acct_number: router_data.request.card.card_number.clone(),
             card_scheme: None,
             challenge_window_size: Some(gpayments_types::ChallengeWindowSize::FullScreen),
             event_callback_url: "https://webhook.site/55e3db24-7c4e-4432-9941-d806f68d210b"

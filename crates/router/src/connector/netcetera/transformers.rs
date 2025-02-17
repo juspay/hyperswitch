@@ -368,10 +368,49 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::PreAuthNRouterData>>
         value: &NetceteraRouterData<&types::authentication::PreAuthNRouterData>,
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
+        let is_cobadged_card = || {
+            router_data
+                .request
+                .card
+                .card_number
+                .is_cobadged_card()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("error while checking is_cobadged_card")
+        };
         Ok(Self {
-            cardholder_account_number: router_data.request.card_holder_account_number.clone(),
-            scheme_id: None,
+            cardholder_account_number: router_data.request.card.card_number.clone(),
+            scheme_id: router_data
+                .request
+                .card
+                .card_network
+                .clone()
+                .map(|card_network| {
+                    is_cobadged_card().map(|is_cobadged_card| {
+                        is_cobadged_card.then_some(SchemeId::try_from(card_network))
+                    })
+                })
+                .transpose()?
+                .flatten()
+                .transpose()?,
         })
+    }
+}
+
+impl TryFrom<common_enums::CardNetwork> for SchemeId {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
+            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
+            _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Invalid card network".to_string(),
+            ))?,
+        }
     }
 }
 
