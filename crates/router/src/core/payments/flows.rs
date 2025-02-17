@@ -226,7 +226,6 @@ default_imp_for_complete_authorize!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wise,
     connector::Wellsfargopayout
 );
@@ -271,7 +270,6 @@ default_imp_for_webhook_source_verification!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -318,7 +316,6 @@ default_imp_for_create_customer!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -516,7 +513,6 @@ default_imp_for_accept_dispute!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -583,7 +579,6 @@ default_imp_for_file_upload!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Opennode,
     connector::Wellsfargopayout,
     connector::Wise
@@ -629,7 +624,6 @@ default_imp_for_submit_evidence!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Opennode,
     connector::Wellsfargopayout,
     connector::Wise
@@ -676,7 +670,6 @@ default_imp_for_defend_dispute!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Opennode,
     connector::Wellsfargopayout,
     connector::Wise
@@ -758,7 +751,6 @@ default_imp_for_post_processing_steps!(
     connector::Nmi,
     connector::Paypal,
     connector::Stripe,
-    connector::Trustpay,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -793,7 +785,6 @@ default_imp_for_payouts!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -837,7 +828,6 @@ default_imp_for_payouts_create!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -884,7 +874,6 @@ default_imp_for_payouts_retrieve!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -934,7 +923,6 @@ default_imp_for_payouts_eligibility!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -976,7 +964,6 @@ default_imp_for_payouts_fulfill!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -1021,7 +1008,6 @@ default_imp_for_payouts_cancel!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -1068,7 +1054,6 @@ default_imp_for_payouts_quote!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -1114,7 +1099,6 @@ default_imp_for_payouts_recipient!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout
 );
 
@@ -1164,7 +1148,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1212,7 +1195,6 @@ default_imp_for_approve!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1260,7 +1242,6 @@ default_imp_for_reject!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1410,7 +1391,6 @@ default_imp_for_frm_sale!(
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1458,7 +1438,6 @@ default_imp_for_frm_checkout!(
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1506,7 +1485,6 @@ default_imp_for_frm_transaction!(
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1554,7 +1532,6 @@ default_imp_for_frm_fulfillment!(
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1602,7 +1579,6 @@ default_imp_for_frm_record_return!(
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1650,7 +1626,6 @@ default_imp_for_incremental_authorization!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1696,7 +1671,6 @@ default_imp_for_revoking_mandates!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wise
 );
 
@@ -1916,7 +1890,6 @@ default_imp_for_authorize_session_token!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1962,7 +1935,6 @@ default_imp_for_calculate_tax!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2007,7 +1979,6 @@ default_imp_for_session_update!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2052,7 +2023,6 @@ default_imp_for_post_session_tokens!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2101,7 +2071,6 @@ default_imp_for_uas_pre_authentication!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2147,7 +2116,6 @@ default_imp_for_uas_post_authentication!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2193,7 +2161,6 @@ default_imp_for_uas_authentication!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );

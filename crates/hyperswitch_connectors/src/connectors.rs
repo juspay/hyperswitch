@@ -62,6 +62,7 @@ pub mod square;
 pub mod stax;
 pub mod taxjar;
 pub mod thunes;
+pub mod trustpay;
 pub mod tsys;
 pub mod unified_authentication_service;
 pub mod volt;
@@ -87,7 +88,7 @@ pub use self::{
     noon::Noon, novalnet::Novalnet, nuvei::Nuvei, paybox::Paybox, payeezy::Payeezy, payme::Payme,
     payu::Payu, placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4, square::Square, stax::Stax,
-    taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,

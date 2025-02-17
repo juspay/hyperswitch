@@ -4501,6 +4501,41 @@ pub fn get_mandate_details(
         .transpose()
 }
 
+pub fn collect_values_by_removing_signature(value: &Value, signature: &String) -> Vec<String> {
+    match value {
+        Value::Null => vec!["null".to_owned()],
+        Value::Bool(b) => vec![b.to_string()],
+        Value::Number(n) => match n.as_f64() {
+            Some(f) => vec![format!("{f:.2}")],
+            None => vec![n.to_string()],
+        },
+        Value::String(s) => {
+            if signature == s {
+                vec![]
+            } else {
+                vec![s.clone()]
+            }
+        }
+        Value::Array(arr) => arr
+            .iter()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+        Value::Object(obj) => obj
+            .values()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+    }
+}
+
+pub fn collect_and_sort_values_by_removing_signature(
+    value: &Value,
+    signature: &String,
+) -> Vec<String> {
+    let mut values = collect_values_by_removing_signature(value, signature);
+    values.sort();
+    values
+}
+
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
 pub enum PaymentMethodDataType {
     Card,
