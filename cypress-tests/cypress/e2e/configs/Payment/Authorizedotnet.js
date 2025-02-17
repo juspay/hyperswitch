@@ -12,12 +12,12 @@ const successfulTestCardDetails = {
   card_cvc: "737",
 };
 
-export const connectorDetails = {
+export let connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
         amount: (() => {
-          const amount = generateRandomAmount();
+          let amount = generateRandomAmount();
           setLatestPaymentIntentAmount(amount);
           return amount;
         })(),
@@ -68,7 +68,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
-        amount: generateRandomAmount(),
+        amount: getLatestPaymentIntentAmount(),
         payment_method: "card",
         payment_method_data: {
           card: successfulTestCardDetails,
@@ -98,7 +98,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing", // tokyo
         },
       },
     },
@@ -141,35 +141,29 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
+    Refund: { // tokyo
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
-    PartialRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
+    PartialRefund: {  // tokyo
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
