@@ -32,7 +32,8 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    address::{Address, AddressDetails, PhoneDetails}, mandates,
+    address::{Address, AddressDetails, PhoneDetails},
+    mandates,
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
