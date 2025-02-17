@@ -5017,9 +5017,6 @@ pub struct PaymentsListResponseItem {
     #[schema(value_type = Option<String>, max_length = 255, example = "Hyperswitch Router")]
     pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
 
-    // /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
-    // #[schema(max_length = 255, example = "Payment for shoes purchase")]
-    // pub statement_descriptor_suffix: Option<String>,
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
