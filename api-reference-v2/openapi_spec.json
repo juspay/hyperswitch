@@ -5793,6 +5793,23 @@
           }
         }
       },
+      "BillingConnectorPaymentDetails": {
+        "type": "object",
+        "required": [
+          "payment_processor_token",
+          "connector_customer_id"
+        ],
+        "properties": {
+          "payment_processor_token": {
+            "type": "string",
+            "description": "Payment Processor Token to process the Revenue Recovery Payment"
+          },
+          "connector_customer_id": {
+            "type": "string",
+            "description": "Billing Connector's Customer Id"
+          }
+        }
+      },
       "BlikBankRedirectAdditionalData": {
         "type": "object",
         "properties": {
@@ -9025,6 +9042,14 @@
               }
             ],
             "nullable": true
+          },
+          "payment_revenue_recovery_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentRevenueRecoveryMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9967,13 +9992,11 @@
       },
       "GpayTokenParameters": {
         "type": "object",
-        "required": [
-          "gateway"
-        ],
         "properties": {
           "gateway": {
             "type": "string",
-            "description": "The name of the connector"
+            "description": "The name of the connector",
+            "nullable": true
           },
           "gateway_merchant_id": {
             "type": "string",
@@ -9986,6 +10009,16 @@
           },
           "stripe:publishableKey": {
             "type": "string",
+            "nullable": true
+          },
+          "protocol_version": {
+            "type": "string",
+            "description": "The protocol version for encryption",
+            "nullable": true
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key provided by the merchant",
             "nullable": true
           }
         }
@@ -13159,6 +13192,13 @@
           "bank_acquirer"
         ]
       },
+      "PaymentConnectorTransmission": {
+        "type": "string",
+        "enum": [
+          "ConnectorCallFailed",
+          "ConnectorCallSucceeded"
+        ]
+      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -13738,6 +13778,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
               }
             ],
             "nullable": true
@@ -14918,6 +14966,49 @@
           }
         }
       },
+      "PaymentRevenueRecoveryMetadata": {
+        "type": "object",
+        "required": [
+          "total_retry_count",
+          "payment_connector_transmission",
+          "billing_connector_id",
+          "active_attempt_payment_connector_id",
+          "billing_connector_payment_details",
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "total_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of billing connector + recovery retries for a payment intent.",
+            "example": "1",
+            "minimum": 0
+          },
+          "payment_connector_transmission": {
+            "$ref": "#/components/schemas/PaymentConnectorTransmission"
+          },
+          "billing_connector_id": {
+            "type": "string",
+            "description": "Billing Connector Id to update the invoices",
+            "example": "mca_1234567890"
+          },
+          "active_attempt_payment_connector_id": {
+            "type": "string",
+            "description": "Payment Connector Id to retry the payments",
+            "example": "mca_1234567890"
+          },
+          "billing_connector_payment_details": {
+            "$ref": "#/components/schemas/BillingConnectorPaymentDetails"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PaymentType": {
         "type": "string",
         "description": "The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.",
@@ -15042,7 +15133,8 @@
           "created",
           "payment_method_type",
           "payment_method_subtype",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "applied_authentication_type"
         ],
         "properties": {
           "id": {
@@ -15141,6 +15233,17 @@
               }
             ],
             "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "applied_authentication_type": {
+            "$ref": "#/components/schemas/AuthenticationType"
           }
         }
       },
@@ -15499,7 +15602,6 @@
           "client_secret",
           "profile_id",
           "capture_method",
-          "authentication_type",
           "customer_id",
           "customer_present",
           "setup_future_usage",
@@ -15551,7 +15653,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "no_three_ds"
+            "nullable": true
           },
           "billing": {
             "allOf": [

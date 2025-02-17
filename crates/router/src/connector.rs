@@ -35,7 +35,7 @@ pub use hyperswitch_connectors::connectors::{
     globepay, globepay::Globepay, gocardless, gocardless::Gocardless, helcim, helcim::Helcim,
     iatapay, iatapay::Iatapay, inespay, inespay::Inespay, itaubank, itaubank::Itaubank, jpmorgan,
     jpmorgan::Jpmorgan, klarna, klarna::Klarna, mifinity, mifinity::Mifinity, mollie,
-    mollie::Mollie, multisafepay, multisafepay::Multisafepay, nexinets, nexinets::Nexinets,
+    mollie::Mollie,  moneris, moneris::Moneris, multisafepay, multisafepay::Multisafepay, nexinets, nexinets::Nexinets,
     nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, noon, noon::Noon, novalnet,
     novalnet::Novalnet, nuvei, nuvei::Nuvei, paybox, paybox::Paybox, payeezy, payeezy::Payeezy,
     payme, payme::Payme, payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz,
