@@ -1,5 +1,5 @@
 use common_enums::{self, IntentStatus};
-use common_utils::{self, id_type, types::keymanager::KeyManagerState};
+use common_utils::{self, ext_traits::OptionExt, id_type, types::keymanager::KeyManagerState};
 use diesel_models::{enums, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
@@ -210,36 +210,32 @@ pub enum Decision {
     ExecuteTask,
     PsyncTask(PaymentAttempt),
     InvalidTask,
-    ReviewSucceededPayment,
-    ReviewFailedPayment,
+    ReviewTaskSuccessfulPayment,
+    ReviewTaskFailedPayment,
 }
 
 impl Decision {
     pub async fn get_decision_based_on_params(
-        db: &dyn StorageInterface,
+        state: &SessionState,
         intent_status: IntentStatus,
         called_connector: bool,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         merchant_account: &merchant_account::MerchantAccount,
+        payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         Ok(match (intent_status, called_connector, active_attempt_id) {
-            (IntentStatus::Processing, false, None) => Self::ExecuteTask,
-            (IntentStatus::Processing, true, Some(active_attempt_id)) => {
-                let payment_attempt = db
-                    .find_payment_attempt_by_id(
-                        key_manager_state,
-                        merchant_key_store,
-                        &active_attempt_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::RecoveryError::TaskNotFound)?;
+            (IntentStatus::Failed, false, None) => Self::ExecuteTask,
+            (IntentStatus::Processing, true, Some(_)) => {
+                let psync_data = core_pcr::call_psync_api(state, payment_id, pcr_data).await?;
+                let payment_attempt = psync_data
+                    .payment_attempt
+                    .get_required_value("Payment Attempt")?;
                 Self::PsyncTask(payment_attempt)
             }
-            (IntentStatus::Failed, true, Some(_)) => Self::ReviewFailedPayment,
-            (IntentStatus::Succeeded, true, Some(_)) => Self::ReviewSucceededPayment,
+            (IntentStatus::Failed, true, Some(_)) => Self::ReviewTaskFailedPayment,
+            (IntentStatus::Succeeded, true, Some(_)) => Self::ReviewTaskSuccessfulPayment,
             _ => Self::InvalidTask,
         })
     }
@@ -262,7 +258,7 @@ impl Action {
         execute_task_process: &storage::ProcessTracker,
     ) -> RecoveryResult<Self> {
         // call the proxy api
-        let response = call_proxy_api::<api_types::Authorize>(payment_intent);
+        let response = core_pcr::call_proxy_api::<api_types::Authorize>(payment_intent);
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -375,31 +371,32 @@ impl Action {
         tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
         process: &storage::ProcessTracker,
     ) -> RecoveryResult<Self> {
-        let response = core_pcr::perform_psync_call(state, tracking_data, pcr_data).await;
+        let response =
+            core_pcr::call_psync_api(state, &tracking_data.global_payment_id, pcr_data).await;
         let db = &*state.store;
         let active_attempt_id = tracking_data.payment_attempt_id.clone();
         match response {
             Ok(payment_data) => {
-                if let Some(payment_attempt) = payment_data.payment_attempt {
-                    match payment_attempt.status.foreign_into() {
-                        PCRAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
-                        PCRAttemptStatus::Failed => {
-                            Self::decide_retry_failure_action(
-                                db,
-                                &tracking_data.merchant_id,
-                                process.clone(),
-                            )
-                            .await
-                        }
-
-                        PCRAttemptStatus::Processing => Ok(Self::SyncPayment),
-                        PCRAttemptStatus::InvalidAction(action) => {
-                            logger::info!(?action, "Invalid Payment Status For PCR PSync Payment");
-                            Ok(Self::ManualReviewAction)
-                        }
+                // if a sync task
+                let payment_attempt = payment_data
+                    .payment_attempt
+                    .get_required_value("Payment Attempt")?;
+                match payment_attempt.status.foreign_into() {
+                    PCRAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
+                    PCRAttemptStatus::Failed => {
+                        Self::decide_retry_failure_action(
+                            db,
+                            &tracking_data.merchant_id,
+                            process.clone(),
+                        )
+                        .await
                     }
-                } else {
-                    Ok(Self::ReviewPayment)
+
+                    PCRAttemptStatus::Processing => Ok(Self::SyncPayment),
+                    PCRAttemptStatus::InvalidAction(action) => {
+                        logger::info!(?action, "Invalid Payment Status For PCR PSync Payment");
+                        Ok(Self::ManualReviewAction)
+                    }
                 }
             }
             Err(_) =>
@@ -501,14 +498,25 @@ impl Action {
                     .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
-            Self::ReviewPayment => todo!(),
+            Self::ReviewPayment => {
+                core_pcr::insert_review_task(
+                    db,
+                    tracking_data.clone(),
+                    storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                )
+                .await?;
+                db.finish_process_with_business_status(
+                    execute_task_process.clone(),
+                    business_status::PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW,
+                )
+                .await?;
+                Ok(())
+            }
             Self::ManualReviewAction => {
                 logger::debug!("Invalid Payment Status For PCR Payment");
                 let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                     status: enums::ProcessTrackerStatus::Review,
-                    business_status: Some(String::from(
-                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
-                    )),
+                    business_status: Some(String::from(business_status::PSYNC_WORKFLOW_COMPLETE)),
                 };
                 // update the process tracker status as Review
                 db.as_scheduler()
@@ -535,48 +543,4 @@ impl Action {
             None => Ok(Self::TerminalFailure),
         }
     }
-}
-
-// This function would be converted to proxy_payments_core
-fn call_proxy_api<F>(payment_intent: &PaymentIntent) -> RouterResult<PaymentConfirmData<F>>
-where
-    F: Send + Clone + Sync,
-{
-    // TODO: remove the commented code once the proxy api is available
-    // let (payment_data, _req, connector_http_status_code, external_latency) =
-    // proxy_for_payments_operation_core::<_, _, _, _, _>(
-    //     &state,
-    //     req_state,
-    //     merchant_account.clone(),
-    //     key_store,
-    //     profile,
-    //     operation.clone(),
-    //     req,
-    //     get_tracker_response,
-    //     call_connector_action,
-    //     header_payload.clone(),
-    // )
-    // .await?;
-
-    let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
-        payment_intent
-            .shipping_address
-            .clone()
-            .map(|address| address.into_inner()),
-        payment_intent
-            .billing_address
-            .clone()
-            .map(|address| address.into_inner()),
-        None,
-        Some(true),
-    );
-
-    let response = PaymentConfirmData {
-        flow: std::marker::PhantomData,
-        payment_intent: payment_intent.clone(),
-        payment_attempt: todo!(),
-        payment_method_data: None,
-        payment_address,
-    };
-    Ok(response)
 }
