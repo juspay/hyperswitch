@@ -1,7 +1,6 @@
 FROM rust:latest as builder
 
-ARG RUN_ENV=sandbox
-ARG EXTRA_FEATURES=""
+ARG FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
 
 RUN apt-get update \
@@ -19,7 +18,7 @@ ENV env=$env
 COPY . .
 RUN echo env
 RUN cargo install wasm-pack
-RUN wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${RUN_ENV},${EXTRA_FEATURES}
+RUN wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
 
 FROM scratch
 

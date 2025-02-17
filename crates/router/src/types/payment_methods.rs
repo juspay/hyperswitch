@@ -1,6 +1,8 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::generate_id;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::Secret;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -115,6 +117,7 @@ impl VaultingInterface for VaultDelete {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(api::CardDetail),
+    NetworkToken(NetworkTokenDetails),
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -122,6 +125,7 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
             Self::Card(card) => card.card_number.to_string(),
+            Self::NetworkToken(network_token) => network_token.network_token.to_string(),
         }
     }
 }

@@ -13,8 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse,
-    router_request_types::{SplitRefundsRequest, StripeSplitRefund},
+    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
@@ -236,7 +235,7 @@ pub async fn trigger_refund_to_gateway(
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
-                            connector_refund_data: None,
+                            processor_refund_data: None,
                             unified_code: None,
                             unified_message: None,
                         })
@@ -250,7 +249,7 @@ pub async fn trigger_refund_to_gateway(
                             refund_error_code: Some("NOT_SUPPORTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
-                            connector_refund_data: None,
+                            processor_refund_data: None,
                             unified_code: None,
                             unified_message: None,
                         })
@@ -297,6 +296,21 @@ pub async fn trigger_refund_to_gateway(
                 consts::REFUND_FLOW_STR.to_string(),
             )
             .await;
+            // Note: Some connectors do not have a separate list of refund errors
+            // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
+            // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
+            let option_gsm = if option_gsm.is_none() {
+                helpers::get_gsm_record(
+                    state,
+                    Some(err.code.clone()),
+                    Some(err.message.clone()),
+                    connector.connector_name.to_string(),
+                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                )
+                .await
+            } else {
+                option_gsm
+            };
 
             let gsm_unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
             let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
@@ -318,7 +332,7 @@ pub async fn trigger_refund_to_gateway(
                 refund_error_code: Some(err.code),
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
-                connector_refund_data: None,
+                processor_refund_data: None,
                 unified_code: Some(unified_code),
                 unified_message: Some(unified_message),
             }
@@ -327,7 +341,7 @@ pub async fn trigger_refund_to_gateway(
             // match on connector integrity checks
             match router_data_res.integrity_check.clone() {
                 Err(err) => {
-                    let (refund_connector_transaction_id, connector_refund_data) =
+                    let (refund_connector_transaction_id, processor_refund_data) =
                         err.connector_transaction_id.map_or((None, None), |txn_id| {
                             let (refund_id, refund_data) =
                                 ConnectorTransactionId::form_id_and_data(txn_id);
@@ -349,7 +363,7 @@ pub async fn trigger_refund_to_gateway(
                         refund_error_code: Some("IE".to_string()),
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: refund_connector_transaction_id,
-                        connector_refund_data,
+                        processor_refund_data,
                         unified_code: None,
                         unified_message: None,
                     }
@@ -364,7 +378,7 @@ pub async fn trigger_refund_to_gateway(
                             )),
                         )
                     }
-                    let (connector_refund_id, connector_refund_data) =
+                    let (connector_refund_id, processor_refund_data) =
                         ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
                     storage::RefundUpdate::Update {
                         connector_refund_id,
@@ -373,7 +387,7 @@ pub async fn trigger_refund_to_gateway(
                         refund_error_message: None,
                         refund_arn: "".to_string(),
                         updated_by: storage_scheme.to_string(),
-                        connector_refund_data,
+                        processor_refund_data,
                     }
                 }
             }
@@ -499,18 +513,12 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
-    let split_refunds_req: Option<SplitRefundsRequest> = payment_intent
-        .split_payments
-        .clone()
-        .zip(refund.split_refunds.clone())
-        .map(|(split_payments, split_refunds)| {
-            SplitRefundsRequest::try_from(SplitRefundInput {
-                refund_request: split_refunds,
-                payment_charges: split_payments,
-                charge_id: payment_attempt.charge_id.clone(),
-            })
-        })
-        .transpose()?;
+    let split_refunds_req = core_utils::get_split_refunds(SplitRefundInput {
+        split_payment_request: payment_intent.split_payments.clone(),
+        payment_charges: payment_attempt.charges.clone(),
+        charge_id: payment_attempt.charge_id.clone(),
+        refund_request: refund.split_refunds.clone(),
+    })?;
 
     let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
         (refund.unified_code.clone(), refund.unified_message.clone())
@@ -669,7 +677,7 @@ pub async fn sync_refund_with_gateway(
                 refund_error_code: Some(error_message.code),
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
-                connector_refund_data: None,
+                processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
             }
@@ -683,7 +691,7 @@ pub async fn sync_refund_with_gateway(
                         ("merchant_id", merchant_account.get_id().clone()),
                     ),
                 );
-                let (refund_connector_transaction_id, connector_refund_data) = err
+                let (refund_connector_transaction_id, processor_refund_data) = err
                     .connector_transaction_id
                     .map_or((None, None), |refund_id| {
                         let (refund_id, refund_data) =
@@ -699,13 +707,13 @@ pub async fn sync_refund_with_gateway(
                     refund_error_code: Some("IE".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: refund_connector_transaction_id,
-                    connector_refund_data,
+                    processor_refund_data,
                     unified_code: None,
                     unified_message: None,
                 }
             }
             Ok(()) => {
-                let (connector_refund_id, connector_refund_data) =
+                let (connector_refund_id, processor_refund_data) =
                     ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
                 storage::RefundUpdate::Update {
                     connector_refund_id,
@@ -714,7 +722,7 @@ pub async fn sync_refund_with_gateway(
                     refund_error_message: None,
                     refund_arn: "".to_string(),
                     updated_by: storage_scheme.to_string(),
-                    connector_refund_data,
+                    processor_refund_data,
                 }
             }
         },
@@ -799,32 +807,12 @@ pub async fn validate_and_create_refund(
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
-
-    let split_refunds = match payment_intent.split_payments.as_ref() {
-        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
-            if let Some(charge_id) = payment_attempt.charge_id.clone() {
-                let refund_request = req
-                    .split_refunds
-                    .clone()
-                    .get_required_value("split_refunds")?;
-
-                let options = validator::validate_charge_refund(
-                    &refund_request,
-                    &stripe_payment.charge_type,
-                )?;
-
-                Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                    charge_id,
-                    charge_type: stripe_payment.charge_type.clone(),
-                    transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                    options,
-                }))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
+    let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
+        split_payment_request: payment_intent.split_payments.clone(),
+        payment_charges: payment_attempt.charges.clone(),
+        charge_id: payment_attempt.charge_id.clone(),
+        refund_request: req.split_refunds.clone(),
+    })?;
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
@@ -894,7 +882,7 @@ pub async fn validate_and_create_refund(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
-    let (connector_transaction_id, connector_transaction_data) =
+    let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
     let refund_create_req = storage::RefundNew {
         refund_id: refund_id.to_string(),
@@ -924,8 +912,8 @@ pub async fn validate_and_create_refund(
         refund_arn: None,
         updated_by: Default::default(),
         organization_id: merchant_account.organization_id.clone(),
-        connector_refund_data: None,
-        connector_transaction_data,
+        processor_transaction_data,
+        processor_refund_data: None,
     };
 
     let refund = match db
@@ -1539,36 +1527,12 @@ pub async fn trigger_refund_execute_workflow(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-            let split_refunds = match payment_intent.split_payments.as_ref() {
-                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_payment,
-                )) => {
-                    let refund_request = refund
-                        .split_refunds
-                        .clone()
-                        .get_required_value("split_refunds")?;
-
-                    let options = validator::validate_charge_refund(
-                        &refund_request,
-                        &stripe_payment.charge_type,
-                    )?;
-
-                    let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
-                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Transaction is invalid. Missing field \"charge_id\" in payment_attempt.",
-            )
-                    })?;
-
-                    Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                        charge_id,
-                        charge_type: stripe_payment.charge_type.clone(),
-                        transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                        options,
-                    }))
-                }
-                _ => None,
-            };
+            let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
+                split_payment_request: payment_intent.split_payments.clone(),
+                payment_charges: payment_attempt.charges.clone(),
+                charge_id: payment_attempt.charge_id.clone(),
+                refund_request: refund.split_refunds.clone(),
+            })?;
 
             //trigger refund request to gateway
             let updated_refund = Box::pin(trigger_refund_to_gateway(
@@ -1620,7 +1584,7 @@ pub fn refund_to_refund_core_workflow_model(
         connector_transaction_id: refund.connector_transaction_id.clone(),
         merchant_id: refund.merchant_id.clone(),
         payment_id: refund.payment_id.clone(),
-        connector_transaction_data: refund.connector_transaction_data.clone(),
+        processor_transaction_data: refund.processor_transaction_data.clone(),
     }
 }
 

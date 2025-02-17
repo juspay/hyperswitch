@@ -92,6 +92,16 @@ pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(||
     )
 });
 
+/// Contract Routing based Dynamic Algorithm Cache
+pub static CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -113,6 +123,7 @@ pub enum CacheKind<'a> {
     CGraph(Cow<'a, str>),
     SuccessBasedDynamicRoutingCache(Cow<'a, str>),
     EliminationBasedDynamicRoutingCache(Cow<'a, str>),
+    ContractBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
@@ -128,6 +139,7 @@ impl CacheKind<'_> {
             | CacheKind::CGraph(key)
             | CacheKind::SuccessBasedDynamicRoutingCache(key)
             | CacheKind::EliminationBasedDynamicRoutingCache(key)
+            | CacheKind::ContractBasedDynamicRoutingCache(key)
             | CacheKind::PmFiltersCGraph(key)
             | CacheKind::All(key) => key,
         }
@@ -299,11 +311,13 @@ where
 {
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
-    let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
+    let redis_val = redis
+        .get_and_deserialize_key::<T>(&key.into(), type_name)
+        .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
         redis
-            .serialize_and_set_key(key, &data)
+            .serialize_and_set_key(&key.into(), &data)
             .await
             .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
@@ -380,7 +394,7 @@ pub async fn redact_from_redis_and_publish<
     let redis_keys_to_be_deleted = keys
         .clone()
         .into_iter()
-        .map(|val| val.get_key_without_prefix().to_owned())
+        .map(|val| val.get_key_without_prefix().to_owned().into())
         .collect::<Vec<_>>();
 
     let del_replies = redis_conn

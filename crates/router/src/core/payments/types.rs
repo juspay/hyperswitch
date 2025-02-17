@@ -325,7 +325,11 @@ impl SurchargeMetadata {
                 .get_order_fulfillment_time()
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
             redis_conn
-                .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
+                .set_hash_fields(
+                    &redis_key.as_str().into(),
+                    value_list,
+                    Some(intent_fulfillment_time),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to write to redis")?;
@@ -347,7 +351,11 @@ impl SurchargeMetadata {
         let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
         let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
         let result = redis_conn
-            .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
+            .get_hash_field_and_deserialize(
+                &redis_key.as_str().into(),
+                &value_key,
+                "SurchargeDetails",
+            )
             .await;
         logger::debug!(
             "Surcharge result fetched from redis with key = {} and {}",

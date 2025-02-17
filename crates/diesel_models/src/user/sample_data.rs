@@ -201,8 +201,9 @@ pub struct PaymentAttemptBatchNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_transaction_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -273,7 +274,6 @@ impl PaymentAttemptBatchNew {
             mandate_data: self.mandate_data,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -282,6 +282,7 @@ impl PaymentAttemptBatchNew {
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
+            card_discovery: self.card_discovery,
         }
     }
 }

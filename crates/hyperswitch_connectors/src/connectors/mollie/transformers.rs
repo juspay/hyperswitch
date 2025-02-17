@@ -175,6 +175,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                     PaymentMethodToken::PazeDecrypt(_) => {
                                         Err(unimplemented_payment_method!("Paze", "Mollie"))?
                                     }
+                                    PaymentMethodToken::GooglePayDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Google Pay", "Mollie"))?
+                                    }
                                 }),
                             },
                         )))
@@ -513,7 +516,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

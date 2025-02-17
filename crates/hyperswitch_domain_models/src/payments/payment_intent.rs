@@ -63,6 +63,15 @@ pub trait PaymentIntentInterface {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_merchant_reference_id_profile_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_reference_id: &id_type::PaymentReferenceId,
+        profile_id: &id_type::ProfileId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: &common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
@@ -93,7 +102,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1104,6 +1113,7 @@ pub struct PaymentIntentListParams {
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
+    pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
 }
 
@@ -1139,6 +1149,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
             card_network: None,
+            card_discovery: None,
             merchant_order_reference_id: None,
         }))
     }
@@ -1165,6 +1176,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             limit: None,
             order: Default::default(),
             card_network: None,
+            card_discovery: None,
             merchant_order_reference_id: None,
         }))
     }
@@ -1189,6 +1201,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            card_discovery,
             merchant_order_reference_id,
         } = value;
         if let Some(payment_intent_id) = payment_id {
@@ -1213,6 +1226,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
                 card_network,
+                card_discovery,
                 merchant_order_reference_id,
             }))
         }
@@ -1378,7 +1392,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_address: shipping_address.map(Encryption::from),
             capture_method: Some(capture_method),
             id,
-            authentication_type: Some(authentication_type),
+            authentication_type,
             prerouting_algorithm,
             merchant_reference_id,
             surcharge_amount: amount_details.surcharge_amount,
@@ -1512,7 +1526,7 @@ impl behaviour::Conversion for PaymentIntent {
                 id: storage_model.id,
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
-                authentication_type: storage_model.authentication_type.unwrap_or_default(),
+                authentication_type: storage_model.authentication_type,
                 prerouting_algorithm: storage_model.prerouting_algorithm,
                 enable_payment_link: storage_model.enable_payment_link.into(),
                 apply_mit_exemption: storage_model.apply_mit_exemption.into(),
@@ -1583,7 +1597,7 @@ impl behaviour::Conversion for PaymentIntent {
             capture_method: Some(self.capture_method),
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
-            authentication_type: Some(self.authentication_type),
+            authentication_type: self.authentication_type,
             prerouting_algorithm: self.prerouting_algorithm,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
