@@ -2271,214 +2271,273 @@
             "name": "payment_id",
             "in": "query",
             "description": "The identifier for payment",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "profile_id",
             "in": "query",
             "description": "The identifier for business profile",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "customer_id",
             "in": "query",
             "description": "The identifier for the customer",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "starting_after",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "ending_before",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Limit on the number of objects to return",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
             "name": "offset",
             "in": "query",
             "description": "The starting point within a list of objects",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
             "name": "created",
             "in": "query",
             "description": "The time at which payment is created",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_lt",
             "in": "query",
             "description": "Time less than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_gt",
             "in": "query",
             "description": "Time greater than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_lte",
             "in": "query",
             "description": "Time less than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_gte",
             "in": "query",
             "description": "Time greater than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "amount_filter",
             "in": "query",
             "description": "The amount to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/AmountFilter"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/AmountFilter"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "connector",
             "in": "query",
             "description": "The connector to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Connector"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Connector"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "currency",
             "in": "query",
             "description": "The currency to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Currency"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "status",
             "in": "query",
             "description": "The payment status to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/IntentStatus"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/IntentStatus"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "payment_method",
             "in": "query",
             "description": "The payment method to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/PaymentMethod"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentMethod"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "payment_method_type",
             "in": "query",
             "description": "The payment method type to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/PaymentMethodType"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "authentication_type",
             "in": "query",
             "description": "The authentication type to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/AuthenticationType"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/AuthenticationType"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "merchant_connector_id",
             "in": "query",
             "description": "The merchant connector ids to filter payments list for selected label",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "order",
             "in": "query",
             "description": "The order in which payments list should be sorted",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Order"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Order"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "card_network",
             "in": "query",
             "description": "The card networks to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/CardNetwork"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/CardNetwork"
+                }
+              ],
+              "nullable": true
             }
           },
           {
             "name": "merchant_order_reference_id",
             "in": "query",
             "description": "The identifier for merchant order reference id",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           }
         ],
