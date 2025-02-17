@@ -10,7 +10,7 @@ impl utils::Connector for NetceteraTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Netcetera;
         utils::construct_connector_data_old(
-            Box::new(&Netcetera),
+            Box::new(Netcetera::new()),
             types::Connector::Netcetera,
             types::api::GetToken::Connector,
             None,
