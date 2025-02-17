@@ -2283,17 +2283,19 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
         }
     }
 }
-
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct PaymentAttemptFeatureMetadata {
     pub revenue_recovery: Option<PaymentAttemptRevenueRecoveryData>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
 }
 
+#[cfg(feature = "v2")]
 impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadata {
     fn from(item: &PaymentAttemptFeatureMetadata) -> Self {
         let revenue_recovery =
@@ -2306,6 +2308,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata {
     fn from(item: DieselPaymentAttemptFeatureMetadata) -> Self {
         let revenue_recovery =

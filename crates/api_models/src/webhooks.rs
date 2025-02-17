@@ -251,10 +251,11 @@ pub enum ObjectReferenceId {
     ExternalAuthenticationID(AuthenticationIdType),
     #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
+    #[cfg(all(feature = "recovery",feature = "v2"))]
     InvoiceId(InvoiceIdType),
 }
 
-#[cfg(feature = "recovery")]
+#[cfg(all(feature = "recovery",feature = "v2"))]
 #[derive(Clone)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),

@@ -1621,7 +1621,7 @@ impl Webhooks {
                     ),
             );
 
-        #[cfg(feature = "recovery")]
+        #[cfg(all(feature = "recovery",feature ="v2"))]
         {
             route = route.service(
                 web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
