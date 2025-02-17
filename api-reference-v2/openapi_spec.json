@@ -22066,7 +22066,7 @@
           "percent_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Description to identify fee rule",
+            "description": "Amount of payments to be split, using a percent rate as unit",
             "nullable": true
           },
           "currency": {
