@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 
-#[cfg(all(feature = "recovery",feature ="v2"))]
+#[cfg(all(feature = "recovery", feature = "v2"))]
 use crate::recovery::RecoveryPayload;
 use crate::{api::ConnectorCommon, errors};
 
@@ -279,7 +279,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     }
 
     /// get passive churn recovery details
-    #[cfg(all(feature = "recovery",feature ="v2"))]
+    #[cfg(all(feature = "recovery", feature = "v2"))]
     fn get_recovery_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
