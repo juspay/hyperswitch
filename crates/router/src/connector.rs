@@ -43,7 +43,7 @@ pub use hyperswitch_connectors::connectors::{
     nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, novalnet, novalnet::Novalnet, nuvei,
     nuvei::Nuvei, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payu, payu::Payu, placetopay,
     placetopay::Placetopay, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay,
-    rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys, redsys::Redsys, shift4,
+    rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly::Recurly, redsys, redsys::Redsys, shift4,
     shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes,
     thunes::Thunes, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,

@@ -52,6 +52,7 @@ pub mod powertranz;
 pub mod prophetpay;
 pub mod rapyd;
 pub mod razorpay;
+pub mod recurly;
 pub mod redsys;
 pub mod shift4;
 pub mod square;
@@ -81,8 +82,8 @@ pub use self::{
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
     nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, nuvei::Nuvei,
     paybox::Paybox, payeezy::Payeezy, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4,
-    square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
+    shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,

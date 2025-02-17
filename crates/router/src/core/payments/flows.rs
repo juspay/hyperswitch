@@ -1,3 +1,4 @@
+
 pub mod approve_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
@@ -457,6 +458,7 @@ default_imp_for_connector_request_id!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
+    connector::Recurly,
     connector::Redsys,
     connector::Riskified,
     connector::Shift4,
@@ -1418,6 +1420,7 @@ default_imp_for_fraud_check!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
+    connector::Recurly,
     connector::Redsys,
     connector::Shift4,
     connector::Square,
@@ -1953,6 +1956,7 @@ default_imp_for_connector_authentication!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
+    connector::Recurly,
     connector::Redsys,
     connector::Riskified,
     connector::Shift4,
