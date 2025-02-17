@@ -1260,16 +1260,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     None => query,
                 };
 
-                query = match &params.payment_method {
-                    Some(payment_method) => {
-                        query.filter(pa_dsl::payment_method_type_v2.eq(*payment_method))
+                query = match &params.payment_method_type {
+                    Some(payment_method_type) => {
+                        query.filter(pa_dsl::payment_method_type_v2.eq(*payment_method_type))
                     }
                     None => query,
                 };
 
-                query = match &params.payment_method_type {
-                    Some(payment_method_type) => {
-                        query.filter(pa_dsl::payment_method_subtype.eq(*payment_method_type))
+                query = match &params.payment_method_subtype {
+                    Some(payment_method_subtype) => {
+                        query.filter(pa_dsl::payment_method_subtype.eq(*payment_method_subtype))
                     }
                     None => query,
                 };

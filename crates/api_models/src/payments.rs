@@ -5736,10 +5736,10 @@ pub struct PaymentListConstraints {
     pub status: Option<enums::IntentStatus>,
     /// The payment method to filter payments list
     #[param(value_type = Option<PaymentMethod>)]
-    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_type: Option<enums::PaymentMethod>,
     /// The payment method type to filter payments list
     #[param(value_type = Option<PaymentMethodType>)]
-    pub payment_method_type: Option<enums::PaymentMethodType>,
+    pub payment_method_subtype: Option<enums::PaymentMethodType>,
     /// The authentication type to filter payments list
     #[param(value_type = Option<AuthenticationType>)]
     pub authentication_type: Option<enums::AuthenticationType>,
@@ -5763,8 +5763,8 @@ pub struct PaymentListConstraints {
 impl PaymentListConstraints {
     pub fn has_no_attempt_filters(&self) -> bool {
         self.connector.is_none()
-            && self.payment_method.is_none()
             && self.payment_method_type.is_none()
+            && self.payment_method_subtype.is_none()
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
@@ -5783,7 +5783,7 @@ pub struct PaymentListResponse {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {
-    /// The number of payments included in the list for given constraints
+    /// The number of payments included in the current response
     pub count: usize,
     /// The total number of available payments for given constraints
     pub total_count: i64,

@@ -419,8 +419,8 @@ impl PaymentAttempt {
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<String>,
-        payment_method: Option<enums::PaymentMethod>,
-        payment_method_type: Option<enums::PaymentMethodType>,
+        payment_method_type: Option<enums::PaymentMethod>,
+        payment_method_subtype: Option<enums::PaymentMethodType>,
         authentication_type: Option<enums::AuthenticationType>,
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         card_network: Option<enums::CardNetwork>,
@@ -435,11 +435,11 @@ impl PaymentAttempt {
             filter = filter.filter(dsl::connector.eq(connector));
         }
 
-        if let Some(payment_method) = payment_method {
-            filter = filter.filter(dsl::payment_method_type_v2.eq(payment_method));
-        }
         if let Some(payment_method_type) = payment_method_type {
-            filter = filter.filter(dsl::payment_method_subtype.eq(payment_method_type));
+            filter = filter.filter(dsl::payment_method_type_v2.eq(payment_method_type));
+        }
+        if let Some(payment_method_subtype) = payment_method_subtype {
+            filter = filter.filter(dsl::payment_method_subtype.eq(payment_method_subtype));
         }
         if let Some(authentication_type) = authentication_type {
             filter = filter.filter(dsl::authentication_type.eq(authentication_type));
