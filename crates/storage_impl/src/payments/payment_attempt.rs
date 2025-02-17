@@ -425,6 +425,43 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        use common_utils::ext_traits::AsyncExt;
+
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_by_payment_id(&conn, payment_id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(*er.current_context());
+                er.change_context(new_err)
+            })
+            .async_and_then(|payment_attempts| async {
+                let mut domain_payment_attempts = Vec::with_capacity(payment_attempts.len());
+                for attempt in payment_attempts.into_iter() {
+                    domain_payment_attempts.push(
+                        attempt
+                            .convert(
+                                key_manager_state,
+                                merchant_key_store.key.get_inner(),
+                                merchant_key_store.merchant_id.clone().into(),
+                            )
+                            .await
+                            .change_context(errors::StorageError::DecryptionError)?,
+                    );
+                }
+                Ok(domain_payment_attempts)
+            })
+            .await
+    }
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
@@ -437,6 +474,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -461,6 +499,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             authentication_type,
             merchant_connector_id,
             card_network,
+            card_discovery,
         )
         .await
         .map_err(|er| {
@@ -1200,6 +1239,25 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        self.router_store
+            .find_payment_attempts_by_payment_intent_id(
+                key_manager_state,
+                payment_id,
+                merchant_key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
@@ -1348,6 +1406,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1360,6 +1419,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 authentication_type,
                 merchant_connector_id,
                 card_network,
+                card_discovery,
                 storage_scheme,
             )
             .await
@@ -1434,7 +1494,7 @@ impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
     fn to_storage_model(self) -> Self::StorageModel {
-        let (connector_transaction_id, connector_transaction_data) = self
+        let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -1509,12 +1569,14 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
-            connector_transaction_data,
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
+            processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_transaction_data: None,
         }
     }
 

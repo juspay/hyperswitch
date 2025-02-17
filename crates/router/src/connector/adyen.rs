@@ -192,8 +192,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Alfamart
                 | PaymentMethodType::Indomaret
                 | PaymentMethodType::FamilyMart
-                | PaymentMethodType::Sofort
-                | PaymentMethodType::Giropay
                 | PaymentMethodType::Seicomart
                 | PaymentMethodType::PayEasy
                 | PaymentMethodType::MiniStop
@@ -228,10 +226,12 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
+                | PaymentMethodType::Giropay
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::PromptPay
                 | PaymentMethodType::RedCompra
                 | PaymentMethodType::RedPagos
+                | PaymentMethodType::Sofort
                 | PaymentMethodType::CryptoCurrency
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
@@ -274,9 +274,7 @@ impl ConnectorValidation for Adyen {
             PaymentMethodDataType::VippsRedirect,
             PaymentMethodDataType::KlarnaRedirect,
             PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::Sofort,
             PaymentMethodDataType::OpenBankingUk,
-            PaymentMethodDataType::Giropay,
             PaymentMethodDataType::Trustly,
             PaymentMethodDataType::BancontactCard,
             PaymentMethodDataType::AchBankDebit,

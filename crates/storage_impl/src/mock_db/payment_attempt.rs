@@ -53,6 +53,7 @@ impl PaymentAttemptInterface for MockDb {
         _authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         _merchanat_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         _card_network: Option<Vec<storage_enums::CardNetwork>>,
+        _card_discovery: Option<Vec<storage_enums::CardDiscovery>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?
@@ -77,6 +78,18 @@ impl PaymentAttemptInterface for MockDb {
         _attempt_id: &id_type::GlobalAttemptId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _id: &id_type::GlobalPaymentId,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

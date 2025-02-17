@@ -90,10 +90,16 @@ fn fetch_payment_instrument(
                 billing_address.and_then(|addr| addr.address.clone())
             {
                 Some(BillingAddress {
-                    address1: address.line1,
+                    address1: address.line1.get_required_value("line1").change_context(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "line1",
+                        },
+                    )?,
                     address2: address.line2,
                     address3: address.line3,
-                    city: address.city,
+                    city: address.city.get_required_value("city").change_context(
+                        errors::ConnectorError::MissingRequiredField { field_name: "city" },
+                    )?,
                     state: address.state,
                     postal_code: address.zip.get_required_value("zip").change_context(
                         errors::ConnectorError::MissingRequiredField { field_name: "zip" },

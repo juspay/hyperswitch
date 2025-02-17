@@ -9098,6 +9098,15 @@
         },
         "additionalProperties": false
       },
+      "CardDiscovery": {
+        "type": "string",
+        "description": "Indicates the method by which a card is discovered during a payment",
+        "enum": [
+          "manual",
+          "saved_card",
+          "click_to_pay"
+        ]
+      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
@@ -12654,13 +12663,11 @@
       },
       "GpayTokenParameters": {
         "type": "object",
-        "required": [
-          "gateway"
-        ],
         "properties": {
           "gateway": {
             "type": "string",
-            "description": "The name of the connector"
+            "description": "The name of the connector",
+            "nullable": true
           },
           "gateway_merchant_id": {
             "type": "string",
@@ -12673,6 +12680,16 @@
           },
           "stripe:publishableKey": {
             "type": "string",
+            "nullable": true
+          },
+          "protocol_version": {
+            "type": "string",
+            "description": "The protocol version for encryption",
+            "nullable": true
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key provided by the merchant",
             "nullable": true
           }
         }
@@ -19212,6 +19229,14 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "card_discovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20454,6 +20479,14 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "card_discovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
             "nullable": true
           }
         }
