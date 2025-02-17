@@ -98,7 +98,7 @@ export let connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing", // tokyo
+          status: "succeeded",
         },
       },
     },
@@ -141,29 +141,26 @@ export let connectorDetails = {
         },
       },
     },
-    Refund: { // tokyo
+    Refund: {
+      Request: {
+        amount: getLatestPaymentIntentAmount()
+      },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          message:
+            "The referenced transaction does not meet the criteria for issuing a credit.",
+          code: "54",
         },
       },
     },
-    PartialRefund: {  // tokyo
+    PartialRefund: {
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          message:
+            "The referenced transaction does not meet the criteria for issuing a credit.",
+          code: "54",
         },
       },
     },
