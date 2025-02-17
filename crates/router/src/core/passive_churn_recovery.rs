@@ -1,25 +1,26 @@
 pub mod transformers;
 pub mod types;
 use api_models::payments::PaymentsRetrieveRequest;
-use common_enums::{self, IntentStatus};
 use common_utils::{self, id_type, types::keymanager::KeyManagerState};
 use diesel_models::process_tracker::business_status;
-use error_stack::{self, report, ResultExt};
+use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    errors::api_error_response, merchant_key_store::MerchantKeyStore, payments::PaymentIntent,
+    errors::api_error_response,
+    payments::{PaymentIntent, PaymentStatusData},
 };
 use scheduler::errors;
-use storage_impl::errors::StorageError;
 
 use crate::{
     core::{
-        errors::{self as error, RouterResult},
+        errors::RouterResult,
         passive_churn_recovery::types as pcr_types,
+        payments::{self, operations::Operation},
     },
     db::StorageInterface,
     logger,
     routes::{metrics, SessionState},
     types::{
+        api,
         storage::{self, passive_churn_recovery as pcr},
         transformers::ForeignInto,
     },
@@ -28,20 +29,19 @@ use crate::{
 pub async fn perform_execute_task(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
-    _tracking_data: &pcr::PCRWorkflowTrackingData,
+    tracking_data: &pcr::PCRWorkflowTrackingData,
     pcr_data: &pcr::PCRPaymentData,
-    key_manager_state: &KeyManagerState,
+    _key_manager_state: &KeyManagerState,
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
     let decision_task = pcr_types::Decision::get_decision_based_on_params(
-        db,
+        state,
         payment_intent.status,
-        true,
+        false,
         payment_intent.active_attempt_id.clone(),
-        key_manager_state,
-        &pcr_data.key_store,
-        &pcr_data.merchant_account,
+        pcr_data,
+        &tracking_data.global_payment_id,
     )
     .await?;
 
@@ -55,13 +55,12 @@ pub async fn perform_execute_task(
             )
             .await?;
             action
-                .execute_payment_response_handler(
+                .execute_payment_task_response_handler(
                     db,
                     &pcr_data.merchant_account,
                     payment_intent,
-                    key_manager_state,
-                    &pcr_data.key_store,
                     execute_task_process,
+                    &pcr_data.profile,
                 )
                 .await?;
         }
@@ -87,25 +86,18 @@ pub async fn perform_execute_task(
                             pcr_data.merchant_account.get_id(),
                             psync_process,
                             execute_task_process,
-                            key_manager_state,
-                            payment_intent.clone(),
-                            &pcr_data.key_store,
-                            pcr_data.merchant_account.storage_scheme,
                         )
                         .await?;
                 }
 
                 None => {
-                    let req = PaymentsRetrieveRequest {
-                        force_sync: false,
-                        param: None,
-                    };
                     // insert new psync task
                     insert_psync_pcr_task(
                         db,
                         pcr_data.merchant_account.get_id().clone(),
                         payment_intent.get_id().clone(),
-                        req,
+                        pcr_data.profile.get_id().clone(),
+                        payment_intent.active_attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     )
                     .await?;
@@ -119,7 +111,7 @@ pub async fn perform_execute_task(
                 }
             };
         }
-        pcr_types::Decision::ReviewTask => {
+        pcr_types::Decision::InvalidTask => {
             db.finish_process_with_business_status(
                 execute_task_process.clone(),
                 business_status::EXECUTE_WORKFLOW_COMPLETE,
@@ -135,16 +127,19 @@ async fn insert_psync_pcr_task(
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
     payment_id: id_type::GlobalPaymentId,
-    request: PaymentsRetrieveRequest,
+    profile_id: id_type::ProfileId,
+    payment_attempt_id: Option<id_type::GlobalAttemptId>,
     runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "PSYNC_WORKFLOW";
     let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
     let schedule_time = common_utils::date_time::now();
-    let psync_workflow_tracking_data = pcr::PCRPsyncWorkflowTrackingData {
+    let psync_workflow_tracking_data = pcr::PCRWorkflowTrackingData {
         global_payment_id: payment_id,
         merchant_id,
-        request,
+        profile_id,
+        platform_merchant_id: None,
+        payment_attempt_id,
     };
     let tag = ["PCR"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -168,29 +163,51 @@ async fn insert_psync_pcr_task(
     Ok(response)
 }
 
-async fn terminal_payment_failure_handling(
-    db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
-    payment_intent: PaymentIntent,
-    merchant_key_store: &MerchantKeyStore,
-    storage_scheme: common_enums::MerchantStorageScheme,
-) -> error::CustomResult<(), errors::ProcessTrackerError> {
-    let payment_intent_update = storage::PaymentIntentUpdate::ConfirmIntent {
-        status: IntentStatus::Failed,
-        updated_by: storage_scheme.to_string(),
-        active_attempt_id: None,
+pub async fn call_psync_api(
+    state: &SessionState,
+    global_payment_id: &id_type::GlobalPaymentId,
+    pcr_data: &pcr::PCRPaymentData,
+) -> RouterResult<PaymentStatusData<api::PSync>> {
+    let operation = payments::operations::PaymentGet;
+    let req = PaymentsRetrieveRequest {
+        force_sync: false,
+        param: None,
+        expand_attempts: true,
     };
-    // mark the intent as failure
-    db.update_payment_intent(
-        key_manager_state,
-        payment_intent,
-        payment_intent_update,
-        merchant_key_store,
-        storage_scheme,
-    )
-    .await
-    .change_context(errors::ProcessTrackerError::EStorageError(report!(
-        StorageError::DatabaseConnectionError
-    )))?;
-    Ok(())
+
+    // Get the tracker related information. This includes payment intent and payment attempt
+    let get_tracker_response = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            global_payment_id,
+            &req,
+            &pcr_data.merchant_account,
+            &pcr_data.profile,
+            &pcr_data.key_store,
+            &hyperswitch_domain_models::payments::HeaderPayload::default(),
+            None,
+        )
+        .await?;
+
+    let (payment_data, _req, _, _, _) = Box::pin(payments::payments_operation_core::<
+        api::PSync,
+        _,
+        _,
+        _,
+        PaymentStatusData<api::PSync>,
+    >(
+        state,
+        state.get_req_state(),
+        pcr_data.merchant_account.clone(),
+        pcr_data.key_store.clone(),
+        pcr_data.profile.clone(),
+        operation,
+        req,
+        get_tracker_response,
+        payments::CallConnectorAction::Trigger,
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+    ))
+    .await?;
+    Ok(payment_data)
 }

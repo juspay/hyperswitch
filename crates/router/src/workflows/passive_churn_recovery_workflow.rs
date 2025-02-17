@@ -8,27 +8,25 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntentData;
 #[cfg(feature = "v2")]
 use router_env::logger;
+use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
-use scheduler::{
-    consumer::workflows::ProcessTrackerWorkflow, errors, types::process_data,
-    utils as scheduler_utils,
-};
+use scheduler::{types::process_data, utils as scheduler_utils};
 
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        passive_churn_recovery::{self as pcr, types as pcr_types},
+        passive_churn_recovery::{self as pcr},
         payments,
     },
     db::StorageInterface,
     errors::StorageError,
-    routes::SessionState,
     types::{
         api::{self as api_types},
-        storage::{self, passive_churn_recovery as pcr_storage_types},
+        storage::passive_churn_recovery as pcr_storage_types,
     },
 };
 
+use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 
 #[async_trait::async_trait]
@@ -189,20 +187,4 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, merchant_id, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
-}
-
-#[cfg(feature = "v2")]
-pub(crate) async fn retry_pcr_payment_task(
-    db: &dyn StorageInterface,
-    merchant_id: common_utils::id_type::MerchantId,
-    mut pt: storage::ProcessTracker,
-) -> pcr_types::Action {
-    let schedule_time =
-        get_schedule_time_to_retry_mit_payments(db, &merchant_id, pt.retry_count + 1).await;
-    pt.schedule_time = schedule_time;
-    match schedule_time {
-        Some(_) => pcr_types::Action::RetryPayment(pt),
-
-        None => pcr_types::Action::TerminalFailure,
-    }
 }

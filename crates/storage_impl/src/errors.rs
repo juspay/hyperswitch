@@ -302,11 +302,11 @@ pub enum HealthCheckGRPCServiceError {
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum RecoveryError {
     #[error("Failed to make a recovery payment")]
-    RecoveryPaymentFailed,
+    PaymentCallFailed,
     #[error("Encountered a Process Tracker Task Failure")]
     ProcessTrackerFailure,
     #[error("The encountered task is invalid")]
     InvalidTask,
-    #[error("The Intented task was not found")]
-    TaskNotFound,
+    #[error("The Intented data was not found")]
+    ValueNotFound,
 }
