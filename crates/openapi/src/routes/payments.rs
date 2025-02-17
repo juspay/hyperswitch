@@ -855,31 +855,7 @@ pub fn list_payment_methods() {}
 #[utoipa::path(
     get,
     path = "/v2/payments/list",
-    params(
-        ("payment_id" = Option<String>, Query, description = "The identifier for payment"),
-        ("profile_id" = Option<String>, Query, description = "The identifier for business profile"),
-        ("customer_id" = Option<String>, Query, description = "The identifier for the customer"),
-        ("starting_after" = Option<String>, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
-        ("ending_before" = Option<String>, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
-        ("limit" = Option<i64>, Query, description = "Limit on the number of objects to return"),
-        ("offset" = Option<i64>, Query, description = "The starting point within a list of objects"),
-        ("created" = Option<PrimitiveDateTime>, Query, description = "The time at which payment is created"),
-        ("created_lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the payment created time"),
-        ("created_gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the payment created time"),
-        ("created_lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the payment created time"),
-        ("created_gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment created time"),
-        ("amount_filter" = Option<AmountFilter>, Query, description = "The amount to filter payments list"),
-        ("connector" = Option<Connector>, Query, description = "The connector to filter payments list"),
-        ("currency" = Option<Currency>, Query, description = "The currency to filter payments list"),
-        ("status" = Option<IntentStatus>, Query, description = "The payment status to filter payments list"),
-        ("payment_method" = Option<PaymentMethod>, Query, description = "The payment method to filter payments list"),
-        ("payment_method_type" = Option<PaymentMethodType>, Query, description = "The payment method type to filter payments list"),
-        ("authentication_type" = Option<AuthenticationType>, Query, description = "The authentication type to filter payments list"),
-        ("merchant_connector_id" = Option<String>, Query, description = "The merchant connector ids to filter payments list for selected label"),
-        ("order" = Option<Order>, Query, description = "The order in which payments list should be sorted"),
-        ("card_network" = Option<CardNetwork>, Query, description = "The card networks to filter payments list"),
-        ("merchant_order_reference_id" = Option<String>, Query, description = "The identifier for merchant order reference id")
-    ),
+    params(api_models::payments::PaymentListConstraints),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
         (status = 404, description = "No payments found")

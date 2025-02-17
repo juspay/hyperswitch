@@ -1240,7 +1240,8 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             created_gte,
             payment_id,
             profile_id,
-            amount_filter,
+            start_amount,
+            end_amount,
             connector,
             currency,
             status,
@@ -1248,7 +1249,8 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             payment_method_type,
             authentication_type,
             merchant_connector_id,
-            order,
+            order_on,
+            order_by,
             card_network,
             merchant_order_reference_id,
             offset,
@@ -1260,7 +1262,12 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
                 offset: offset.unwrap_or_default(),
                 starting_at: created_gte.or(created_gt).or(created),
                 ending_at: created_lte.or(created_lt).or(created),
-                amount_filter,
+                amount_filter: (start_amount.is_some() || end_amount.is_some()).then(|| {
+                    api_models::payments::AmountFilter {
+                        start_amount,
+                        end_amount,
+                    }
+                }),
                 connector,
                 currency,
                 status,
@@ -1273,7 +1280,10 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
                 starting_after_id: starting_after,
                 ending_before_id: ending_before,
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order,
+                order: api_models::payments::Order {
+                    on: order_on,
+                    by: order_by,
+                },
                 card_network,
                 merchant_order_reference_id,
             }))

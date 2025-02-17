@@ -5647,19 +5647,19 @@ pub struct PaymentListConstraints {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, utoipa::IntoParams)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for payment
-    #[schema(example = "pay_fafa124123", value_type = Option<String>)]
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub payment_id: Option<id_type::GlobalPaymentId>,
 
     /// The identifier for business profile
-    #[schema(example = "pay_fafa124123", value_type = Option<String>)]
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The identifier for customer
-    #[schema(
+    #[param(
         max_length = 64,
         min_length = 1,
         example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
@@ -5668,15 +5668,15 @@ pub struct PaymentListConstraints {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// A cursor for use in pagination, fetch the next list after some object
-    #[schema(example = "pay_fafa124123", value_type = Option<String>)]
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub starting_after: Option<id_type::GlobalPaymentId>,
 
     /// A cursor for use in pagination, fetch the previous list before some object
-    #[schema(example = "pay_fafa124123", value_type = Option<String>)]
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub ending_before: Option<id_type::GlobalPaymentId>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10, maximum = 100)]
+    #[param(default = 10, maximum = 100)]
     #[serde(default = "default_payments_list_limit")]
     pub limit: u32,
 
@@ -5684,12 +5684,12 @@ pub struct PaymentListConstraints {
     pub offset: Option<u32>,
 
     /// The time at which payment is created
-    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[param(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 
     /// Time less than the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[param(example = "2022-09-10T10:11:12Z")]
     #[serde(
         default,
         with = "common_utils::custom_serde::iso8601::option",
@@ -5698,7 +5698,7 @@ pub struct PaymentListConstraints {
     pub created_lt: Option<PrimitiveDateTime>,
 
     /// Time greater than the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[param(example = "2022-09-10T10:11:12Z")]
     #[serde(
         default,
         with = "common_utils::custom_serde::iso8601::option",
@@ -5707,7 +5707,7 @@ pub struct PaymentListConstraints {
     pub created_gt: Option<PrimitiveDateTime>,
 
     /// Time less than or equals to the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[param(example = "2022-09-10T10:11:12Z")]
     #[serde(
         default,
         with = "common_utils::custom_serde::iso8601::option",
@@ -5716,39 +5716,44 @@ pub struct PaymentListConstraints {
     pub created_lte: Option<PrimitiveDateTime>,
 
     /// Time greater than or equals to the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[param(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gte")]
     pub created_gte: Option<PrimitiveDateTime>,
 
-    /// The amount to filter payments list
-    pub amount_filter: Option<AmountFilter>,
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
+    pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
+    pub end_amount: Option<i64>,
     /// The connector to filter payments list
-    #[schema(value_type = Option<Connector>)]
+    #[param(value_type = Option<Connector>)]
     pub connector: Option<api_enums::Connector>,
     /// The currency to filter payments list
-    #[schema(value_type = Option<Currency>)]
+    #[param(value_type = Option<Currency>)]
     pub currency: Option<enums::Currency>,
     /// The payment status to filter payments list
-    #[schema(value_type = Option<IntentStatus>)]
+    #[param(value_type = Option<IntentStatus>)]
     pub status: Option<enums::IntentStatus>,
     /// The payment method to filter payments list
-    #[schema(value_type = Option<PaymentMethod>)]
+    #[param(value_type = Option<PaymentMethod>)]
     pub payment_method: Option<enums::PaymentMethod>,
     /// The payment method type to filter payments list
-    #[schema(value_type = Option<PaymentMethodType>)]
+    #[param(value_type = Option<PaymentMethodType>)]
     pub payment_method_type: Option<enums::PaymentMethodType>,
     /// The authentication type to filter payments list
-    #[schema(value_type = Option<AuthenticationType>)]
+    #[param(value_type = Option<AuthenticationType>)]
     pub authentication_type: Option<enums::AuthenticationType>,
     /// The merchant connector ids to filter payments list for selected label
-    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The field on which the payments list should be sorted
+    #[serde(default)]
+    pub order_on: SortOn,
     /// The order in which payments list should be sorted
     #[serde(default)]
-    pub order: Order,
+    pub order_by: SortBy,
     /// The card networks to filter payments list
-    #[schema(value_type = Option<CardNetwork>)]
+    #[param(value_type = Option<CardNetwork>)]
     pub card_network: Option<enums::CardNetwork>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,

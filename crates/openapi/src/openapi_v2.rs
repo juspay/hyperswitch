@@ -439,7 +439,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SamsungPayCardBrand,
         api_models::payments::SamsungPayTokenData,
         api_models::payments::PaymentsCancelRequest,
-        api_models::payments::PaymentListConstraints,
         api_models::payments::PaymentListResponse,
         api_models::payments::CashappQr,
         api_models::payments::BankTransferData,
