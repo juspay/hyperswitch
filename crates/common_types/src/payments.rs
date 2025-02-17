@@ -171,9 +171,9 @@ impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
 pub struct XenditSplitRoute {
-    /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
+    /// Amount of payments to be split
     pub flat_amount: Option<MinorUnit>,
-    /// Description to identify fee rule
+    /// Amount of payments to be split, using a percent rate as unit
     pub percent_amount: Option<i64>,
     /// Currency code
     #[schema(value_type = Currency, example = "USD")]
