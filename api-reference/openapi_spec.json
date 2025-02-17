@@ -5391,26 +5391,28 @@
           {
             "name": "event_class",
             "in": "query",
-            "description": "Only include events associated with the specified event class. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be provided.",
+            "description": "Only include events associated with the specified event class. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified..",
             "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/components/schemas/EventClass"
               },
+              "uniqueItems": true,
               "nullable": true
             }
           },
           {
             "name": "event_type",
             "in": "query",
-            "description": "Only include events associated with the specified event type. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.",
+            "description": "Only include events associated with the specified event type. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified..",
             "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/components/schemas/EventType"
               },
+              "uniqueItems": true,
               "nullable": true
             }
           }
