@@ -45,18 +45,6 @@ pub async fn convert_forex(
     ))
 }
 
-// 
-// pub async fn get_forex_exchange_rates(
-//     state: SessionState,
-// ) -> CustomResult<ExchangeRates, AnalyticsError> {
-//     let forex_api = state.conf.forex_api.get_inner();
-//     let rates = get_forex_rates(&state, forex_api.call_delay)
-//         .await
-//         .change_context(AnalyticsError::ForexFetchFailed)?;
-
-//     Ok((*rates.data).clone())
-// }
-
 pub async fn get_forex_exchange_rates(
     state: SessionState,
 ) -> CustomResult<ExchangeRates, AnalyticsError> {
@@ -73,10 +61,10 @@ pub async fn get_forex_exchange_rates(
                 logger::info!("Successfully fetched forex rates");
                 return Ok((*rates.data).clone())
             },
-            Err(e) => {
+            Err(error) => {
                 if attempt >= max_attempts {
                     logger::error!("Failed to fetch forex rates after {max_attempts} attempts");
-                    return Err(e.change_context(AnalyticsError::ForexFetchFailed));
+                    return Err(error.change_context(AnalyticsError::ForexFetchFailed));
                 }
                 logger::warn!("Forex rates fetch failed, retrying in {attempt} seconds");
                 tokio::time::sleep(std::time::Duration::from_secs(attempt)).await;
