@@ -36,7 +36,7 @@ pub enum DynamicRoutingError {
     #[error("Error from Dynamic Routing Server while performing contract based routing: {0}")]
     ContractBasedRoutingFailure(String),
     /// Generic Error from Dynamic Routing Server while performing contract based routing
-    #[error("Contract not found from in the dynmaic routing service")]
+    #[error("Contract not found from in the dynamic routing service")]
     ContractNotFound,
     /// Error from Dynamic Routing Server while perfrming elimination
     #[error("Error from Dynamic Routing Server while perfrming elimination : {0}")]
