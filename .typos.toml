@@ -59,6 +59,10 @@ OltCounty = "OltCounty" # Is a state in Romania
 olt = "olt" # Is iso representation of a state in Romania
 Vas = "Vas" # Is iso representation of a state in Hungary
 vas = "vas" # Is iso representation of a state in Hungary
+WHT = "WHT" # Is iso representation of a state in Belgium
+CantonOfEschSurAlzette = "CantonOfEschSurAlzette" # Is a state in Luxembourg
+GorenjaVasPoljane = "GorenjaVasPoljane" # Is a state in Slovenia
+sur = "sur" # Is iso representation of a state in Luxembourg
 
 [default.extend-words]
 aci = "aci" # Name of a connector
