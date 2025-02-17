@@ -388,7 +388,6 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
-        println!("$$$ in rsync {:?} ", payment_data);
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {

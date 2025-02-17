@@ -62,12 +62,12 @@ pub struct Address {
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AccountHolder {
     #[serde(rename = "first-name")]
-    pub first_name: Secret<String>,
+    pub first_name: Option<Secret<String>>,
     #[serde(rename = "last-name")]
-    pub last_name: Secret<String>,
-    pub email: Email,
+    pub last_name: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
-    pub address: Address,
+    pub address: Option<Address>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -143,10 +143,10 @@ pub struct PaymentData {
     #[serde(rename = "requested-amount")]
     pub requested_amount: Amount,
     #[serde(rename = "account-holder")]
-    pub account_holder: AccountHolder,
+    pub account_holder: Option<AccountHolder>,
     pub card: Card,
     #[serde(rename = "ip-address")]
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     pub notifications: Option<NotificationContainer>,
@@ -193,14 +193,11 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                 };
 
                 let account_holder = AccountHolder {
-                    first_name: item.router_data.get_billing_first_name()?,
-                    last_name: item.router_data.get_billing_last_name()?,
-                    email: item
-                        .router_data
-                        .get_billing_email()
-                        .or(item.router_data.request.get_email())?,
+                    first_name: Some(item.router_data.get_billing_first_name()?),
+                    last_name: Some(item.router_data.get_billing_last_name()?),
+                    email: Some(item.router_data.request.get_email()?),
                     phone: item.router_data.get_optional_billing_phone_number(),
-                    address: Address {
+                    address: Some(Address {
                         street1: item.router_data.get_optional_billing_line2(),
                         city: item
                             .router_data
@@ -208,7 +205,7 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                             .map(Secret::new),
                         state: item.router_data.get_optional_billing_state(),
                         country: item.router_data.get_optional_billing_country(),
-                    },
+                    }),
                 };
 
                 let card = Card {
@@ -216,10 +213,13 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                     expiration_month: req_card.card_exp_month.clone(),
                     expiration_year: req_card.card_exp_year.clone(),
                     card_security_code: req_card.card_cvc.clone(),
-                    card_type: req_card
-                        .card_network
-                        .as_ref()
-                        .map(|network| network.to_string().to_lowercase()),
+                    card_type: Some(
+                        req_card
+                            .card_network
+                            .as_ref()
+                            .map(|network| network.to_string().to_lowercase())
+                            .unwrap_or(common_enums::CardNetwork::Visa.to_string().to_lowercase()),
+                    ),
                 };
 
                 let payment_method = PaymentMethodContainer {
@@ -244,9 +244,9 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                     request_id: item.router_data.payment_id.clone(),
                     transaction_type,
                     requested_amount,
-                    account_holder,
+                    account_holder: Some(account_holder),
                     card,
-                    ip_address: request.get_browser_info()?.get_ip_address()?,
+                    ip_address: Some(request.get_browser_info()?.get_ip_address()?),
                     payment_methods: payment_method,
                     notifications: Some(notifications),
                 };
@@ -298,7 +298,7 @@ impl From<GetnetPaymentStatus> for AttemptStatus {
         match item {
             GetnetPaymentStatus::Success => Self::Authorized,
             GetnetPaymentStatus::Failed => Self::Failure,
-            GetnetPaymentStatus::InProgress => Self::Authorizing,
+            GetnetPaymentStatus::InProgress => Self::Pending,
         }
     }
 }
@@ -318,9 +318,9 @@ pub struct Statuses {
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CardToken {
     #[serde(rename = "token-id")]
-    pub token_id: String,
+    pub token_id: Secret<String>,
     #[serde(rename = "masked-account-number")]
-    pub masked_account_number: String,
+    pub masked_account_number: Secret<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -343,11 +343,11 @@ pub struct PaymentResponseData {
     #[serde(rename = "requested-amount")]
     pub requested_amount: Amount,
     #[serde(rename = "account-holder")]
-    pub account_holder: AccountHolder,
+    pub account_holder: Option<AccountHolder>,
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: String,
+    pub ip_address: Option<Secret<String>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "api-id")]
@@ -356,7 +356,6 @@ pub struct PaymentResponseData {
     pub self_url: String,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetnetPaymentsResponse {
     payment: PaymentResponseData,
@@ -474,6 +473,8 @@ pub struct CapturePaymentData {
     #[serde(rename = "requested-amount")]
     pub requested_amount: Amount,
     pub notifications: NotificationContainer,
+    #[serde(rename = "ip-address")]
+    pub ip_address: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -504,13 +505,21 @@ impl TryFrom<&GetnetRouterData<&PaymentsCaptureRouterData>> for GetnetCaptureReq
             }],
         };
         let transaction_type = GetnetTransactionType::CaptureAuthorization;
+        let ip_address: Option<Secret<String>> = req
+            .browser_info
+            .as_ref()
+            .and_then(|info| info.ip_address.as_ref())
+            .map(|ip| Secret::new(ip.to_string()));
+        let request_id = item.router_data.connector_request_reference_id.clone();
+        let parent_transaction_id = item.router_data.request.connector_transaction_id.clone();
         let capture_payment_data = CapturePaymentData {
             merchant_account_id,
-            request_id: format!("{}_1", item.router_data.payment_id.clone()),
+            request_id,
             transaction_type,
-            parent_transaction_id: item.router_data.request.connector_transaction_id.clone(),
+            parent_transaction_id,
             requested_amount,
             notifications,
+            ip_address,
         };
 
         Ok(Self {
@@ -541,11 +550,11 @@ pub struct CaptureResponseData {
     #[serde(rename = "parent-transaction-id")]
     pub parent_transaction_id: String,
     #[serde(rename = "account-holder")]
-    pub account_holder: AccountHolder,
+    pub account_holder: Option<AccountHolder>,
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: String,
+    pub ip_address: Option<Secret<String>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -614,6 +623,8 @@ pub struct RefundPaymentData {
     #[serde(rename = "parent-transaction-id")]
     pub parent_transaction_id: String,
     pub notifications: NotificationContainer,
+    #[serde(rename = "ip-address")]
+    pub ip_address: Option<Secret<String>>,
 }
 #[derive(Debug, Serialize)]
 pub struct GetnetRefundRequest {
@@ -646,13 +657,25 @@ impl<F> TryFrom<&GetnetRouterData<&RefundsRouterData<F>>> for GetnetRefundReques
                 return Err(errors::ConnectorError::CaptureMethodNotSupported {}.into());
             }
         };
+        let ip_address = request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address.as_ref())
+            .map(|ip| Secret::new(ip.to_string()));
+        let request_id = item
+            .router_data
+            .refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
 
+        let parent_transaction_id = item.router_data.request.connector_transaction_id.clone();
         let refund_payment_data = RefundPaymentData {
             merchant_account_id,
-            request_id: format!("{}_2", item.router_data.payment_id.clone()),
+            request_id,
             transaction_type,
-            parent_transaction_id: item.router_data.request.connector_transaction_id.clone(),
+            parent_transaction_id,
             notifications,
+            ip_address,
         };
 
         Ok(Self {
@@ -677,7 +700,6 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Success => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::InProgress => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
@@ -705,11 +727,11 @@ pub struct RefundResponseData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_transaction_id: Option<String>,
     #[serde(rename = "account-holder")]
-    pub account_holder: AccountHolder,
+    pub account_holder: Option<AccountHolder>,
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: String,
+    pub ip_address: Option<Secret<String>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -721,7 +743,6 @@ pub struct RefundResponseData {
     pub self_url: String,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     payment: RefundResponseData,
@@ -768,26 +789,19 @@ pub struct CancelPaymentData {
     #[serde(rename = "parent-transaction-id")]
     pub parent_transaction_id: String,
     pub notifications: NotificationContainer,
+    #[serde(rename = "ip-address")]
+    pub ip_address: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct GetnetCancelRequest {
     pub payment: CancelPaymentData,
 }
-use rand::{distributions::Alphanumeric, Rng};
 
-fn generate_random_id(length: usize) -> String {
-    let rng = rand::thread_rng();
-    let id: String = rng
-        .sample_iter(&Alphanumeric)
-        .take(length)
-        .map(char::from)
-        .collect();
-    id
-}
 impl TryFrom<&PaymentsCancelRouterData> for GetnetCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let request = &item.request;
         let auth_type = GetnetAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
@@ -804,7 +818,7 @@ impl TryFrom<&PaymentsCancelRouterData> for GetnetCancelRequest {
         };
         let capture_method = &item.request.capture_method;
         let transaction_type = match capture_method {
-            Some(CaptureMethod::Automatic) => GetnetTransactionType::VoidCapture,
+            Some(CaptureMethod::Automatic) => GetnetTransactionType::VoidPurchase,
             Some(CaptureMethod::Manual) => GetnetTransactionType::VoidAuthorization,
             Some(CaptureMethod::ManualMultiple)
             | Some(CaptureMethod::Scheduled)
@@ -815,12 +829,20 @@ impl TryFrom<&PaymentsCancelRouterData> for GetnetCancelRequest {
                 return Err(errors::ConnectorError::CaptureMethodNotSupported {}.into());
             }
         };
+        let ip_address = request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address.as_ref())
+            .map(|ip| Secret::new(ip.to_string()));
+        let request_id = &item.connector_request_reference_id.clone();
+        let parent_transaction_id = item.request.connector_transaction_id.clone();
         let cancel_payment_data = CancelPaymentData {
             merchant_account_id,
-            request_id: generate_random_id(10),
+            request_id: request_id.to_string(),
             transaction_type,
-            parent_transaction_id: item.request.connector_transaction_id.clone(),
+            parent_transaction_id,
             notifications,
+            ip_address,
         };
         Ok(Self {
             payment: cancel_payment_data,
@@ -840,8 +862,8 @@ pub enum GetnetTransactionType {
     RefundCapture,
     #[serde(rename = "void-authorization")]
     VoidAuthorization,
-    #[serde(rename = "void-capture")]
-    VoidCapture,
+    #[serde(rename = "void-purchase")]
+    VoidPurchase,
     Authorization,
 }
 
@@ -868,11 +890,11 @@ pub struct CancelResponseData {
     #[serde(rename = "parent-transaction-id")]
     pub parent_transaction_id: String,
     #[serde(rename = "account-holder")]
-    pub account_holder: AccountHolder,
+    pub account_holder: Option<AccountHolder>,
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: String,
+    pub ip_address: Option<Secret<String>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -923,7 +945,6 @@ impl<F>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GetnetErrorResponse {
     pub status_code: u16,
@@ -935,11 +956,11 @@ pub struct GetnetErrorResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetnetWebhookNotificationResponse {
     #[serde(rename = "response-signature-base64")]
-    pub response_signature_base64: String,
+    pub response_signature_base64: Secret<String>,
     #[serde(rename = "response-signature-algorithm")]
-    pub response_signature_algorithm: String,
+    pub response_signature_algorithm: Secret<String>,
     #[serde(rename = "response-base64")]
-    pub response_base64: String,
+    pub response_base64: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -965,11 +986,11 @@ pub struct WebhookResponseData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_transaction_id: Option<String>,
     #[serde(rename = "account-holder")]
-    pub account_holder: AccountHolder,
+    pub account_holder: Option<AccountHolder>,
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: String,
+    pub ip_address: Option<Secret<String>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -1038,7 +1059,7 @@ pub fn get_incoming_webhook_event(
             GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCancelFailure,
         },
 
-        GetnetTransactionType::VoidCapture => match transaction_status {
+        GetnetTransactionType::VoidPurchase => match transaction_status {
             GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentCancelled,
             GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCancelFailure,
             GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCancelFailure,
