@@ -15,12 +15,10 @@ use common_utils::{
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
-
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::mandates::{
     CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
 };
-
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
