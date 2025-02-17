@@ -1706,7 +1706,7 @@ impl MandateIds {
 pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
-    /// A concent from the customer to store the payment method
+    /// A consent from the customer to store the payment method
     pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
     pub mandate_type: Option<MandateType>,
