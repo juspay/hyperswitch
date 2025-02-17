@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.05.0-hotfix4
+
+### Bug Fixes
+
+- **utils:** Add to_state_code to router crate ([#7293](https://github.com/juspay/hyperswitch/pull/7293)) ([`7691108`](https://github.com/juspay/hyperswitch/commit/7691108ee63879261825c39490d2acdd2a26ba35))
+
+- - -
+
 ## 2025.02.05.0-hotfix3
 
 ### Features
