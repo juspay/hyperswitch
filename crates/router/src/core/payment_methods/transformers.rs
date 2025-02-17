@@ -1012,7 +1012,7 @@ impl
 
 #[cfg(feature = "v2")]
 impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetails>
-    for hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord
+    for hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord
 {
     fn foreign_from(item: api_models::payment_methods::ConnectorTokenDetails) -> Self {
         let api_models::payment_methods::ConnectorTokenDetails {
@@ -1042,16 +1042,16 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
 impl
     transformers::ForeignFrom<(
         id_type::MerchantConnectorAccountId,
-        hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
     )> for api_models::payment_methods::ConnectorTokenDetails
 {
     fn foreign_from(
         (connector_id, mandate_reference_record): (
             id_type::MerchantConnectorAccountId,
-            hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+            hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
         ),
     ) -> Self {
-        let hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
+        let hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord {
             connector_token_request_reference_id,
             original_payment_authorized_amount,
             original_payment_authorized_currency,

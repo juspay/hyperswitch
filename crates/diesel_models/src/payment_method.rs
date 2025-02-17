@@ -945,22 +945,24 @@ pub struct PaymentsMandateReferenceRecord {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReferenceRecord {
+pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_token_status: common_enums::ConnectorMandateStatus,
+    pub connector_token_status: common_enums::ConnectorTokenStatus,
     pub connector_token_request_reference_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentsMandateReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
+#[cfg(feature = "v1")]
 impl std::ops::Deref for PaymentsMandateReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
@@ -970,13 +972,42 @@ impl std::ops::Deref for PaymentsMandateReference {
     }
 }
 
+#[cfg(feature = "v1")]
 impl std::ops::DerefMut for PaymentsMandateReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct PaymentsTokenReference(
+    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>,
+);
+
+#[cfg(feature = "v2")]
+impl std::ops::Deref for PaymentsTokenReference {
+    type Target =
+        HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(feature = "v2")]
+impl std::ops::DerefMut for PaymentsTokenReference {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[cfg(feature = "v1")]
 common_utils::impl_to_sql_from_sql_json!(PaymentsMandateReference);
+
+#[cfg(feature = "v2")]
+common_utils::impl_to_sql_from_sql_json!(PaymentsTokenReference);
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PayoutsMandateReferenceRecord {
@@ -1004,10 +1035,19 @@ impl std::ops::DerefMut for PayoutsMandateReference {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsTokenReference>,
     pub payouts: Option<PayoutsMandateReference>,
 }
 
@@ -1034,11 +1074,12 @@ impl CommonMandateReference {
         Ok(payments)
     }
 
+    #[cfg(feature = "v2")]
     /// Insert a new payment token reference for the given connector_id
     pub fn insert_payment_token_reference_record(
         &mut self,
         connector_id: &common_utils::id_type::MerchantConnectorAccountId,
-        record: PaymentsMandateReferenceRecord,
+        record: ConnectorTokenReferenceRecord,
     ) {
         match self.payments {
             Some(ref mut payments_reference) => {
@@ -1047,7 +1088,7 @@ impl CommonMandateReference {
             None => {
                 let mut payments_reference = HashMap::new();
                 payments_reference.insert(connector_id.clone(), record);
-                self.payments = Some(PaymentsMandateReference(payments_reference));
+                self.payments = Some(PaymentsTokenReference(payments_reference));
             }
         }
     }
@@ -1067,6 +1108,7 @@ impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for Comm
     }
 }
 
+#[cfg(feature = "v1")]
 impl<DB: diesel::backend::Backend> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>
     for CommonMandateReference
 where
@@ -1115,6 +1157,56 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<DB: diesel::backend::Backend> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>
+    for CommonMandateReference
+where
+    serde_json::Value: diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let value = <serde_json::Value as diesel::deserialize::FromSql<
+            diesel::sql_types::Jsonb,
+            DB,
+        >>::from_sql(bytes)?;
+
+        let payments_data = value
+            .clone()
+            .as_object_mut()
+            .map(|obj| {
+                obj.remove("payouts");
+
+                serde_json::from_value::<PaymentsTokenReference>(serde_json::Value::Object(
+                    obj.clone(),
+                ))
+                .inspect_err(|err| {
+                    router_env::logger::error!("Failed to parse payments data: {}", err);
+                })
+                .change_context(ParsingError::StructParseFailure(
+                    "Failed to parse payments data",
+                ))
+            })
+            .transpose()?;
+
+        let payouts_data = serde_json::from_value::<Option<Self>>(value)
+            .inspect_err(|err| {
+                router_env::logger::error!("Failed to parse payouts data: {}", err);
+            })
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse payouts data",
+            ))
+            .map(|optional_common_mandate_details| {
+                optional_common_mandate_details
+                    .and_then(|common_mandate_details| common_mandate_details.payouts)
+            })?;
+
+        Ok(Self {
+            payments: payments_data,
+            payouts: payouts_data,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl From<PaymentsMandateReference> for CommonMandateReference {
     fn from(payment_reference: PaymentsMandateReference) -> Self {
         Self {

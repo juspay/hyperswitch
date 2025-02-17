@@ -884,11 +884,12 @@ pub struct ConnectorTokenDetails {
     #[schema(value_type = TokenizationType)]
     pub token_type: common_enums::TokenizationType,
 
-    /// The status of connector token
-    #[schema(value_type = ConnectorMandateStatus)]
-    pub status: common_enums::ConnectorMandateStatus,
+    /// The status of connector token if it is active or inactive
+    #[schema(value_type = ConnectorTokenStatus)]
+    pub status: common_enums::ConnectorTokenStatus,
 
-    /// The mandate reference id of the connector token
+    /// The reference id of the connector token
+    /// This is the reference that was passed to connector when creating the token
     pub connector_token_request_reference_id: Option<String>,
 
     pub original_payment_authorized_amount: Option<MinorUnit>,

@@ -1465,14 +1465,14 @@ pub async fn create_payment_method_for_intent(
 #[cfg(feature = "v2")]
 /// Update the connector_mandate_details of the payment method with
 /// new token details for the payment
-fn create_connector_mandate_details_update(
+fn create_connector_token_details_update(
     token_details: payment_methods::ConnectorTokenDetails,
     payment_method: &domain::PaymentMethod,
 ) -> hyperswitch_domain_models::mandates::CommonMandateReference {
     let connector_id = token_details.connector_id.clone();
 
     let reference_record =
-        hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord::foreign_from(
+        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord::foreign_from(
             token_details,
         );
 
@@ -1489,7 +1489,7 @@ fn create_connector_mandate_details_update(
             let reference_record_hash_map =
                 std::collections::HashMap::from([(connector_id, reference_record)]);
             let payments_mandate_reference =
-                hyperswitch_domain_models::mandates::PaymentsMandateReference(
+                hyperswitch_domain_models::mandates::PaymentsTokenReference(
                     reference_record_hash_map,
                 );
             hyperswitch_domain_models::mandates::CommonMandateReference {
@@ -1543,7 +1543,7 @@ pub async fn create_pm_additional_data_update(
 
     let connector_mandate_details_update = connector_token_details
         .map(|connector_token| {
-            create_connector_mandate_details_update(connector_token, payment_method)
+            create_connector_token_details_update(connector_token, payment_method)
         })
         .map(From::from);
 
@@ -2283,6 +2283,7 @@ pub async fn payment_methods_session_confirm(
         .map(|billing| billing.into_inner())
         .map(From::from);
 
+    // Unify the billing address that we receive from the session and from the confirm request
     let unified_billing_address = request
         .payment_method_data
         .billing

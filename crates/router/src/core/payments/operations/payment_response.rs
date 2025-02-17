@@ -2598,7 +2598,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                 let connector_token_details_for_payment_method_update =
                     api_models::payment_methods::ConnectorTokenDetails {
                         connector_id,
-                        status: common_enums::ConnectorMandateStatus::Active,
+                        status: common_enums::ConnectorTokenStatus::Active,
                         connector_token_request_reference_id: connector_token
                             .and_then(|details| details.connector_mandate_request_reference_id),
                         original_payment_authorized_amount: Some(net_amount),

@@ -279,13 +279,13 @@ pub struct PaymentsMandateReferenceRecord {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReferenceRecord {
+pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<MinorUnit>,
     pub original_payment_authorized_currency: Option<Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_token_status: common_enums::ConnectorMandateStatus,
+    pub connector_token_status: common_enums::ConnectorTokenStatus,
     pub connector_token_request_reference_id: Option<String>,
 }
 
@@ -314,11 +314,19 @@ impl std::ops::DerefMut for PayoutsMandateReference {
     }
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsTokenReference(
+    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>,
+);
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
+#[cfg(feature = "v1")]
 impl std::ops::Deref for PaymentsMandateReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
@@ -328,15 +336,41 @@ impl std::ops::Deref for PaymentsMandateReference {
     }
 }
 
+#[cfg(feature = "v1")]
 impl std::ops::DerefMut for PaymentsMandateReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
+#[cfg(feature = "v2")]
+impl std::ops::Deref for PaymentsTokenReference {
+    type Target =
+        HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(feature = "v2")]
+impl std::ops::DerefMut for PaymentsTokenReference {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsTokenReference>,
     pub payouts: Option<PayoutsMandateReference>,
 }
 
@@ -363,11 +397,12 @@ impl CommonMandateReference {
         Ok(payments)
     }
 
+    #[cfg(feature = "v2")]
     /// Insert a new payment token reference for the given connector_id
     pub fn insert_payment_token_reference_record(
         &mut self,
         connector_id: &common_utils::id_type::MerchantConnectorAccountId,
-        record: PaymentsMandateReferenceRecord,
+        record: ConnectorTokenReferenceRecord,
     ) {
         match self.payments {
             Some(ref mut payments_reference) => {
@@ -376,7 +411,7 @@ impl CommonMandateReference {
             None => {
                 let mut payments_reference = HashMap::new();
                 payments_reference.insert(connector_id.clone(), record);
-                self.payments = Some(PaymentsMandateReference(payments_reference));
+                self.payments = Some(PaymentsTokenReference(payments_reference));
             }
         }
     }
@@ -424,6 +459,7 @@ impl From<PayoutsMandateReference> for diesel_models::PayoutsMandateReference {
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<diesel_models::PaymentsMandateReference> for PaymentsMandateReference {
     fn from(value: diesel_models::PaymentsMandateReference) -> Self {
         Self(
@@ -436,8 +472,35 @@ impl From<diesel_models::PaymentsMandateReference> for PaymentsMandateReference 
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<PaymentsMandateReference> for diesel_models::PaymentsMandateReference {
     fn from(value: PaymentsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.into()))
+                .collect(),
+        )
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
+    fn from(value: diesel_models::PaymentsTokenReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.into()))
+                .collect(),
+        )
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<PaymentsTokenReference> for diesel_models::PaymentsTokenReference {
+    fn from(value: PaymentsTokenReference) -> Self {
         Self(
             value
                 .0
@@ -464,10 +527,31 @@ impl From<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateRefere
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v2")]
+impl From<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenReferenceRecord {
+    fn from(value: diesel_models::ConnectorTokenReferenceRecord) -> Self {
+        let diesel_models::ConnectorTokenReferenceRecord {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        } = value;
+        Self {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateReferenceRecord {
     fn from(value: diesel_models::PaymentsMandateReferenceRecord) -> Self {
         Self {
@@ -482,10 +566,31 @@ impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateRefe
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v2")]
+impl From<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenReferenceRecord {
+    fn from(value: ConnectorTokenReferenceRecord) -> Self {
+        let ConnectorTokenReferenceRecord {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        } = value;
+        Self {
+            connector_token,
+            payment_method_subtype,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status,
+            connector_token_request_reference_id,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateReferenceRecord {
     fn from(value: PaymentsMandateReferenceRecord) -> Self {
         Self {
@@ -496,36 +601,6 @@ impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateRefe
             mandate_metadata: value.mandate_metadata,
             connector_mandate_status: value.connector_mandate_status,
             connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateReferenceRecord {
-    fn from(value: diesel_models::PaymentsMandateReferenceRecord) -> Self {
-        Self {
-            connector_token: value.connector_token,
-            payment_method_subtype: value.payment_method_subtype,
-            original_payment_authorized_amount: value.original_payment_authorized_amount,
-            original_payment_authorized_currency: value.original_payment_authorized_currency,
-            metadata: value.metadata,
-            connector_token_status: value.connector_token_status,
-            connector_token_request_reference_id: value.connector_token_request_reference_id,
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateReferenceRecord {
-    fn from(value: PaymentsMandateReferenceRecord) -> Self {
-        Self {
-            connector_token: value.connector_token,
-            payment_method_subtype: value.payment_method_subtype,
-            original_payment_authorized_amount: value.original_payment_authorized_amount,
-            original_payment_authorized_currency: value.original_payment_authorized_currency,
-            metadata: value.metadata,
-            connector_token_status: value.connector_token_status,
-            connector_token_request_reference_id: value.connector_token_request_reference_id,
         }
     }
 }

@@ -21,7 +21,7 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
-    mandates::{CommonMandateReference, PaymentsMandateReference},
+    mandates::{self, CommonMandateReference},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
@@ -169,11 +169,10 @@ impl PaymentMethod {
                     .as_object_mut()
                     .map(|obj| obj.remove("payouts"));
 
-                serde_json::from_value::<PaymentsMandateReference>(mandate_details).inspect_err(
-                    |err| {
+                serde_json::from_value::<mandates::PaymentsMandateReference>(mandate_details)
+                    .inspect_err(|err| {
                         router_env::logger::error!("Failed to parse payments data: {:?}", err);
-                    },
-                )
+                    })
             })
             .transpose()
             .map_err(|err| {
