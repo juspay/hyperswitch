@@ -17,9 +17,10 @@ use crate::{
         admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            self, helpers,
+            self, call_decision_manager, helpers,
             operations::{self, ValidateStatusForOperation},
-            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
+            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         utils as core_utils,
     },
@@ -170,6 +171,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
         self.validate_status_for_operation(payment_intent.status)?;
         let client_secret = header_payload
             .client_secret
@@ -290,6 +293,30 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         }
     }
 
+    async fn run_decision_manager<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let authentication_type = payment_data.payment_intent.authentication_type;
+
+        let authentication_type = match business_profile.three_ds_decision_manager_config.as_ref() {
+            Some(three_ds_decision_manager_config) => call_decision_manager(
+                state,
+                three_ds_decision_manager_config.clone(),
+                payment_data,
+            )?,
+            None => authentication_type,
+        };
+
+        if let Some(auth_type) = authentication_type {
+            payment_data.payment_attempt.authentication_type = auth_type;
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -397,11 +424,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                 active_attempt_id: payment_data.payment_attempt.id.clone(),
             };
 
+        let authentication_type = payment_data.payment_attempt.authentication_type;
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
             merchant_connector_id,
+            authentication_type,
         };
 
         let updated_payment_intent = db
@@ -431,6 +461,25 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_attempt = updated_payment_attempt;
+
+        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
+            let customer_id = customer.get_id().clone();
+            let customer_merchant_id = customer.merchant_id.clone();
+
+            let _updated_customer = db
+                .update_customer_by_global_id(
+                    key_manager_state,
+                    &customer_id,
+                    customer,
+                    &customer_merchant_id,
+                    updated_customer,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer during `update_trackers`")?;
+        }
 
         Ok((Box::new(self), payment_data))
     }

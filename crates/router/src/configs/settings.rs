@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 
 #[cfg(feature = "olap")]
@@ -32,11 +33,14 @@ use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
-use crate::analytics::AnalyticsConfig;
+use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
 use crate::{
+    configs,
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    routes::app,
+    AppState,
 };
 
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
@@ -99,7 +103,7 @@ pub struct Settings<S: SecretState> {
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
-    pub google_pay_decrypt_keys: Option<SecretStateContainer<GooglePayDecryptConfig, S>>,
+    pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -171,11 +175,96 @@ pub struct DecisionConfig {
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
+impl TenantConfig {
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_accounts_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_accounts_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    #[cfg(feature = "olap")]
+    pub async fn get_pools_map(
+        &self,
+        analytics_config: &AnalyticsConfig,
+    ) -> HashMap<id_type::TenantId, AnalyticsProvider> {
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            (
+                tenant_name.clone(),
+                AnalyticsProvider::from_conf(analytics_config, tenant).await,
+            )
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tenant {
     pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
+    pub accounts_schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
     pub user: TenantUserConfig,
@@ -187,6 +276,12 @@ pub struct TenantUserConfig {
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
+    fn get_accounts_schema(&self) -> &str {
+        self.accounts_schema.as_str()
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
@@ -198,6 +293,7 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
 }
 
+// Todo: Global tenant should not be part of tenant config(https://github.com/juspay/hyperswitch/issues/7237)
 #[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
     #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
@@ -206,8 +302,14 @@ pub struct GlobalTenant {
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
 }
-
+// Todo: Global tenant should not be part of tenant config
 impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
+    fn get_accounts_schema(&self) -> &str {
+        self.schema.as_str()
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
@@ -919,7 +1021,7 @@ impl Settings<SecuredSecret> {
 
         self.google_pay_decrypt_keys
             .as_ref()
-            .map(|x| x.get_inner().validate())
+            .map(|x| x.validate())
             .transpose()?;
 
         self.key_manager.get_inner().validate()?;
@@ -1169,6 +1271,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
         struct Inner {
             base_url: String,
             schema: String,
+            accounts_schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
             user: TenantUserConfig,
@@ -1186,6 +1289,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             tenant_id: key,
                             base_url: value.base_url,
                             schema: value.schema,
+                            accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
                             user: value.user,
