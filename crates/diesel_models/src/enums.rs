@@ -103,7 +103,7 @@ pub enum ProcessTrackerStatus {
     ProcessStarted,
     // Finished by consumer
     Finish,
-    // Review the task
+    // The task needs to be reviewed
     Review,
 }
 

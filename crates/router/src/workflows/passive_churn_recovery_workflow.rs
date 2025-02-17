@@ -1,4 +1,3 @@
-#[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{StringExt, ValueExt};
@@ -89,9 +88,31 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 )
                 .await
             }
-            Some("PSYNC_WORKFLOW") => todo!(),
+            Some("PSYNC_WORKFLOW") => {
+                Box::pin(pcr::perform_psync_task(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &pcr_data,
+                    key_manager_state,
+                    &payment_data.payment_intent,
+                ))
+                .await?;
+                Ok(())
+            }
 
-            Some("REVIEW_WORKFLOW") => todo!(),
+            Some("REVIEW_WORKFLOW") => {
+                pcr::perform_review_task(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &pcr_data,
+                    key_manager_state,
+                    &payment_data.payment_intent,
+                )
+                .await?;
+                Ok(())
+            }
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
@@ -189,20 +210,4 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, merchant_id, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
-}
-
-#[cfg(feature = "v2")]
-pub(crate) async fn retry_pcr_payment_task(
-    db: &dyn StorageInterface,
-    merchant_id: common_utils::id_type::MerchantId,
-    mut pt: storage::ProcessTracker,
-) -> pcr_types::Action {
-    let schedule_time =
-        get_schedule_time_to_retry_mit_payments(db, &merchant_id, pt.retry_count + 1).await;
-    pt.schedule_time = schedule_time;
-    match schedule_time {
-        Some(_) => pcr_types::Action::RetryPayment(pt),
-
-        None => pcr_types::Action::TerminalFailure,
-    }
 }
