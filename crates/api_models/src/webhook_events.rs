@@ -31,11 +31,11 @@ pub struct EventListConstraints {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 
-    /// Filter events by thier class.
+    /// Filter events by their class.
     #[serde(default, with = "common_utils::custom_serde::json_string")]
     pub event_class: Option<HashSet<EventClass>>,
 
-    /// Filter events by thier type.
+    /// Filter events by their type.
     #[serde(default, with = "common_utils::custom_serde::json_string")]
     pub event_type: Option<HashSet<EventType>>,
 }

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use common_enums::EventClass;
+
+use common_enums::{EventClass, EventType};
 use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -78,26 +79,8 @@ pub async fn list_initial_delivery_attempts(
 
             let event_class = event_class.unwrap_or(HashSet::new());
             let mut event_type = event_type.unwrap_or(HashSet::new());
-            
-            if !event_class.is_empty() && !event_type.is_empty() {
-                let possible_event_types = event_class
-                    .clone()
-                    .into_iter()
-                    .flat_map(|class| EventClass::event_types(class))
-                    .collect::<HashSet<_>>();
-
-                event_class.clone().into_iter().for_each(|class| {
-                    let valid_event_types = EventClass::event_types(class);
-                    if event_type.is_disjoint(&valid_event_types) {
-                        event_type.extend(valid_event_types);
-                    }
-                });
-
-                if !event_type.is_subset(&possible_event_types) {
-                    return Err(Report::new(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "`event_type` must be a subset of `event_class`".to_string(),
-                    }));
-                }
+            if !event_class.is_empty() {
+                event_type = validate_event_type(&event_class, &mut event_type).await?;
             }
 
             match account {
@@ -108,7 +91,6 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
-                    event_class,
                     event_type,
                     &key_store,
                 )
@@ -120,7 +102,6 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
-                    event_class,
                     event_type,
                     &key_store,
                 )
@@ -356,4 +337,34 @@ async fn get_account_and_key_store(
             ))
         }
     }
+}
+
+async fn validate_event_type(
+    event_class: &HashSet<EventClass>,
+    event_type: &mut HashSet<EventType>,
+) -> Result<HashSet<EventType>, Report<errors::ApiErrorResponse>> {
+    let possible_event_types = event_class
+        .clone()
+        .into_iter()
+        .flat_map(EventClass::event_types)
+        .collect::<HashSet<_>>();
+
+    if event_type.is_empty() {
+        return Ok(possible_event_types);
+    }
+
+    event_class.clone().into_iter().for_each(|class| {
+        let valid_event_types = EventClass::event_types(class);
+        if event_type.is_disjoint(&valid_event_types) {
+            event_type.extend(valid_event_types);
+        }
+    });
+
+    if !event_type.is_subset(&possible_event_types) {
+        return Err(Report::new(errors::ApiErrorResponse::InvalidRequestData {
+            message: "`event_type` must be a subset of `event_class`".to_string(),
+        }));
+    }
+
+    Ok(event_type.clone())
 }
