@@ -2,11 +2,11 @@ use api_models::cards_info as cards_info_api_types;
 use common_utils::fp_utils::when;
 use diesel_models::cards_info as card_info_models;
 use error_stack::{report, ResultExt};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 
 use crate::{
     core::{
-        errors::{self, RouterResponse, StorageErrorExt},
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
     },
     db::cards_info::CardsInfoInterface,
@@ -106,9 +106,9 @@ pub async fn update_card_info(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "GSM with given key does not exist in our records".to_string(),
+        message: "Card info with given key does not exist in our records".to_string(),
     })
-    .attach_printable("Failed while updating Gsm rule")
+    .attach_printable("Failed while updating card info")
     .map(|card_info| ApplicationResponse::Json(card_info.foreign_into()))
 }
 
@@ -154,7 +154,7 @@ impl TransitionTo<CardInfoResponse> for CardInfoUpdate {}
 
 // Async executor
 pub struct CardInfoMigrateExecutor<'a> {
-    pub state: &'a routes::SessionState,
+    state: &'a routes::SessionState,
     record: &'a cards_info_api_types::CardInfoUpdateRequest,
 }
 
@@ -166,25 +166,26 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         Self { state, record }
     }
 
-    async fn fetch_card_info(
-        &self,
-    ) -> Result<
-        Option<card_info_models::CardInfo>,
-        error_stack::Report<storage_impl::errors::StorageError>,
-    > {
+    async fn fetch_card_info(&self) -> RouterResult<Option<card_info_models::CardInfo>> {
         let db = self.state.store.as_ref();
-        db.get_card_info(&self.record.card_iin).await
+        let maybe_card_info = db
+            .get_card_info(&self.record.card_iin)
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidCardIin)?;
+        Ok(maybe_card_info)
     }
 
-    async fn add_card_info(&self) -> RouterResponse<card_info_models::CardInfo> {
+    async fn add_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
         let card_info = CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        Ok(ApplicationResponse::Json(card_info))
+            .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+                message: "CardInfo with given key already exists in our records".to_string(),
+            })?;
+        Ok(card_info)
     }
 
-    async fn update_card_info(&self) -> RouterResponse<card_info_models::CardInfo> {
+    async fn update_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
         let card_info = CardsInfoInterface::update_card_info(
             db,
@@ -203,8 +204,11 @@ impl<'a> CardInfoMigrateExecutor<'a> {
             },
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        Ok(ApplicationResponse::Json(card_info))
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Card info with given key does not exist in our records".to_string(),
+        })
+        .attach_printable("Failed while updating card info")?;
+        Ok(card_info)
     }
 }
 
@@ -214,7 +218,7 @@ pub struct CardInfoBuilder<S: State> {
     pub card_info: Option<card_info_models::CardInfo>,
 }
 
-impl<S: State> CardInfoBuilder<S> {
+impl CardInfoBuilder<CardInfoFetch> {
     fn new() -> Self {
         Self {
             state: std::marker::PhantomData,
@@ -267,9 +271,9 @@ impl CardInfoBuilder<CardInfoAdd> {
 }
 
 impl CardInfoBuilder<CardInfoResponse> {
-    pub fn build(self) -> cards_info_api_types::CardInfoMigrateRecord {
+    pub fn build(self) -> cards_info_api_types::CardInfoMigrateResponseRecord {
         match self.card_info {
-            Some(card_info) => cards_info_api_types::CardInfoMigrateRecord {
+            Some(card_info) => cards_info_api_types::CardInfoMigrateResponseRecord {
                 card_iin: Some(card_info.card_iin),
                 card_issuer: card_info.card_issuer,
                 card_network: card_info.card_network.map(|cn| cn.to_string()),
@@ -277,7 +281,7 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_sub_type: card_info.card_subtype,
                 card_issuing_country: card_info.card_issuing_country,
             },
-            None => cards_info_api_types::CardInfoMigrateRecord {
+            None => cards_info_api_types::CardInfoMigrateResponseRecord {
                 card_iin: None,
                 card_issuer: None,
                 card_network: None,
@@ -292,41 +296,21 @@ impl CardInfoBuilder<CardInfoResponse> {
 async fn card_info_flow(
     record: cards_info_api_types::CardInfoUpdateRequest,
     state: routes::SessionState,
-) -> RouterResponse<cards_info_api_types::CardInfoMigrateRecord> {
-    let builder = CardInfoBuilder::<CardInfoFetch>::new();
+) -> RouterResponse<cards_info_api_types::CardInfoMigrateResponseRecord> {
+    let builder = CardInfoBuilder::new();
     let executor = CardInfoMigrateExecutor::new(&state, &record);
-    let fetched_card_info_details = executor.fetch_card_info().await;
+    let fetched_card_info_details = executor.fetch_card_info().await?;
 
     let builder = match fetched_card_info_details {
-        Ok(Some(card_info)) => {
+        Some(card_info) => {
             let builder = builder.set_card_info(card_info);
-            let updated_card_info = executor
-                .update_card_info()
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            match updated_card_info {
-                ApplicationResponse::Json(updated_info) => {
-                    builder.set_updated_card_info(updated_info)
-                }
-                _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
-            }
+            let updated_card_info = executor.update_card_info().await?;
+            builder.set_updated_card_info(updated_card_info)
         }
-        Ok(None) => {
+        None => {
             let builder = builder.transition();
-            let added_card_info = executor
-                .add_card_info()
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            match added_card_info {
-                ApplicationResponse::Json(added_info) => builder.set_added_card_info(added_info),
-                _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
-            }
-        }
-        Err(err) => {
-            logger::info!("Error fetching card info: {:?}", err);
-            return Err(report!(errors::ApiErrorResponse::InternalServerError));
+            let added_card_info = executor.add_card_info().await?;
+            builder.set_added_card_info(added_card_info)
         }
     };
 

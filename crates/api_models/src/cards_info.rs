@@ -34,7 +34,7 @@ pub struct CardInfoResponse {
 }
 
 #[derive(serde::Serialize, Debug, ToSchema)]
-pub struct CardInfoMigrateRecord {
+pub struct CardInfoMigrateResponseRecord {
     pub card_iin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<String>,
@@ -114,7 +114,10 @@ pub struct CardInfoMigrationResponse {
 }
 impl ApiEventMetric for CardInfoMigrationResponse {}
 
-type CardInfoMigrationResponseType = (Result<CardInfoMigrateRecord, String>, CardInfoUpdateRequest);
+type CardInfoMigrationResponseType = (
+    Result<CardInfoMigrateResponseRecord, String>,
+    CardInfoUpdateRequest,
+);
 
 impl From<CardInfoMigrationResponseType> for CardInfoMigrationResponse {
     fn from((response, record): CardInfoMigrationResponseType) -> Self {
