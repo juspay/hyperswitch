@@ -1765,7 +1765,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
 
 #[cfg(feature = "v2")]
 #[inline]
-fn handle_payments_intent_response<T>(
+pub fn handle_payments_intent_response<T>(
     response: hyperswitch_domain_models::api::ApplicationResponse<T>,
 ) -> CustomResult<T, errors::ApiErrorResponse> {
     match response {
