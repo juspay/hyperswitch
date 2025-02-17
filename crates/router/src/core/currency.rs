@@ -51,16 +51,16 @@ pub async fn get_forex_exchange_rates(
     let forex_api = state.conf.forex_api.get_inner();
     let max_attempts = 3;
     let mut attempt = 1;
-    
+
     logger::info!("Starting forex exchange rates fetch");
     loop {
         logger::info!("Attempting to fetch forex rates - Attempt {attempt} of {max_attempts}");
-        
+
         match get_forex_rates(&state, forex_api.call_delay).await {
             Ok(rates) => {
                 logger::info!("Successfully fetched forex rates");
-                return Ok((*rates.data).clone())
-            },
+                return Ok((*rates.data).clone());
+            }
             Err(error) => {
                 if attempt >= max_attempts {
                     logger::error!("Failed to fetch forex rates after {max_attempts} attempts");
