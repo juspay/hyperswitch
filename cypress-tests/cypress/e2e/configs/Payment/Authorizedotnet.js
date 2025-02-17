@@ -12,12 +12,12 @@ const successfulTestCardDetails = {
   card_cvc: "737",
 };
 
-export let connectorDetails = {
+export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
         amount: (() => {
-          let amount = generateRandomAmount();
+          const amount = generateRandomAmount();
           setLatestPaymentIntentAmount(amount);
           return amount;
         })(),
@@ -143,7 +143,7 @@ export let connectorDetails = {
     },
     Refund: {
       Request: {
-        amount: getLatestPaymentIntentAmount()
+        amount: getLatestPaymentIntentAmount(),
       },
       Response: {
         status: 200,
