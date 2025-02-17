@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -28,6 +30,14 @@ pub struct EventListConstraints {
     /// Filter all events associated with the specified business profile ID.
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// Filter events by thier class.
+    #[serde(default, with = "common_utils::custom_serde::json_string")]
+    pub event_class: Option<HashSet<EventClass>>,
+
+    /// Filter events by thier type.
+    #[serde(default, with = "common_utils::custom_serde::json_string")]
+    pub event_type: Option<HashSet<EventType>>,
 }
 
 #[derive(Debug)]
@@ -37,6 +47,8 @@ pub enum EventListConstraintsInternal {
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: Option<HashSet<EventClass>>,
+        event_type: Option<HashSet<EventType>>,
     },
     ObjectIdFilter {
         object_id: String,

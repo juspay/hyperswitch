@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
-use common_enums::enums::MerchantStorageScheme;
+use common_enums::enums::{EventClass, EventType, MerchantStorageScheme};
 use common_utils::{
     errors::CustomResult,
     id_type,
@@ -750,6 +750,8 @@ impl EventInterface for KafkaStore {
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
@@ -760,6 +762,8 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                event_class,
+                event_type,
                 merchant_key_store,
             )
             .await
@@ -807,6 +811,8 @@ impl EventInterface for KafkaStore {
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
@@ -817,6 +823,8 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                event_class,
+                event_type,
                 merchant_key_store,
             )
             .await

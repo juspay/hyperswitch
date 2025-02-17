@@ -1,4 +1,6 @@
-use error_stack::ResultExt;
+use std::collections::HashSet;
+use common_enums::EventClass;
+use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -57,6 +59,8 @@ pub async fn list_initial_delivery_attempts(
             created_before,
             limit,
             offset,
+            event_class,
+            event_type,
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -72,6 +76,30 @@ pub async fn list_initial_delivery_attempts(
                 _ => None,
             };
 
+            let event_class = event_class.unwrap_or(HashSet::new());
+            let mut event_type = event_type.unwrap_or(HashSet::new());
+            
+            if !event_class.is_empty() && !event_type.is_empty() {
+                let possible_event_types = event_class
+                    .clone()
+                    .into_iter()
+                    .flat_map(|class| EventClass::event_types(class))
+                    .collect::<HashSet<_>>();
+
+                event_class.clone().into_iter().for_each(|class| {
+                    let valid_event_types = EventClass::event_types(class);
+                    if event_type.is_disjoint(&valid_event_types) {
+                        event_type.extend(valid_event_types);
+                    }
+                });
+
+                if !event_type.is_subset(&possible_event_types) {
+                    return Err(Report::new(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "`event_type` must be a subset of `event_class`".to_string(),
+                    }));
+                }
+            }
+
             match account {
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_constraints(key_manager_state,
@@ -80,6 +108,8 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    event_class,
+                    event_type,
                     &key_store,
                 )
                 .await,
@@ -90,6 +120,8 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    event_class,
+                    event_type,
                     &key_store,
                 )
                 .await,

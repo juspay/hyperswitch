@@ -1897,12 +1897,14 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
             && (item.created_after.is_some()
                 || item.created_before.is_some()
                 || item.limit.is_some()
-                || item.offset.is_some())
+                || item.offset.is_some()
+                || item.event_class.is_some()
+                || item.event_type.is_some())
         {
             return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message:
                     "Either only `object_id` must be specified, or one or more of \
-                          `created_after`, `created_before`, `limit` and `offset` must be specified"
+                          `created_after`, `created_before`, `limit`, `offset`, `event_class`, `event_type` must be specified"
                         .to_string()
             }));
         }
@@ -1914,6 +1916,8 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 created_before: item.created_before,
                 limit: item.limit.map(i64::from),
                 offset: item.offset.map(i64::from),
+                event_class: item.event_class,
+                event_type: item.event_type,
             }),
         }
     }

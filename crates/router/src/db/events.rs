@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+use common_enums::{EventClass, EventType};
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -53,6 +55,8 @@ where
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -81,6 +85,8 @@ where
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -185,6 +191,8 @@ impl EventInterface for Store {
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -195,6 +203,8 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
+            event_class,
+            event_type,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -296,6 +306,8 @@ impl EventInterface for Store {
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -306,6 +318,8 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
+            event_class,
+            event_type,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -456,6 +470,8 @@ impl EventInterface for MockDb {
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -469,6 +485,12 @@ impl EventInterface for MockDb {
 
             if let Some(created_before) = created_before {
                 check = check && (event.created_at <= created_before);
+            }
+
+            if !event_type.is_empty() {
+                check = check && event_type.contains(&event.event_type);
+            } else if !event_class.is_empty() {
+                check = check && event_class.contains(&event.event_class);
             }
 
             check
@@ -594,6 +616,8 @@ impl EventInterface for MockDb {
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_class: HashSet<EventClass>,
+        event_type: HashSet<EventType>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -607,6 +631,12 @@ impl EventInterface for MockDb {
 
             if let Some(created_before) = created_before {
                 check = check && (event.created_at <= created_before);
+            }
+
+            if !event_type.is_empty() {
+                check = check && event_type.contains(&event.event_type);
+            } else if !event_class.is_empty() {
+                check = check && event_class.contains(&event.event_class);
             }
 
             check
