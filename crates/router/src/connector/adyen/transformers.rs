@@ -2601,7 +2601,8 @@ impl
                         let card_issuer = token_data.get_card_issuer()?;
                         let brand = CardBrand::try_from(&card_issuer)?;
                         let card_holder_name = item.router_data.get_optional_billing_full_name();
-                        let adyen_network_token = AdyenNetworkTokenData {number: token_data.get_network_token(),
+                        let adyen_network_token = AdyenNetworkTokenData {
+                            number: token_data.get_network_token(),
                             expiry_month: token_data.get_network_token_expiry_month(),
                             expiry_year: token_data.get_expiry_year_4_digit(),
                             holder_name: card_holder_name,

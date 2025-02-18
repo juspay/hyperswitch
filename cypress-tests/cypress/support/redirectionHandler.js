@@ -137,13 +137,25 @@ function bankRedirectRedirection(
               cy.get('[value="authorised"]').click();
               break;
             case "ideal":
-              cy.get(":nth-child(4) > td > p").should(
-                "contain.text",
-                "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
-              );
-              cy.get(".btnLink").click();
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
+              cy.wait(2000);
+              cy.get("button[data-testid=payment-action-button]").click();
+              cy.wait(2000);
+              cy.get("button[id=bank-item-TESTNL2A]").click();
+              cy.wait(2000);
+              cy.location("host").then(() => {
+                cy.url().then((currentUrl) => {
+                  console.log("currenturl ", currentUrl);
+                  cy.origin(new URL(currentUrl).origin, () => {
+                    cy.url().then((redirectedUrl) => {
+                      console.log("redirectedUrl ", redirectedUrl);
+
+                      cy.get('button.shared-styles_button__cNu+v').contains('Success').click();
+                      cy.url().should('include', '/loading/SUCCESS');
+
+                    });
+                  });
+                })
+              })
               break;
             default:
               throw new Error(
