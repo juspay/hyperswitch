@@ -584,6 +584,8 @@ pub struct PaymentLinkConfigRequest {
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     pub payment_button_text: Option<String>,
+    pub custom_message_for_card_terms: Option<String>,
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
