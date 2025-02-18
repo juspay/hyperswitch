@@ -176,6 +176,13 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    operation
+        .to_domain()?
+        .run_decision_manager(state, &mut payment_data, &profile)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to run decision manager")?;
+
     let connector = operation
         .to_domain()?
         .perform_routing(
@@ -1152,17 +1159,30 @@ where
 // TODO: Move to business profile surcharge column
 #[instrument(skip_all)]
 #[cfg(feature = "v2")]
-pub async fn call_decision_manager<F, D>(
+pub fn call_decision_manager<F>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    _business_profile: &domain::Profile,
-    payment_data: &D,
+    record: common_types::payments::DecisionManagerRecord,
+    payment_data: &PaymentConfirmData<F>,
 ) -> RouterResult<Option<enums::AuthenticationType>>
 where
     F: Clone,
-    D: OperationSessionGetters<F>,
 {
-    todo!()
+    let payment_method_data = payment_data.get_payment_method_data();
+    let payment_dsl_data = core_routing::PaymentsDslInput::new(
+        None,
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_method_data,
+        payment_data.get_address(),
+        None,
+        payment_data.get_currency(),
+    );
+
+    let output = perform_decision_management(record, &payment_dsl_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the conditional config")?;
+
+    Ok(output.override_3ds)
 }
 
 #[cfg(feature = "v2")]
@@ -2996,6 +3016,16 @@ where
             id: merchant_connector_id.get_string_repr().to_owned(),
         })?;
 
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        &merchant_connector_account,
+        payment_data,
+    )
+    .await?;
+
     let mut router_data = payment_data
         .construct_router_data(
             state,
@@ -3048,8 +3078,7 @@ where
             payment_data.clone(),
             customer.clone(),
             merchant_account.storage_scheme,
-            // TODO: update the customer with connector customer id
-            None,
+            updated_customer,
             key_store,
             frm_suggestion,
             header_payload.clone(),
@@ -3874,7 +3903,6 @@ where
                 merchant_connector_account.get_mca_id(),
             )?;
 
-            #[cfg(feature = "v1")]
             let label = {
                 let connector_label = core_utils::get_connector_label(
                     payment_data.get_payment_intent().business_country,
@@ -3905,15 +3933,6 @@ where
                 }
             };
 
-            #[cfg(feature = "v2")]
-            let label = {
-                merchant_connector_account
-                    .get_mca_id()
-                    .get_required_value("merchant_connector_account_id")?
-                    .get_string_repr()
-                    .to_owned()
-            };
-
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
                     state, &connector, customer, &label,
@@ -3941,7 +3960,90 @@ where
                 let customer_update = customers::update_connector_customer_in_customers(
                     &label,
                     customer.as_ref(),
-                    &connector_customer_id,
+                    connector_customer_id.clone(),
+                )
+                .await;
+
+                payment_data.set_connector_customer_id(connector_customer_id);
+                Ok(customer_update)
+            } else {
+                // Customer already created in previous calls use the same value, no need to update
+                payment_data.set_connector_customer_id(
+                    existing_connector_customer_id.map(ToOwned::to_owned),
+                );
+                Ok(None)
+            }
+        }
+        None => Ok(None),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn call_create_connector_customer_if_required<F, Req, D>(
+    state: &SessionState,
+    customer: &Option<domain::Customer>,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    payment_data: &mut D,
+) -> RouterResult<Option<storage::CustomerUpdate>>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+{
+    let connector_name = payment_data.get_payment_attempt().connector.clone();
+
+    match connector_name {
+        Some(connector_name) => {
+            let connector = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+                Some(merchant_connector_account.get_id()),
+            )?;
+
+            let merchant_connector_id = merchant_connector_account.get_id();
+
+            let (should_call_connector, existing_connector_customer_id) =
+                customers::should_call_connector_create_customer(
+                    state,
+                    &connector,
+                    customer,
+                    &merchant_connector_id,
+                );
+
+            if should_call_connector {
+                // Create customer at connector and update the customer table to store this data
+                let router_data = payment_data
+                    .construct_router_data(
+                        state,
+                        connector.connector.id(),
+                        merchant_account,
+                        key_store,
+                        customer,
+                        merchant_connector_account,
+                        None,
+                        None,
+                    )
+                    .await?;
+
+                let connector_customer_id = router_data
+                    .create_connector_customer(state, &connector)
+                    .await?;
+
+                let customer_update = customers::update_connector_customer_in_customers(
+                    merchant_connector_id,
+                    customer.as_ref(),
+                    connector_customer_id.clone(),
                 )
                 .await;
 
@@ -4361,22 +4463,13 @@ fn get_google_pay_connector_wallet_details(
     state: &SessionState,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> Option<GooglePayPaymentProcessingDetails> {
-    let google_pay_root_signing_keys =
-        state
-            .conf
-            .google_pay_decrypt_keys
-            .as_ref()
-            .map(|google_pay_keys| {
-                google_pay_keys
-                    .get_inner()
-                    .google_pay_root_signing_keys
-                    .clone()
-            });
-    match (
-        google_pay_root_signing_keys,
-        merchant_connector_account.get_connector_wallets_details(),
-    ) {
-        (Some(google_pay_root_signing_keys), Some(wallet_details)) => {
+    let google_pay_root_signing_keys = state
+        .conf
+        .google_pay_decrypt_keys
+        .as_ref()
+        .map(|google_pay_keys| google_pay_keys.google_pay_root_signing_keys.clone());
+    match merchant_connector_account.get_connector_wallets_details() {
+        Some(wallet_details) => {
             let google_pay_wallet_details = wallet_details
                 .parse_value::<api_models::payments::GooglePayWalletDetails>(
                     "GooglePayWalletDetails",
@@ -4387,31 +4480,43 @@ fn get_google_pay_connector_wallet_details(
 
             google_pay_wallet_details
                 .ok()
-                .map(
+                .and_then(
                     |google_pay_wallet_details| {
                         match google_pay_wallet_details
                         .google_pay
                         .provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
-                                GooglePayPaymentProcessingDetails {
-                                    google_pay_private_key: merchant_details
+                                match (
+                                    merchant_details
                                         .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .private_key,
                                     google_pay_root_signing_keys,
-                                    google_pay_recipient_id: merchant_details
+                                    merchant_details
                                         .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .recipient_id,
-                                }
+                                    ) {
+                                        (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
+                                            Some(GooglePayPaymentProcessingDetails {
+                                                google_pay_private_key,
+                                                google_pay_root_signing_keys,
+                                                google_pay_recipient_id
+                                            })
+                                        }
+                                        _ => {
+                                            logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
+                                            None
+                                        }
+                                    }
                             }
                         }
                     }
                 )
         }
-        _ => None,
+        None => None,
     }
 }
 
@@ -4537,7 +4642,7 @@ pub struct PazePaymentProcessingDetails {
 pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
-    pub google_pay_recipient_id: Option<Secret<String>>,
+    pub google_pay_recipient_id: Secret<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -5159,6 +5264,7 @@ pub async fn apply_filters_on_payments(
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
                     constraints.card_network,
+                    constraints.card_discovery,
                     merchant.storage_scheme,
                 )
                 .await
@@ -5297,11 +5403,12 @@ pub async fn get_payment_filters(
             payment_method: payment_method_types_map,
             authentication_type: enums::AuthenticationType::iter().collect(),
             card_network: enums::CardNetwork::iter().collect(),
+            card_discovery: enums::CardDiscovery::iter().collect(),
         },
     ))
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 pub async fn get_aggregates_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -6929,7 +7036,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
         &state,
         None,
-        payment_intent.billing_address_id.as_deref(),
+        payment_attempt
+            .payment_method_billing_address_id
+            .as_deref()
+            .or(payment_intent.billing_address_id.as_deref()),
         merchant_id,
         payment_intent.customer_id.as_ref(),
         &key_store,

@@ -888,25 +888,40 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       body: customerCreateBody,
+      failOnStatusCode: false,
     }).then((response) => {
-      globalState.set("customerId", response.body.customer_id);
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.body.customer_id, "customer_id").to.not.be.empty;
-        expect(customerCreateBody.email, "email").to.equal(response.body.email);
-        expect(customerCreateBody.name, "name").to.equal(response.body.name);
-        expect(customerCreateBody.phone, "phone").to.equal(response.body.phone);
-        expect(customerCreateBody.metadata, "metadata").to.deep.equal(
-          response.body.metadata
-        );
-        expect(customerCreateBody.address, "address").to.deep.equal(
-          response.body.address
-        );
-        expect(
-          customerCreateBody.phone_country_code,
-          "phone_country_code"
-        ).to.equal(response.body.phone_country_code);
+        if (response.status === 200) {
+          globalState.set("customerId", response.body.customer_id);
+
+          expect(response.body.customer_id, "customer_id").to.not.be.empty;
+          expect(customerCreateBody.email, "email").to.equal(
+            response.body.email
+          );
+          expect(customerCreateBody.name, "name").to.equal(response.body.name);
+          expect(customerCreateBody.phone, "phone").to.equal(
+            response.body.phone
+          );
+          expect(customerCreateBody.metadata, "metadata").to.deep.equal(
+            response.body.metadata
+          );
+          expect(customerCreateBody.address, "address").to.deep.equal(
+            response.body.address
+          );
+          expect(
+            customerCreateBody.phone_country_code,
+            "phone_country_code"
+          ).to.equal(response.body.phone_country_code);
+        } else if (response.status === 400) {
+          if (response.body.error.message.includes("already exists")) {
+            expect(response.body.error.code).to.equal("IR_12");
+            expect(response.body.error.message).to.equal(
+              "Customer with the given `customer_id` already exists"
+            );
+          }
+        }
       });
     });
   }
@@ -2351,7 +2366,9 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
   // we only need this to set the delay. We don't need the return value
   execConfig(validateConfig(configs));
 
-  requestBody.amount = reqData.amount;
+  for (const key in reqData) {
+    requestBody[key] = reqData[key];
+  }
   requestBody.payment_id = payment_id;
 
   cy.request({

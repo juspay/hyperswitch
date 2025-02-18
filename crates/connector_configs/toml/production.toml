@@ -996,6 +996,14 @@ api_key="API Key"
 [coinbase.connector_webhook_details]
 merchant_secret="Source verification key"
 
+
+[coingate]
+[[coingate.crypto]]
+  payment_method_type = "crypto_currency"
+[coingate.connector_auth.HeaderKey]
+api_key="API Key"
+
+
 [cybersource]
 [[cybersource.credit]]
   payment_method_type = "Mastercard"

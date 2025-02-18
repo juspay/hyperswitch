@@ -985,7 +985,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
-                    is_click_to_pay_enabled: None,
+                    is_click_to_pay_enabled,
                     authentication_product_ids,
                     three_ds_decision_manager_config,
                 }

@@ -702,4 +702,117 @@ describe("Corner cases", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
+
+  context("Duplicate Payment ID", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create new payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Retrieve payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
+
+    it("Create a payment with a duplicate payment ID", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["DuplicatePaymentID"];
+
+      data.Request.payment_id = globalState.get("paymentID");
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+  });
+
+  context("Duplicate Refund ID", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create new refund", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PartialRefund"];
+
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Sync refund", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SyncRefund"];
+
+      cy.syncRefundCallTest(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Create a refund with  a duplicate refund ID", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["DuplicateRefundID"];
+
+      data.Request.refund_id = globalState.get("refundId");
+
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+  });
+
+  context("Duplicate Customer ID", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Create new customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
+    it("Create a customer with a duplicate customer ID", () => {
+      const customerData = fixtures.customerCreateBody;
+      customerData.customer_id = globalState.get("customerId");
+
+      cy.createCustomerCallTest(customerData, globalState);
+    });
+  });
 });

@@ -6,7 +6,24 @@ use api_models::payouts::PayoutVendorAccountDetails;
 use base64::Engine;
 use common_enums::{
     enums,
-    enums::{AttemptStatus, CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
+    enums::{
+        AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
+        AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
+        BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
+        CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
+        DenmarkStatesAbbreviation, FinlandStatesAbbreviation, FranceStatesAbbreviation,
+        FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
+        HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
+        ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
+        LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
+        MoldovaStatesAbbreviation, MonacoStatesAbbreviation, MontenegroStatesAbbreviation,
+        NetherlandsStatesAbbreviation, NorthMacedoniaStatesAbbreviation, NorwayStatesAbbreviation,
+        PolandStatesAbbreviation, PortugalStatesAbbreviation, RomaniaStatesAbbreviation,
+        RussiaStatesAbbreviation, SanMarinoStatesAbbreviation, SerbiaStatesAbbreviation,
+        SlovakiaStatesAbbreviation, SloveniaStatesAbbreviation, SpainStatesAbbreviation,
+        SwedenStatesAbbreviation, SwitzerlandStatesAbbreviation, UkraineStatesAbbreviation,
+        UnitedKingdomStatesAbbreviation, UsStatesAbbreviation,
+    },
 };
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -19,6 +36,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
+    network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
@@ -1343,6 +1361,111 @@ impl AddressDetailsData for AddressDetails {
             api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
                 CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
             )),
+            api_models::enums::CountryAlpha2::AL => Ok(Secret::new(
+                AlbaniaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::AD => Ok(Secret::new(
+                AndorraStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::AT => Ok(Secret::new(
+                AustriaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::BY => Ok(Secret::new(
+                BelarusStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::BA => Ok(Secret::new(
+                BosniaAndHerzegovinaStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::BG => Ok(Secret::new(
+                BulgariaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::HR => Ok(Secret::new(
+                CroatiaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CZ => Ok(Secret::new(
+                CzechRepublicStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::DK => Ok(Secret::new(
+                DenmarkStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::FI => Ok(Secret::new(
+                FinlandStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::FR => Ok(Secret::new(
+                FranceStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::DE => Ok(Secret::new(
+                GermanyStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::GR => Ok(Secret::new(
+                GreeceStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::HU => Ok(Secret::new(
+                HungaryStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::IS => Ok(Secret::new(
+                IcelandStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::IE => Ok(Secret::new(
+                IrelandStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::LV => Ok(Secret::new(
+                LatviaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::IT => Ok(Secret::new(
+                ItalyStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::LI => Ok(Secret::new(
+                LiechtensteinStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::LT => Ok(Secret::new(
+                LithuaniaStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::MT => Ok(Secret::new(
+                MaltaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::MD => Ok(Secret::new(
+                MoldovaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::MC => Ok(Secret::new(
+                MonacoStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::ME => Ok(Secret::new(
+                MontenegroStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::NL => Ok(Secret::new(
+                NetherlandsStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::MK => Ok(Secret::new(
+                NorthMacedoniaStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::NO => Ok(Secret::new(
+                NorwayStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::PL => Ok(Secret::new(
+                PolandStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::PT => Ok(Secret::new(
+                PortugalStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::ES => Ok(Secret::new(
+                SpainStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CH => Ok(Secret::new(
+                SwitzerlandStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::GB => Ok(Secret::new(
+                UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
             _ => Ok(state.clone()),
         }
     }
@@ -1377,6 +1500,27 @@ impl AddressDetailsData for AddressDetails {
 
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
         self.last_name.clone()
+    }
+}
+
+pub trait AdditionalCardInfo {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+}
+
+impl AdditionalCardInfo for payments::AdditionalCardInfo {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
     }
 }
 
@@ -1935,6 +2079,8 @@ pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_last_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressData for Address {
@@ -1954,6 +2100,18 @@ impl AddressData for Address {
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("phone"))
+    }
+
+    fn get_optional_first_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_first_name())
+    }
+
+    fn get_optional_last_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_last_name())
     }
 }
 pub trait PaymentsPreProcessingRequestData {
@@ -2293,6 +2451,2409 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
                     "quebec" => Ok(Self::QC),
                     "saskatchewan" => Ok(Self::SK),
                     "yukon" => Ok(Self::YT),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for PolandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "PolandStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "greater poland voivodeship" => Ok(Self::GreaterPolandVoivodeship),
+                    "kielce" => Ok(Self::Kielce),
+                    "kuyavian pomeranian voivodeship" => Ok(Self::KuyavianPomeranianVoivodeship),
+                    "lesser poland voivodeship" => Ok(Self::LesserPolandVoivodeship),
+                    "lower silesian voivodeship" => Ok(Self::LowerSilesianVoivodeship),
+                    "lublin voivodeship" => Ok(Self::LublinVoivodeship),
+                    "lubusz voivodeship" => Ok(Self::LubuszVoivodeship),
+                    "masovian voivodeship" => Ok(Self::MasovianVoivodeship),
+                    "opole voivodeship" => Ok(Self::OpoleVoivodeship),
+                    "podkarpackie voivodeship" => Ok(Self::PodkarpackieVoivodeship),
+                    "podlaskie voivodeship" => Ok(Self::PodlaskieVoivodeship),
+                    "pomeranian voivodeship" => Ok(Self::PomeranianVoivodeship),
+                    "silesian voivodeship" => Ok(Self::SilesianVoivodeship),
+                    "warmian masurian voivodeship" => Ok(Self::WarmianMasurianVoivodeship),
+                    "west pomeranian voivodeship" => Ok(Self::WestPomeranianVoivodeship),
+                    "lodz voivodeship" => Ok(Self::LodzVoivodeship),
+                    "swietokrzyskie voivodeship" => Ok(Self::SwietokrzyskieVoivodeship),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for FranceStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "FranceStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alo" => Ok(Self::Alo),
+                    "alsace" => Ok(Self::Alsace),
+                    "aquitaine" => Ok(Self::Aquitaine),
+                    "auvergne" => Ok(Self::Auvergne),
+                    "auvergne rhone alpes" => Ok(Self::AuvergneRhoneAlpes),
+                    "bourgogne franche comte" => Ok(Self::BourgogneFrancheComte),
+                    "brittany" => Ok(Self::Brittany),
+                    "burgundy" => Ok(Self::Burgundy),
+                    "centre val de loire" => Ok(Self::CentreValDeLoire),
+                    "champagne ardenne" => Ok(Self::ChampagneArdenne),
+                    "corsica" => Ok(Self::Corsica),
+                    "franche comte" => Ok(Self::FrancheComte),
+                    "french guiana" => Ok(Self::FrenchGuiana),
+                    "french polynesia" => Ok(Self::FrenchPolynesia),
+                    "grand est" => Ok(Self::GrandEst),
+                    "guadeloupe" => Ok(Self::Guadeloupe),
+                    "hauts de france" => Ok(Self::HautsDeFrance),
+                    "ile de france" => Ok(Self::IleDeFrance),
+                    "normandy" => Ok(Self::Normandy),
+                    "nouvelle aquitaine" => Ok(Self::NouvelleAquitaine),
+                    "occitania" => Ok(Self::Occitania),
+                    "paris" => Ok(Self::Paris),
+                    "pays de la loire" => Ok(Self::PaysDeLaLoire),
+                    "provence alpes cote d azur" => Ok(Self::ProvenceAlpesCoteDAzur),
+                    "reunion" => Ok(Self::Reunion),
+                    "saint barthelemy" => Ok(Self::SaintBarthelemy),
+                    "saint martin" => Ok(Self::SaintMartin),
+                    "saint pierre and miquelon" => Ok(Self::SaintPierreAndMiquelon),
+                    "upper normandy" => Ok(Self::UpperNormandy),
+                    "wallis and futuna" => Ok(Self::WallisAndFutuna),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for GermanyStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "GermanyStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "baden wurttemberg" => Ok(Self::BadenWurttemberg),
+                    "bavaria" => Ok(Self::Bavaria),
+                    "berlin" => Ok(Self::Berlin),
+                    "brandenburg" => Ok(Self::Brandenburg),
+                    "bremen" => Ok(Self::Bremen),
+                    "hamburg" => Ok(Self::Hamburg),
+                    "hesse" => Ok(Self::Hesse),
+                    "lower saxony" => Ok(Self::LowerSaxony),
+                    "mecklenburg vorpommern" => Ok(Self::MecklenburgVorpommern),
+                    "north rhine westphalia" => Ok(Self::NorthRhineWestphalia),
+                    "rhineland palatinate" => Ok(Self::RhinelandPalatinate),
+                    "saarland" => Ok(Self::Saarland),
+                    "saxony" => Ok(Self::Saxony),
+                    "saxony anhalt" => Ok(Self::SaxonyAnhalt),
+                    "schleswig holstein" => Ok(Self::SchleswigHolstein),
+                    "thuringia" => Ok(Self::Thuringia),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SpainStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "SpainStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "a coruna province" => Ok(Self::ACorunaProvince),
+                    "albacete province" => Ok(Self::AlbaceteProvince),
+                    "alicante province" => Ok(Self::AlicanteProvince),
+                    "almeria province" => Ok(Self::AlmeriaProvince),
+                    "andalusia" => Ok(Self::Andalusia),
+                    "araba alava" => Ok(Self::ArabaAlava),
+                    "aragon" => Ok(Self::Aragon),
+                    "badajoz province" => Ok(Self::BadajozProvince),
+                    "balearic islands" => Ok(Self::BalearicIslands),
+                    "barcelona province" => Ok(Self::BarcelonaProvince),
+                    "basque country" => Ok(Self::BasqueCountry),
+                    "biscay" => Ok(Self::Biscay),
+                    "burgos province" => Ok(Self::BurgosProvince),
+                    "canary islands" => Ok(Self::CanaryIslands),
+                    "cantabria" => Ok(Self::Cantabria),
+                    "castellon province" => Ok(Self::CastellonProvince),
+                    "castile and leon" => Ok(Self::CastileAndLeon),
+                    "castile la mancha" => Ok(Self::CastileLaMancha),
+                    "catalonia" => Ok(Self::Catalonia),
+                    "ceuta" => Ok(Self::Ceuta),
+                    "ciudad real province" => Ok(Self::CiudadRealProvince),
+                    "community of madrid" => Ok(Self::CommunityOfMadrid),
+                    "cuenca province" => Ok(Self::CuencaProvince),
+                    "caceres province" => Ok(Self::CaceresProvince),
+                    "cadiz province" => Ok(Self::CadizProvince),
+                    "cordoba province" => Ok(Self::CordobaProvince),
+                    "extremadura" => Ok(Self::Extremadura),
+                    "galicia" => Ok(Self::Galicia),
+                    "gipuzkoa" => Ok(Self::Gipuzkoa),
+                    "girona province" => Ok(Self::GironaProvince),
+                    "granada province" => Ok(Self::GranadaProvince),
+                    "guadalajara province" => Ok(Self::GuadalajaraProvince),
+                    "huelva province" => Ok(Self::HuelvaProvince),
+                    "huesca province" => Ok(Self::HuescaProvince),
+                    "jaen province" => Ok(Self::JaenProvince),
+                    "la rioja" => Ok(Self::LaRioja),
+                    "las palmas province" => Ok(Self::LasPalmasProvince),
+                    "leon province" => Ok(Self::LeonProvince),
+                    "lleida province" => Ok(Self::LleidaProvince),
+                    "lugo province" => Ok(Self::LugoProvince),
+                    "madrid province" => Ok(Self::MadridProvince),
+                    "melilla" => Ok(Self::Melilla),
+                    "murcia province" => Ok(Self::MurciaProvince),
+                    "malaga province" => Ok(Self::MalagaProvince),
+                    "navarre" => Ok(Self::Navarre),
+                    "ourense province" => Ok(Self::OurenseProvince),
+                    "palencia province" => Ok(Self::PalenciaProvince),
+                    "pontevedra province" => Ok(Self::PontevedraProvince),
+                    "province of asturias" => Ok(Self::ProvinceOfAsturias),
+                    "province of avila" => Ok(Self::ProvinceOfAvila),
+                    "region of murcia" => Ok(Self::RegionOfMurcia),
+                    "salamanca province" => Ok(Self::SalamancaProvince),
+                    "santa cruz de tenerife province" => Ok(Self::SantaCruzDeTenerifeProvince),
+                    "segovia province" => Ok(Self::SegoviaProvince),
+                    "seville province" => Ok(Self::SevilleProvince),
+                    "soria province" => Ok(Self::SoriaProvince),
+                    "tarragona province" => Ok(Self::TarragonaProvince),
+                    "teruel province" => Ok(Self::TeruelProvince),
+                    "toledo province" => Ok(Self::ToledoProvince),
+                    "valencia province" => Ok(Self::ValenciaProvince),
+                    "valencian community" => Ok(Self::ValencianCommunity),
+                    "valladolid province" => Ok(Self::ValladolidProvince),
+                    "zamora province" => Ok(Self::ZamoraProvince),
+                    "zaragoza province" => Ok(Self::ZaragozaProvince),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for ItalyStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "ItalyStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "abruzzo" => Ok(Self::Abruzzo),
+                    "aosta valley" => Ok(Self::AostaValley),
+                    "apulia" => Ok(Self::Apulia),
+                    "basilicata" => Ok(Self::Basilicata),
+                    "benevento province" => Ok(Self::BeneventoProvince),
+                    "calabria" => Ok(Self::Calabria),
+                    "campania" => Ok(Self::Campania),
+                    "emilia romagna" => Ok(Self::EmiliaRomagna),
+                    "friuli venezia giulia" => Ok(Self::FriuliVeneziaGiulia),
+                    "lazio" => Ok(Self::Lazio),
+                    "liguria" => Ok(Self::Liguria),
+                    "lombardy" => Ok(Self::Lombardy),
+                    "marche" => Ok(Self::Marche),
+                    "molise" => Ok(Self::Molise),
+                    "piedmont" => Ok(Self::Piedmont),
+                    "sardinia" => Ok(Self::Sardinia),
+                    "sicily" => Ok(Self::Sicily),
+                    "trentino south tyrol" => Ok(Self::TrentinoSouthTyrol),
+                    "tuscany" => Ok(Self::Tuscany),
+                    "umbria" => Ok(Self::Umbria),
+                    "veneto" => Ok(Self::Veneto),
+                    "agrigento" => Ok(Self::Agrigento),
+                    "caltanissetta" => Ok(Self::Caltanissetta),
+                    "enna" => Ok(Self::Enna),
+                    "ragusa" => Ok(Self::Ragusa),
+                    "siracusa" => Ok(Self::Siracusa),
+                    "trapani" => Ok(Self::Trapani),
+                    "bari" => Ok(Self::Bari),
+                    "bologna" => Ok(Self::Bologna),
+                    "cagliari" => Ok(Self::Cagliari),
+                    "catania" => Ok(Self::Catania),
+                    "florence" => Ok(Self::Florence),
+                    "genoa" => Ok(Self::Genoa),
+                    "messina" => Ok(Self::Messina),
+                    "milan" => Ok(Self::Milan),
+                    "naples" => Ok(Self::Naples),
+                    "palermo" => Ok(Self::Palermo),
+                    "reggio calabria" => Ok(Self::ReggioCalabria),
+                    "rome" => Ok(Self::Rome),
+                    "turin" => Ok(Self::Turin),
+                    "venice" => Ok(Self::Venice),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for NorwayStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "NorwayStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "akershus" => Ok(Self::Akershus),
+                    "buskerud" => Ok(Self::Buskerud),
+                    "finnmark" => Ok(Self::Finnmark),
+                    "hedmark" => Ok(Self::Hedmark),
+                    "hordaland" => Ok(Self::Hordaland),
+                    "janmayen" => Ok(Self::JanMayen),
+                    "nordtrondelag" => Ok(Self::NordTrondelag),
+                    "nordland" => Ok(Self::Nordland),
+                    "oppland" => Ok(Self::Oppland),
+                    "oslo" => Ok(Self::Oslo),
+                    "rogaland" => Ok(Self::Rogaland),
+                    "sognogfjordane" => Ok(Self::SognOgFjordane),
+                    "svalbard" => Ok(Self::Svalbard),
+                    "sortrondelag" => Ok(Self::SorTrondelag),
+                    "telemark" => Ok(Self::Telemark),
+                    "troms" => Ok(Self::Troms),
+                    "trondelag" => Ok(Self::Trondelag),
+                    "vestagder" => Ok(Self::VestAgder),
+                    "vestfold" => Ok(Self::Vestfold),
+                    "ostfold" => Ok(Self::Ostfold),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for AlbaniaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "AlbaniaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "berat" => Ok(Self::Berat),
+                    "diber" => Ok(Self::Diber),
+                    "durres" => Ok(Self::Durres),
+                    "elbasan" => Ok(Self::Elbasan),
+                    "fier" => Ok(Self::Fier),
+                    "gjirokaster" => Ok(Self::Gjirokaster),
+                    "korce" => Ok(Self::Korce),
+                    "kukes" => Ok(Self::Kukes),
+                    "lezhe" => Ok(Self::Lezhe),
+                    "shkoder" => Ok(Self::Shkoder),
+                    "tirane" => Ok(Self::Tirane),
+                    "vlore" => Ok(Self::Vlore),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for AndorraStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "AndorraStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "andorra la vella" => Ok(Self::AndorraLaVella),
+                    "canillo" => Ok(Self::Canillo),
+                    "encamp" => Ok(Self::Encamp),
+                    "escaldes engordany" => Ok(Self::EscaldesEngordany),
+                    "la massana" => Ok(Self::LaMassana),
+                    "ordino" => Ok(Self::Ordino),
+                    "sant julia de loria" => Ok(Self::SantJuliaDeLoria),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for AustriaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "AustriaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "burgenland" => Ok(Self::Burgenland),
+                    "carinthia" => Ok(Self::Carinthia),
+                    "lower austria" => Ok(Self::LowerAustria),
+                    "salzburg" => Ok(Self::Salzburg),
+                    "styria" => Ok(Self::Styria),
+                    "tyrol" => Ok(Self::Tyrol),
+                    "upper austria" => Ok(Self::UpperAustria),
+                    "vienna" => Ok(Self::Vienna),
+                    "vorarlberg" => Ok(Self::Vorarlberg),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for RomaniaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "RomaniaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alba" => Ok(Self::Alba),
+                    "arad county" => Ok(Self::AradCounty),
+                    "arges" => Ok(Self::Arges),
+                    "bacau county" => Ok(Self::BacauCounty),
+                    "bihor county" => Ok(Self::BihorCounty),
+                    "bistrita nasaud county" => Ok(Self::BistritaNasaudCounty),
+                    "botosani county" => Ok(Self::BotosaniCounty),
+                    "braila" => Ok(Self::Braila),
+                    "brasov county" => Ok(Self::BrasovCounty),
+                    "bucharest" => Ok(Self::Bucharest),
+                    "buzau county" => Ok(Self::BuzauCounty),
+                    "caras severin county" => Ok(Self::CarasSeverinCounty),
+                    "cluj county" => Ok(Self::ClujCounty),
+                    "constanta county" => Ok(Self::ConstantaCounty),
+                    "covasna county" => Ok(Self::CovasnaCounty),
+                    "calarasi county" => Ok(Self::CalarasiCounty),
+                    "dolj county" => Ok(Self::DoljCounty),
+                    "dambovita county" => Ok(Self::DambovitaCounty),
+                    "galati county" => Ok(Self::GalatiCounty),
+                    "giurgiu county" => Ok(Self::GiurgiuCounty),
+                    "gorj county" => Ok(Self::GorjCounty),
+                    "harghita county" => Ok(Self::HarghitaCounty),
+                    "hunedoara county" => Ok(Self::HunedoaraCounty),
+                    "ialomita county" => Ok(Self::IalomitaCounty),
+                    "iasi county" => Ok(Self::IasiCounty),
+                    "ilfov county" => Ok(Self::IlfovCounty),
+                    "mehedinti county" => Ok(Self::MehedintiCounty),
+                    "mures county" => Ok(Self::MuresCounty),
+                    "neamt county" => Ok(Self::NeamtCounty),
+                    "olt county" => Ok(Self::OltCounty),
+                    "prahova county" => Ok(Self::PrahovaCounty),
+                    "satu mare county" => Ok(Self::SatuMareCounty),
+                    "sibiu county" => Ok(Self::SibiuCounty),
+                    "suceava county" => Ok(Self::SuceavaCounty),
+                    "salaj county" => Ok(Self::SalajCounty),
+                    "teleorman county" => Ok(Self::TeleormanCounty),
+                    "timis county" => Ok(Self::TimisCounty),
+                    "tulcea county" => Ok(Self::TulceaCounty),
+                    "vaslui county" => Ok(Self::VasluiCounty),
+                    "vrancea county" => Ok(Self::VranceaCounty),
+                    "valcea county" => Ok(Self::ValceaCounty),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for PortugalStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "PortugalStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "aveiro district" => Ok(Self::AveiroDistrict),
+                    "azores" => Ok(Self::Azores),
+                    "beja district" => Ok(Self::BejaDistrict),
+                    "braga district" => Ok(Self::BragaDistrict),
+                    "braganca district" => Ok(Self::BragancaDistrict),
+                    "castelo branco district" => Ok(Self::CasteloBrancoDistrict),
+                    "coimbra district" => Ok(Self::CoimbraDistrict),
+                    "faro district" => Ok(Self::FaroDistrict),
+                    "guarda district" => Ok(Self::GuardaDistrict),
+                    "leiria district" => Ok(Self::LeiriaDistrict),
+                    "lisbon district" => Ok(Self::LisbonDistrict),
+                    "madeira" => Ok(Self::Madeira),
+                    "portalegre district" => Ok(Self::PortalegreDistrict),
+                    "porto district" => Ok(Self::PortoDistrict),
+                    "santarem district" => Ok(Self::SantaremDistrict),
+                    "setubal district" => Ok(Self::SetubalDistrict),
+                    "viana do castelo district" => Ok(Self::VianaDoCasteloDistrict),
+                    "vila real district" => Ok(Self::VilaRealDistrict),
+                    "viseu district" => Ok(Self::ViseuDistrict),
+                    "evora district" => Ok(Self::EvoraDistrict),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SwitzerlandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "SwitzerlandStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "aargau" => Ok(Self::Aargau),
+                    "appenzell ausserrhoden" => Ok(Self::AppenzellAusserrhoden),
+                    "appenzell innerrhoden" => Ok(Self::AppenzellInnerrhoden),
+                    "basel landschaft" => Ok(Self::BaselLandschaft),
+                    "canton of fribourg" => Ok(Self::CantonOfFribourg),
+                    "canton of geneva" => Ok(Self::CantonOfGeneva),
+                    "canton of jura" => Ok(Self::CantonOfJura),
+                    "canton of lucerne" => Ok(Self::CantonOfLucerne),
+                    "canton of neuchatel" => Ok(Self::CantonOfNeuchatel),
+                    "canton of schaffhausen" => Ok(Self::CantonOfSchaffhausen),
+                    "canton of solothurn" => Ok(Self::CantonOfSolothurn),
+                    "canton of st gallen" => Ok(Self::CantonOfStGallen),
+                    "canton of valais" => Ok(Self::CantonOfValais),
+                    "canton of vaud" => Ok(Self::CantonOfVaud),
+                    "canton of zug" => Ok(Self::CantonOfZug),
+                    "glarus" => Ok(Self::Glarus),
+                    "graubunden" => Ok(Self::Graubunden),
+                    "nidwalden" => Ok(Self::Nidwalden),
+                    "obwalden" => Ok(Self::Obwalden),
+                    "schwyz" => Ok(Self::Schwyz),
+                    "thurgau" => Ok(Self::Thurgau),
+                    "ticino" => Ok(Self::Ticino),
+                    "uri" => Ok(Self::Uri),
+                    "canton of bern" => Ok(Self::CantonOfBern),
+                    "canton of zurich" => Ok(Self::CantonOfZurich),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for NorthMacedoniaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "NorthMacedoniaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "aerodrom municipality" => Ok(Self::AerodromMunicipality),
+                    "aracinovo municipality" => Ok(Self::AracinovoMunicipality),
+                    "berovo municipality" => Ok(Self::BerovoMunicipality),
+                    "bitola municipality" => Ok(Self::BitolaMunicipality),
+                    "bogdanci municipality" => Ok(Self::BogdanciMunicipality),
+                    "bogovinje municipality" => Ok(Self::BogovinjeMunicipality),
+                    "bosilovo municipality" => Ok(Self::BosilovoMunicipality),
+                    "brvenica municipality" => Ok(Self::BrvenicaMunicipality),
+                    "butel municipality" => Ok(Self::ButelMunicipality),
+                    "centar municipality" => Ok(Self::CentarMunicipality),
+                    "centar zupa municipality" => Ok(Self::CentarZupaMunicipality),
+                    "debarca municipality" => Ok(Self::DebarcaMunicipality),
+                    "delcevo municipality" => Ok(Self::DelcevoMunicipality),
+                    "demir hisar municipality" => Ok(Self::DemirHisarMunicipality),
+                    "demir kapija municipality" => Ok(Self::DemirKapijaMunicipality),
+                    "dojran municipality" => Ok(Self::DojranMunicipality),
+                    "dolneni municipality" => Ok(Self::DolneniMunicipality),
+                    "drugovo municipality" => Ok(Self::DrugovoMunicipality),
+                    "gazi baba municipality" => Ok(Self::GaziBabaMunicipality),
+                    "gevgelija municipality" => Ok(Self::GevgelijaMunicipality),
+                    "gjorce petrov municipality" => Ok(Self::GjorcePetrovMunicipality),
+                    "gostivar municipality" => Ok(Self::GostivarMunicipality),
+                    "gradsko municipality" => Ok(Self::GradskoMunicipality),
+                    "greater skopje" => Ok(Self::GreaterSkopje),
+                    "ilinden municipality" => Ok(Self::IlindenMunicipality),
+                    "jegunovce municipality" => Ok(Self::JegunovceMunicipality),
+                    "karbinci" => Ok(Self::Karbinci),
+                    "karpos municipality" => Ok(Self::KarposMunicipality),
+                    "kavadarci municipality" => Ok(Self::KavadarciMunicipality),
+                    "kisela voda municipality" => Ok(Self::KiselaVodaMunicipality),
+                    "kicevo municipality" => Ok(Self::KicevoMunicipality),
+                    "konce municipality" => Ok(Self::KonceMunicipality),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for MontenegroStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "MontenegroStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "andrijevica municipality" => Ok(Self::AndrijevicaMunicipality),
+                    "bar municipality" => Ok(Self::BarMunicipality),
+                    "berane municipality" => Ok(Self::BeraneMunicipality),
+                    "bijelo polje municipality" => Ok(Self::BijeloPoljeMunicipality),
+                    "budva municipality" => Ok(Self::BudvaMunicipality),
+                    "danilovgrad municipality" => Ok(Self::DanilovgradMunicipality),
+                    "gusinje municipality" => Ok(Self::GusinjeMunicipality),
+                    "kolasin municipality" => Ok(Self::KolasinMunicipality),
+                    "kotor municipality" => Ok(Self::KotorMunicipality),
+                    "mojkovac municipality" => Ok(Self::MojkovacMunicipality),
+                    "niksic municipality" => Ok(Self::NiksicMunicipality),
+                    "old royal capital cetinje" => Ok(Self::OldRoyalCapitalCetinje),
+                    "petnjica municipality" => Ok(Self::PetnjicaMunicipality),
+                    "plav municipality" => Ok(Self::PlavMunicipality),
+                    "pljevlja municipality" => Ok(Self::PljevljaMunicipality),
+                    "pluzine municipality" => Ok(Self::PluzineMunicipality),
+                    "podgorica municipality" => Ok(Self::PodgoricaMunicipality),
+                    "rozaje municipality" => Ok(Self::RozajeMunicipality),
+                    "tivat municipality" => Ok(Self::TivatMunicipality),
+                    "ulcinj municipality" => Ok(Self::UlcinjMunicipality),
+                    "savnik municipality" => Ok(Self::SavnikMunicipality),
+                    "zabljak municipality" => Ok(Self::ZabljakMunicipality),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for MonacoStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "MonacoStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "monaco" => Ok(Self::Monaco),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for NetherlandsStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "NetherlandsStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "bonaire" => Ok(Self::Bonaire),
+                    "drenthe" => Ok(Self::Drenthe),
+                    "flevoland" => Ok(Self::Flevoland),
+                    "friesland" => Ok(Self::Friesland),
+                    "gelderland" => Ok(Self::Gelderland),
+                    "groningen" => Ok(Self::Groningen),
+                    "limburg" => Ok(Self::Limburg),
+                    "north brabant" => Ok(Self::NorthBrabant),
+                    "north holland" => Ok(Self::NorthHolland),
+                    "overijssel" => Ok(Self::Overijssel),
+                    "saba" => Ok(Self::Saba),
+                    "sint eustatius" => Ok(Self::SintEustatius),
+                    "south holland" => Ok(Self::SouthHolland),
+                    "utrecht" => Ok(Self::Utrecht),
+                    "zeeland" => Ok(Self::Zeeland),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for MoldovaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "MoldovaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "anenii noi district" => Ok(Self::AneniiNoiDistrict),
+                    "basarabeasca district" => Ok(Self::BasarabeascaDistrict),
+                    "bender municipality" => Ok(Self::BenderMunicipality),
+                    "briceni district" => Ok(Self::BriceniDistrict),
+                    "balti municipality" => Ok(Self::BaltiMunicipality),
+                    "cahul district" => Ok(Self::CahulDistrict),
+                    "cantemir district" => Ok(Self::CantemirDistrict),
+                    "chisinau municipality" => Ok(Self::ChisinauMunicipality),
+                    "cimislia district" => Ok(Self::CimisliaDistrict),
+                    "criuleni district" => Ok(Self::CriuleniDistrict),
+                    "calarasi district" => Ok(Self::CalarasiDistrict),
+                    "causeni district" => Ok(Self::CauseniDistrict),
+                    "donduseni district" => Ok(Self::DonduseniDistrict),
+                    "drochia district" => Ok(Self::DrochiaDistrict),
+                    "dubasari district" => Ok(Self::DubasariDistrict),
+                    "edinet district" => Ok(Self::EdinetDistrict),
+                    "floresti district" => Ok(Self::FlorestiDistrict),
+                    "falesti district" => Ok(Self::FalestiDistrict),
+                    "gagauzia" => Ok(Self::Gagauzia),
+                    "glodeni district" => Ok(Self::GlodeniDistrict),
+                    "hincesti district" => Ok(Self::HincestiDistrict),
+                    "ialoveni district" => Ok(Self::IaloveniDistrict),
+                    "nisporeni district" => Ok(Self::NisporeniDistrict),
+                    "ocnita district" => Ok(Self::OcnitaDistrict),
+                    "orhei district" => Ok(Self::OrheiDistrict),
+                    "rezina district" => Ok(Self::RezinaDistrict),
+                    "riscani district" => Ok(Self::RiscaniDistrict),
+                    "soroca district" => Ok(Self::SorocaDistrict),
+                    "straseni district" => Ok(Self::StraseniDistrict),
+                    "singerei district" => Ok(Self::SingereiDistrict),
+                    "taraclia district" => Ok(Self::TaracliaDistrict),
+                    "telenesti district" => Ok(Self::TelenestiDistrict),
+                    "transnistria autonomous territorial unit" => {
+                        Ok(Self::TransnistriaAutonomousTerritorialUnit)
+                    }
+                    "ungheni district" => Ok(Self::UngheniDistrict),
+                    "soldanesti district" => Ok(Self::SoldanestiDistrict),
+                    "stefan voda district" => Ok(Self::StefanVodaDistrict),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for LithuaniaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "LithuaniaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "akmene district municipality" => Ok(Self::AkmeneDistrictMunicipality),
+                    "alytus city municipality" => Ok(Self::AlytusCityMunicipality),
+                    "alytus county" => Ok(Self::AlytusCounty),
+                    "alytus district municipality" => Ok(Self::AlytusDistrictMunicipality),
+                    "birstonas municipality" => Ok(Self::BirstonasMunicipality),
+                    "birzai district municipality" => Ok(Self::BirzaiDistrictMunicipality),
+                    "druskininkai municipality" => Ok(Self::DruskininkaiMunicipality),
+                    "elektrenai municipality" => Ok(Self::ElektrenaiMunicipality),
+                    "ignalina district municipality" => Ok(Self::IgnalinaDistrictMunicipality),
+                    "jonava district municipality" => Ok(Self::JonavaDistrictMunicipality),
+                    "joniskis district municipality" => Ok(Self::JoniskisDistrictMunicipality),
+                    "jurbarkas district municipality" => Ok(Self::JurbarkasDistrictMunicipality),
+                    "kaisiadorys district municipality" => {
+                        Ok(Self::KaisiadorysDistrictMunicipality)
+                    }
+                    "kalvarija municipality" => Ok(Self::KalvarijaMunicipality),
+                    "kaunas city municipality" => Ok(Self::KaunasCityMunicipality),
+                    "kaunas county" => Ok(Self::KaunasCounty),
+                    "kaunas district municipality" => Ok(Self::KaunasDistrictMunicipality),
+                    "kazlu ruda municipality" => Ok(Self::KazluRudaMunicipality),
+                    "kelme district municipality" => Ok(Self::KelmeDistrictMunicipality),
+                    "klaipeda city municipality" => Ok(Self::KlaipedaCityMunicipality),
+                    "klaipeda county" => Ok(Self::KlaipedaCounty),
+                    "klaipeda district municipality" => Ok(Self::KlaipedaDistrictMunicipality),
+                    "kretinga district municipality" => Ok(Self::KretingaDistrictMunicipality),
+                    "kupiskis district municipality" => Ok(Self::KupiskisDistrictMunicipality),
+                    "kedainiai district municipality" => Ok(Self::KedainiaiDistrictMunicipality),
+                    "lazdijai district municipality" => Ok(Self::LazdijaiDistrictMunicipality),
+                    "marijampole county" => Ok(Self::MarijampoleCounty),
+                    "marijampole municipality" => Ok(Self::MarijampoleMunicipality),
+                    "mazeikiai district municipality" => Ok(Self::MazeikiaiDistrictMunicipality),
+                    "moletai district municipality" => Ok(Self::MoletaiDistrictMunicipality),
+                    "neringa municipality" => Ok(Self::NeringaMunicipality),
+                    "pagegiai municipality" => Ok(Self::PagegiaiMunicipality),
+                    "pakruojis district municipality" => Ok(Self::PakruojisDistrictMunicipality),
+                    "palanga city municipality" => Ok(Self::PalangaCityMunicipality),
+                    "panevezys city municipality" => Ok(Self::PanevezysCityMunicipality),
+                    "panevezys county" => Ok(Self::PanevezysCounty),
+                    "panevezys district municipality" => Ok(Self::PanevezysDistrictMunicipality),
+                    "pasvalys district municipality" => Ok(Self::PasvalysDistrictMunicipality),
+                    "plunge district municipality" => Ok(Self::PlungeDistrictMunicipality),
+                    "prienai district municipality" => Ok(Self::PrienaiDistrictMunicipality),
+                    "radviliskis district municipality" => {
+                        Ok(Self::RadviliskisDistrictMunicipality)
+                    }
+                    "raseiniai district municipality" => Ok(Self::RaseiniaiDistrictMunicipality),
+                    "rietavas municipality" => Ok(Self::RietavasMunicipality),
+                    "rokiskis district municipality" => Ok(Self::RokiskisDistrictMunicipality),
+                    "skuodas district municipality" => Ok(Self::SkuodasDistrictMunicipality),
+                    "taurage county" => Ok(Self::TaurageCounty),
+                    "taurage district municipality" => Ok(Self::TaurageDistrictMunicipality),
+                    "telsiai county" => Ok(Self::TelsiaiCounty),
+                    "telsiai district municipality" => Ok(Self::TelsiaiDistrictMunicipality),
+                    "trakai district municipality" => Ok(Self::TrakaiDistrictMunicipality),
+                    "ukmerge district municipality" => Ok(Self::UkmergeDistrictMunicipality),
+                    "utena county" => Ok(Self::UtenaCounty),
+                    "utena district municipality" => Ok(Self::UtenaDistrictMunicipality),
+                    "varena district municipality" => Ok(Self::VarenaDistrictMunicipality),
+                    "vilkaviskis district municipality" => {
+                        Ok(Self::VilkaviskisDistrictMunicipality)
+                    }
+                    "vilnius city municipality" => Ok(Self::VilniusCityMunicipality),
+                    "vilnius county" => Ok(Self::VilniusCounty),
+                    "vilnius district municipality" => Ok(Self::VilniusDistrictMunicipality),
+                    "visaginas municipality" => Ok(Self::VisaginasMunicipality),
+                    "zarasai district municipality" => Ok(Self::ZarasaiDistrictMunicipality),
+                    "sakiai district municipality" => Ok(Self::SakiaiDistrictMunicipality),
+                    "salcininkai district municipality" => {
+                        Ok(Self::SalcininkaiDistrictMunicipality)
+                    }
+                    "siauliai city municipality" => Ok(Self::SiauliaiCityMunicipality),
+                    "siauliai county" => Ok(Self::SiauliaiCounty),
+                    "siauliai district municipality" => Ok(Self::SiauliaiDistrictMunicipality),
+                    "silale district municipality" => Ok(Self::SilaleDistrictMunicipality),
+                    "silute district municipality" => Ok(Self::SiluteDistrictMunicipality),
+                    "sirvintos district municipality" => Ok(Self::SirvintosDistrictMunicipality),
+                    "svencionys district municipality" => Ok(Self::SvencionysDistrictMunicipality),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for LiechtensteinStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "LiechtensteinStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "balzers" => Ok(Self::Balzers),
+                    "eschen" => Ok(Self::Eschen),
+                    "gamprin" => Ok(Self::Gamprin),
+                    "mauren" => Ok(Self::Mauren),
+                    "planken" => Ok(Self::Planken),
+                    "ruggell" => Ok(Self::Ruggell),
+                    "schaan" => Ok(Self::Schaan),
+                    "schellenberg" => Ok(Self::Schellenberg),
+                    "triesen" => Ok(Self::Triesen),
+                    "triesenberg" => Ok(Self::Triesenberg),
+                    "vaduz" => Ok(Self::Vaduz),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for LatviaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "LatviaStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "aglona municipality" => Ok(Self::AglonaMunicipality),
+                    "aizkraukle municipality" => Ok(Self::AizkraukleMunicipality),
+                    "aizpute municipality" => Ok(Self::AizputeMunicipality),
+                    "akniiste municipality" => Ok(Self::AknīsteMunicipality),
+                    "aloja municipality" => Ok(Self::AlojaMunicipality),
+                    "alsunga municipality" => Ok(Self::AlsungaMunicipality),
+                    "aluksne municipality" => Ok(Self::AlūksneMunicipality),
+                    "amata municipality" => Ok(Self::AmataMunicipality),
+                    "ape municipality" => Ok(Self::ApeMunicipality),
+                    "auce municipality" => Ok(Self::AuceMunicipality),
+                    "babite municipality" => Ok(Self::BabīteMunicipality),
+                    "baldone municipality" => Ok(Self::BaldoneMunicipality),
+                    "baltinava municipality" => Ok(Self::BaltinavaMunicipality),
+                    "balvi municipality" => Ok(Self::BalviMunicipality),
+                    "bauska municipality" => Ok(Self::BauskaMunicipality),
+                    "beverina municipality" => Ok(Self::BeverīnaMunicipality),
+                    "broceni municipality" => Ok(Self::BrocēniMunicipality),
+                    "burtnieki municipality" => Ok(Self::BurtniekiMunicipality),
+                    "carnikava municipality" => Ok(Self::CarnikavaMunicipality),
+                    "cesvaine municipality" => Ok(Self::CesvaineMunicipality),
+                    "cibla municipality" => Ok(Self::CiblaMunicipality),
+                    "cesis municipality" => Ok(Self::CēsisMunicipality),
+                    "dagda municipality" => Ok(Self::DagdaMunicipality),
+                    "daugavpils" => Ok(Self::Daugavpils),
+                    "daugavpils municipality" => Ok(Self::DaugavpilsMunicipality),
+                    "dobele municipality" => Ok(Self::DobeleMunicipality),
+                    "dundaga municipality" => Ok(Self::DundagaMunicipality),
+                    "durbe municipality" => Ok(Self::DurbeMunicipality),
+                    "engure municipality" => Ok(Self::EngureMunicipality),
+                    "garkalne municipality" => Ok(Self::GarkalneMunicipality),
+                    "grobina municipality" => Ok(Self::GrobiņaMunicipality),
+                    "gulbene municipality" => Ok(Self::GulbeneMunicipality),
+                    "iecava municipality" => Ok(Self::IecavaMunicipality),
+                    "ikskile municipality" => Ok(Self::IkšķileMunicipality),
+                    "ilukste municipality" => Ok(Self::IlūksteMunicipality),
+                    "incukalns municipality" => Ok(Self::InčukalnsMunicipality),
+                    "jaunjelgava municipality" => Ok(Self::JaunjelgavaMunicipality),
+                    "jaunpiebalga municipality" => Ok(Self::JaunpiebalgaMunicipality),
+                    "jaunpils municipality" => Ok(Self::JaunpilsMunicipality),
+                    "jelgava" => Ok(Self::Jelgava),
+                    "jelgava municipality" => Ok(Self::JelgavaMunicipality),
+                    "jekabpils" => Ok(Self::Jēkabpils),
+                    "jekabpils municipality" => Ok(Self::JēkabpilsMunicipality),
+                    "jurmala" => Ok(Self::Jūrmala),
+                    "kandava municipality" => Ok(Self::KandavaMunicipality),
+                    "koceni municipality" => Ok(Self::KocēniMunicipality),
+                    "koknese municipality" => Ok(Self::KokneseMunicipality),
+                    "krimulda municipality" => Ok(Self::KrimuldaMunicipality),
+                    "kustpils municipality" => Ok(Self::KrustpilsMunicipality),
+                    "kraslava municipality" => Ok(Self::KrāslavaMunicipality),
+                    "kuldiga municipality" => Ok(Self::KuldīgaMunicipality),
+                    "karsava municipality" => Ok(Self::KārsavaMunicipality),
+                    "lielvarde municipality" => Ok(Self::LielvārdeMunicipality),
+                    "liepaja" => Ok(Self::Liepāja),
+                    "limbazi municipality" => Ok(Self::LimbažiMunicipality),
+                    "lubana municipality" => Ok(Self::LubānaMunicipality),
+                    "ludza municipality" => Ok(Self::LudzaMunicipality),
+                    "ligatne municipality" => Ok(Self::LīgatneMunicipality),
+                    "livani municipality" => Ok(Self::LīvāniMunicipality),
+                    "madona municipality" => Ok(Self::MadonaMunicipality),
+                    "mazsalaca municipality" => Ok(Self::MazsalacaMunicipality),
+                    "malpils municipality" => Ok(Self::MālpilsMunicipality),
+                    "marupe municipality" => Ok(Self::MārupeMunicipality),
+                    "mersrags municipality" => Ok(Self::MērsragsMunicipality),
+                    "naukseni municipality" => Ok(Self::NaukšēniMunicipality),
+                    "nereta municipality" => Ok(Self::NeretaMunicipality),
+                    "nica municipality" => Ok(Self::NīcaMunicipality),
+                    "ogre municipality" => Ok(Self::OgreMunicipality),
+                    "olaine municipality" => Ok(Self::OlaineMunicipality),
+                    "ozolnieki municipality" => Ok(Self::OzolniekiMunicipality),
+                    "preili municipality" => Ok(Self::PreiļiMunicipality),
+                    "priekule municipality" => Ok(Self::PriekuleMunicipality),
+                    "priekuli municipality" => Ok(Self::PriekuļiMunicipality),
+                    "pargauja municipality" => Ok(Self::PārgaujaMunicipality),
+                    "pavilosta municipality" => Ok(Self::PāvilostaMunicipality),
+                    "plavinas municipality" => Ok(Self::PļaviņasMunicipality),
+                    "rauna municipality" => Ok(Self::RaunaMunicipality),
+                    "riebini municipality" => Ok(Self::RiebiņiMunicipality),
+                    "riga" => Ok(Self::Riga),
+                    "roja municipality" => Ok(Self::RojaMunicipality),
+                    "ropazi municipality" => Ok(Self::RopažiMunicipality),
+                    "rucava municipality" => Ok(Self::RucavaMunicipality),
+                    "rugaji municipality" => Ok(Self::RugājiMunicipality),
+                    "rundale municipality" => Ok(Self::RundāleMunicipality),
+                    "rezekne" => Ok(Self::Rēzekne),
+                    "rezekne municipality" => Ok(Self::RēzekneMunicipality),
+                    "rujiena municipality" => Ok(Self::RūjienaMunicipality),
+                    "sala municipality" => Ok(Self::SalaMunicipality),
+                    "salacgriva municipality" => Ok(Self::SalacgrīvaMunicipality),
+                    "salaspils municipality" => Ok(Self::SalaspilsMunicipality),
+                    "saldus municipality" => Ok(Self::SaldusMunicipality),
+                    "saulkrasti municipality" => Ok(Self::SaulkrastiMunicipality),
+                    "sigulda municipality" => Ok(Self::SiguldaMunicipality),
+                    "skrunda municipality" => Ok(Self::SkrundaMunicipality),
+                    "skriveri municipality" => Ok(Self::SkrīveriMunicipality),
+                    "smiltene municipality" => Ok(Self::SmilteneMunicipality),
+                    "stopini municipality" => Ok(Self::StopiņiMunicipality),
+                    "strenci municipality" => Ok(Self::StrenčiMunicipality),
+                    "seja municipality" => Ok(Self::SējaMunicipality),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for MaltaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "MaltaStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "attard" => Ok(Self::Attard),
+                    "balzan" => Ok(Self::Balzan),
+                    "birgu" => Ok(Self::Birgu),
+                    "birkirkara" => Ok(Self::Birkirkara),
+                    "birzebbuga" => Ok(Self::Birzebbuga),
+                    "cospicua" => Ok(Self::Cospicua),
+                    "dingli" => Ok(Self::Dingli),
+                    "fgura" => Ok(Self::Fgura),
+                    "floriana" => Ok(Self::Floriana),
+                    "fontana" => Ok(Self::Fontana),
+                    "gudja" => Ok(Self::Gudja),
+                    "gzira" => Ok(Self::Gzira),
+                    "ghajnsielem" => Ok(Self::Ghajnsielem),
+                    "gharb" => Ok(Self::Gharb),
+                    "gharghur" => Ok(Self::Gharghur),
+                    "ghasri" => Ok(Self::Ghasri),
+                    "ghaxaq" => Ok(Self::Ghaxaq),
+                    "hamrun" => Ok(Self::Hamrun),
+                    "iklin" => Ok(Self::Iklin),
+                    "senglea" => Ok(Self::Senglea),
+                    "kalkara" => Ok(Self::Kalkara),
+                    "kercem" => Ok(Self::Kercem),
+                    "kirkop" => Ok(Self::Kirkop),
+                    "lija" => Ok(Self::Lija),
+                    "luqa" => Ok(Self::Luqa),
+                    "marsa" => Ok(Self::Marsa),
+                    "marsaskala" => Ok(Self::Marsaskala),
+                    "marsaxlokk" => Ok(Self::Marsaxlokk),
+                    "mdina" => Ok(Self::Mdina),
+                    "mellieha" => Ok(Self::Mellieha),
+                    "mgarr" => Ok(Self::Mgarr),
+                    "mosta" => Ok(Self::Mosta),
+                    "mqabba" => Ok(Self::Mqabba),
+                    "msida" => Ok(Self::Msida),
+                    "mtarfa" => Ok(Self::Mtarfa),
+                    "munxar" => Ok(Self::Munxar),
+                    "nadur" => Ok(Self::Nadur),
+                    "naxxar" => Ok(Self::Naxxar),
+                    "paola" => Ok(Self::Paola),
+                    "pembroke" => Ok(Self::Pembroke),
+                    "pieta" => Ok(Self::Pieta),
+                    "qala" => Ok(Self::Qala),
+                    "qormi" => Ok(Self::Qormi),
+                    "qrendi" => Ok(Self::Qrendi),
+                    "victoria" => Ok(Self::Victoria),
+                    "rabat" => Ok(Self::Rabat),
+                    "st julians" => Ok(Self::StJulians),
+                    "san gwann" => Ok(Self::SanGwann),
+                    "saint lawrence" => Ok(Self::SaintLawrence),
+                    "st pauls bay" => Ok(Self::StPaulsBay),
+                    "sannat" => Ok(Self::Sannat),
+                    "santa lucija" => Ok(Self::SantaLucija),
+                    "santa venera" => Ok(Self::SantaVenera),
+                    "siggiewi" => Ok(Self::Siggiewi),
+                    "sliema" => Ok(Self::Sliema),
+                    "swieqi" => Ok(Self::Swieqi),
+                    "ta xbiex" => Ok(Self::TaXbiex),
+                    "tarxien" => Ok(Self::Tarxien),
+                    "valletta" => Ok(Self::Valletta),
+                    "xaghra" => Ok(Self::Xaghra),
+                    "xewkija" => Ok(Self::Xewkija),
+                    "xghajra" => Ok(Self::Xghajra),
+                    "zabbar" => Ok(Self::Zabbar),
+                    "zebbug gozo" => Ok(Self::ZebbugGozo),
+                    "zebbug malta" => Ok(Self::ZebbugMalta),
+                    "zejtun" => Ok(Self::Zejtun),
+                    "zurrieq" => Ok(Self::Zurrieq),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for BelarusStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "BelarusStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "brest region" => Ok(Self::BrestRegion),
+                    "gomel region" => Ok(Self::GomelRegion),
+                    "grodno region" => Ok(Self::GrodnoRegion),
+                    "minsk" => Ok(Self::Minsk),
+                    "minsk region" => Ok(Self::MinskRegion),
+                    "mogilev region" => Ok(Self::MogilevRegion),
+                    "vitebsk region" => Ok(Self::VitebskRegion),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for IrelandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "IrelandStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "connacht" => Ok(Self::Connacht),
+                    "county carlow" => Ok(Self::CountyCarlow),
+                    "county cavan" => Ok(Self::CountyCavan),
+                    "county clare" => Ok(Self::CountyClare),
+                    "county cork" => Ok(Self::CountyCork),
+                    "county donegal" => Ok(Self::CountyDonegal),
+                    "county dublin" => Ok(Self::CountyDublin),
+                    "county galway" => Ok(Self::CountyGalway),
+                    "county kerry" => Ok(Self::CountyKerry),
+                    "county kildare" => Ok(Self::CountyKildare),
+                    "county kilkenny" => Ok(Self::CountyKilkenny),
+                    "county laois" => Ok(Self::CountyLaois),
+                    "county limerick" => Ok(Self::CountyLimerick),
+                    "county longford" => Ok(Self::CountyLongford),
+                    "county louth" => Ok(Self::CountyLouth),
+                    "county mayo" => Ok(Self::CountyMayo),
+                    "county meath" => Ok(Self::CountyMeath),
+                    "county monaghan" => Ok(Self::CountyMonaghan),
+                    "county offaly" => Ok(Self::CountyOffaly),
+                    "county roscommon" => Ok(Self::CountyRoscommon),
+                    "county sligo" => Ok(Self::CountySligo),
+                    "county tipperary" => Ok(Self::CountyTipperary),
+                    "county waterford" => Ok(Self::CountyWaterford),
+                    "county westmeath" => Ok(Self::CountyWestmeath),
+                    "county wexford" => Ok(Self::CountyWexford),
+                    "county wicklow" => Ok(Self::CountyWicklow),
+                    "leinster" => Ok(Self::Leinster),
+                    "munster" => Ok(Self::Munster),
+                    "ulster" => Ok(Self::Ulster),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for IcelandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "IcelandStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "capital region" => Ok(Self::CapitalRegion),
+                    "eastern region" => Ok(Self::EasternRegion),
+                    "northeastern region" => Ok(Self::NortheasternRegion),
+                    "northwestern region" => Ok(Self::NorthwesternRegion),
+                    "southern peninsula region" => Ok(Self::SouthernPeninsulaRegion),
+                    "southern region" => Ok(Self::SouthernRegion),
+                    "western region" => Ok(Self::WesternRegion),
+                    "westfjords" => Ok(Self::Westfjords),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for HungaryStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "HungaryStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "baranya county" => Ok(Self::BaranyaCounty),
+                    "borsod abauj zemplen county" => Ok(Self::BorsodAbaujZemplenCounty),
+                    "budapest" => Ok(Self::Budapest),
+                    "bacs kiskun county" => Ok(Self::BacsKiskunCounty),
+                    "bekes county" => Ok(Self::BekesCounty),
+                    "bekescsaba" => Ok(Self::Bekescsaba),
+                    "csongrad county" => Ok(Self::CsongradCounty),
+                    "debrecen" => Ok(Self::Debrecen),
+                    "dunaujvaros" => Ok(Self::Dunaujvaros),
+                    "eger" => Ok(Self::Eger),
+                    "fejer county" => Ok(Self::FejerCounty),
+                    "gyor" => Ok(Self::Gyor),
+                    "gyor moson sopron county" => Ok(Self::GyorMosonSopronCounty),
+                    "hajdu bihar county" => Ok(Self::HajduBiharCounty),
+                    "heves county" => Ok(Self::HevesCounty),
+                    "hodmezovasarhely" => Ok(Self::Hodmezovasarhely),
+                    "jasz nagykun szolnok county" => Ok(Self::JaszNagykunSzolnokCounty),
+                    "kaposvar" => Ok(Self::Kaposvar),
+                    "kecskemet" => Ok(Self::Kecskemet),
+                    "miskolc" => Ok(Self::Miskolc),
+                    "nagykanizsa" => Ok(Self::Nagykanizsa),
+                    "nyiregyhaza" => Ok(Self::Nyiregyhaza),
+                    "nograd county" => Ok(Self::NogradCounty),
+                    "pest county" => Ok(Self::PestCounty),
+                    "pecs" => Ok(Self::Pecs),
+                    "salgotarjan" => Ok(Self::Salgotarjan),
+                    "somogy county" => Ok(Self::SomogyCounty),
+                    "sopron" => Ok(Self::Sopron),
+                    "szabolcs szatmar bereg county" => Ok(Self::SzabolcsSzatmarBeregCounty),
+                    "szeged" => Ok(Self::Szeged),
+                    "szekszard" => Ok(Self::Szekszard),
+                    "szolnok" => Ok(Self::Szolnok),
+                    "szombathely" => Ok(Self::Szombathely),
+                    "szekesfehervar" => Ok(Self::Szekesfehervar),
+                    "tatabanya" => Ok(Self::Tatabanya),
+                    "tolna county" => Ok(Self::TolnaCounty),
+                    "vas county" => Ok(Self::VasCounty),
+                    "veszprem" => Ok(Self::Veszprem),
+                    "veszprem county" => Ok(Self::VeszpremCounty),
+                    "zala county" => Ok(Self::ZalaCounty),
+                    "zalaegerszeg" => Ok(Self::Zalaegerszeg),
+                    "erd" => Ok(Self::Erd),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for GreeceStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "GreeceStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "achaea regional unit" => Ok(Self::AchaeaRegionalUnit),
+                    "aetolia acarnania regional unit" => Ok(Self::AetoliaAcarnaniaRegionalUnit),
+                    "arcadia prefecture" => Ok(Self::ArcadiaPrefecture),
+                    "argolis regional unit" => Ok(Self::ArgolisRegionalUnit),
+                    "attica region" => Ok(Self::AtticaRegion),
+                    "boeotia regional unit" => Ok(Self::BoeotiaRegionalUnit),
+                    "central greece region" => Ok(Self::CentralGreeceRegion),
+                    "central macedonia" => Ok(Self::CentralMacedonia),
+                    "chania regional unit" => Ok(Self::ChaniaRegionalUnit),
+                    "corfu prefecture" => Ok(Self::CorfuPrefecture),
+                    "corinthia regional unit" => Ok(Self::CorinthiaRegionalUnit),
+                    "crete region" => Ok(Self::CreteRegion),
+                    "drama regional unit" => Ok(Self::DramaRegionalUnit),
+                    "east attica regional unit" => Ok(Self::EastAtticaRegionalUnit),
+                    "east macedonia and thrace" => Ok(Self::EastMacedoniaAndThrace),
+                    "epirus region" => Ok(Self::EpirusRegion),
+                    "euboea" => Ok(Self::Euboea),
+                    "grevena prefecture" => Ok(Self::GrevenaPrefecture),
+                    "imathia regional unit" => Ok(Self::ImathiaRegionalUnit),
+                    "ioannina regional unit" => Ok(Self::IoanninaRegionalUnit),
+                    "ionian islands region" => Ok(Self::IonianIslandsRegion),
+                    "karditsa regional unit" => Ok(Self::KarditsaRegionalUnit),
+                    "kastoria regional unit" => Ok(Self::KastoriaRegionalUnit),
+                    "kefalonia prefecture" => Ok(Self::KefaloniaPrefecture),
+                    "kilkis regional unit" => Ok(Self::KilkisRegionalUnit),
+                    "kozani prefecture" => Ok(Self::KozaniPrefecture),
+                    "laconia" => Ok(Self::Laconia),
+                    "larissa prefecture" => Ok(Self::LarissaPrefecture),
+                    "lefkada regional unit" => Ok(Self::LefkadaRegionalUnit),
+                    "pella regional unit" => Ok(Self::PellaRegionalUnit),
+                    "peloponnese region" => Ok(Self::PeloponneseRegion),
+                    "phthiotis prefecture" => Ok(Self::PhthiotisPrefecture),
+                    "preveza prefecture" => Ok(Self::PrevezaPrefecture),
+                    "serres prefecture" => Ok(Self::SerresPrefecture),
+                    "south aegean" => Ok(Self::SouthAegean),
+                    "thessaloniki regional unit" => Ok(Self::ThessalonikiRegionalUnit),
+                    "west greece region" => Ok(Self::WestGreeceRegion),
+                    "west macedonia region" => Ok(Self::WestMacedoniaRegion),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for FinlandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "FinlandStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "central finland" => Ok(Self::CentralFinland),
+                    "central ostrobothnia" => Ok(Self::CentralOstrobothnia),
+                    "eastern finland province" => Ok(Self::EasternFinlandProvince),
+                    "finland proper" => Ok(Self::FinlandProper),
+                    "kainuu" => Ok(Self::Kainuu),
+                    "kymenlaakso" => Ok(Self::Kymenlaakso),
+                    "lapland" => Ok(Self::Lapland),
+                    "north karelia" => Ok(Self::NorthKarelia),
+                    "northern ostrobothnia" => Ok(Self::NorthernOstrobothnia),
+                    "northern savonia" => Ok(Self::NorthernSavonia),
+                    "ostrobothnia" => Ok(Self::Ostrobothnia),
+                    "oulu province" => Ok(Self::OuluProvince),
+                    "pirkanmaa" => Ok(Self::Pirkanmaa),
+                    "paijanne tavastia" => Ok(Self::PaijanneTavastia),
+                    "satakunta" => Ok(Self::Satakunta),
+                    "south karelia" => Ok(Self::SouthKarelia),
+                    "southern ostrobothnia" => Ok(Self::SouthernOstrobothnia),
+                    "southern savonia" => Ok(Self::SouthernSavonia),
+                    "tavastia proper" => Ok(Self::TavastiaProper),
+                    "uusimaa" => Ok(Self::Uusimaa),
+                    "aland islands" => Ok(Self::AlandIslands),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for DenmarkStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "DenmarkStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "capital region of denmark" => Ok(Self::CapitalRegionOfDenmark),
+                    "central denmark region" => Ok(Self::CentralDenmarkRegion),
+                    "north denmark region" => Ok(Self::NorthDenmarkRegion),
+                    "region zealand" => Ok(Self::RegionZealand),
+                    "region of southern denmark" => Ok(Self::RegionOfSouthernDenmark),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for CzechRepublicStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "CzechRepublicStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "benesov district" => Ok(Self::BenesovDistrict),
+                    "beroun district" => Ok(Self::BerounDistrict),
+                    "blansko district" => Ok(Self::BlanskoDistrict),
+                    "brno city district" => Ok(Self::BrnoCityDistrict),
+                    "brno country district" => Ok(Self::BrnoCountryDistrict),
+                    "bruntal district" => Ok(Self::BruntalDistrict),
+                    "breclav district" => Ok(Self::BreclavDistrict),
+                    "central bohemian region" => Ok(Self::CentralBohemianRegion),
+                    "cheb district" => Ok(Self::ChebDistrict),
+                    "chomutov district" => Ok(Self::ChomutovDistrict),
+                    "chrudim district" => Ok(Self::ChrudimDistrict),
+                    "domazlice district" => Ok(Self::DomazliceDistrict),
+                    "decin district" => Ok(Self::DecinDistrict),
+                    "frydek mistek district" => Ok(Self::FrydekMistekDistrict),
+                    "havlickuv brod district" => Ok(Self::HavlickuvBrodDistrict),
+                    "hodonin district" => Ok(Self::HodoninDistrict),
+                    "horni pocernice" => Ok(Self::HorniPocernice),
+                    "hradec kralove district" => Ok(Self::HradecKraloveDistrict),
+                    "hradec kralove region" => Ok(Self::HradecKraloveRegion),
+                    "jablonec nad nisou district" => Ok(Self::JablonecNadNisouDistrict),
+                    "jesenik district" => Ok(Self::JesenikDistrict),
+                    "jihlava district" => Ok(Self::JihlavaDistrict),
+                    "jindrichuv hradec district" => Ok(Self::JindrichuvHradecDistrict),
+                    "jicin district" => Ok(Self::JicinDistrict),
+                    "karlovy vary district" => Ok(Self::KarlovyVaryDistrict),
+                    "karlovy vary region" => Ok(Self::KarlovyVaryRegion),
+                    "karvina district" => Ok(Self::KarvinaDistrict),
+                    "kladno district" => Ok(Self::KladnoDistrict),
+                    "klatovy district" => Ok(Self::KlatovyDistrict),
+                    "kolin district" => Ok(Self::KolinDistrict),
+                    "kromeriz district" => Ok(Self::KromerizDistrict),
+                    "liberec district" => Ok(Self::LiberecDistrict),
+                    "liberec region" => Ok(Self::LiberecRegion),
+                    "litomerice district" => Ok(Self::LitomericeDistrict),
+                    "louny district" => Ok(Self::LounyDistrict),
+                    "mlada boleslav district" => Ok(Self::MladaBoleslavDistrict),
+                    "moravian silesian region" => Ok(Self::MoravianSilesianRegion),
+                    "most district" => Ok(Self::MostDistrict),
+                    "melnik district" => Ok(Self::MelnikDistrict),
+                    "novy jicin district" => Ok(Self::NovyJicinDistrict),
+                    "nymburk district" => Ok(Self::NymburkDistrict),
+                    "nachod district" => Ok(Self::NachodDistrict),
+                    "olomouc district" => Ok(Self::OlomoucDistrict),
+                    "olomouc region" => Ok(Self::OlomoucRegion),
+                    "opava district" => Ok(Self::OpavaDistrict),
+                    "ostrava city district" => Ok(Self::OstravaCityDistrict),
+                    "pardubice district" => Ok(Self::PardubiceDistrict),
+                    "pardubice region" => Ok(Self::PardubiceRegion),
+                    "pelhrimov district" => Ok(Self::PelhrimovDistrict),
+                    "plzen region" => Ok(Self::PlzenRegion),
+                    "plzen city district" => Ok(Self::PlzenCityDistrict),
+                    "plzen north district" => Ok(Self::PlzenNorthDistrict),
+                    "plzen south district" => Ok(Self::PlzenSouthDistrict),
+                    "prachatice district" => Ok(Self::PrachaticeDistrict),
+                    "prague" => Ok(Self::Prague),
+                    "prague1" => Ok(Self::Prague1),
+                    "prague10" => Ok(Self::Prague10),
+                    "prague11" => Ok(Self::Prague11),
+                    "prague12" => Ok(Self::Prague12),
+                    "prague13" => Ok(Self::Prague13),
+                    "prague14" => Ok(Self::Prague14),
+                    "prague15" => Ok(Self::Prague15),
+                    "prague16" => Ok(Self::Prague16),
+                    "prague2" => Ok(Self::Prague2),
+                    "prague21" => Ok(Self::Prague21),
+                    "prague3" => Ok(Self::Prague3),
+                    "prague4" => Ok(Self::Prague4),
+                    "prague5" => Ok(Self::Prague5),
+                    "prague6" => Ok(Self::Prague6),
+                    "prague7" => Ok(Self::Prague7),
+                    "prague8" => Ok(Self::Prague8),
+                    "prague9" => Ok(Self::Prague9),
+                    "prague east district" => Ok(Self::PragueEastDistrict),
+                    "prague west district" => Ok(Self::PragueWestDistrict),
+                    "prostejov district" => Ok(Self::ProstejovDistrict),
+                    "pisek district" => Ok(Self::PisekDistrict),
+                    "prerov district" => Ok(Self::PrerovDistrict),
+                    "pribram district" => Ok(Self::PribramDistrict),
+                    "rakovnik district" => Ok(Self::RakovnikDistrict),
+                    "rokycany district" => Ok(Self::RokycanyDistrict),
+                    "rychnov nad kneznou district" => Ok(Self::RychnovNadKneznouDistrict),
+                    "semily district" => Ok(Self::SemilyDistrict),
+                    "sokolov district" => Ok(Self::SokolovDistrict),
+                    "south bohemian region" => Ok(Self::SouthBohemianRegion),
+                    "south moravian region" => Ok(Self::SouthMoravianRegion),
+                    "strakonice district" => Ok(Self::StrakoniceDistrict),
+                    "svitavy district" => Ok(Self::SvitavyDistrict),
+                    "tachov district" => Ok(Self::TachovDistrict),
+                    "teplice district" => Ok(Self::TepliceDistrict),
+                    "trutnov district" => Ok(Self::TrutnovDistrict),
+                    "tabor district" => Ok(Self::TaborDistrict),
+                    "trebic district" => Ok(Self::TrebicDistrict),
+                    "uherske hradiste district" => Ok(Self::UherskeHradisteDistrict),
+                    "vsetin district" => Ok(Self::VsetinDistrict),
+                    "vysocina region" => Ok(Self::VysocinaRegion),
+                    "vyskov district" => Ok(Self::VyskovDistrict),
+                    "zlin district" => Ok(Self::ZlinDistrict),
+                    "zlin region" => Ok(Self::ZlinRegion),
+                    "znojmo district" => Ok(Self::ZnojmoDistrict),
+                    "usti nad labem district" => Ok(Self::UstiNadLabemDistrict),
+                    "usti nad labem region" => Ok(Self::UstiNadLabemRegion),
+                    "usti nad orlici district" => Ok(Self::UstiNadOrliciDistrict),
+                    "ceska lipa district" => Ok(Self::CeskaLipaDistrict),
+                    "ceske budejovice district" => Ok(Self::CeskeBudejoviceDistrict),
+                    "cesky krumlov district" => Ok(Self::CeskyKrumlovDistrict),
+                    "sumperk district" => Ok(Self::SumperkDistrict),
+                    "zdar nad sazavou district" => Ok(Self::ZdarNadSazavouDistrict),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for CroatiaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "CroatiaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "bjelovar bilogora county" => Ok(Self::BjelovarBilogoraCounty),
+                    "brod posavina county" => Ok(Self::BrodPosavinaCounty),
+                    "dubrovnik neretva county" => Ok(Self::DubrovnikNeretvaCounty),
+                    "istria county" => Ok(Self::IstriaCounty),
+                    "koprivnica krizevci county" => Ok(Self::KoprivnicaKrizevciCounty),
+                    "krapina zagorje county" => Ok(Self::KrapinaZagorjeCounty),
+                    "lika senj county" => Ok(Self::LikaSenjCounty),
+                    "medimurje county" => Ok(Self::MedimurjeCounty),
+                    "osijek baranja county" => Ok(Self::OsijekBaranjaCounty),
+                    "pozega slavonian county" => Ok(Self::PozegaSlavoniaCounty),
+                    "primorje gorski kotar county" => Ok(Self::PrimorjeGorskiKotarCounty),
+                    "sisak moslavina county" => Ok(Self::SisakMoslavinaCounty),
+                    "split dalmatia county" => Ok(Self::SplitDalmatiaCounty),
+                    "varazdin county" => Ok(Self::VarazdinCounty),
+                    "virovitica podravina county" => Ok(Self::ViroviticaPodravinaCounty),
+                    "vukovar syrmia county" => Ok(Self::VukovarSyrmiaCounty),
+                    "zadar county" => Ok(Self::ZadarCounty),
+                    "zagreb" => Ok(Self::Zagreb),
+                    "zagreb county" => Ok(Self::ZagrebCounty),
+                    "sibenik knin county" => Ok(Self::SibenikKninCounty),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for BulgariaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "BulgariaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "blagoevgrad province" => Ok(Self::BlagoevgradProvince),
+                    "burgas province" => Ok(Self::BurgasProvince),
+                    "dobrich province" => Ok(Self::DobrichProvince),
+                    "gabrovo province" => Ok(Self::GabrovoProvince),
+                    "haskovo province" => Ok(Self::HaskovoProvince),
+                    "kardzhali province" => Ok(Self::KardzhaliProvince),
+                    "kyustendil province" => Ok(Self::KyustendilProvince),
+                    "lovech province" => Ok(Self::LovechProvince),
+                    "montana province" => Ok(Self::MontanaProvince),
+                    "pazardzhik province" => Ok(Self::PazardzhikProvince),
+                    "pernik province" => Ok(Self::PernikProvince),
+                    "pleven province" => Ok(Self::PlevenProvince),
+                    "plovdiv province" => Ok(Self::PlovdivProvince),
+                    "razgrad province" => Ok(Self::RazgradProvince),
+                    "ruse province" => Ok(Self::RuseProvince),
+                    "shumen" => Ok(Self::Shumen),
+                    "silistra province" => Ok(Self::SilistraProvince),
+                    "sliven province" => Ok(Self::SlivenProvince),
+                    "smolyan province" => Ok(Self::SmolyanProvince),
+                    "sofia city province" => Ok(Self::SofiaCityProvince),
+                    "sofia province" => Ok(Self::SofiaProvince),
+                    "stara zagora province" => Ok(Self::StaraZagoraProvince),
+                    "targovishte province" => Ok(Self::TargovishteProvince),
+                    "varna province" => Ok(Self::VarnaProvince),
+                    "veliko tarnovo province" => Ok(Self::VelikoTarnovoProvince),
+                    "vidin province" => Ok(Self::VidinProvince),
+                    "vratsa province" => Ok(Self::VratsaProvince),
+                    "yambol province" => Ok(Self::YambolProvince),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for BosniaAndHerzegovinaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "BosniaAndHerzegovinaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "bosnian podrinje canton" => Ok(Self::BosnianPodrinjeCanton),
+                    "brcko district" => Ok(Self::BrckoDistrict),
+                    "canton 10" => Ok(Self::Canton10),
+                    "central bosnia canton" => Ok(Self::CentralBosniaCanton),
+                    "federation of bosnia and herzegovina" => {
+                        Ok(Self::FederationOfBosniaAndHerzegovina)
+                    }
+                    "herzegovina neretva canton" => Ok(Self::HerzegovinaNeretvaCanton),
+                    "posavina canton" => Ok(Self::PosavinaCanton),
+                    "republika srpska" => Ok(Self::RepublikaSrpska),
+                    "sarajevo canton" => Ok(Self::SarajevoCanton),
+                    "tuzla canton" => Ok(Self::TuzlaCanton),
+                    "una sana canton" => Ok(Self::UnaSanaCanton),
+                    "west herzegovina canton" => Ok(Self::WestHerzegovinaCanton),
+                    "zenica doboj canton" => Ok(Self::ZenicaDobojCanton),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for UnitedKingdomStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "UnitedKingdomStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "aberdeen city" => Ok(Self::AberdeenCity),
+                    "aberdeenshire" => Ok(Self::Aberdeenshire),
+                    "angus" => Ok(Self::Angus),
+                    "antrim and newtownabbey" => Ok(Self::AntrimAndNewtownabbey),
+                    "ards and north down" => Ok(Self::ArdsAndNorthDown),
+                    "argyll and bute" => Ok(Self::ArgyllAndBute),
+                    "armagh city banbridge and craigavon" => {
+                        Ok(Self::ArmaghCityBanbridgeAndCraigavon)
+                    }
+                    "barking and dagenham" => Ok(Self::BarkingAndDagenham),
+                    "barnet" => Ok(Self::Barnet),
+                    "barnsley" => Ok(Self::Barnsley),
+                    "bath and north east somerset" => Ok(Self::BathAndNorthEastSomerset),
+                    "bedford" => Ok(Self::Bedford),
+                    "belfast city" => Ok(Self::BelfastCity),
+                    "bexley" => Ok(Self::Bexley),
+                    "birmingham" => Ok(Self::Birmingham),
+                    "blackburn with darwen" => Ok(Self::BlackburnWithDarwen),
+                    "blackpool" => Ok(Self::Blackpool),
+                    "blaenau gwent" => Ok(Self::BlaenauGwent),
+                    "bolton" => Ok(Self::Bolton),
+                    "bournemouth christchurch and poole" => {
+                        Ok(Self::BournemouthChristchurchAndPoole)
+                    }
+                    "bracknell forest" => Ok(Self::BracknellForest),
+                    "bradford" => Ok(Self::Bradford),
+                    "brent" => Ok(Self::Brent),
+                    "bridgend" => Ok(Self::Bridgend),
+                    "brighton and hove" => Ok(Self::BrightonAndHove),
+                    "bristol city of" => Ok(Self::BristolCityOf),
+                    "bromley" => Ok(Self::Bromley),
+                    "buckinghamshire" => Ok(Self::Buckinghamshire),
+                    "bury" => Ok(Self::Bury),
+                    "caerphilly" => Ok(Self::Caerphilly),
+                    "calderdale" => Ok(Self::Calderdale),
+                    "cambridgeshire" => Ok(Self::Cambridgeshire),
+                    "camden" => Ok(Self::Camden),
+                    "cardiff" => Ok(Self::Cardiff),
+                    "carmarthenshire" => Ok(Self::Carmarthenshire),
+                    "causeway coast and glens" => Ok(Self::CausewayCoastAndGlens),
+                    "central bedfordshire" => Ok(Self::CentralBedfordshire),
+                    "ceredigion" => Ok(Self::Ceredigion),
+                    "cheshire east" => Ok(Self::CheshireEast),
+                    "cheshire west and chester" => Ok(Self::CheshireWestAndChester),
+                    "clackmannanshire" => Ok(Self::Clackmannanshire),
+                    "conwy" => Ok(Self::Conwy),
+                    "cornwall" => Ok(Self::Cornwall),
+                    "coventry" => Ok(Self::Coventry),
+                    "croydon" => Ok(Self::Croydon),
+                    "cumbria" => Ok(Self::Cumbria),
+                    "darlington" => Ok(Self::Darlington),
+                    "denbighshire" => Ok(Self::Denbighshire),
+                    "derby" => Ok(Self::Derby),
+                    "derbyshire" => Ok(Self::Derbyshire),
+                    "derry and strabane" => Ok(Self::DerryAndStrabane),
+                    "devon" => Ok(Self::Devon),
+                    "doncaster" => Ok(Self::Doncaster),
+                    "dorset" => Ok(Self::Dorset),
+                    "dudley" => Ok(Self::Dudley),
+                    "dumfries and galloway" => Ok(Self::DumfriesAndGalloway),
+                    "dundee city" => Ok(Self::DundeeCity),
+                    "durham county" => Ok(Self::DurhamCounty),
+                    "ealing" => Ok(Self::Ealing),
+                    "east ayrshire" => Ok(Self::EastAyrshire),
+                    "east dunbartonshire" => Ok(Self::EastDunbartonshire),
+                    "east lothian" => Ok(Self::EastLothian),
+                    "east renfrewshire" => Ok(Self::EastRenfrewshire),
+                    "east riding of yorkshire" => Ok(Self::EastRidingOfYorkshire),
+                    "east sussex" => Ok(Self::EastSussex),
+                    "edinburgh city of" => Ok(Self::EdinburghCityOf),
+                    "eilean siar" => Ok(Self::EileanSiar),
+                    "enfield" => Ok(Self::Enfield),
+                    "essex" => Ok(Self::Essex),
+                    "falkirk" => Ok(Self::Falkirk),
+                    "fermanagh and omagh" => Ok(Self::FermanaghAndOmagh),
+                    "fife" => Ok(Self::Fife),
+                    "flintshire" => Ok(Self::Flintshire),
+                    "gateshead" => Ok(Self::Gateshead),
+                    "glasgow city" => Ok(Self::GlasgowCity),
+                    "gloucestershire" => Ok(Self::Gloucestershire),
+                    "greenwich" => Ok(Self::Greenwich),
+                    "gwynedd" => Ok(Self::Gwynedd),
+                    "hackney" => Ok(Self::Hackney),
+                    "halton" => Ok(Self::Halton),
+                    "hammersmith and fulham" => Ok(Self::HammersmithAndFulham),
+                    "hampshire" => Ok(Self::Hampshire),
+                    "haringey" => Ok(Self::Haringey),
+                    "harrow" => Ok(Self::Harrow),
+                    "hartlepool" => Ok(Self::Hartlepool),
+                    "havering" => Ok(Self::Havering),
+                    "herefordshire" => Ok(Self::Herefordshire),
+                    "hertfordshire" => Ok(Self::Hertfordshire),
+                    "highland" => Ok(Self::Highland),
+                    "hillingdon" => Ok(Self::Hillingdon),
+                    "hounslow" => Ok(Self::Hounslow),
+                    "inverclyde" => Ok(Self::Inverclyde),
+                    "isle of anglesey" => Ok(Self::IsleOfAnglesey),
+                    "isle of wight" => Ok(Self::IsleOfWight),
+                    "isles of scilly" => Ok(Self::IslesOfScilly),
+                    "islington" => Ok(Self::Islington),
+                    "kensington and chelsea" => Ok(Self::KensingtonAndChelsea),
+                    "kent" => Ok(Self::Kent),
+                    "kingston upon hull" => Ok(Self::KingstonUponHull),
+                    "kingston upon thames" => Ok(Self::KingstonUponThames),
+                    "kirklees" => Ok(Self::Kirklees),
+                    "knowsley" => Ok(Self::Knowsley),
+                    "lambeth" => Ok(Self::Lambeth),
+                    "lancashire" => Ok(Self::Lancashire),
+                    "leeds" => Ok(Self::Leeds),
+                    "leicester" => Ok(Self::Leicester),
+                    "leicestershire" => Ok(Self::Leicestershire),
+                    "lewisham" => Ok(Self::Lewisham),
+                    "lincolnshire" => Ok(Self::Lincolnshire),
+                    "lisburn and castlereagh" => Ok(Self::LisburnAndCastlereagh),
+                    "liverpool" => Ok(Self::Liverpool),
+                    "london city of" => Ok(Self::LondonCityOf),
+                    "luton" => Ok(Self::Luton),
+                    "manchester" => Ok(Self::Manchester),
+                    "medway" => Ok(Self::Medway),
+                    "merthyr tydfil" => Ok(Self::MerthyrTydfil),
+                    "merton" => Ok(Self::Merton),
+                    "mid and east antrim" => Ok(Self::MidAndEastAntrim),
+                    "mid ulster" => Ok(Self::MidUlster),
+                    "middlesbrough" => Ok(Self::Middlesbrough),
+                    "midlothian" => Ok(Self::Midlothian),
+                    "milton keynes" => Ok(Self::MiltonKeynes),
+                    "monmouthshire" => Ok(Self::Monmouthshire),
+                    "moray" => Ok(Self::Moray),
+                    "neath port talbot" => Ok(Self::NeathPortTalbot),
+                    "newcastle upon tyne" => Ok(Self::NewcastleUponTyne),
+                    "newham" => Ok(Self::Newham),
+                    "newport" => Ok(Self::Newport),
+                    "newry mourne and down" => Ok(Self::NewryMourneAndDown),
+                    "norfolk" => Ok(Self::Norfolk),
+                    "north ayrshire" => Ok(Self::NorthAyrshire),
+                    "north east lincolnshire" => Ok(Self::NorthEastLincolnshire),
+                    "north lanarkshire" => Ok(Self::NorthLanarkshire),
+                    "north lincolnshire" => Ok(Self::NorthLincolnshire),
+                    "north somerset" => Ok(Self::NorthSomerset),
+                    "north tyneside" => Ok(Self::NorthTyneside),
+                    "north yorkshire" => Ok(Self::NorthYorkshire),
+                    "northamptonshire" => Ok(Self::Northamptonshire),
+                    "northumberland" => Ok(Self::Northumberland),
+                    "nottingham" => Ok(Self::Nottingham),
+                    "nottinghamshire" => Ok(Self::Nottinghamshire),
+                    "oldham" => Ok(Self::Oldham),
+                    "orkney islands" => Ok(Self::OrkneyIslands),
+                    "oxfordshire" => Ok(Self::Oxfordshire),
+                    "pembrokeshire" => Ok(Self::Pembrokeshire),
+                    "perth and kinross" => Ok(Self::PerthAndKinross),
+                    "peterborough" => Ok(Self::Peterborough),
+                    "plymouth" => Ok(Self::Plymouth),
+                    "portsmouth" => Ok(Self::Portsmouth),
+                    "powys" => Ok(Self::Powys),
+                    "reading" => Ok(Self::Reading),
+                    "redbridge" => Ok(Self::Redbridge),
+                    "redcar and cleveland" => Ok(Self::RedcarAndCleveland),
+                    "renfrewshire" => Ok(Self::Renfrewshire),
+                    "rhondda cynon taff" => Ok(Self::RhonddaCynonTaff),
+                    "richmond upon thames" => Ok(Self::RichmondUponThames),
+                    "rochdale" => Ok(Self::Rochdale),
+                    "rotherham" => Ok(Self::Rotherham),
+                    "rutland" => Ok(Self::Rutland),
+                    "salford" => Ok(Self::Salford),
+                    "sandwell" => Ok(Self::Sandwell),
+                    "scottish borders" => Ok(Self::ScottishBorders),
+                    "sefton" => Ok(Self::Sefton),
+                    "sheffield" => Ok(Self::Sheffield),
+                    "shetland islands" => Ok(Self::ShetlandIslands),
+                    "shropshire" => Ok(Self::Shropshire),
+                    "slough" => Ok(Self::Slough),
+                    "solihull" => Ok(Self::Solihull),
+                    "somerset" => Ok(Self::Somerset),
+                    "south ayrshire" => Ok(Self::SouthAyrshire),
+                    "south gloucestershire" => Ok(Self::SouthGloucestershire),
+                    "south lanarkshire" => Ok(Self::SouthLanarkshire),
+                    "south tyneside" => Ok(Self::SouthTyneside),
+                    "southampton" => Ok(Self::Southampton),
+                    "southend on sea" => Ok(Self::SouthendOnSea),
+                    "southwark" => Ok(Self::Southwark),
+                    "st helens" => Ok(Self::StHelens),
+                    "staffordshire" => Ok(Self::Staffordshire),
+                    "stirling" => Ok(Self::Stirling),
+                    "stockport" => Ok(Self::Stockport),
+                    "stockton on tees" => Ok(Self::StocktonOnTees),
+                    "stoke on trent" => Ok(Self::StokeOnTrent),
+                    "suffolk" => Ok(Self::Suffolk),
+                    "sunderland" => Ok(Self::Sunderland),
+                    "surrey" => Ok(Self::Surrey),
+                    "sutton" => Ok(Self::Sutton),
+                    "swansea" => Ok(Self::Swansea),
+                    "swindon" => Ok(Self::Swindon),
+                    "tameside" => Ok(Self::Tameside),
+                    "telford and wrekin" => Ok(Self::TelfordAndWrekin),
+                    "thurrock" => Ok(Self::Thurrock),
+                    "torbay" => Ok(Self::Torbay),
+                    "torfaen" => Ok(Self::Torfaen),
+                    "tower hamlets" => Ok(Self::TowerHamlets),
+                    "trafford" => Ok(Self::Trafford),
+                    "vale of glamorgan" => Ok(Self::ValeOfGlamorgan),
+                    "wakefield" => Ok(Self::Wakefield),
+                    "walsall" => Ok(Self::Walsall),
+                    "waltham forest" => Ok(Self::WalthamForest),
+                    "wandsworth" => Ok(Self::Wandsworth),
+                    "warrington" => Ok(Self::Warrington),
+                    "warwickshire" => Ok(Self::Warwickshire),
+                    "west berkshire" => Ok(Self::WestBerkshire),
+                    "west dunbartonshire" => Ok(Self::WestDunbartonshire),
+                    "west lothian" => Ok(Self::WestLothian),
+                    "west sussex" => Ok(Self::WestSussex),
+                    "westminster" => Ok(Self::Westminster),
+                    "wigan" => Ok(Self::Wigan),
+                    "wiltshire" => Ok(Self::Wiltshire),
+                    "windsor and maidenhead" => Ok(Self::WindsorAndMaidenhead),
+                    "wirral" => Ok(Self::Wirral),
+                    "wokingham" => Ok(Self::Wokingham),
+                    "wolverhampton" => Ok(Self::Wolverhampton),
+                    "worcestershire" => Ok(Self::Worcestershire),
+                    "wrexham" => Ok(Self::Wrexham),
+                    "york" => Ok(Self::York),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for BelgiumStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "BelgiumStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "antwerp" => Ok(Self::Antwerp),
+                    "brussels capital region" => Ok(Self::BrusselsCapitalRegion),
+                    "east flanders" => Ok(Self::EastFlanders),
+                    "flanders" => Ok(Self::Flanders),
+                    "flemish brabant" => Ok(Self::FlemishBrabant),
+                    "hainaut" => Ok(Self::Hainaut),
+                    "limburg" => Ok(Self::Limburg),
+                    "liege" => Ok(Self::Liege),
+                    "luxembourg" => Ok(Self::Luxembourg),
+                    "namur" => Ok(Self::Namur),
+                    "wallonia" => Ok(Self::Wallonia),
+                    "walloon brabant" => Ok(Self::WalloonBrabant),
+                    "west flanders" => Ok(Self::WestFlanders),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for LuxembourgStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "LuxembourgStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "canton of capellen" => Ok(Self::CantonOfCapellen),
+                    "canton of clervaux" => Ok(Self::CantonOfClervaux),
+                    "canton of diekirch" => Ok(Self::CantonOfDiekirch),
+                    "canton of echternach" => Ok(Self::CantonOfEchternach),
+                    "canton of esch sur alzette" => Ok(Self::CantonOfEschSurAlzette),
+                    "canton of grevenmacher" => Ok(Self::CantonOfGrevenmacher),
+                    "canton of luxembourg" => Ok(Self::CantonOfLuxembourg),
+                    "canton of mersch" => Ok(Self::CantonOfMersch),
+                    "canton of redange" => Ok(Self::CantonOfRedange),
+                    "canton of remich" => Ok(Self::CantonOfRemich),
+                    "canton of vianden" => Ok(Self::CantonOfVianden),
+                    "canton of wiltz" => Ok(Self::CantonOfWiltz),
+                    "diekirch district" => Ok(Self::DiekirchDistrict),
+                    "grevenmacher district" => Ok(Self::GrevenmacherDistrict),
+                    "luxembourg district" => Ok(Self::LuxembourgDistrict),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for RussiaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "RussiaStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "altai krai" => Ok(Self::AltaiKrai),
+                    "altai republic" => Ok(Self::AltaiRepublic),
+                    "amur oblast" => Ok(Self::AmurOblast),
+                    "arkhangelsk" => Ok(Self::Arkhangelsk),
+                    "astrakhan oblast" => Ok(Self::AstrakhanOblast),
+                    "belgorod oblast" => Ok(Self::BelgorodOblast),
+                    "bryansk oblast" => Ok(Self::BryanskOblast),
+                    "chechen republic" => Ok(Self::ChechenRepublic),
+                    "chelyabinsk oblast" => Ok(Self::ChelyabinskOblast),
+                    "chukotka autonomous okrug" => Ok(Self::ChukotkaAutonomousOkrug),
+                    "chuvash republic" => Ok(Self::ChuvashRepublic),
+                    "irkutsk" => Ok(Self::Irkutsk),
+                    "ivanovo oblast" => Ok(Self::IvanovoOblast),
+                    "jewish autonomous oblast" => Ok(Self::JewishAutonomousOblast),
+                    "kabardino-balkar republic" => Ok(Self::KabardinoBalkarRepublic),
+                    "kaliningrad" => Ok(Self::Kaliningrad),
+                    "kaluga oblast" => Ok(Self::KalugaOblast),
+                    "kamchatka krai" => Ok(Self::KamchatkaKrai),
+                    "karachay-cherkess republic" => Ok(Self::KarachayCherkessRepublic),
+                    "kemerovo oblast" => Ok(Self::KemerovoOblast),
+                    "khabarovsk krai" => Ok(Self::KhabarovskKrai),
+                    "khanty-mansi autonomous okrug" => Ok(Self::KhantyMansiAutonomousOkrug),
+                    "kirov oblast" => Ok(Self::KirovOblast),
+                    "komi republic" => Ok(Self::KomiRepublic),
+                    "kostroma oblast" => Ok(Self::KostromaOblast),
+                    "krasnodar krai" => Ok(Self::KrasnodarKrai),
+                    "krasnoyarsk krai" => Ok(Self::KrasnoyarskKrai),
+                    "kurgan oblast" => Ok(Self::KurganOblast),
+                    "kursk oblast" => Ok(Self::KurskOblast),
+                    "leningrad oblast" => Ok(Self::LeningradOblast),
+                    "lipetsk oblast" => Ok(Self::LipetskOblast),
+                    "magadan oblast" => Ok(Self::MagadanOblast),
+                    "mari el republic" => Ok(Self::MariElRepublic),
+                    "moscow" => Ok(Self::Moscow),
+                    "moscow oblast" => Ok(Self::MoscowOblast),
+                    "murmansk oblast" => Ok(Self::MurmanskOblast),
+                    "nenets autonomous okrug" => Ok(Self::NenetsAutonomousOkrug),
+                    "nizhny novgorod oblast" => Ok(Self::NizhnyNovgorodOblast),
+                    "novgorod oblast" => Ok(Self::NovgorodOblast),
+                    "novosibirsk" => Ok(Self::Novosibirsk),
+                    "omsk oblast" => Ok(Self::OmskOblast),
+                    "orenburg oblast" => Ok(Self::OrenburgOblast),
+                    "oryol oblast" => Ok(Self::OryolOblast),
+                    "penza oblast" => Ok(Self::PenzaOblast),
+                    "perm krai" => Ok(Self::PermKrai),
+                    "primorsky krai" => Ok(Self::PrimorskyKrai),
+                    "pskov oblast" => Ok(Self::PskovOblast),
+                    "republic of adygea" => Ok(Self::RepublicOfAdygea),
+                    "republic of bashkortostan" => Ok(Self::RepublicOfBashkortostan),
+                    "republic of buryatia" => Ok(Self::RepublicOfBuryatia),
+                    "republic of dagestan" => Ok(Self::RepublicOfDagestan),
+                    "republic of ingushetia" => Ok(Self::RepublicOfIngushetia),
+                    "republic of kalmykia" => Ok(Self::RepublicOfKalmykia),
+                    "republic of karelia" => Ok(Self::RepublicOfKarelia),
+                    "republic of khakassia" => Ok(Self::RepublicOfKhakassia),
+                    "republic of mordovia" => Ok(Self::RepublicOfMordovia),
+                    "republic of north ossetia-alania" => Ok(Self::RepublicOfNorthOssetiaAlania),
+                    "republic of tatarstan" => Ok(Self::RepublicOfTatarstan),
+                    "rostov oblast" => Ok(Self::RostovOblast),
+                    "ryazan oblast" => Ok(Self::RyazanOblast),
+                    "saint petersburg" => Ok(Self::SaintPetersburg),
+                    "sakha republic" => Ok(Self::SakhaRepublic),
+                    "sakhalin" => Ok(Self::Sakhalin),
+                    "samara oblast" => Ok(Self::SamaraOblast),
+                    "saratov oblast" => Ok(Self::SaratovOblast),
+                    "sevastopol" => Ok(Self::Sevastopol),
+                    "smolensk oblast" => Ok(Self::SmolenskOblast),
+                    "stavropol krai" => Ok(Self::StavropolKrai),
+                    "sverdlovsk" => Ok(Self::Sverdlovsk),
+                    "tambov oblast" => Ok(Self::TambovOblast),
+                    "tomsk oblast" => Ok(Self::TomskOblast),
+                    "tula oblast" => Ok(Self::TulaOblast),
+                    "tuva republic" => Ok(Self::TuvaRepublic),
+                    "tver oblast" => Ok(Self::TverOblast),
+                    "tyumen oblast" => Ok(Self::TyumenOblast),
+                    "udmurt republic" => Ok(Self::UdmurtRepublic),
+                    "ulyanovsk oblast" => Ok(Self::UlyanovskOblast),
+                    "vladimir oblast" => Ok(Self::VladimirOblast),
+                    "vologda oblast" => Ok(Self::VologdaOblast),
+                    "voronezh oblast" => Ok(Self::VoronezhOblast),
+                    "yamalo-nenets autonomous okrug" => Ok(Self::YamaloNenetsAutonomousOkrug),
+                    "yaroslavl oblast" => Ok(Self::YaroslavlOblast),
+                    "zabaykalsky krai" => Ok(Self::ZabaykalskyKrai),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SanMarinoStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "SanMarinoStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "acquaviva" => Ok(Self::Acquaviva),
+                    "borgo maggiore" => Ok(Self::BorgoMaggiore),
+                    "chiesanuova" => Ok(Self::Chiesanuova),
+                    "domagnano" => Ok(Self::Domagnano),
+                    "faetano" => Ok(Self::Faetano),
+                    "fiorentino" => Ok(Self::Fiorentino),
+                    "montegiardino" => Ok(Self::Montegiardino),
+                    "san marino" => Ok(Self::SanMarino),
+                    "serravalle" => Ok(Self::Serravalle),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SerbiaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "SerbiaStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "belgrade" => Ok(Self::Belgrade),
+                    "bor district" => Ok(Self::BorDistrict),
+                    "braničevo district" => Ok(Self::BraničevoDistrict),
+                    "central banat district" => Ok(Self::CentralBanatDistrict),
+                    "jablanica district" => Ok(Self::JablanicaDistrict),
+                    "kolubara district" => Ok(Self::KolubaraDistrict),
+                    "mačva district" => Ok(Self::MačvaDistrict),
+                    "moravica district" => Ok(Self::MoravicaDistrict),
+                    "nišava district" => Ok(Self::NišavaDistrict),
+                    "north banat district" => Ok(Self::NorthBanatDistrict),
+                    "north bačka district" => Ok(Self::NorthBačkaDistrict),
+                    "pirot district" => Ok(Self::PirotDistrict),
+                    "podunavlje district" => Ok(Self::PodunavljeDistrict),
+                    "pomoravlje district" => Ok(Self::PomoravljeDistrict),
+                    "pčinja district" => Ok(Self::PčinjaDistrict),
+                    "rasina district" => Ok(Self::RasinaDistrict),
+                    "raška district" => Ok(Self::RaškaDistrict),
+                    "south banat district" => Ok(Self::SouthBanatDistrict),
+                    "south bačka district" => Ok(Self::SouthBačkaDistrict),
+                    "srem district" => Ok(Self::SremDistrict),
+                    "toplica district" => Ok(Self::ToplicaDistrict),
+                    "vojvodina" => Ok(Self::Vojvodina),
+                    "west bačka district" => Ok(Self::WestBačkaDistrict),
+                    "zaječar district" => Ok(Self::ZaječarDistrict),
+                    "zlatibor district" => Ok(Self::ZlatiborDistrict),
+                    "šumadija district" => Ok(Self::ŠumadijaDistrict),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SlovakiaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "SlovakiaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "banska bystrica region" => Ok(Self::BanskaBystricaRegion),
+                    "bratislava region" => Ok(Self::BratislavaRegion),
+                    "kosice region" => Ok(Self::KosiceRegion),
+                    "nitra region" => Ok(Self::NitraRegion),
+                    "presov region" => Ok(Self::PresovRegion),
+                    "trencin region" => Ok(Self::TrencinRegion),
+                    "trnava region" => Ok(Self::TrnavaRegion),
+                    "zilina region" => Ok(Self::ZilinaRegion),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SwedenStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "SwedenStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "blekinge" => Ok(Self::Blekinge),
+                    "dalarna county" => Ok(Self::DalarnaCounty),
+                    "gotland county" => Ok(Self::GotlandCounty),
+                    "gävleborg county" => Ok(Self::GävleborgCounty),
+                    "halland county" => Ok(Self::HallandCounty),
+                    "jönköping county" => Ok(Self::JönköpingCounty),
+                    "kalmar county" => Ok(Self::KalmarCounty),
+                    "kronoberg county" => Ok(Self::KronobergCounty),
+                    "norrbotten county" => Ok(Self::NorrbottenCounty),
+                    "skåne county" => Ok(Self::SkåneCounty),
+                    "stockholm county" => Ok(Self::StockholmCounty),
+                    "södermanland county" => Ok(Self::SödermanlandCounty),
+                    "uppsala county" => Ok(Self::UppsalaCounty),
+                    "värmland county" => Ok(Self::VärmlandCounty),
+                    "västerbotten county" => Ok(Self::VästerbottenCounty),
+                    "västernorrland county" => Ok(Self::VästernorrlandCounty),
+                    "västmanland county" => Ok(Self::VästmanlandCounty),
+                    "västra götaland county" => Ok(Self::VästraGötalandCounty),
+                    "örebro county" => Ok(Self::ÖrebroCounty),
+                    "östergötland county" => Ok(Self::ÖstergötlandCounty),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SloveniaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "SloveniaStatesAbbreviation",
+        );
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "ajdovščina" => Ok(Self::Ajdovščina),
+                    "ankaran" => Ok(Self::Ankaran),
+                    "beltinci" => Ok(Self::Beltinci),
+                    "benedikt" => Ok(Self::Benedikt),
+                    "bistrica ob sotli" => Ok(Self::BistricaObSotli),
+                    "bled" => Ok(Self::Bled),
+                    "bloke" => Ok(Self::Bloke),
+                    "bohinj" => Ok(Self::Bohinj),
+                    "borovnica" => Ok(Self::Borovnica),
+                    "bovec" => Ok(Self::Bovec),
+                    "braslovče" => Ok(Self::Braslovče),
+                    "brda" => Ok(Self::Brda),
+                    "brezovica" => Ok(Self::Brezovica),
+                    "brežice" => Ok(Self::Brežice),
+                    "cankova" => Ok(Self::Cankova),
+                    "cerklje na gorenjskem" => Ok(Self::CerkljeNaGorenjskem),
+                    "cerknica" => Ok(Self::Cerknica),
+                    "cerkno" => Ok(Self::Cerkno),
+                    "cerkvenjak" => Ok(Self::Cerkvenjak),
+                    "city municipality of celje" => Ok(Self::CityMunicipalityOfCelje),
+                    "city municipality of novo mesto" => Ok(Self::CityMunicipalityOfNovoMesto),
+                    "destrnik" => Ok(Self::Destrnik),
+                    "divača" => Ok(Self::Divača),
+                    "dobje" => Ok(Self::Dobje),
+                    "dobrepolje" => Ok(Self::Dobrepolje),
+                    "dobrna" => Ok(Self::Dobrna),
+                    "dobrova-polhov gradec" => Ok(Self::DobrovaPolhovGradec),
+                    "dobrovnik" => Ok(Self::Dobrovnik),
+                    "dol pri ljubljani" => Ok(Self::DolPriLjubljani),
+                    "dolenjske toplice" => Ok(Self::DolenjskeToplice),
+                    "domžale" => Ok(Self::Domžale),
+                    "dornava" => Ok(Self::Dornava),
+                    "dravograd" => Ok(Self::Dravograd),
+                    "duplek" => Ok(Self::Duplek),
+                    "gorenja vas-poljane" => Ok(Self::GorenjaVasPoljane),
+                    "gorišnica" => Ok(Self::Gorišnica),
+                    "gorje" => Ok(Self::Gorje),
+                    "gornja radgona" => Ok(Self::GornjaRadgona),
+                    "gornji grad" => Ok(Self::GornjiGrad),
+                    "gornji petrovci" => Ok(Self::GornjiPetrovci),
+                    "grad" => Ok(Self::Grad),
+                    "grosuplje" => Ok(Self::Grosuplje),
+                    "hajdina" => Ok(Self::Hajdina),
+                    "hodoš" => Ok(Self::Hodoš),
+                    "horjul" => Ok(Self::Horjul),
+                    "hoče-slivnica" => Ok(Self::HočeSlivnica),
+                    "hrastnik" => Ok(Self::Hrastnik),
+                    "hrpelje-kozina" => Ok(Self::HrpeljeKozina),
+                    "idrija" => Ok(Self::Idrija),
+                    "ig" => Ok(Self::Ig),
+                    "ivančna gorica" => Ok(Self::IvančnaGorica),
+                    "izola" => Ok(Self::Izola),
+                    "jesenice" => Ok(Self::Jesenice),
+                    "jezersko" => Ok(Self::Jezersko),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check = StringExt::<Self>::parse_enum(
+            value.to_uppercase().clone(),
+            "UkraineStatesAbbreviation",
+        );
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+
+                match state {
+                    "autonomous republic of crimea" => Ok(Self::AutonomousRepublicOfCrimea),
+                    "cherkasy oblast" => Ok(Self::CherkasyOblast),
+                    "chernihiv oblast" => Ok(Self::ChernihivOblast),
+                    "chernivtsi oblast" => Ok(Self::ChernivtsiOblast),
+                    "dnipropetrovsk oblast" => Ok(Self::DnipropetrovskOblast),
+                    "donetsk oblast" => Ok(Self::DonetskOblast),
+                    "ivano-frankivsk oblast" => Ok(Self::IvanoFrankivskOblast),
+                    "kharkiv oblast" => Ok(Self::KharkivOblast),
+                    "kherson oblast" => Ok(Self::KhersonOblast),
+                    "khmelnytsky oblast" => Ok(Self::KhmelnytskyOblast),
+                    "kiev" => Ok(Self::Kiev),
+                    "kirovohrad oblast" => Ok(Self::KirovohradOblast),
+                    "kyiv oblast" => Ok(Self::KyivOblast),
+                    "luhansk oblast" => Ok(Self::LuhanskOblast),
+                    "lviv oblast" => Ok(Self::LvivOblast),
+                    "mykolaiv oblast" => Ok(Self::MykolaivOblast),
+                    "odessa oblast" => Ok(Self::OdessaOblast),
+                    "rivne oblast" => Ok(Self::RivneOblast),
+                    "sumy oblast" => Ok(Self::SumyOblast),
+                    "ternopil oblast" => Ok(Self::TernopilOblast),
+                    "vinnytsia oblast" => Ok(Self::VinnytsiaOblast),
+                    "volyn oblast" => Ok(Self::VolynOblast),
+                    "zakarpattia oblast" => Ok(Self::ZakarpattiaOblast),
+                    "zaporizhzhya oblast" => Ok(Self::ZaporizhzhyaOblast),
+                    "zhytomyr oblast" => Ok(Self::ZhytomyrOblast),
                     _ => Err(errors::ConnectorError::InvalidDataFormat {
                         field_name: "address.state",
                     }
@@ -2922,18 +5483,78 @@ impl CardData for api_models::payouts::CardPayout {
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
+    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token_expiry_month(&self) -> Secret<String>;
+    fn get_network_token_expiry_year(&self) -> Secret<String>;
+    fn get_cryptogram(&self) -> Option<Secret<String>>;
 }
 
 impl NetworkTokenData for payment_method_data::NetworkTokenData {
+    #[cfg(feature = "v1")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.token_number.peek())
     }
 
+    #[cfg(feature = "v2")]
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.network_token.peek())
+    }
+
+    #[cfg(feature = "v1")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
             year = format!("20{}", year);
         }
         Secret::new(year)
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.network_token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.token_number.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.network_token.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.token_exp_month.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.network_token_exp_month.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.token_exp_year.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.network_token_exp_year.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        self.token_cryptogram.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        self.cryptogram.clone()
     }
 }
