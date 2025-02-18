@@ -8,10 +8,6 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
-#[cfg(feature = "v2")]
-use common_utils::id_type::GlobalPaymentId;
-#[cfg(feature = "v2")]
-use common_utils::types::ConnectorTransactionId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
