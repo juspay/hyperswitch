@@ -5247,7 +5247,8 @@ pub async fn list_payments(
                     merchant.storage_scheme,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to get active_attempt_ids for merchant")?;
 
             let total_count = if constraints.has_no_attempt_filters() {
                 i64::try_from(active_attempt_ids.len())

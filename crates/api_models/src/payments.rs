@@ -4889,8 +4889,7 @@ pub struct PaymentsResponse {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentsListResponseItem {
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// Unique identifier for the payment
     #[schema(
         min_length = 32,
         max_length = 64,
@@ -4951,14 +4950,8 @@ pub struct PaymentsListResponseItem {
     /// Details of the customer
     pub customer: Option<CustomerDetailsResponse>,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
-    #[schema(
-        value_type = Option<String>,
-        min_length = 30,
-        max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
-    )]
+    /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
+    #[schema(value_type = Option<String>)]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
     /// A unique identifier for a payment provided by the connector
@@ -4968,7 +4961,7 @@ pub struct PaymentsListResponseItem {
     /// Reference to the capture at connector side
     pub connector_response_reference_id: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<Secret<serde_json::Value>>,
 
@@ -4976,7 +4969,7 @@ pub struct PaymentsListResponseItem {
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
 
-    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS, as the 3DS method helps with more robust payer authentication
+    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
@@ -5734,16 +5727,16 @@ pub struct PaymentListConstraints {
     /// The payment status to filter payments list
     #[param(value_type = Option<IntentStatus>)]
     pub status: Option<enums::IntentStatus>,
-    /// The payment method to filter payments list
+    /// The payment method type to filter payments list
     #[param(value_type = Option<PaymentMethod>)]
     pub payment_method_type: Option<enums::PaymentMethod>,
-    /// The payment method type to filter payments list
+    /// The payment method subtype to filter payments list
     #[param(value_type = Option<PaymentMethodType>)]
     pub payment_method_subtype: Option<enums::PaymentMethodType>,
     /// The authentication type to filter payments list
     #[param(value_type = Option<AuthenticationType>)]
     pub authentication_type: Option<enums::AuthenticationType>,
-    /// The merchant connector ids to filter payments list for selected label
+    /// The merchant connector id to filter payments list
     #[param(value_type = Option<String>)]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// The field on which the payments list should be sorted

@@ -2476,7 +2476,7 @@
           {
             "name": "payment_method_type",
             "in": "path",
-            "description": "The payment method to filter payments list",
+            "description": "The payment method type to filter payments list",
             "required": true,
             "schema": {
               "allOf": [
@@ -2490,7 +2490,7 @@
           {
             "name": "payment_method_subtype",
             "in": "path",
-            "description": "The payment method type to filter payments list",
+            "description": "The payment method subtype to filter payments list",
             "required": true,
             "schema": {
               "allOf": [
@@ -2518,7 +2518,7 @@
           {
             "name": "merchant_connector_id",
             "in": "path",
-            "description": "The merchant connector ids to filter payments list for selected label",
+            "description": "The merchant connector id to filter payments list",
             "required": true,
             "schema": {
               "type": "string",
@@ -2574,10 +2574,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PaymentListResponse"
-                  }
+                  "$ref": "#/components/schemas/PaymentListResponse"
                 }
               }
             }
@@ -16092,7 +16089,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "description": "Unique identifier for the payment",
             "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
@@ -16176,11 +16173,8 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
+            "nullable": true
           },
           "connector_payment_id": {
             "type": "string",
@@ -16195,7 +16189,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "description": {

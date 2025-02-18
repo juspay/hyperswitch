@@ -857,7 +857,7 @@ pub fn list_payment_methods() {}
     path = "/v2/payments/list",
     params(api_models::payments::PaymentListConstraints),
     responses(
-        (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
+        (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",

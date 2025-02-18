@@ -1147,7 +1147,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 payment_attempt_schema::table
                     .on(pi_dsl::active_attempt_id.eq(pa_dsl::id.nullable())),
             )
-            .into_boxed(); // Filtering on merchant_id for payment_attempt is not required for v2
+            // Filtering on merchant_id for payment_attempt is not required for v2 as payment_attempt_ids are globally unique
+            .into_boxed();
 
         query = match constraints {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
