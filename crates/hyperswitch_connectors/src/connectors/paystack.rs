@@ -1,12 +1,13 @@
 pub mod transformers;
 
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, ByteSliceExt},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -43,13 +44,13 @@ use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Paystack {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync)
 }
 
 impl Paystack {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector
         }
     }
 }
@@ -115,10 +116,7 @@ impl ConnectorCommon for Paystack {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = paystack::PaystackAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Bearer {}", auth.api_key.expose()).into_masked())])
     }
 
     fn build_error_response(
@@ -133,12 +131,13 @@ impl ConnectorCommon for Paystack {
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let error_message = paystack::get_error_message(response.clone());
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
-            message: response.message,
-            reason: response.reason,
+            message: error_message,
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -173,12 +172,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         self.common_get_content_type()
     }
 
-    fn get_url(
-        &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    fn get_url(&self, _req: &PaymentsAuthorizeRouterData, connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!("{}/charge", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -262,10 +257,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transaction/verify/",
+            connector_payment_id,
+        ))
     }
 
     fn build_request(
@@ -289,7 +294,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: paystack::PaystackPaymentsResponse = res
+        let response: paystack:: PaystackPSyncResponse = res
             .response
             .parse_struct("paystack PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -403,12 +408,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paystac
         self.common_get_content_type()
     }
 
-    fn get_url(
-        &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    fn get_url(&self, _req: &RefundsRouterData<Execute>, connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!("{}/refund", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -451,11 +452,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paystac
         data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: paystack::RefundResponse = res
-            .response
-            .parse_struct("paystack RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<RefundsRouterData<Execute>,errors::ConnectorError> {
+        let response: paystack::PaystackRefundsResponse = res.response.parse_struct("paystack RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -487,12 +485,18 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paystack 
         self.common_get_content_type()
     }
 
-    fn get_url(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    fn get_url(&self, req: &RefundSyncRouterData,connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/refund/",
+            connector_refund_id,
+        ))
     }
 
     fn build_request(
@@ -518,11 +522,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paystack 
         data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: paystack::RefundResponse = res
-            .response
-            .parse_struct("paystack RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<RefundSyncRouterData,errors::ConnectorError,> {
+        let response: paystack::PaystackRefundsResponse = res.response.parse_struct("paystack RefundSyncResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -543,25 +544,84 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paystack 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Paystack {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha512))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature =
+            utils::get_header_key_value("x-paystack-signature", request.headers)
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        hex::decode(signature)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let message = std::str::from_utf8(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(message.to_string().into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = request.body.parse_struct::<paystack::PaystackWebhookData>("PaystackWebhookData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        match webhook_body.data {
+            paystack::PaystackWebhookEventData::Payment(data) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        data.reference,
+                    ),
+                ))
+            }
+            paystack::PaystackWebhookEventData::Refund(data) => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(data.id),
+                ))
+            }
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = request.body.parse_struct::<paystack::PaystackWebhookData>("PaystackWebhookData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            webhook_body.data,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body = request.body.parse_struct::<paystack::PaystackWebhookData>("PaystackWebhookData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(match webhook_body.data {
+            paystack::PaystackWebhookEventData::Payment(payment_webhook_data) => {
+                Box::new(payment_webhook_data)
+            }
+            paystack::PaystackWebhookEventData::Refund(refund_webhook_data) => {
+                Box::new(refund_webhook_data)
+            }
+        })
     }
 }
 
