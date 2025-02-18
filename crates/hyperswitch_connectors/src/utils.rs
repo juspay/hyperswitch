@@ -2439,6 +2439,7 @@ pub enum PaymentMethodDataType {
     BancontactCard,
     Bizum,
     Blik,
+    Eft,
     Eps,
     Giropay,
     Ideal,
@@ -2570,6 +2571,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
+                payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
                 payment_method_data::BankRedirectData::Giropay { .. } => Self::Giropay,
                 payment_method_data::BankRedirectData::Ideal { .. } => Self::Ideal,
