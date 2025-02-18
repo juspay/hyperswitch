@@ -251,6 +251,11 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     )),
                     Some(PaymentSolution::GooglePay),
                 ),
+                WalletData::SamsungPay(samsung_pay_data) => (
+                    (get_samsung_pay_payment_information(&samsung_pay_data)
+                        .attach_printable("Failed to get samsung pay payment information")?),
+                    Some(PaymentSolution::SamsungPay),
+                ),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -269,7 +274,6 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | WalletData::PaypalRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
-                | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -1859,25 +1863,8 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let samsung_pay_fluid_data_value =
-            get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
-
-        let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to serialize samsung pay fluid data")?;
-
-        let payment_information =
-            PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
-                fluid_data: FluidData {
-                    value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
-                    descriptor: Some(
-                        consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
-                    ),
-                },
-                tokenized_card: SamsungPayTokenizedCard {
-                    transaction_type: TransactionType::SamsungPay,
-                },
-            }));
+        let payment_information = get_samsung_pay_payment_information(&samsung_pay_data)
+            .attach_printable("Failed to get samsung pay payment information")?;
 
         let processing_information = ProcessingInformation::try_from((
             item,
@@ -1901,6 +1888,32 @@ impl
             merchant_defined_information,
         })
     }
+}
+
+fn get_samsung_pay_payment_information(
+    samsung_pay_data: &SamsungPayWalletData,
+) -> Result<PaymentInformation, error_stack::Report<errors::ConnectorError>> {
+    let samsung_pay_fluid_data_value =
+        get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
+
+    let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to serialize samsung pay fluid data")?;
+
+    let payment_information =
+        PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
+            fluid_data: FluidData {
+                value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
+                descriptor: Some(
+                    consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
+                ),
+            },
+            tokenized_card: SamsungPayTokenizedCard {
+                transaction_type: TransactionType::SamsungPay,
+            },
+        }));
+
+    Ok(payment_information)
 }
 
 fn get_samsung_pay_fluid_data_value(
