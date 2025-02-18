@@ -145,8 +145,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist_fingerprint (id) {
-        id -> Int4,
+    blocklist_fingerprint (merchant_id, fingerprint_id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -161,8 +160,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist_lookup (id) {
-        id -> Int4,
+    blocklist_lookup (merchant_id, fingerprint) {
         #[max_length = 64]
         merchant_id -> Varchar,
         fingerprint -> Text,
@@ -228,7 +226,8 @@ diesel::table! {
     callback_mapper (id, type_) {
         #[max_length = 128]
         id -> Varchar,
-        #[sql_name = "type", max_length = 64]
+        #[sql_name = "type"]
+        #[max_length = 64]
         type_ -> Varchar,
         data -> Jsonb,
         created_at -> Timestamp,
@@ -303,7 +302,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     configs (key) {
-        id -> Int4,
         #[max_length = 255]
         key -> Varchar,
         config -> Text,
@@ -618,8 +616,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    locker_mock_up (id) {
-        id -> Int4,
+    locker_mock_up (card_id) {
         #[max_length = 255]
         card_id -> Varchar,
         #[max_length = 255]
