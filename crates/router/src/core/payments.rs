@@ -5248,7 +5248,7 @@ pub async fn list_payments(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to get active_attempt_ids for merchant")?;
+                .attach_printable("Error while retrieving active_attempt_ids for merchant")?;
 
             let total_count = if constraints.has_no_attempt_filters() {
                 i64::try_from(active_attempt_ids.len())
@@ -5273,6 +5273,7 @@ pub async fn list_payments(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while retrieving total count of payment attempts")
             }?;
 
             Ok(services::ApplicationResponse::Json(
