@@ -224,6 +224,7 @@ diesel::table! {
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
+        always_request_extended_authorization -> Nullable<Bool>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
@@ -877,6 +878,9 @@ diesel::table! {
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        request_extended_authorization -> Nullable<Bool>,
+        extended_authorization_applied -> Nullable<Bool>,
+        capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
         feature_metadata -> Nullable<Jsonb>,
@@ -953,6 +957,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        request_extended_authorization -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
