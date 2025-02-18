@@ -2690,6 +2690,83 @@
         ]
       }
     },
+    "/v2/payment-method-session/:id/confirm": {
+      "post": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Confirm a payment method session",
+        "description": "**Confirms a payment method session object with the payment method data**",
+        "operationId": "Confirm the payment method session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionConfirmRequest"
+              },
+              "examples": {
+                "Confirm the payment method session with card details": {
+                  "value": {
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "payment_method_subtype": "credit",
+                    "payment_method_type": "card"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Method created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/v2/refunds": {
       "post": {
         "tags": [
@@ -14580,6 +14657,25 @@
             }
           }
         ]
+      },
+      "PaymentMethodSessionConfirmRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_method_subtype",
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          }
+        }
       },
       "PaymentMethodSessionRequest": {
         "type": "object",

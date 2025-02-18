@@ -2252,6 +2252,8 @@ async fn create_zero_auth_payment(
     ))
     .await?;
 
+    logger::info!(associated_payments_response=?response);
+
     Ok(())
 }
 

@@ -576,7 +576,7 @@ pub enum CardType {
 
 // We cannot use the card struct that we have for payments for the following reason
 // The card struct used for payments has card_cvc as mandatory
-// but when vulting the card, we do not need cvc to be collected from the user
+// but when vaulting the card, we do not need cvc to be collected from the user
 // This is because, the vaulted payment method can be used for future transactions in the presence of the customer
 // when the customer is on_session again, the cvc can be collected from the customer
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2586,6 +2586,7 @@ pub struct PaymentMethodSessionConfirmRequest {
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment instrument data to be used for the payment
+    #[schema(value_type = PaymentMethodDataRequest)]
     pub payment_method_data: payments::PaymentMethodDataRequest,
 }
 
