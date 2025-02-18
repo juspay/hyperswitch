@@ -58,7 +58,7 @@ pub enum RecoveryAction {
     PendingPayment,
     /// No action required.
     NoAction,
-    /// Invalid event has been recieved.
+    /// Invalid event has been received.
     InvalidAction,
 }
 
