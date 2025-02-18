@@ -7456,8 +7456,6 @@ pub struct RetrievePaymentLinkRequest {
 pub struct PaymentLinkResponse {
     /// URL for rendering the open payment link
     pub link: String,
-    /// URL for rendering the secure payment link
-    pub secure_link: Option<String>,
     /// Identifier for the payment link
     pub payment_link_id: String,
 }
@@ -7486,8 +7484,6 @@ pub struct RetrievePaymentLinkResponse {
     pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
-    /// Secure payment link (with security checks and listing saved payment methods)
-    pub secure_link: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

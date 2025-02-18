@@ -26,41 +26,6 @@ pub fn validate_secure_payment_link_render_request(
             )
         })?;
 
-    // Validate secure_link was generated
-    if payment_link.secure_link.clone().is_none() {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestUrl)).attach_printable_lazy(
-            || {
-                format!(
-                    "Secure payment link was not generated for {}\nmissing secure_link",
-                    link_id
-                )
-            },
-        );
-    }
-
-    // Fetch destination is "iframe"
-    match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
-        Some("iframe") => Ok(()),
-        Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "payment_link".to_string(),
-        }))
-        .attach_printable_lazy(|| {
-            format!(
-                "Access to payment_link [{}] is forbidden when requested through {}",
-                link_id, requestor
-            )
-        }),
-        None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "payment_link".to_string(),
-        }))
-        .attach_printable_lazy(|| {
-            format!(
-                "Access to payment_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
-                link_id
-            )
-        }),
-    }?;
-
     // Validate origin / referer
     let domain_in_req = {
         let origin_or_referer = request_headers

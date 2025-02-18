@@ -16555,11 +16555,6 @@
             "type": "string",
             "description": "URL for rendering the open payment link"
           },
-          "secure_link": {
-            "type": "string",
-            "description": "URL for rendering the secure payment link",
-            "nullable": true
-          },
           "payment_link_id": {
             "type": "string",
             "description": "Identifier for the payment link"
@@ -24246,11 +24241,6 @@
                 "$ref": "#/components/schemas/Currency"
               }
             ],
-            "nullable": true
-          },
-          "secure_link": {
-            "type": "string",
-            "description": "Secure payment link (with security checks and listing saved payment methods)",
             "nullable": true
           }
         }
