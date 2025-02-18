@@ -55,4 +55,6 @@ pub mod webhooks;
 
 pub mod unified_authentication_service;
 
+#[cfg(feature = "v2")]
+pub mod passive_churn_recovery;
 pub mod relay;
