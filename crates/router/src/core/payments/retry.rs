@@ -653,6 +653,9 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
+        request_extended_authorization: Default::default(),
+        extended_authorization_applied: Default::default(),
+        capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
     }
 }

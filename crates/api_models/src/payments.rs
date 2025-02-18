@@ -4,6 +4,7 @@ use std::{
     num::NonZeroI64,
 };
 pub mod additional_info;
+pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
@@ -18,7 +19,10 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    types::{
+        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
+        StringMajorUnit,
+    },
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -37,7 +41,7 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
     mandates::RecurringDetails,
-    refunds,
+    refunds, ValidateFieldAndGet,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1042,6 +1046,12 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<SplitPaymentsRequest>)]
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
+    /// Optional boolean value to extent authorization period of this payment
+    ///
+    /// capture method must be manual or manual_multiple
+    #[schema(value_type = Option<bool>, default = false)]
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
@@ -1099,6 +1109,18 @@ impl PaymentsRequest {
         self.customer_id
             .as_ref()
             .or(self.customer.as_ref().map(|customer| &customer.id))
+    }
+
+    pub fn validate_and_get_request_extended_authorization(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<RequestExtendedAuthorizationBool>, ValidationError>
+    {
+        self.request_extended_authorization
+            .as_ref()
+            .map(|request_extended_authorization| {
+                request_extended_authorization.validate_field_and_get(self)
+            })
+            .transpose()
     }
 
     /// Checks if the customer details are passed in both places
@@ -4841,6 +4863,14 @@ pub struct PaymentsResponse {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
+
+    /// flag that indicates if extended authorization is applied on this payment or not
+    #[schema(value_type = Option<bool>)]
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+
+    /// date and time after which this payment cannot be captured
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
