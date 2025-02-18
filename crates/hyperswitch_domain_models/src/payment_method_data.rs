@@ -1768,7 +1768,7 @@ impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
                 .rev()
                 .collect::<String>(),
             card_network: item.payment_method.network,
-            card_type: item.payment_method.pm_type,
+            card_type: Some(item.payment_method.pm_type),
         }
     }
 }

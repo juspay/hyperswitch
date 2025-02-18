@@ -978,18 +978,19 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
                 .rev()
                 .collect::<String>(),
             card_network: item.network,
-            card_type: item.pm_type,
+            card_type: Some(item.pm_type),
         }
     }
 }
 
-impl From<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
-    fn from(item: PaymentMethodDataWalletInfo) -> Self {
-        Self {
+impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
             display_name: item.last4,
             network: item.card_network,
-            pm_type: item.card_type,
-        }
+            pm_type: item.card_type.get_required_value("card_type")?,
+        })
     }
 }
 
