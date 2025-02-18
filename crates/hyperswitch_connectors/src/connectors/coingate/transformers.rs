@@ -1,31 +1,27 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use std::collections::HashMap;
+
+use common_enums::{enums, Currency};
+use common_utils::{request::Method, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types::PaymentsAuthorizeRouterData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::{types::ResponseRouterData, utils};
 
-//TODO: Fill the struct with respective fields
 pub struct CoingateRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for CoingateRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(StringMajorUnit, T)> for CoingateRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -33,20 +29,15 @@ impl<T> From<(StringMinorUnit, T)> for CoingateRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct CoingatePaymentsRequest {
-    amount: StringMinorUnit,
-    card: CoingateCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct CoingateCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+    price_amount: StringMajorUnit,
+    price_currency: Currency,
+    receive_currency: String,
+    callback_url: Option<String>,
+    success_url: Option<String>,
+    cancel_url: Option<String>,
+    title: String,
 }
 
 impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaymentsRequest {
@@ -54,27 +45,23 @@ impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaym
     fn try_from(
         item: &CoingateRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = CoingateCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
+        Ok(match item.router_data.request.payment_method_data {
+            PaymentMethodData::Crypto(_) => Ok(Self {
+                price_amount: item.amount.clone(),
+                price_currency: item.router_data.request.currency,
+                receive_currency: "DO_NOT_CONVERT".to_string(),
+                callback_url: item.router_data.request.router_return_url.clone(),
+                success_url: item.router_data.request.router_return_url.clone(),
+                cancel_url: item.router_data.request.router_return_url.clone(),
+                title: item.router_data.connector_request_reference_id.clone(),
+            }),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Coingate"),
+            )),
+        }?)
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct CoingateAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -90,32 +77,40 @@ impl TryFrom<&ConnectorAuthType> for CoingateAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CoingatePaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+    New,
+    Pending,
+    Confirming,
+    Paid,
+    Invalid,
+    Expired,
+    Canceled,
 }
 
 impl From<CoingatePaymentStatus> for common_enums::AttemptStatus {
     fn from(item: CoingatePaymentStatus) -> Self {
         match item {
-            CoingatePaymentStatus::Succeeded => Self::Charged,
-            CoingatePaymentStatus::Failed => Self::Failure,
-            CoingatePaymentStatus::Processing => Self::Authorizing,
+            CoingatePaymentStatus::Paid => Self::Charged,
+            CoingatePaymentStatus::Canceled
+            | CoingatePaymentStatus::Expired
+            | CoingatePaymentStatus::Invalid => Self::Failure,
+            CoingatePaymentStatus::Confirming | CoingatePaymentStatus::New => {
+                Self::AuthenticationPending
+            }
+            CoingatePaymentStatus::Pending => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CoingatePaymentsResponse {
     status: CoingatePaymentStatus,
-    id: String,
+    id: i64,
+    payment_url: String,
+    order_id: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>>
@@ -126,14 +121,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
+                redirection_data: Box::new(Some(RedirectForm::Form {
+                    endpoint: item.response.payment_url.clone(),
+                    method: Method::Get,
+                    form_fields: HashMap::new(),
+                })),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -141,88 +140,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
         })
     }
 }
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct CoingateRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
-impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &CoingateRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CoingateErrorResponse {
     pub status_code: u16,
-    pub code: String,
     pub message: String,
-    pub reason: Option<String>,
+    pub reason: String,
 }
