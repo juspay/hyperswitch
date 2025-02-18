@@ -15,7 +15,7 @@ use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
-#[cfg(feature = "recovery")]
+#[cfg(feature = "revenue_recovery")]
 use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
@@ -351,7 +351,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     api::WebhookFlow::Payout => todo!(),
 
                     api::WebhookFlow::Subscription => todo!(),
-                    #[cfg(feature = "recovery")]
+                    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
                     api::WebhookFlow::Recovery => {
                         Box::pin(recovery_incoming::recovery_incoming_webhook_flow(
                             state.clone(),
@@ -366,7 +366,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             req_state,
                         ))
                         .await
-                        .attach_printable("Recovery incoming webhook flow for payments failed")?
+                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        .attach_printable("Failed to process recovery incoming webhook")?
                     }
                 }
             }

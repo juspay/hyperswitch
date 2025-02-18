@@ -15,7 +15,7 @@ pub mod events;
 pub mod integrity;
 pub mod metrics;
 /// passive churn recovery interface
-#[cfg(feature = "recovery")]
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub mod recovery;
 pub mod secrets_interface;
 pub mod types;

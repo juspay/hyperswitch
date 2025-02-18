@@ -13,7 +13,7 @@ v1 = ["hyperswitch_domain_models/v1", "api_models/v1", "common_utils/v1"]
 v2 = ["diesel_models/v2"]
 payouts = ["hyperswitch_domain_models/payouts"]
 frm = ["hyperswitch_domain_models/frm"]
-recovery= []
+revenue_recovery= []
 
 [dependencies]
 actix-web = "4.5.1"

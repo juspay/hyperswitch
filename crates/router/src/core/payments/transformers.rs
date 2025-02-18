@@ -211,6 +211,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
+    let connector_customer_id = customer.as_ref().and_then(|customer| {
+        customer
+            .get_connector_customer_id(&merchant_connector_account.get_id())
+            .map(String::from)
+    });
+
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
     let router_base_url = &state.base_url;
@@ -352,7 +358,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         reference_id: None,
         payment_method_status: None,
         payment_method_token: None,
-        connector_customer: None,
+        connector_customer: connector_customer_id,
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
@@ -867,6 +873,12 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
+    let connector_customer_id = customer.as_ref().and_then(|customer| {
+        customer
+            .get_connector_customer_id(&merchant_connector_account.get_id())
+            .map(String::from)
+    });
+
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
     let router_base_url = &state.base_url;
@@ -994,7 +1006,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         reference_id: None,
         payment_method_status: None,
         payment_method_token: None,
-        connector_customer: None,
+        connector_customer: connector_customer_id,
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
@@ -2519,6 +2531,7 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            card_discovery: payment_attempt.card_discovery,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2775,6 +2788,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            card_discovery: pa.card_discovery
         }
     }
 }
@@ -4241,21 +4255,23 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
     }
 }
 
+
 #[cfg(feature = "v2")]
-impl ForeignFrom<&diesel_models::PaymentAttemptFeatureMetadata>
-    for api_models::payments::PaymentAttemptFeatureMetadata
+impl
+    ForeignFrom<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    > for api_models::payments::PaymentAttemptFeatureMetadata
 {
-    fn foreign_from(feature_metadata: &diesel_models::PaymentAttemptFeatureMetadata) -> Self {
-        let passive_churn_recovery =
-            feature_metadata
-                .passive_churn_recovery
-                .as_ref()
-                .map(|recovery| api_models::payments::PassiveChurnRecoveryData {
-                    triggered_by: recovery.triggered_by.to_owned(),
-                });
-        Self {
-            passive_churn_recovery,
-        }
+    fn foreign_from(
+        feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    ) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|data| {
+            api_models::payments::PaymentAttemptRevenueRecoveryData {
+                attempt_triggered_by: data.attempt_triggered_by,
+            }
+        });
+
+        Self { revenue_recovery }
     }
 }
 

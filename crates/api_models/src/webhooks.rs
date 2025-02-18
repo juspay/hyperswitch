@@ -57,13 +57,13 @@ pub enum IncomingWebhookEvent {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
-    #[cfg(feature = "recovery")]
-    RecoveryPaymentFailure, // rename events
-    #[cfg(feature = "recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentFailure,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryPaymentSuccess,
-    #[cfg(feature = "recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryPaymentPending,
-    #[cfg(feature = "recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
 }
 
@@ -79,7 +79,7 @@ pub enum WebhookFlow {
     Mandate,
     ExternalAuthentication,
     FraudCheck,
-    #[cfg(feature = "recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     Recovery,
 }
 
@@ -207,7 +207,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
-            #[cfg(feature = "recovery")]
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
             IncomingWebhookEvent::RecoveryInvoiceCancel
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
@@ -251,6 +251,14 @@ pub enum ObjectReferenceId {
     ExternalAuthenticationID(AuthenticationIdType),
     #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    InvoiceId(InvoiceIdType),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Clone)]
+pub enum InvoiceIdType {
+    ConnectorInvoiceId(String),
 }
 
 pub struct IncomingWebhookDetails {
@@ -317,4 +325,52 @@ pub enum OutgoingWebhookContent {
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<masking::Secret<String>>,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl IncomingWebhookEvent {
+    pub fn is_recovery_transaction_event(&self) -> bool {
+        match self {
+            Self::PaymentIntentFailure
+            | Self::PaymentIntentSuccess
+            | Self::PaymentIntentPartiallyFunded
+            | Self::PaymentIntentProcessing
+            | Self::PaymentIntentCancelled
+            | Self::PaymentIntentCancelFailure
+            | Self::PaymentIntentAuthorizationSuccess
+            | Self::PaymentIntentAuthorizationFailure
+            | Self::PaymentIntentCaptureSuccess
+            | Self::PaymentIntentCaptureFailure
+            | Self::PaymentActionRequired
+            | Self::EventNotSupported
+            | Self::SourceChargeable
+            | Self::SourceTransactionCreated
+            | Self::RefundFailure
+            | Self::RefundSuccess
+            | Self::DisputeOpened
+            | Self::DisputeExpired
+            | Self::DisputeAccepted
+            | Self::DisputeCancelled
+            | Self::DisputeChallenged
+            | Self::DisputeWon
+            | Self::DisputeLost
+            | Self::MandateActive
+            | Self::MandateRevoked
+            | Self::EndpointVerification
+            | Self::ExternalAuthenticationARes
+            | Self::FrmApproved
+            | Self::FrmRejected
+            | Self::PayoutSuccess
+            | Self::PayoutFailure
+            | Self::PayoutProcessing
+            | Self::PayoutCancelled
+            | Self::PayoutCreated
+            | Self::PayoutExpired
+            | Self::PayoutReversed
+            | Self::RecoveryInvoiceCancel => false,
+            Self::RecoveryPaymentFailure
+            | Self::RecoveryPaymentSuccess
+            | Self::RecoveryPaymentPending => true,
+        }
+    }
 }
