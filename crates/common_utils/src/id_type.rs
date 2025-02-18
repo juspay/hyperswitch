@@ -2,8 +2,8 @@
 //! The id type can be used to create specific id types with custom behaviour
 
 mod api_key;
+mod client_secret;
 mod customer;
-mod ephemeral_key;
 #[cfg(feature = "v2")]
 mod global_id;
 mod merchant;
@@ -32,14 +32,14 @@ use thiserror::Error;
 pub use self::global_id::{
     customer::GlobalCustomerId,
     payment::{GlobalAttemptId, GlobalPaymentId},
-    payment_methods::GlobalPaymentMethodId,
+    payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
     refunds::GlobalRefundId,
     CellId,
 };
 pub use self::{
     api_key::ApiKeyId,
+    client_secret::ClientSecretId,
     customer::CustomerId,
-    ephemeral_key::EphemeralKeyId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,

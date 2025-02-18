@@ -647,6 +647,7 @@ pub struct RefundIntegrityObject {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub enum SplitRefundsRequest {
     StripeSplitRefund(StripeSplitRefund),
+    AdyenSplitRefund(common_types::domain::AdyenSplitData),
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -823,6 +824,7 @@ pub struct PayoutsData {
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub connector_transfer_method_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]

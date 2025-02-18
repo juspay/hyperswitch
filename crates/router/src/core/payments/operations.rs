@@ -231,6 +231,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
+    #[cfg(feature = "v2")]
+    /// This will run the decision manager for the payment
+    async fn run_decision_manager<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -309,6 +320,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _merchant_account: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

@@ -259,7 +259,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         })
     }
 }
@@ -326,7 +326,7 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         }
     }
 }
@@ -393,6 +393,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -546,7 +547,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     }),
@@ -728,6 +729,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     )?,
                     types::PaymentMethodToken::PazeDecrypt(_) => {
                         Err(unimplemented_payment_method!("Paze", "Payme"))?
+                    }
+                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Google Pay", "Payme"))?
                     }
                 };
                 Ok(Self {
@@ -1124,7 +1128,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
         Ok(Self {
