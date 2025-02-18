@@ -9,6 +9,7 @@ use crate::{
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates},
     SessionState,
+    consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS,
 };
 
 pub async fn retrieve_forex(
@@ -49,12 +50,11 @@ pub async fn get_forex_exchange_rates(
     state: SessionState,
 ) -> CustomResult<ExchangeRates, AnalyticsError> {
     let forex_api = state.conf.forex_api.get_inner();
-    let max_attempts = 3;
     let mut attempt = 1;
     
     logger::info!("Starting forex exchange rates fetch");
     loop {
-        logger::info!("Attempting to fetch forex rates - Attempt {attempt} of {max_attempts}");
+        logger::info!("Attempting to fetch forex rates - Attempt {attempt} of {DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS}");
         
         match get_forex_rates(&state, forex_api.call_delay).await {
             Ok(rates) => {
@@ -62,8 +62,8 @@ pub async fn get_forex_exchange_rates(
                 return Ok((*rates.data).clone())
             },
             Err(error) => {
-                if attempt >= max_attempts {
-                    logger::error!("Failed to fetch forex rates after {max_attempts} attempts");
+                if attempt >= DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS {
+                    logger::error!("Failed to fetch forex rates after {DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS} attempts");
                     return Err(error.change_context(AnalyticsError::ForexFetchFailed));
                 }
                 logger::warn!("Forex rates fetch failed, retrying in {attempt} seconds");
