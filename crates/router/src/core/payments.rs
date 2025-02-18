@@ -5378,7 +5378,6 @@ pub async fn get_payment_filters(
                 .filter_map(|payment_method_enabled| {
                     payment_method_enabled
                         .get_payment_method_type()
-                        .as_ref()
                         .map(|types_vec| {
                             (
                                 payment_method_enabled.get_payment_method(),

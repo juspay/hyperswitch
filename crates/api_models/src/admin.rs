@@ -1655,8 +1655,8 @@ impl PaymentMethodsEnabled {
     #[cfg(feature = "v1")]
     pub fn get_payment_method_type(
         &self,
-    ) -> Option<Vec<payment_methods::RequestPaymentMethodTypes>> {
-        self.payment_method_types.clone()
+    ) -> Option<&Vec<payment_methods::RequestPaymentMethodTypes>> {
+        self.payment_method_types.as_ref()
     }
 }
 

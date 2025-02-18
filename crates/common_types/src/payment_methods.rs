@@ -28,8 +28,8 @@ impl PaymentMethodsEnabled {
 
     /// Get payment_method_subtypes
     #[cfg(feature = "v2")]
-    pub fn get_payment_method_type(&self) -> Option<Vec<RequestPaymentMethodTypes>> {
-        self.payment_method_subtypes.clone()
+    pub fn get_payment_method_type(&self) -> Option<&Vec<RequestPaymentMethodTypes>> {
+        self.payment_method_subtypes.as_ref()
     }
 }
 
