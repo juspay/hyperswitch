@@ -568,9 +568,7 @@ impl Payments {
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
             )
-            .service(
-                web::resource("/filter").route(web::get().to(payments::get_payment_filters)),
-            )
+            .service(web::resource("/filter").route(web::get().to(payments::get_payment_filters)))
             .service(
                 web::resource("/profile/filter")
                     .route(web::get().to(payments::get_payment_filters_profile)),
