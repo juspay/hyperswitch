@@ -303,6 +303,7 @@ pub struct PaymentAttemptNew {
     pub id: id_type::GlobalAttemptId,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
+    pub connector: Option<String>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
