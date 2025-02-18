@@ -11,8 +11,6 @@ WHERE organization_name IS NULL
     AND org_name IS NOT NULL;
 
 -- Alter queries for organization table
-ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey;
-
 ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_pkey_id PRIMARY KEY (id);
 

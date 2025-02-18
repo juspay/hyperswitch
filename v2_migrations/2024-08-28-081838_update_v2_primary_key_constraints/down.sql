@@ -6,9 +6,6 @@ WHERE org_id IS NULL;
 
 ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey_id;
 
-ALTER TABLE ORGANIZATION
-ADD CONSTRAINT organization_pkey PRIMARY KEY (org_id);
-
 ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_organization_name_key;
 
 -- back fill

@@ -24,6 +24,10 @@ pub struct CardNumberValidationErr(&'static str);
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
 
+//Network Token
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct NetworkToken(StrongSecret<String, CardNumberStrategy>);
+
 impl CardNumber {
     pub fn get_card_isin(&self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
@@ -102,6 +106,30 @@ impl CardNumber {
     }
 }
 
+impl NetworkToken {
+    pub fn get_card_isin(&self) -> String {
+        self.0.peek().chars().take(6).collect::<String>()
+    }
+
+    pub fn get_extended_card_bin(&self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
+    pub fn get_card_no(&self) -> String {
+        self.0.peek().chars().collect::<String>()
+    }
+    pub fn get_last4(&self) -> String {
+        self.0
+            .peek()
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    }
+}
+
 impl FromStr for CardNumber {
     type Err = CardNumberValidationErr;
 
@@ -127,6 +155,35 @@ impl FromStr for CardNumber {
             Ok(Self(StrongSecret::new(card_number)))
         } else {
             Err(CardNumberValidationErr("card number invalid"))
+        }
+    }
+}
+
+impl FromStr for NetworkToken {
+    type Err = CardNumberValidationErr;
+
+    fn from_str(network_token: &str) -> Result<Self, Self::Err> {
+        // Valid test cards for threedsecureio
+        let valid_test_network_tokens = vec![
+            "4000100511112003",
+            "6000100611111203",
+            "3000100811111072",
+            "9000100111111111",
+        ];
+        #[cfg(not(target_arch = "wasm32"))]
+        let valid_test_network_tokens = match router_env_which() {
+            Env::Development | Env::Sandbox => valid_test_network_tokens,
+            Env::Production => vec![],
+        };
+
+        let network_token = network_token.split_whitespace().collect::<String>();
+
+        let is_network_token_valid = sanitize_card_number(&network_token)?;
+
+        if valid_test_network_tokens.contains(&network_token.as_str()) || is_network_token_valid {
+            Ok(Self(StrongSecret::new(network_token)))
+        } else {
+            Err(CardNumberValidationErr("network token invalid"))
         }
     }
 }
@@ -195,6 +252,14 @@ impl TryFrom<String> for CardNumber {
     }
 }
 
+impl TryFrom<String> for NetworkToken {
+    type Error = CardNumberValidationErr;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
+    }
+}
+
 impl Deref for CardNumber {
     type Target = StrongSecret<String, CardNumberStrategy>;
 
@@ -203,7 +268,22 @@ impl Deref for CardNumber {
     }
 }
 
+impl Deref for NetworkToken {
+    type Target = StrongSecret<String, CardNumberStrategy>;
+
+    fn deref(&self) -> &StrongSecret<String, CardNumberStrategy> {
+        &self.0
+    }
+}
+
 impl<'de> Deserialize<'de> for CardNumber {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for NetworkToken {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let s = String::deserialize(d)?;
         Self::from_str(&s).map_err(serde::de::Error::custom)
