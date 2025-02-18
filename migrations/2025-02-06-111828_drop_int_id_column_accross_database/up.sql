@@ -40,16 +40,16 @@ ALTER TABLE refund DROP COLUMN IF EXISTS id;
 ALTER TABLE blocklist DROP COLUMN IF EXISTS id;
 
 ------------------------ Blocklist Fingerprint -----------------------
-ALTER TABLE blocklist_fingerprint DROP COLUMN IF EXISTS id;
-ALTER TABLE blocklist_fingerprint ADD PRIMARY KEY (merchant_id, fingerprint_id);
+-- ALTER TABLE blocklist_fingerprint DROP COLUMN IF EXISTS id;
+-- ALTER TABLE blocklist_fingerprint ADD PRIMARY KEY (merchant_id, fingerprint_id);
 
 
 ------------------------ blocklist lookup -----------------------
-ALTER TABLE blocklist_lookup DROP COLUMN IF EXISTS id;
-ALTER TABLE blocklist_lookup ADD PRIMARY KEY (merchant_id, fingerprint);
+-- ALTER TABLE blocklist_lookup DROP COLUMN IF EXISTS id;
+-- ALTER TABLE blocklist_lookup ADD PRIMARY KEY (merchant_id, fingerprint);
 
 ------------------------ configs -----------------------
-ALTER TABLE configs DROP COLUMN IF EXISTS id;
+-- ALTER TABLE configs DROP COLUMN IF EXISTS id;
 
 ------------------------ Roles -----------------------
 ALTER TABLE roles DROP COLUMN IF EXISTS id;
@@ -58,5 +58,5 @@ ALTER TABLE roles DROP COLUMN IF EXISTS id;
 ALTER TABLE users DROP COLUMN IF EXISTS id;
 
 ---------------------- Locker Mockup -----------------------
-ALTER TABLE locker_mock_up DROP COLUMN IF EXISTS id;
-ALTER TABLE locker_mock_up ADD PRIMARY KEY (card_id);
+-- ALTER TABLE locker_mock_up DROP COLUMN IF EXISTS id;
+-- ALTER TABLE locker_mock_up ADD PRIMARY KEY (card_id);

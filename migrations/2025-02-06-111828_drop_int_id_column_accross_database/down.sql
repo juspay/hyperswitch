@@ -35,15 +35,15 @@ ALTER TABLE refund ADD COLUMN id VARCHAR(64);
 ALTER TABLE blocklist ADD COLUMN id VARCHAR(64);
 
 ------------------------ Blocklist Fingerprint -----------------------
-ALTER TABLE blocklist_fingerprint DROP CONSTRAINT blocklist_fingerprint_pkey;
-ALTER TABLE blocklist_fingerprint ADD COLUMN id VARCHAR(64) PRIMARY KEY;
+-- ALTER TABLE blocklist_fingerprint DROP CONSTRAINT blocklist_fingerprint_pkey;
+-- ALTER TABLE blocklist_fingerprint ADD COLUMN id VARCHAR(64) PRIMARY KEY;
 
 ------------------------ Blocklist Lookup -----------------------
-ALTER TABLE blocklist_lookup DROP CONSTRAINT blocklist_lookup_pkey;
-ALTER TABLE blocklist_lookup ADD COLUMN id VARCHAR(64) PRIMARY KEY;
+-- ALTER TABLE blocklist_lookup DROP CONSTRAINT blocklist_lookup_pkey;
+-- ALTER TABLE blocklist_lookup ADD COLUMN id VARCHAR(64) PRIMARY KEY;
 
 ------------------------ Configs -----------------------
-ALTER TABLE configs ADD COLUMN id VARCHAR(64);
+-- ALTER TABLE configs ADD COLUMN id VARCHAR(64);
 
 ------------------------ Roles -----------------------
 ALTER TABLE roles ADD COLUMN id VARCHAR(64);
@@ -52,5 +52,5 @@ ALTER TABLE roles ADD COLUMN id VARCHAR(64);
 ALTER TABLE users ADD COLUMN id VARCHAR(64);
 
 ---------------------- Locker Mockup -----------------------
-ALTER TABLE locker_mock_up DROP CONSTRAINT locker_mock_up_pkey;
-ALTER TABLE locker_mock_up ADD COLUMN id VARCHAR(64) PRIMARY KEY;
+-- ALTER TABLE locker_mock_up DROP CONSTRAINT locker_mock_up_pkey;
+-- ALTER TABLE locker_mock_up ADD COLUMN id VARCHAR(64) PRIMARY KEY;
