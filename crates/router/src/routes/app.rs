@@ -569,19 +569,15 @@ impl Payments {
                     .route(web::post().to(payments::payments_create_intent)),
             )
             .service(
-                web::resource("/v2/filter").route(web::get().to(payments::get_payment_filters)),
+                web::resource("/filter").route(web::get().to(payments::get_payment_filters)),
             )
             .service(
-                web::resource("/v2/profile/filter")
+                web::resource("/profile/filter")
                     .route(web::get().to(payments::get_payment_filters_profile)),
             )
             .service(
                 web::resource("")
                     .route(web::post().to(payments::payments_create_and_confirm_intent)),
-            )
-            .service(
-                web::resource("/create-intent")
-                    .route(web::post().to(payments::payments_create_intent)),
             )
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
