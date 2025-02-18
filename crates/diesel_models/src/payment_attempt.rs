@@ -821,7 +821,7 @@ pub struct PaymentAttemptUpdateInternal {
     // customer_acceptance: Option<pii::SecretSerdeValue>,
     // card_network: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
-    pub feature_metadata: Option<Option<PaymentAttemptFeatureMetadata>>,
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]

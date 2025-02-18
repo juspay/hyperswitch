@@ -57,13 +57,13 @@ pub enum IncomingWebhookEvent {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
-    #[cfg(feature = "revenue_recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryPaymentFailure,
-    #[cfg(feature = "revenue_recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryPaymentSuccess,
-    #[cfg(feature = "revenue_recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryPaymentPending,
-    #[cfg(feature = "revenue_recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
 }
 
@@ -79,7 +79,7 @@ pub enum WebhookFlow {
     Mandate,
     ExternalAuthentication,
     FraudCheck,
-    #[cfg(feature = "revenue_recovery")]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     Recovery,
 }
 
@@ -207,7 +207,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
-            #[cfg(feature = "revenue_recovery")]
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
             IncomingWebhookEvent::RecoveryInvoiceCancel
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending

@@ -1831,7 +1831,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
-            ref feature_metadata,
+            feature_metadata,
         } = self;
 
         let AttemptAmountDetails {
@@ -1848,7 +1848,7 @@ impl behaviour::Conversion for PaymentAttempt {
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
-        let feature_metadata = self.feature_metadata.as_ref().map(From::from);
+        let feature_metadata = feature_metadata.as_ref().map(From::from);
 
         Ok(DieselPaymentAttempt {
             payment_id,

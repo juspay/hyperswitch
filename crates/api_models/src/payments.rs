@@ -6,7 +6,7 @@ use std::{
 pub mod additional_info;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
-use common_enums::enums::PaymentConnectorTransmission;
+use common_enums::enums::{PaymentConnectorTransmission, TriggeredBy};
 use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
@@ -1486,15 +1486,17 @@ pub struct PaymentAttemptResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
+    /// Revenue recovery metadata that might be required by hyperswitch.
     pub revenue_recovery: Option<PaymentAttemptRevenueRecoveryData>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptRevenueRecoveryData {
-    pub attempt_triggered_by: enums::TriggeredBy,
+    /// Flag to find out whether an attempt was created by external or internal system.
+    pub attempt_triggered_by: TriggeredBy,
 }
 
 #[derive(

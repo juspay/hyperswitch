@@ -13043,6 +13043,19 @@
           }
         }
       },
+      "PaymentAttemptFeatureMetadata": {
+        "type": "object",
+        "properties": {
+          "revenue_recovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentAttemptRevenueRecoveryData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -13174,6 +13187,17 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PaymentAttemptRevenueRecoveryData": {
+        "type": "object",
+        "required": [
+          "attempt_triggered_by"
+        ],
+        "properties": {
+          "attempt_triggered_by": {
+            "$ref": "#/components/schemas/TriggeredBy"
           }
         }
       },
@@ -20942,6 +20966,13 @@
         "enum": [
           "payment",
           "payout"
+        ]
+      },
+      "TriggeredBy": {
+        "type": "string",
+        "enum": [
+          "internal",
+          "external"
         ]
       },
       "UIWidgetFormLayout": {

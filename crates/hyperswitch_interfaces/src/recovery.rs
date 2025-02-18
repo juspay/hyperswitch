@@ -11,12 +11,12 @@ pub struct RevenueRecoveryTransactionData {
     /// currency of the transaction
     pub currency: common_enums::enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
-    pub merchant_reference_id: String,
+    pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
     /// transaction id reference at payment connector
     pub connector_transaction_id: Option<String>,
-    /// error code sent by billing connector, should be mapped to gateway error if billing connector sends gateway error.
+    /// error code sent by billing connector.
     pub error_code: Option<String>,
-    /// error message sent by billing connector, should be mapped to issuer error if billing connector sends issuer error.
+    /// error message sent by billing connector.
     pub error_message: Option<String>,
     /// mandate token at payment processor end.
     pub processor_payment_token: Option<String>,
@@ -62,9 +62,9 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
-/// add docs
+/// This trait have funtions related to RecoveryAction.
 pub trait RevenueRecoveryAction {
-    /// add docs
+    /// This functions finds recovery action based on Recovery events and attempt_triggered_by.
     fn find_action(
         event_type: IncomingWebhookEvent,
         attempt_triggered_by: Option<TriggeredBy>,
