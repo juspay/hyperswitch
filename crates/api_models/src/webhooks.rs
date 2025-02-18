@@ -58,7 +58,7 @@ pub enum IncomingWebhookEvent {
     #[cfg(feature = "payouts")]
     PayoutReversed,
     #[cfg(feature = "revenue_recovery")]
-    RecoveryPaymentFailure, // rename events
+    RecoveryPaymentFailure,
     #[cfg(feature = "revenue_recovery")]
     RecoveryPaymentSuccess,
     #[cfg(feature = "revenue_recovery")]

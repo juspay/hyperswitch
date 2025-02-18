@@ -3,7 +3,7 @@ use common_utils::{transformers::ForeignFrom, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::{
     recovery::{
-        RecoveryAction, RecoveryActionTrait, RevenueRecoveryInvoiceData,
+        RecoveryAction, RevenueRecoveryAction, RevenueRecoveryInvoiceData,
         RevenueRecoveryTransactionData,
     },
     webhooks::IncomingWebhookRequestDetails,
@@ -40,7 +40,7 @@ pub async fn recovery_incoming_webhook_flow(
     req_state: ReqState,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     use error_stack::report;
-    use hyperswitch_interfaces::recovery::{RecoveryAction, RecoveryActionTrait};
+    use hyperswitch_interfaces::recovery::{RecoveryAction, RevenueRecoveryAction};
 
     common_utils::fp_utils::when(source_verified, || {
         Err(report!(
@@ -51,7 +51,7 @@ pub async fn recovery_incoming_webhook_flow(
     let invoice_details = connector
         .get_revenue_recovery_invoice_details(request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    // this should be fetched using merchant reference id api
+    // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
         .get_payment_intent(
             state.clone(),
@@ -77,7 +77,7 @@ pub async fn recovery_incoming_webhook_flow(
         let invoice_transaction_details = connector
             .get_revenue_recovery_transaction_details(request_details)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
-        // record attempt logic needs to be added when attempt is not found.
+        // Record attempt logic needs to be added when attempt is not found.
         invoice_transaction_details
             .get_payment_attempt(
                 state,
@@ -103,7 +103,7 @@ pub async fn recovery_incoming_webhook_flow(
 
     match action {
         RecoveryAction::CancelInvoice => todo!(),
-        RecoveryAction::FailPaymentExternal => todo!(),
+        RecoveryAction::ScheduleFailedPayment => todo!(),
         RecoveryAction::SuccessPaymentExternal => todo!(),
         RecoveryAction::PendingPayment => todo!(),
         RecoveryAction::NoAction => todo!(),
@@ -111,9 +111,9 @@ pub async fn recovery_incoming_webhook_flow(
     }
 }
 
-// Intent related functions for the invoice are implmented in this trait
+// Intent related functions for the invoice are implemented in this trait
 pub trait RevenueRecoveryInvoice {
-    /// get the payment intent using merchant refernce id.
+    /// get the payment intent using merchant reference id.
     async fn get_payment_intent(
         &self,
         state: SessionState,
@@ -133,7 +133,7 @@ pub trait RevenueRecoveryInvoice {
     ) -> CustomResult<RecoveryPaymentIntent, errors::ApiErrorResponse>;
 }
 
-/// Attempt related functions for the invoice transactions are implmented in this trait
+/// Attempt related functions for the invoice transactions are implemented in this trait
 pub trait RevenueRecoveryTransaction {
     /// Get the payment attempt using connector transaction id.
     async fn get_payment_attempt(
@@ -300,12 +300,9 @@ impl RevenueRecoveryTransaction for RevenueRecoveryTransactionData {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
                 let final_attempt = payments_response.attempts.as_ref().and_then(|attempts| {
                     attempts.iter().find(|attempt| {
-                        attempt
-                            .connector_payment_id
-                            .as_ref()
-                            .map_or(false, |txn_id| {
-                                Some(txn_id) == self.connector_transaction_id.as_ref()
-                            })
+                        attempt.connector_payment_id.as_ref().is_some_and(|txn_id| {
+                            Some(txn_id) == self.connector_transaction_id.as_ref()
+                        })
                     })
                 });
                 let payment_attempt = final_attempt.map(|attempt_res| RecoveryPaymentAttempt {

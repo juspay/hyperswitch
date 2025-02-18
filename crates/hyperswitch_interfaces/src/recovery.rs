@@ -48,22 +48,22 @@ pub struct RevenueRecoveryInvoiceData {
 /// type of action that needs to taken after consuming recovery payload
 #[derive(Debug)]
 pub enum RecoveryAction {
-    /// add docs
+    /// Stops the process tracker and update the payment intent.
     CancelInvoice,
-    /// add docs
-    FailPaymentExternal,
-    /// add docs
+    /// Records the external transaction against payment intent.
+    ScheduleFailedPayment,
+    /// Records the external payment and stops the internal process tracker.
     SuccessPaymentExternal,
-    /// add docs
+    /// Pending payments from billing processor.
     PendingPayment,
-    /// add docs
+    /// No action required.
     NoAction,
-    /// add docs
+    /// Invalid event has been recieved.
     InvalidAction,
 }
 
 /// add docs
-pub trait RecoveryActionTrait {
+pub trait RevenueRecoveryAction {
     /// add docs
     fn find_action(
         event_type: IncomingWebhookEvent,
@@ -71,7 +71,7 @@ pub trait RecoveryActionTrait {
     ) -> Self;
 }
 
-impl RecoveryActionTrait for RecoveryAction {
+impl RevenueRecoveryAction for RecoveryAction {
     fn find_action(
         event_type: IncomingWebhookEvent,
         attempt_triggered_by: Option<TriggeredBy>,
@@ -115,7 +115,7 @@ impl RecoveryActionTrait for RecoveryAction {
             | IncomingWebhookEvent::PayoutReversed => Self::InvalidAction,
             IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {
                 Some(TriggeredBy::Internal) => Self::NoAction,
-                Some(TriggeredBy::External) | None => Self::FailPaymentExternal,
+                Some(TriggeredBy::External) | None => Self::ScheduleFailedPayment,
             },
             IncomingWebhookEvent::RecoveryPaymentSuccess => match attempt_triggered_by {
                 Some(TriggeredBy::Internal) => Self::NoAction,
