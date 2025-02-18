@@ -87,7 +87,7 @@ jobs:
           toolchain: stable 2 weeks ago
 
       - uses: Swatinem/rust-cache@v2.7.7
-        with: 
+        with:
           save-if: false
 
       - name: Decrypt connector auth file
