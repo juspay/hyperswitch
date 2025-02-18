@@ -615,9 +615,7 @@ pub fn parse_paybox_response(
 ) -> CustomResult<PayboxResponse, errors::ConnectorError> {
     let (cow, _, _) = encoding_rs::ISO_8859_15.decode(&query_bytes);
     let response_str = cow.as_ref().trim();
-    if (response_str.starts_with("<html>") || response_str.starts_with("<!DOCTYPE html>"))
-        && is_three_ds
-    {
+    if utils::is_html_response(response_str) && is_three_ds {
         let response = response_str.to_string();
         return Ok(if response.contains("Erreur 201") {
             PayboxResponse::Error(response)
@@ -704,7 +702,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -763,7 +761,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     }),
@@ -792,7 +790,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -835,7 +833,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -1023,7 +1021,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),

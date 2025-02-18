@@ -368,6 +368,9 @@ impl ConnectorData {
                 enums::Connector::Coinbase => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Coinbase)))
                 }
+                enums::Connector::Coingate => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Coingate::new())))
+                }
                 enums::Connector::Cryptopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }
@@ -429,6 +432,9 @@ impl ConnectorData {
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
+                // enums::Connector::Getnet => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
+                // }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -455,6 +461,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
                 enums::Connector::Mollie => {
+                    // enums::Connector::Moneris => Ok(ConnectorEnum::Old(Box::new(connector::Moneris))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
                 }
                 enums::Connector::Nexixpay => {

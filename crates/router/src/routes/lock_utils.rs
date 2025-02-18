@@ -40,6 +40,7 @@ pub enum ApiIdentifier {
     Relay,
     Documentation,
     CardNetworkTokenization,
+    PaymentMethodsSession,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -148,7 +149,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateIntent
             | Flow::PaymentsCreateAndConfirmIntent
-            | Flow::PaymentStartRedirection => Self::Payments,
+            | Flow::PaymentStartRedirection
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -311,6 +313,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::FeatureMatrix => Self::Documentation,
 
             Flow::TokenizeCard | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
+
+            Flow::PaymentMethodSessionCreate
+            | Flow::PaymentMethodSessionRetrieve
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
         }
     }
 }
