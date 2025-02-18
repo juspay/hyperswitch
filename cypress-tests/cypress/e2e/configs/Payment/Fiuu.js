@@ -701,5 +701,17 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentConfirmWithShippingCost: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
+        },
+      },
+    },
   },
 };
