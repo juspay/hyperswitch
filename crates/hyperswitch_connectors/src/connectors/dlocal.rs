@@ -49,11 +49,7 @@ use lazy_static::lazy_static;
 use masking::{Mask, Maskable, PeekInterface};
 use transformers as dlocal;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self},
-};
+use crate::{constants::headers, types::ResponseRouterData};
 #[derive(Debug, Clone)]
 pub struct Dlocal;
 
@@ -160,24 +156,7 @@ impl ConnectorCommon for Dlocal {
     }
 }
 
-impl ConnectorValidation for Dlocal {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Dlocal {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Dlocal

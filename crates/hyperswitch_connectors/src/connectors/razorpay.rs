@@ -707,7 +707,7 @@ lazy_static! {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-    static ref RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+    static ref RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
 
 }
 
