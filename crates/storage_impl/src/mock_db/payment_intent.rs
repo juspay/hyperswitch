@@ -41,7 +41,7 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -179,6 +179,28 @@ impl PaymentIntentInterface for MockDb {
         let payment_intent = payment_intents
             .iter()
             .find(|payment_intent| payment_intent.get_id() == id)
+            .ok_or(StorageError::ValueNotFound(
+                "PaymentIntent not found".to_string(),
+            ))?;
+
+        Ok(payment_intent.clone())
+    }
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_merchant_reference_id_profile_id(
+        &self,
+        _state: &KeyManagerState,
+        merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
+        profile_id: &common_utils::id_type::ProfileId,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: &common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let payment_intents = self.payment_intents.lock().await;
+        let payment_intent = payment_intents
+            .iter()
+            .find(|payment_intent| {
+                payment_intent.merchant_reference_id.as_ref() == Some(merchant_reference_id)
+                    && payment_intent.profile_id.eq(profile_id)
+            })
             .ok_or(StorageError::ValueNotFound(
                 "PaymentIntent not found".to_string(),
             ))?;

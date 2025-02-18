@@ -257,6 +257,21 @@ impl super::settings::PazeDecryptConfig {
     }
 }
 
+impl super::settings::GooglePayDecryptConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(
+            self.google_pay_root_signing_keys.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "google_pay_root_signing_keys must not be empty".into(),
+                ))
+            },
+        )
+    }
+}
+
 impl super::settings::KeyManagerConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

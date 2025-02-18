@@ -43,6 +43,26 @@ ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
 JOD = "JOD" # Jordan currency code
 Payed = "Payed" # Paid status for digital virgo
+Alo = "Alo" # Is iso representation of a state in France
+alo = "alo" # Is iso representation of a state in France
+BRE = "BRE" # Is iso representation of Brittany
+VasCounty = "VasCounty" # Is a state in Hungary
+StipMunicipality = "StipMunicipality" # Is a municipality in North Macedonia
+HAV = "HAV" # Is iso representation of a state in UK
+LEW = "LEW" # Is iso representation of a state in UK
+THR = "THR" # Is iso representation of a state in UK
+WLL = "WLL" # Is iso representation of a state in UK
+WIL = "WIL" # Is iso representation of a state in UK
+YOR = "YOR" # Is iso representation of a state in UK
+OT = "OT" # Is iso representation of a state in Romania
+OltCounty = "OltCounty" # Is a state in Romania
+olt = "olt" # Is iso representation of a state in Romania
+Vas = "Vas" # Is iso representation of a state in Hungary
+vas = "vas" # Is iso representation of a state in Hungary
+WHT = "WHT" # Is iso representation of a state in Belgium
+CantonOfEschSurAlzette = "CantonOfEschSurAlzette" # Is a state in Luxembourg
+GorenjaVasPoljane = "GorenjaVasPoljane" # Is a state in Slovenia
+sur = "sur" # Is iso representation of a state in Luxembourg
 
 [default.extend-words]
 aci = "aci" # Name of a connector
