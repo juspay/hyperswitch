@@ -1587,6 +1587,7 @@ pub enum PaymentMethodType {
     Debit,
     DuitNow,
     Efecty,
+    Eft,
     Eps,
     Fps,
     Evoucher,
