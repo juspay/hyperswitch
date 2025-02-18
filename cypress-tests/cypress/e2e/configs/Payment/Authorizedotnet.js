@@ -10,7 +10,7 @@ const successfulTestCardDetails = {
 
 let latestPaymentIntentAmount = null;
 
-export let connectorDetails = {
+export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -140,7 +140,7 @@ export let connectorDetails = {
     },
     Refund: {
       Request: {
-        amount: latestPaymentIntentAmount
+        amount: latestPaymentIntentAmount,
       },
       Response: {
         status: 200,
