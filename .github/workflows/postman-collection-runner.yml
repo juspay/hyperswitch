@@ -93,8 +93,8 @@ jobs:
       - name: Build and Cache Rust Dependencies
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         uses: Swatinem/rust-cache@v2.7.7
-        with: 
-            save-if: false
+        with:
+          save-if: false
 
       - name: Install Protoc
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -104,13 +104,13 @@ jobs:
 
       - name: Install Diesel CLI with Postgres Support
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: baptiste0928/cargo-install@v3.3.0
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         with:
           crate: just

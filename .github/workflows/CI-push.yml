@@ -77,9 +77,9 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2
       #   with:
       #     tool: sccache
       #     checksum: true
@@ -89,12 +89,12 @@ jobs:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: cargo-hack
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -171,18 +171,18 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2
       #   with:
       #     tool: sccache
       #     checksum: true
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: cargo-hack
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -192,7 +192,7 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.2.0
+      #   uses: baptiste0928/cargo-install@v3.3.0
       #   with:
       #     crate: cargo-nextest
 

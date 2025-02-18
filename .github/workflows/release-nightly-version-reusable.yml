@@ -51,7 +51,7 @@ jobs:
           fi
 
       # Pulling latest changes in case pre-release steps push new commits
-      - name: Pull allowed branch 
+      - name: Pull allowed branch
         shell: bash
         run: git pull
 
@@ -61,7 +61,7 @@ jobs:
           toolchain: stable
 
       - name: Install git-cliff
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: git-cliff
           version: 1.4.0

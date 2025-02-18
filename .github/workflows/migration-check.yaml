@@ -45,7 +45,6 @@ jobs:
         ports:
           - 5432:5432
 
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,16 +54,16 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: just
-        
+
       - name: Create database
         shell: bash
         run: just resurrect hyperswitch_db
@@ -76,7 +75,7 @@ jobs:
       - name: Verify `diesel migration redo for v1`
         shell: bash
         run: just migrate redo --locked-schema --all
-      
+
       - name: Drop `DB for v2 column ordering mismatch`
         shell: bash
         run: just resurrect hyperswitch_db
@@ -88,4 +87,3 @@ jobs:
       - name: Verify `diesel migration redo for v2`
         shell: bash
         run: just migrate_v2 redo --locked-schema --all
-
