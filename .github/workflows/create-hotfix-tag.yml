@@ -23,10 +23,10 @@ jobs:
           token: ${{ steps.generate_token.outputs.token }}
 
       - name: Install git-cliff
-        uses: baptiste0928/cargo-install@v3.3.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: git-cliff
-          version: 1.2.0
+          tool: git-cliff
+          checksum: true
 
       - name: Check if the input is valid hotfix branch
         shell: bash

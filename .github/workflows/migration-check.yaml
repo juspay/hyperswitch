@@ -60,9 +60,10 @@ jobs:
           features: postgres
           args: "--no-default-features"
 
-      - uses: baptiste0928/cargo-install@v3.3.0
+      - uses: taiki-e/install-action@v2
         with:
-          crate: just
+          tool: just
+          checksum: true
 
       - name: Create database
         shell: bash
