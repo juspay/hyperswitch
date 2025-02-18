@@ -1,4 +1,4 @@
-use common_enums::{self, IntentStatus};
+use common_enums::{self, AttemptStatus, IntentStatus};
 use common_utils::{self, ext_traits::OptionExt, id_type};
 use diesel_models::{enums, process_tracker::business_status};
 use error_stack::{self, ResultExt};
@@ -114,7 +114,7 @@ impl PCRAttemptStatus {
 #[derive(Debug, Clone)]
 pub enum Decision {
     ExecuteTask,
-    PsyncTask(PaymentAttempt),
+    PsyncTask(AttemptStatus),
     InvalidTask,
 }
 
@@ -139,7 +139,7 @@ impl Decision {
                     .get_required_value("Payment Attempt")
                     .change_context(errors::RecoveryError::ValueNotFound)
                     .attach_printable("Error while executing the Psync call")?;
-                Self::PsyncTask(payment_attempt)
+                Self::PsyncTask(payment_attempt.status)
             }
             _ => Self::InvalidTask,
         })

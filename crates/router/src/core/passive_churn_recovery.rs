@@ -65,7 +65,7 @@ pub async fn perform_execute_task(
                 .await?;
         }
 
-        pcr_types::Decision::PsyncTask(payment_attempt) => {
+        pcr_types::Decision::PsyncTask(attempt_status) => {
             // find if a psync task is already present
             let task = "PSYNC_WORKFLOW";
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
@@ -77,8 +77,7 @@ pub async fn perform_execute_task(
 
             match psync_task_process {
                 Some(psync_process) => {
-                    let pcr_status: pcr_types::PCRAttemptStatus =
-                        payment_attempt.status.foreign_into();
+                    let pcr_status: pcr_types::PCRAttemptStatus = attempt_status.foreign_into();
 
                     pcr_status
                         .update_pt_status_based_on_attempt_status(

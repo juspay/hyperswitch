@@ -307,6 +307,6 @@ pub enum RecoveryError {
     ProcessTrackerFailure,
     #[error("The encountered task is invalid")]
     InvalidTask,
-    #[error("The Intented data was not found")]
+    #[error("The Intended data was not found")]
     ValueNotFound,
 }
