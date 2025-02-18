@@ -117,7 +117,7 @@ pub async fn recovery_incoming_webhook_flow(
         }
         RecoveryAction::InvalidAction => {
             router_env::logger::error!(
-                "Invalid Revenue recovery action state has been recieved, event : {:?}, triggered_by : {:?}", event_type, attempt_triggered_by
+                "Invalid Revenue recovery action state has been received, event : {:?}, triggered_by : {:?}", event_type, attempt_triggered_by
             );
             Ok(WebhookResponseTracker::NoEffect)
         }

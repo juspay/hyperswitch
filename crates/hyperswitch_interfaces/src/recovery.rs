@@ -62,7 +62,7 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
-/// This trait have funtions related to RecoveryAction.
+/// This trait have functions related to RecoveryAction.
 pub trait RevenueRecoveryAction {
     /// This functions finds recovery action based on Recovery events and attempt_triggered_by.
     fn find_action(
