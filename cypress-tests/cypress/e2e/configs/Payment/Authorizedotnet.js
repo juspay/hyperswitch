@@ -1,8 +1,4 @@
-import {
-  generateRandomAmount,
-  getLatestPaymentIntentAmount,
-  setLatestPaymentIntentAmount,
-} from "../../../utils/RequestBodyUtils";
+import { generateRandomAmount } from "../../../utils/RequestBodyUtils";
 
 const successfulTestCardDetails = {
   card_number: "4007000000027",
@@ -12,14 +8,15 @@ const successfulTestCardDetails = {
   card_cvc: "737",
 };
 
+let latestPaymentIntentAmount = null;
+
 export let connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
         amount: (() => {
-          let amount = generateRandomAmount();
-          setLatestPaymentIntentAmount(amount);
-          return amount;
+          latestPaymentIntentAmount = generateRandomAmount();
+          return latestPaymentIntentAmount;
         })(),
         currency: "USD",
         customer_acceptance: null,
@@ -35,7 +32,7 @@ export let connectorDetails = {
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
-        amount: generateRandomAmount(),
+        amount: Math.floor(10000 + Math.random() * 90000),
         shipping_cost: 50,
       },
       Response: {
@@ -60,15 +57,15 @@ export let connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
-          // amount_received: randomAmount + 50,
-          // amount: randomAmount,
-          // net_amount: randomAmount + 50,
         },
       },
     },
     No3DSManualCapture: {
       Request: {
-        amount: getLatestPaymentIntentAmount(),
+        amount: (() => {
+          latestPaymentIntentAmount = generateRandomAmount();
+          return latestPaymentIntentAmount;
+        })(),
         payment_method: "card",
         payment_method_data: {
           card: successfulTestCardDetails,
@@ -87,7 +84,7 @@ export let connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: generateRandomAmount(),
+        amount: latestPaymentIntentAmount,
         payment_method_data: {
           card: successfulTestCardDetails,
         },
@@ -104,7 +101,7 @@ export let connectorDetails = {
     },
     Capture: {
       Request: {
-        amount_to_capture: getLatestPaymentIntentAmount(),
+        amount_to_capture: latestPaymentIntentAmount,
         payment_method: "card",
         payment_method_data: {
           card: successfulTestCardDetails,
@@ -143,7 +140,7 @@ export let connectorDetails = {
     },
     Refund: {
       Request: {
-        amount: getLatestPaymentIntentAmount()
+        amount: latestPaymentIntentAmount
       },
       Response: {
         status: 200,
