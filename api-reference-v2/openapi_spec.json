@@ -13166,6 +13166,14 @@
             "type": "string",
             "description": "Value passed in X-CLIENT-VERSION header during payments confirm request by the client",
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
