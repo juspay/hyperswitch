@@ -7531,6 +7531,8 @@ pub struct PaymentLinkDetails {
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     pub branding_visibility: Option<bool>,
     pub payment_button_text: Option<String>,
+    pub custom_message_for_card_terms: Option<String>,
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7541,6 +7543,8 @@ pub struct SecurePaymentLinkDetails {
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
     pub payment_button_text: Option<String>,
+    pub custom_message_for_card_terms: Option<String>,
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
