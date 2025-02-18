@@ -2803,7 +2803,10 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             capture_method: Some(pi.capture_method),
             setup_future_usage: Some(pi.setup_future_usage),
             attempt_count: pi.attempt_count,
-            error: None,
+            error: pa
+                .as_ref()
+                .and_then(|p| p.error.as_ref())
+                .map(|e| api_models::payments::ErrorDetails::foreign_from(e.clone())),
             cancellation_reason: pa.as_ref().and_then(|p| p.cancellation_reason.clone()),
             order_details: None,
             return_url: pi.return_url,
