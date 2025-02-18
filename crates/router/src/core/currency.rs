@@ -51,16 +51,16 @@ pub async fn get_forex_exchange_rates(
 ) -> CustomResult<ExchangeRates, AnalyticsError> {
     let forex_api = state.conf.forex_api.get_inner();
     let mut attempt = 1;
-    
+
     logger::info!("Starting forex exchange rates fetch");
     loop {
         logger::info!("Attempting to fetch forex rates - Attempt {attempt} of {DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS}");
-        
+
         match get_forex_rates(&state, forex_api.call_delay).await {
             Ok(rates) => {
                 logger::info!("Successfully fetched forex rates");
-                return Ok((*rates.data).clone())
-            },
+                return Ok((*rates.data).clone());
+            }
             Err(error) => {
                 if attempt >= DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS {
                     logger::error!("Failed to fetch forex rates after {DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS} attempts");
