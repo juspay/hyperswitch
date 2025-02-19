@@ -392,9 +392,8 @@ where
             helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
                 .await?;
 
-        let mut should_do_uas_confirmation_call = false;
-
         if is_eligible_for_uas {
+            let should_do_uas_confirmation_call = false;
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -506,7 +505,7 @@ where
                     .await?;
 
                     if is_eligible_for_uas {
-                        should_do_uas_confirmation_call = true;
+                        let should_do_uas_confirmation_call = true;
                         operation
                             .to_domain()?
                             .call_unified_authentication_service_if_eligible(
@@ -664,7 +663,7 @@ where
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
                     if is_eligible_for_uas {
-                        should_do_uas_confirmation_call = true;
+                        let should_do_uas_confirmation_call = true;
                         operation
                             .to_domain()?
                             .call_unified_authentication_service_if_eligible(
