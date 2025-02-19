@@ -252,7 +252,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
