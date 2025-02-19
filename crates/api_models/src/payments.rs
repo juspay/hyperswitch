@@ -5432,13 +5432,17 @@ impl PaymentsRetrieveResponse {
         self,
         connector_transaction_id: &String,
     ) -> Option<PaymentAttemptResponse> {
-        self.attempts.as_ref().and_then(|attempts|{
-            attempts.iter().find(|attempt|{
-                attempt.connector_payment_id.as_ref().is_some_and(|txn_id|{
-                    txn_id.to_owned() == connector_transaction_id.to_owned()
+        self.attempts
+            .as_ref()
+            .and_then(|attempts| {
+                attempts.iter().find(|attempt| {
+                    attempt
+                        .connector_payment_id
+                        .as_ref()
+                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
                 })
             })
-        }).cloned()
+            .cloned()
     }
 }
 
