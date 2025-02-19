@@ -3002,7 +3002,7 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
+Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -3016,11 +3016,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.body.customer_payment_methods[0]?.payment_token) {
+      if (response.body.customer_payment_methods[order]?.payment_token) {
         const paymentToken =
-          response.body.customer_payment_methods[0].payment_token;
+          response.body.customer_payment_methods[order].payment_token;
         const paymentMethodId =
-          response.body.customer_payment_methods[0].payment_method_id;
+          response.body.customer_payment_methods[order].payment_method_id;
         globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
         globalState.set("paymentMethodId", paymentMethodId); // Set paymentMethodId in globalState
       } else {
@@ -3029,25 +3029,29 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
           .to.have.property("customer_payment_methods")
           .to.be.an("array").and.empty;
       }
-      expect(globalState.get("customerId"), "customer_id").to.equal(
-        response.body.customer_payment_methods[0].customer_id
-      );
-      expect(
-        response.body.customer_payment_methods[0].payment_token,
-        "payment_token"
-      ).to.not.be.null;
-      expect(
-        response.body.customer_payment_methods[0].payment_method_id,
-        "payment_method_id"
-      ).to.not.be.null;
-      expect(
-        response.body.customer_payment_methods[0].payment_method,
-        "payment_method"
-      ).to.not.be.null;
-      expect(
-        response.body.customer_payment_methods[0].payment_method_type,
-        "payment_method_type"
-      ).to.not.be.null;
+
+      for (const arrayCount in response.body.customer_payment_methods) {
+        expect(globalState.get("customerId"), "customer_id").to.equal(
+          response.body.customer_payment_methods[arrayCount].customer_id
+        );
+        expect(
+          response.body.customer_payment_methods[arrayCount].payment_token,
+          "payment_token"
+        ).to.include("token_").and.not.be.null;
+        expect(
+          response.body.customer_payment_methods[arrayCount].payment_method_id,
+          "payment_method_id"
+        ).to.include("pm_").and.not.be.null;
+        expect(
+          response.body.customer_payment_methods[arrayCount].payment_method,
+          "payment_method"
+        ).to.not.be.null;
+        expect(
+          response.body.customer_payment_methods[arrayCount]
+            .payment_method_type,
+          "payment_method_type"
+        ).to.not.be.null;
+      }
     });
   });
 });

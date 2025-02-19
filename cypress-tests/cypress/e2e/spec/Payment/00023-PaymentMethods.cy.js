@@ -103,7 +103,7 @@ describe("Payment Methods Tests", () => {
     });
   });
 
-  context.only("Last Used Token Payments", () => {
+  context.only("'Last Used' off-session token payments", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -111,6 +111,11 @@ describe("Payment Methods Tests", () => {
       if (!shouldContinue) {
         this.skip();
       }
+    });
+
+    // Create a customer
+    it("Create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
     // Create a payment with one card (no 3ds)
@@ -212,14 +217,26 @@ describe("Payment Methods Tests", () => {
         "card_pm"
       ]["SaveCardUseNo3DSAutoCapture"];
 
-      cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+      const newData = {
+        ...data,
+        Response: {
+          ...data.Response,
+          body: {
+            ...data.Response.body,
+            status: "requires_customer_action",
+          },
+        },
+      };
+
+      console.log(newData);
+      cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     // Now list payment method for same customer and verify the last used card should be at the top
     it("List PM for customer", () => {
-      cy.listCustomerPMCallTest(globalState);
+      cy.listCustomerPMCallTest(globalState, 1 /* order */);
     });
 
     // Create a payment with token and on_session with another card which is at the bottom
