@@ -1857,8 +1857,6 @@ pub trait AddressDetailsData {
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
-    fn to_state_code(&self) -> Result<Secret<String>, Error>;
-    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
@@ -1930,31 +1928,6 @@ impl AddressDetailsData for hyperswitch_domain_models::address::AddressDetails {
             self.get_line1()?.peek(),
             self.get_line2()?.peek()
         )))
-    }
-    fn to_state_code(&self) -> Result<Secret<String>, Error> {
-        let country = self.get_country()?;
-        let state = self.get_state()?;
-        match country {
-            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
-                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
-            )),
-            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
-                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
-            )),
-            _ => Ok(state.clone()),
-        }
-    }
-    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
-        self.state
-            .as_ref()
-            .map(|state| {
-                if state.peek().len() == 2 {
-                    Ok(state.to_owned())
-                } else {
-                    self.to_state_code()
-                }
-            })
-            .transpose()
     }
 
     fn get_optional_line2(&self) -> Option<Secret<String>> {

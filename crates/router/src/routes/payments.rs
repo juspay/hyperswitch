@@ -2566,7 +2566,7 @@ pub async fn payments_finish_redirection(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -2588,7 +2588,7 @@ pub async fn payments_finish_redirection(
             profile_id: profile_id.clone(),
         },
         locking_action,
-    )
+    ))
     .await
 }
 
