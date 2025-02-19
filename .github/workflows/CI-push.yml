@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
   merge_group:
     types:

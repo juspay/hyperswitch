@@ -56,7 +56,7 @@ jobs:
         with:
           crate: diesel_cli
           features: postgres
-          args: "--no-default-features"
+          args: --no-default-features
 
       - uses: taiki-e/install-action@v2
         with:

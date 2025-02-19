@@ -2,12 +2,6 @@ name: CI-pr
 
 on:
   pull_request:
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
