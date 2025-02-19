@@ -62,6 +62,7 @@ pub struct ThemeData {
 #[serde(rename_all = "camelCase")]
 struct Settings {
     colors: Colors,
+    sidebar: Sidebar,
     typography: Option<Typography>,
     buttons: Buttons,
     borders: Option<Borders>,
@@ -72,7 +73,18 @@ struct Settings {
 #[serde(rename_all = "camelCase")]
 struct Colors {
     primary: String,
-    sidebar: String,
+    secondary: Option<String>,
+    background: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Sidebar {
+    primary: String,
+    secondary: Option<String>,
+    hover_color: Option<String>,
+    primary_text_color: Option<String>,
+    secondary_text_color: Option<String>,
+    border_color: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
