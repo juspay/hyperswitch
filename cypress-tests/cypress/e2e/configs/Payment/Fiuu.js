@@ -170,8 +170,7 @@ export const connectorDetails = {
     Refund: {
       Response: {
         status: 400,
-        body: {
-        },
+        body: {},
       },
     },
     PartialRefund: {
