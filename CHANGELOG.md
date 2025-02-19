@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.19.0
+
+### Features
+
+- **connector:** [Moneris] Add payments flow ([#7249](https://github.com/juspay/hyperswitch/pull/7249)) ([`d18d98a`](https://github.com/juspay/hyperswitch/commit/d18d98a1f687aef1e0f21f6a26387cb9ca7a347d))
+- **core:** Api ,domain and diesel model changes for extended authorization ([#6607](https://github.com/juspay/hyperswitch/pull/6607)) ([`e14d6c4`](https://github.com/juspay/hyperswitch/commit/e14d6c4465bb1276a348a668051c084af72de8e3))
+- **payments:** [Payment links] Add configs for payment link ([#7288](https://github.com/juspay/hyperswitch/pull/7288)) ([`72080c6`](https://github.com/juspay/hyperswitch/commit/72080c67c7927b53d5ca013983f379e9b027c51f))
+
+**Full Changelog:** [`2025.02.18.0...2025.02.19.0`](https://github.com/juspay/hyperswitch/compare/2025.02.18.0...2025.02.19.0)
+
+- - -
+
+## 2025.02.18.0
+
+### Features
+
+- **coingate:** Add Crypto Pay Flow ([#7247](https://github.com/juspay/hyperswitch/pull/7247)) ([`c868ff3`](https://github.com/juspay/hyperswitch/commit/c868ff38e0234fa83f1615e751af12cb7d32a3d9))
+
+### Refactors
+
+- **utils:** Use to_state_code of hyperswitch_connectors in router ([#7278](https://github.com/juspay/hyperswitch/pull/7278)) ([`b97370d`](https://github.com/juspay/hyperswitch/commit/b97370d59fd167af9c24f4470f4668ce2ee76a89))
+
+**Full Changelog:** [`2025.02.15.0...2025.02.18.0`](https://github.com/juspay/hyperswitch/compare/2025.02.15.0...2025.02.18.0)
+
+- - -
+
 ## 2025.02.15.0
 
 ### Features
