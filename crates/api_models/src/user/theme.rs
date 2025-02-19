@@ -76,6 +76,7 @@ struct Colors {
     secondary: Option<String>,
     background: Option<String>,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Sidebar {
