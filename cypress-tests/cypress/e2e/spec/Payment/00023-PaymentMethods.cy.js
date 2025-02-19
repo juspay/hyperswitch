@@ -103,7 +103,7 @@ describe("Payment Methods Tests", () => {
     });
   });
 
-  context.only("'Last Used' off-session token payments", () => {
+  context("'Last Used' off-session token payments", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -228,7 +228,6 @@ describe("Payment Methods Tests", () => {
         },
       };
 
-      console.log(newData);
       cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
