@@ -610,6 +610,9 @@ debit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE
 credit = { country = "AE,AT,CA,DE,IE,NL,UK,US",  currency = "CAD,EUR,GBP,USD" }
 debit = { country = "AE,AT,CA,DE,IE,NL,UK,US",  currency = "CAD,EUR,GBP,USD" }
 
+[pm_filters.cryptopay]
+crypto_currency = { country = "AX,AT,BE,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FO,FR,GF,GP,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MF,MQ,MT,NL,NO,PL,PT,RE,RO,SE,SI,SK",  currency = "AED,AUD,CAD,CHF,EUR,GBP,HKD,IDR,INR,JPY,KRW,MYR,NZD,PHP,SGD,THB,USD" }
+
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
 payout_connector_list = "stripe,wise"
