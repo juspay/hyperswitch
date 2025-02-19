@@ -29,10 +29,7 @@ use crate::{
             transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
-        payments::{
-            customers::get_connector_customer_details_if_present, helpers as payment_helpers,
-            routing, CustomerDetails,
-        },
+        payments::{helpers as payment_helpers, routing, CustomerDetails},
         routing::TransactionData,
         utils as core_utils,
     },
@@ -965,6 +962,7 @@ pub async fn get_default_payout_connector(
     ))
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &'a SessionState,
     connector: &'a api::ConnectorData,
@@ -981,9 +979,39 @@ pub fn should_call_payout_connector_create_customer<'a>(
                 .contains(&connector);
 
             if connector_needs_customer {
-                let connector_customer_details = customer.as_ref().and_then(|customer| {
-                    get_connector_customer_details_if_present(customer, connector_label)
-                });
+                let connector_customer_details = customer
+                    .as_ref()
+                    .and_then(|customer| customer.get_connector_customer_id(connector_label));
+                let should_call_connector = connector_customer_details.is_none();
+                (should_call_connector, connector_customer_details)
+            } else {
+                (false, None)
+            }
+        }
+        _ => (false, None),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub fn should_call_payout_connector_create_customer<'a>(
+    state: &'a SessionState,
+    connector: &'a api::ConnectorData,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
+) -> (bool, Option<&'a str>) {
+    // Check if create customer is required for the connector
+    match enums::PayoutConnectors::try_from(connector.connector_name) {
+        Ok(connector) => {
+            let connector_needs_customer = state
+                .conf
+                .connector_customer
+                .payout_connector_list
+                .contains(&connector);
+
+            if connector_needs_customer {
+                let connector_customer_details = customer
+                    .as_ref()
+                    .and_then(|customer| customer.get_connector_customer_id(merchant_connector_id));
                 let should_call_connector = connector_customer_details.is_none();
                 (should_call_connector, connector_customer_details)
             } else {
