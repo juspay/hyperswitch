@@ -3003,54 +3003,86 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
   const customerId = globalState.get("customerId");
+  const url = `${baseUrl}/customers/${customerId}/payment_methods`;
+
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/customers/${customerId}/payment_methods`,
+    url: url,
     headers: {
+      "api-key": apiKey,
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
+
+      // Validate response has payment methods
       if (response.body.customer_payment_methods[order]?.payment_token) {
         const paymentToken =
           response.body.customer_payment_methods[order].payment_token;
         const paymentMethodId =
           response.body.customer_payment_methods[order].payment_method_id;
-        globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
-        globalState.set("paymentMethodId", paymentMethodId); // Set paymentMethodId in globalState
+        const lastUsedAt =
+          response.body.customer_payment_methods[order].last_used_at;
+
+        globalState.set("paymentMethodId", paymentMethodId);
+        globalState.set("paymentToken", paymentToken);
+
+        // Validate last_used_at timestamp
+        expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
+          Date.now()
+        ).and.to.not.be.null;
+
+        // For order > 0, validate payment methods are ordered by last_used_at
+        if (order > 0) {
+          const prevLastUsedAt =
+            response.body.customer_payment_methods[0].last_used_at;
+          expect(
+            new Date(prevLastUsedAt).getTime(),
+            "last_used_at ordering"
+          ).to.be.greaterThan(new Date(lastUsedAt).getTime());
+        }
       } else {
-        // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
         expect(response.body)
           .to.have.property("customer_payment_methods")
           .to.be.an("array").and.empty;
       }
 
+      // Validate other payment method properties
       for (const arrayCount in response.body.customer_payment_methods) {
-        expect(globalState.get("customerId"), "customer_id").to.equal(
-          response.body.customer_payment_methods[arrayCount].customer_id
-        );
+        const paymentMethod =
+          response.body.customer_payment_methods[arrayCount];
+
         expect(
-          response.body.customer_payment_methods[arrayCount].payment_token,
-          "payment_token"
+          globalState.get("customerId"),
+          `${arrayCount} customer_id`
+        ).to.equal(paymentMethod.customer_id);
+
+        expect(
+          paymentMethod.payment_token,
+          `${arrayCount} payment_token`
         ).to.include("token_").and.not.be.null;
+
         expect(
-          response.body.customer_payment_methods[arrayCount].payment_method_id,
-          "payment_method_id"
+          paymentMethod.payment_method_id,
+          `${arrayCount} payment_method_id`
         ).to.include("pm_").and.not.be.null;
+
+        expect(paymentMethod.payment_method, `${arrayCount} payment_method`).to
+          .not.be.null;
+
         expect(
-          response.body.customer_payment_methods[arrayCount].payment_method,
-          "payment_method"
+          paymentMethod.payment_method_type,
+          `${arrayCount} payment_method_type`
         ).to.not.be.null;
-        expect(
-          response.body.customer_payment_methods[arrayCount]
-            .payment_method_type,
-          "payment_method_type"
-        ).to.not.be.null;
+
+        expect(paymentMethod.last_used_at, `${arrayCount} last_used_at`).to.not
+          .be.null;
       }
     });
   });

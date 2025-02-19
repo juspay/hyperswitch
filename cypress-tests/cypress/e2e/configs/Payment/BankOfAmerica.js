@@ -493,7 +493,7 @@ export const connectorDetails = {
             user_agent: "amet irure esse",
           },
         },
-      }
+      },
     }),
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
