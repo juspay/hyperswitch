@@ -313,7 +313,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .payment_attempt
         .connector_token_details
         .as_ref()
-        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+        .and_then(|detail| detail.get_connector_token_request_reference_id());
 
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
@@ -436,7 +436,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         .payment_attempt
         .connector_token_details
         .as_ref()
-        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+        .and_then(|detail| detail.get_connector_token_request_reference_id());
 
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -961,7 +961,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .payment_attempt
         .connector_token_details
         .as_ref()
-        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+        .and_then(|detail| detail.get_connector_token_request_reference_id());
 
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
@@ -1664,6 +1664,7 @@ where
             error,
             authentication_type: payment_intent.authentication_type,
             applied_authentication_type: payment_attempt.authentication_type,
+            payment_method_id: payment_attempt.payment_method_id,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -1721,6 +1722,12 @@ where
                     .map(From::from),
             });
 
+        let connector_token_details = self
+            .payment_attempt
+            .as_ref()
+            .and_then(|attempt| attempt.connector_token_details.clone())
+            .and_then(Option::<api_models::payments::ConnectorTokenDetails>::foreign_from);
+
         let response = api_models::payments::PaymentsRetrieveResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -1751,7 +1758,13 @@ where
             connector_reference_id: None,
             merchant_connector_id,
             browser_info: None,
+            connector_token_details,
+            payment_method_id: self
+                .payment_attempt
+                .as_ref()
+                .and_then(|attempt| attempt.payment_method_id.clone()),
             error,
+            next_action: None,
             attempts,
         };
 
@@ -4425,9 +4438,14 @@ impl ForeignFrom<diesel_models::ConnectorTokenDetails>
     for Option<api_models::payments::ConnectorTokenDetails>
 {
     fn foreign_from(value: diesel_models::ConnectorTokenDetails) -> Self {
-        value
-            .connector_mandate_id
-            .map(|mandate_id| api_models::payments::ConnectorTokenDetails { token: mandate_id })
+        let connector_token_request_reference_id =
+            value.connector_token_request_reference_id.clone();
+        value.connector_mandate_id.clone().map(|mandate_id| {
+            api_models::payments::ConnectorTokenDetails {
+                token: mandate_id,
+                connector_token_request_reference_id,
+            }
+        })
     }
 }
 

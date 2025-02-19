@@ -5345,6 +5345,10 @@ pub struct PaymentsConfirmIntentResponse {
     /// The authentication type applied for the payment
     #[schema(value_type = AuthenticationType, example = "no_three_ds")]
     pub applied_authentication_type: api_enums::AuthenticationType,
+
+    /// The payment_method_id associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 /// Token information that can be used to initiate transactions by the merchant.
@@ -5354,12 +5358,18 @@ pub struct ConnectorTokenDetails {
     /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
     pub token: String,
+
+    /// The reference id sent to the connector when creating the token
+    pub connector_token_request_reference_id: Option<String>,
 }
 
-// TODO: have a separate response for detailed, summarized
 /// Response for Payment Intent Confirm
+/// Few fields should be expandable, we need not return these in the normal response
+/// But when explictly requested for expanded objects, these can be returned
+/// For example
+/// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentsRetrieveResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -5438,6 +5448,16 @@ pub struct PaymentsRetrieveResponse {
 
     /// List of payment attempts associated with payment intent
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
+
+    /// Connector token information that can be used to make payments directly by the merchant.
+    pub connector_token_details: Option<ConnectorTokenDetails>,
+
+    /// The payment_method_id associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

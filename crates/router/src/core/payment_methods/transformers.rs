@@ -982,31 +982,23 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
 }
 
 #[cfg(feature = "v2")]
-impl
-    transformers::ForeignFrom<(
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-        Secret<String>,
-    )> for api_models::payment_methods::PaymentMethodsSessionResponse
-{
-    fn foreign_from(
-        item: (
-            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-            Secret<String>,
-        ),
-    ) -> Self {
-        let (session, client_secret) = item;
-        Self {
-            id: session.id,
-            customer_id: session.customer_id,
-            billing: session
-                .billing
-                .map(|address| address.into_inner())
-                .map(From::from),
-            psp_tokenization: session.psp_tokenization,
-            network_tokenization: session.network_tokenization,
-            expires_at: session.expires_at,
-            client_secret,
-        }
+pub fn generate_payment_method_session_response(
+    payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    client_secret: Secret<String>,
+    associated_payment: Option<api_models::payments::PaymentsRetrieveResponse>,
+) -> api_models::payment_methods::PaymentMethodSessionResponse {
+    api_models::payment_methods::PaymentMethodSessionResponse {
+        id: payment_method_session.id,
+        customer_id: payment_method_session.customer_id,
+        billing: payment_method_session
+            .billing
+            .map(|address| address.into_inner())
+            .map(From::from),
+        psp_tokenization: payment_method_session.psp_tokenization,
+        network_tokenization: payment_method_session.network_tokenization,
+        expires_at: payment_method_session.expires_at,
+        client_secret,
+        associated_payment,
     }
 }
 

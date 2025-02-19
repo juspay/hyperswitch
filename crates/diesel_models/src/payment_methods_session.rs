@@ -8,4 +8,6 @@ pub struct PaymentMethodsSession {
     pub network_tokeinzation: Option<common_types::payment_methods::NetworkTokenization>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_at: time::PrimitiveDateTime,
+    pub associated_payment_method: Option<common_utils::id_type::GlobalPaymentMethodId>,
+    pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
 }

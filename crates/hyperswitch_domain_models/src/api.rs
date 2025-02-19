@@ -20,6 +20,28 @@ pub enum ApplicationResponse<R> {
     GenericLinkForm(Box<GenericLinks>),
 }
 
+impl<R> ApplicationResponse<R> {
+    /// Get the json response from response
+    #[inline]
+    pub fn get_json_body(
+        self,
+    ) -> common_utils::errors::CustomResult<R, common_utils::errors::ValidationError> {
+        match self {
+            Self::Json(body) | Self::JsonWithHeaders((body, _)) => Ok(body),
+            Self::TextPlain(_)
+            | Self::JsonForRedirection(_)
+            | Self::Form(_)
+            | Self::PaymentLinkForm(_)
+            | Self::FileData(_)
+            | Self::GenericLinkForm(_)
+            | Self::StatusOk => Err(common_utils::errors::ValidationError::InvalidValue {
+                message: "expected either Json or JsonWithHeaders Response".to_string(),
+            }
+            .into()),
+        }
+    }
+}
+
 impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         match self {

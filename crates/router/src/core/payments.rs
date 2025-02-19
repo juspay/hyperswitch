@@ -1717,7 +1717,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
     request: payments_api::PaymentsRequest,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<payments_api::PaymentsResponse> {
+) -> RouterResponse<payments_api::PaymentsRetrieveResponse> {
     use hyperswitch_domain_models::{
         payments::PaymentIntentData, router_flow_types::PaymentCreateIntent,
     };
@@ -1747,7 +1747,11 @@ pub(crate) async fn payments_create_and_confirm_intent(
     .await?;
 
     logger::info!(?create_intent_response);
-    let create_intent_response = handle_payments_intent_response(create_intent_response)?;
+
+    let create_intent_response = create_intent_response
+        .get_json_body()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unexpected response from payments core")?;
 
     // Adding client secret to ensure client secret validation passes during confirm intent step
     header_payload.client_secret = Some(create_intent_response.client_secret.clone());
@@ -1768,32 +1772,13 @@ pub(crate) async fn payments_create_and_confirm_intent(
     .await?;
 
     logger::info!(?confirm_intent_response);
-    let confirm_intent_response = handle_payments_intent_response(confirm_intent_response)?;
+
+    let confirm_intent_response = confirm_intent_response
+        .get_json_body()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unexpected response from payments core")?;
 
     construct_payments_response(create_intent_response, confirm_intent_response)
-}
-
-#[cfg(feature = "v2")]
-#[inline]
-fn handle_payments_intent_response<T>(
-    response: hyperswitch_domain_models::api::ApplicationResponse<T>,
-) -> CustomResult<T, errors::ApiErrorResponse> {
-    match response {
-        hyperswitch_domain_models::api::ApplicationResponse::Json(body)
-        | hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((body, _)) => {
-            Ok(body)
-        }
-        hyperswitch_domain_models::api::ApplicationResponse::StatusOk
-        | hyperswitch_domain_models::api::ApplicationResponse::TextPlain(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::Form(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::PaymentLinkForm(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::FileData(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::GenericLinkForm(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unexpected response from payment intent core")
-        }
-    }
 }
 
 #[cfg(feature = "v2")]
@@ -1801,25 +1786,29 @@ fn handle_payments_intent_response<T>(
 fn construct_payments_response(
     create_intent_response: payments_api::PaymentsIntentResponse,
     confirm_intent_response: payments_api::PaymentsConfirmIntentResponse,
-) -> RouterResponse<payments_api::PaymentsResponse> {
-    let response = payments_api::PaymentsResponse {
+) -> RouterResponse<payments_api::PaymentsRetrieveResponse> {
+    let response = payments_api::PaymentsRetrieveResponse {
         id: confirm_intent_response.id,
         status: confirm_intent_response.status,
         amount: confirm_intent_response.amount,
         customer_id: confirm_intent_response.customer_id,
-        connector: confirm_intent_response.connector,
+        connector: Some(confirm_intent_response.connector),
         client_secret: confirm_intent_response.client_secret,
         created: confirm_intent_response.created,
         payment_method_data: confirm_intent_response.payment_method_data,
-        payment_method_type: confirm_intent_response.payment_method_type,
-        payment_method_subtype: confirm_intent_response.payment_method_subtype,
+        payment_method_type: Some(confirm_intent_response.payment_method_type),
+        payment_method_subtype: Some(confirm_intent_response.payment_method_subtype),
         next_action: confirm_intent_response.next_action,
         connector_transaction_id: confirm_intent_response.connector_transaction_id,
         connector_reference_id: confirm_intent_response.connector_reference_id,
         connector_token_details: confirm_intent_response.connector_token_details,
-        merchant_connector_id: confirm_intent_response.merchant_connector_id,
+        merchant_connector_id: Some(confirm_intent_response.merchant_connector_id),
         browser_info: confirm_intent_response.browser_info,
         error: confirm_intent_response.error,
+        payment_method_id: confirm_intent_response.payment_method_id,
+        shipping: None,
+        attempts: None,
+        billing: None,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

@@ -2591,8 +2591,8 @@ pub struct PaymentMethodSessionConfirmRequest {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentMethodsSessionResponse {
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionResponse {
     #[schema(value_type = String, example = "12345_pms_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodSessionId,
 
@@ -2621,4 +2621,6 @@ pub struct PaymentMethodsSessionResponse {
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: masking::Secret<String>,
+
+    pub associated_payment: Option<payments::PaymentsRetrieveResponse>,
 }

@@ -9,7 +9,7 @@ pub trait PaymentMethodsSessionInterface {
         &self,
         state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity: i64,
     ) -> CustomResult<(), errors::StorageError>;
 
@@ -19,7 +19,7 @@ pub trait PaymentMethodsSessionInterface {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         errors::StorageError,
     >;
 }
@@ -50,7 +50,7 @@ mod storage {
             &self,
             _state: &common_utils::types::keymanager::KeyManagerState,
             _key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-            payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
             validity_in_seconds: i64,
         ) -> CustomResult<(), errors::StorageError> {
             let redis_key = payment_methods_session.id.get_redis_key();
@@ -78,7 +78,7 @@ mod storage {
             key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         ) -> CustomResult<
-            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            hyperswitch_domain_models::payment_methods::PaymentMethodSession,
             errors::StorageError,
         > {
             let redis_key = id.get_redis_key();
@@ -112,7 +112,7 @@ impl PaymentMethodsSessionInterface for MockDb {
         &self,
         state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity_in_seconds: i64,
     ) -> CustomResult<(), errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -125,7 +125,7 @@ impl PaymentMethodsSessionInterface for MockDb {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         errors::StorageError,
     > {
         Err(errors::StorageError::MockDbError)?
