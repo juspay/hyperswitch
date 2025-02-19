@@ -6570,6 +6570,10 @@ pub struct SamsungPaySessionTokenResponse {
     pub protocol: SamsungPayProtocolType,
     /// List of supported card brands
     pub allowed_brands: Vec<String>,
+    /// Is billing address required to be collected from wallet
+    pub billing_address_required: bool,
+    /// Is shipping address required to be collected from wallet
+    pub shipping_address_required: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
