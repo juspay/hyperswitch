@@ -25,7 +25,7 @@ jobs:
 
     services:
       redis:
-        image: "redis"
+        image: "redis:alpine"
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -34,7 +34,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: "postgres:14.5"
+        image: "postgres:alpine"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
