@@ -229,7 +229,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-            email: "mauro.morandi@nexi.it",
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -248,7 +248,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-            email: "mauro.morandi@nexi.it"
+            email: "johndoe@gmail.com"
           },
         },
         currency: "USD",
@@ -296,6 +296,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "johndoe@gmail.com",
+          },
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
