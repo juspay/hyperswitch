@@ -578,7 +578,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
@@ -589,7 +590,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "failed",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
@@ -733,6 +735,19 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
