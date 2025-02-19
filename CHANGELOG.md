@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix2
+
+### Features
+
+- **utils:** Add iso representation for each state for european countries ([#7302](https://github.com/juspay/hyperswitch/pull/7302)) ([`170217a`](https://github.com/juspay/hyperswitch/commit/170217a8504cd1954c80ef6767c3a0be8ec13873))
+
+### Refactors
+
+- **utils:**
+  - Use to_state_code of hyperswitch_connectors in router ([#7303](https://github.com/juspay/hyperswitch/pull/7303)) ([`f63d780`](https://github.com/juspay/hyperswitch/commit/f63d7800af67e55d5046b4c95001c36cbb4f817b))
+  - Match string for state with SDK's naming convention ([#7311](https://github.com/juspay/hyperswitch/pull/7311)) ([`2ea79c8`](https://github.com/juspay/hyperswitch/commit/2ea79c873f9b772c18ffa2123aadaa95b4858175))
+
+- - -
+
 ## 2025.02.10.0-hotfix1
 
 ### Bug Fixes
