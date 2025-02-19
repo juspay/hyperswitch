@@ -182,6 +182,9 @@ pub struct CustomerResponse {
     /// The identifier for the customer object
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_reference_id: Option<id_type::CustomerId>,
+    /// Connector specific customer reference ids
+    #[schema(value_type = Option<Object>, example = json!({"mca_hwySG2NtpzX0qr7toOy8": "cus_Rnm2pDKGyQi506"}))]
+    pub connector_customer: Option<ConnectorCustomerMap>,
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: crypto::OptionalEncryptableName,
@@ -372,3 +375,9 @@ pub struct CustomerUpdateRequestInternal {
     pub id: id_type::GlobalCustomerId,
     pub request: CustomerUpdateRequest,
 }
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectorCustomerMap(
+    pub std::collections::HashMap<id_type::MerchantConnectorAccountId, String>,
+);
