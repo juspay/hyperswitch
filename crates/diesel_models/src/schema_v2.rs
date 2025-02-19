@@ -145,7 +145,8 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist_fingerprint (merchant_id, fingerprint_id) {
+    blocklist_fingerprint (id) {
+        id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -160,7 +161,8 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist_lookup (merchant_id, fingerprint) {
+    blocklist_lookup (id) {
+        id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
         fingerprint -> Text,
@@ -208,6 +210,7 @@ diesel::table! {
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
+        always_request_extended_authorization -> Nullable<Bool>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -222,14 +225,6 @@ diesel::table! {
         should_collect_cvv_during_payment -> Bool,
         #[max_length = 64]
         id -> Varchar,
-        version -> ApiVersion,
-        dynamic_routing_algorithm -> Nullable<Json>,
-        is_network_tokenization_enabled -> Bool,
-        is_auto_retries_enabled -> Nullable<Bool>,
-        max_auto_retries_enabled -> Nullable<Int2>,
-        always_request_extended_authorization -> Nullable<Bool>,
-        is_click_to_pay_enabled -> Bool,
-        authentication_product_ids -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
     }
 }
@@ -315,6 +310,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     configs (key) {
+        id -> Int4,
         #[max_length = 255]
         key -> Varchar,
         config -> Text,
@@ -632,7 +628,8 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    locker_mock_up (card_id) {
+    locker_mock_up (id) {
+        id -> Int4,
         #[max_length = 255]
         card_id -> Varchar,
         #[max_length = 255]
@@ -863,6 +860,9 @@ diesel::table! {
         card_network -> Nullable<Varchar>,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        request_extended_authorization -> Nullable<Bool>,
+        extended_authorization_applied -> Nullable<Bool>,
+        capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
         payment_method_type_v2 -> Varchar,
@@ -881,13 +881,6 @@ diesel::table! {
         connector_token_details -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
-        shipping_cost -> Nullable<Int8>,
-        order_tax_amount -> Nullable<Int8>,
-        request_extended_authorization -> Nullable<Bool>,
-        extended_authorization_applied -> Nullable<Bool>,
-        capture_before -> Nullable<Timestamp>,
-        card_discovery -> Nullable<CardDiscovery>,
-        charges -> Nullable<Jsonb>,
     }
 }
 
@@ -940,6 +933,7 @@ diesel::table! {
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
+        request_extended_authorization -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -965,11 +959,6 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
-        request_extended_authorization -> Nullable<Bool>,
-        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
-        split_payments -> Nullable<Jsonb>,
-        #[max_length = 64]
-        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
