@@ -5427,6 +5427,7 @@ pub struct PaymentsRetrieveResponse {
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
 }
 
+#[cfg(feature = "v2")]
 impl PaymentsRetrieveResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
         self,

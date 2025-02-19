@@ -276,17 +276,18 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(None)
     }
 
+    #[cfg(all(feature= "revenue_recovery",feature = "v2"))]
     /// get revenue recovery invoice details
-    fn get_revenue_recovery_transaction_details(
+    fn get_revenue_recovery_attempt_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented(
-            "get_revenue_recovery_transaction_details method".to_string(),
+            "get_revenue_recovery_attempt_details method".to_string(),
         )
         .into())
     }
-
+    #[cfg(all(feature= "revenue_recovery",feature = "v2"))]
     /// get revenue recovery transaction details
     fn get_revenue_recovery_invoice_details(
         &self,

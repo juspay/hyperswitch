@@ -68,7 +68,7 @@ pub async fn recovery_incoming_webhook_flow(
     let payment_attempt = match event_type.is_recovery_transaction_event() {
         true => {
             let invoice_transaction_details = connector
-                .get_revenue_recovery_transaction_details(request_details)
+                .get_revenue_recovery_attempt_details(request_details)
                 .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)?;
 
             invoice_transaction_details

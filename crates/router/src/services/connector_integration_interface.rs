@@ -340,7 +340,7 @@ impl api::IncomingWebhook for ConnectorEnum {
     }
 
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-    fn get_revenue_recovery_transaction_details(
+    fn get_revenue_recovery_attempt_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
@@ -348,8 +348,8 @@ impl api::IncomingWebhook for ConnectorEnum {
         errors::ConnectorError,
     > {
         match self {
-            Self::Old(connector) => connector.get_revenue_recovery_transaction_details(request),
-            Self::New(connector) => connector.get_revenue_recovery_transaction_details(request),
+            Self::Old(connector) => connector.get_revenue_recovery_attempt_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
         }
     }
 
