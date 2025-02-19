@@ -39,11 +39,8 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
-<<<<<<< HEAD
     CardNetworkTokenization,
-=======
     Hypersense,
->>>>>>> origin/main
     PaymentMethodsSession,
 }
 
