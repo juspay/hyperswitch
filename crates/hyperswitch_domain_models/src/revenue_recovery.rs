@@ -3,7 +3,7 @@ use api_models::webhooks;
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
-pub struct RevenueRecoveryTransactionData {
+pub struct RevenueRecoveryAttemptData {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: common_utils::types::MinorUnit,
     /// currency of the transaction

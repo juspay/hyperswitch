@@ -344,7 +344,7 @@ impl api::IncomingWebhook for ConnectorEnum {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
-        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryTransactionData,
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
         errors::ConnectorError,
     > {
         match self {

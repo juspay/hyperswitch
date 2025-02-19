@@ -280,7 +280,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_revenue_recovery_transaction_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryTransactionData, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented(
             "get_revenue_recovery_transaction_details method".to_string(),
         )

@@ -155,7 +155,7 @@ pub trait RevenueRecoveryInvoice {
     >;
 }
 /// Attempt related functions for the invoice transactions are implemented in this trait
-pub trait RevenueRecoveryTransaction {
+pub trait RevenueRecoveryAttempt {
     /// Get the payment attempt using connector transaction id.
     async fn get_payment_attempt(
         &self,
@@ -287,8 +287,8 @@ impl RevenueRecoveryInvoice
     }
 }
 
-impl RevenueRecoveryTransaction
-    for hyperswitch_domain_models::revenue_recovery::RevenueRecoveryTransactionData
+impl RevenueRecoveryAttempt
+    for hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData
 {
     async fn get_payment_attempt(
         &self,
