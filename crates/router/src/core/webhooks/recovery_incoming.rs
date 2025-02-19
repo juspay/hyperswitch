@@ -331,11 +331,21 @@ impl RevenueRecoveryAttempt
         router_env::logger::info!(?attempt_response);
         let response = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
-                let final_attempt =self.connector_transaction_id.as_ref().and_then(|transaction_id|payments_response.find_attempt_in_attempts_list_using_connector_transaction_id(transaction_id));
-                let payment_attempt = final_attempt.map(|attempt_res| hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt {
-                    attempt_id: attempt_res.id.to_owned(),
-                    attempt_status: attempt_res.status.to_owned(),
-                    feature_metadata: attempt_res.feature_metadata.to_owned(),
+                let final_attempt =
+                    self.connector_transaction_id
+                        .as_ref()
+                        .and_then(|transaction_id| {
+                            payments_response
+                                .find_attempt_in_attempts_list_using_connector_transaction_id(
+                                    transaction_id,
+                                )
+                        });
+                let payment_attempt = final_attempt.map(|attempt_res| {
+                    hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt {
+                        attempt_id: attempt_res.id.to_owned(),
+                        attempt_status: attempt_res.status.to_owned(),
+                        feature_metadata: attempt_res.feature_metadata.to_owned(),
+                    }
                 });
                 Ok(payment_attempt)
             }

@@ -1,5 +1,5 @@
-use time::PrimitiveDateTime;
 use api_models::webhooks;
+use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
@@ -144,9 +144,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::AmountDetails {
     }
 }
 
-impl From<&RevenueRecoveryInvoiceData>
-    for api_models::payments::PaymentsCreateIntentRequest
-{
+impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateIntentRequest {
     fn from(data: &RevenueRecoveryInvoiceData) -> Self {
         let amount_details = api_models::payments::AmountDetails::from(data);
         Self {

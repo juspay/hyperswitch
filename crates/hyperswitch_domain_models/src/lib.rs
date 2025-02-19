@@ -20,6 +20,8 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod relay;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod revenue_recovery;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;
@@ -27,8 +29,6 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-pub mod revenue_recovery;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
