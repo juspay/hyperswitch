@@ -39,6 +39,12 @@ pub mod payment_methods {
 pub mod consts {
     pub use hyperswitch_domain_models::consts::*;
 }
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod vault{
+    pub use hyperswitch_domain_models::vault::*;
+}
+
 pub mod payments;
 pub mod types;
 #[cfg(feature = "olap")]
@@ -58,3 +64,5 @@ pub use payments::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub use vault::*;

@@ -30,7 +30,7 @@ use crate::{
     routes::{self, metrics},
     services::{self, encryption},
     settings,
-    types::{api, domain},
+    types::{api, domain, payment_methods as payment_method_types},
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
@@ -45,7 +45,7 @@ pub async fn mk_tokenization_req(
     customer_id: id_type::CustomerId,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<
-    (domain::CardNetworkTokenResponsePayload, Option<String>),
+    (payment_method_types::CardNetworkTokenResponsePayload, Option<String>),
     errors::NetworkTokenizationError,
 > {
     let enc_key = tokenization_service.public_key.peek().clone();
@@ -62,12 +62,12 @@ pub async fn mk_tokenization_req(
     .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
     .attach_printable("Error on jwe encrypt")?;
 
-    let order_data = domain::OrderData {
+    let order_data = payment_method_types::OrderData {
         consent_id: uuid::Uuid::new_v4().to_string(),
         customer_id,
     };
 
-    let api_payload = domain::ApiPayload {
+    let api_payload = payment_method_types::ApiPayload {
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
@@ -103,7 +103,7 @@ pub async fn mk_tokenization_req(
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
-                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                let parsed_error: payment_method_types::NetworkTokenErrorResponse = err_res
                     .response
                     .parse_struct("Card Network Tokenization Response")
                     .change_context(
@@ -124,7 +124,7 @@ pub async fn mk_tokenization_req(
             logger::error!("Error while deserializing response: {:?}", err);
         })?;
 
-    let network_response: domain::CardNetworkTokenResponse = res
+    let network_response: payment_method_types::CardNetworkTokenResponse = res
         .response
         .parse_struct("Card Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
@@ -143,7 +143,7 @@ pub async fn mk_tokenization_req(
         "Failed to decrypt the tokenization response from the tokenization service",
     )?;
 
-    let cn_response: domain::CardNetworkTokenResponsePayload =
+    let cn_response: payment_method_types::CardNetworkTokenResponsePayload =
         serde_json::from_str(&card_network_token_response)
             .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
     Ok((cn_response.clone(), Some(cn_response.card_reference)))
@@ -156,7 +156,7 @@ pub async fn generate_network_token(
     customer_id: id_type::GlobalCustomerId,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<
-    (domain::GenerateNetworkTokenResponsePayload, String),
+    (payment_method_types::GenerateNetworkTokenResponsePayload, String),
     errors::NetworkTokenizationError,
 > {
     let enc_key = tokenization_service.public_key.peek().clone();
@@ -173,12 +173,12 @@ pub async fn generate_network_token(
     .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
     .attach_printable("Error on jwe encrypt")?;
 
-    let order_data = domain::OrderData {
+    let order_data = payment_method_types::OrderData {
         consent_id: uuid::Uuid::new_v4().to_string(),
         customer_id,
     };
 
-    let api_payload = domain::ApiPayload {
+    let api_payload = payment_method_types::ApiPayload {
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
@@ -214,7 +214,7 @@ pub async fn generate_network_token(
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
-                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                let parsed_error: payment_method_types::NetworkTokenErrorResponse = err_res
                     .response
                     .parse_struct("Card Network Tokenization Response")
                     .change_context(
@@ -235,7 +235,7 @@ pub async fn generate_network_token(
             logger::error!("Error while deserializing response: {:?}", err);
         })?;
 
-    let network_response: domain::CardNetworkTokenResponse = res
+    let network_response: payment_method_types::CardNetworkTokenResponse = res
         .response
         .parse_struct("Card Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
@@ -255,7 +255,7 @@ pub async fn generate_network_token(
         "Failed to decrypt the tokenization response from the tokenization service",
     )?;
 
-    let cn_response: domain::GenerateNetworkTokenResponsePayload =
+    let cn_response: payment_method_types::GenerateNetworkTokenResponsePayload =
         serde_json::from_str(&card_network_token_response)
             .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
     Ok((cn_response.clone(), cn_response.card_reference))
@@ -270,10 +270,10 @@ pub async fn make_card_network_tokenization_request(
     card: &domain::Card,
     customer_id: &id_type::CustomerId,
 ) -> CustomResult<
-    (domain::CardNetworkTokenResponsePayload, Option<String>),
+    (payment_method_types::CardNetworkTokenResponsePayload, Option<String>),
     errors::NetworkTokenizationError,
 > {
-    let card_data = domain::CardData {
+    let card_data = payment_method_types::CardData {
         card_number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
         exp_year: card.card_exp_year.clone(),
@@ -319,7 +319,7 @@ pub async fn make_card_network_tokenization_request(
     card: &api_payment_methods::CardDetail,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<(NetworkTokenDetails, String), errors::NetworkTokenizationError> {
-    let card_data = domain::CardData {
+    let card_data = payment_method_types::CardData {
         card_number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
         exp_year: card.card_exp_year.clone(),
@@ -375,12 +375,12 @@ pub async fn get_network_token(
     customer_id: id_type::CustomerId,
     network_token_requestor_ref_id: String,
     tokenization_service: &settings::NetworkTokenizationService,
-) -> CustomResult<domain::TokenResponse, errors::NetworkTokenizationError> {
+) -> CustomResult<payment_method_types::TokenResponse, errors::NetworkTokenizationError> {
     let mut request = services::Request::new(
         services::Method::Post,
         tokenization_service.fetch_token_url.as_str(),
     );
-    let payload = domain::GetCardToken {
+    let payload = payment_method_types::GetCardToken {
         card_reference: network_token_requestor_ref_id,
         customer_id,
     };
@@ -410,7 +410,7 @@ pub async fn get_network_token(
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
-                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                let parsed_error: payment_method_types::NetworkTokenErrorResponse = err_res
                     .response
                     .parse_struct("Card Network Tokenization Response")
                     .change_context(
@@ -428,7 +428,7 @@ pub async fn get_network_token(
             Ok(res) => Ok(res),
         })?;
 
-    let token_response: domain::TokenResponse = res
+    let token_response: payment_method_types::TokenResponse = res
         .response
         .parse_struct("Get Network Token Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
@@ -443,12 +443,12 @@ pub async fn get_network_token(
     customer_id: &id_type::GlobalCustomerId,
     network_token_requestor_ref_id: String,
     tokenization_service: &settings::NetworkTokenizationService,
-) -> CustomResult<domain::TokenResponse, errors::NetworkTokenizationError> {
+) -> CustomResult<payment_method_types::TokenResponse, errors::NetworkTokenizationError> {
     let mut request = services::Request::new(
         services::Method::Post,
         tokenization_service.fetch_token_url.as_str(),
     );
-    let payload = domain::GetCardToken {
+    let payload = payment_method_types::GetCardToken {
         card_reference: network_token_requestor_ref_id,
         customer_id: customer_id.clone(),
     };
@@ -478,7 +478,7 @@ pub async fn get_network_token(
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
-                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                let parsed_error: payment_method_types::NetworkTokenErrorResponse = err_res
                     .response
                     .parse_struct("Card Network Tokenization Response")
                     .change_context(
@@ -496,7 +496,7 @@ pub async fn get_network_token(
             Ok(res) => Ok(res),
         })?;
 
-    let token_response: domain::TokenResponse = res
+    let token_response: payment_method_types::TokenResponse = res
         .response
         .parse_struct("Get Network Token Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
@@ -655,7 +655,7 @@ pub async fn check_token_status_with_tokenization_service(
         services::Method::Post,
         tokenization_service.check_token_status_url.as_str(),
     );
-    let payload = domain::CheckTokenStatus {
+    let payload = payment_method_types::CheckTokenStatus {
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
     };
@@ -682,7 +682,7 @@ pub async fn check_token_status_with_tokenization_service(
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
-                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                let parsed_error: payment_method_types::NetworkTokenErrorResponse = err_res
                     .response
                     .parse_struct("Delete Network Tokenization Response")
                     .change_context(
@@ -703,17 +703,17 @@ pub async fn check_token_status_with_tokenization_service(
             logger::error!("Error while deserializing response: {:?}", err);
         })?;
 
-    let check_token_status_response: domain::CheckTokenStatusResponse = res
+    let check_token_status_response: payment_method_types::CheckTokenStatusResponse = res
         .response
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
     match check_token_status_response.payload.token_status {
-        domain::TokenStatus::Active => Ok((
+        payment_method_types::TokenStatus::Active => Ok((
             Some(check_token_status_response.payload.token_expiry_month),
             Some(check_token_status_response.payload.token_expiry_year),
         )),
-        domain::TokenStatus::Inactive => Ok((None, None)),
+        payment_method_types::TokenStatus::Inactive => Ok((None, None)),
     }
 }
 
@@ -790,7 +790,7 @@ pub async fn delete_network_token_from_tokenization_service(
         services::Method::Post,
         tokenization_service.delete_token_url.as_str(),
     );
-    let payload = domain::DeleteCardToken {
+    let payload = payment_method_types::DeleteCardToken {
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
     };
@@ -819,7 +819,7 @@ pub async fn delete_network_token_from_tokenization_service(
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
-                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                let parsed_error: payment_method_types::NetworkTokenErrorResponse = err_res
                     .response
                     .parse_struct("Delete Network Tokenization Response")
                     .change_context(
@@ -840,14 +840,14 @@ pub async fn delete_network_token_from_tokenization_service(
             logger::error!("Error while deserializing response: {:?}", err);
         })?;
 
-    let delete_token_response: domain::DeleteNetworkTokenResponse = res
+    let delete_token_response: payment_method_types::DeleteNetworkTokenResponse = res
         .response
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
     logger::info!("Delete Network Token Response: {:?}", delete_token_response);
 
-    if delete_token_response.status == domain::DeleteNetworkTokenStatus::Success {
+    if delete_token_response.status == payment_method_types::DeleteNetworkTokenStatus::Success {
         Ok(true)
     } else {
         Err(errors::NetworkTokenizationError::DeleteNetworkTokenFailed)
