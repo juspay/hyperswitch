@@ -31,8 +31,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_MIN_STACK: 10485760
 
 jobs:
