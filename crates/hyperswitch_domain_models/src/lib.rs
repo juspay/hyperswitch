@@ -405,6 +405,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                 )
             }),
             payment_button_text: item.payment_button_text,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -421,6 +423,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             background_image,
             details_layout,
             payment_button_text,
+            custom_message_for_card_terms,
+            payment_button_colour,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -441,6 +445,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             background_image: background_image
                 .map(|background_image| background_image.convert_back()),
             payment_button_text,
+            custom_message_for_card_terms,
+            payment_button_colour,
         }
     }
 }

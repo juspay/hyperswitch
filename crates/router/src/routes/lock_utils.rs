@@ -39,7 +39,11 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
+<<<<<<< HEAD
     CardNetworkTokenization,
+=======
+    Hypersense,
+>>>>>>> origin/main
     PaymentMethodsSession,
 }
 
@@ -313,6 +317,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::FeatureMatrix => Self::Documentation,
 
             Flow::TokenizeCard | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
+
+            Flow::HypersenseTokenRequest
+            | Flow::HypersenseVerifyToken
+            | Flow::HypersenseSignoutToken => Self::Hypersense,
 
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
