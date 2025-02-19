@@ -94,7 +94,8 @@ jobs:
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-            save-if: false
+          shared-key: "rust-cache-test_connectors"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install Protoc
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}

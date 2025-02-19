@@ -88,7 +88,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.7
         with: 
-          save-if: false
+          env-vars: "rust-cache-test_connectors"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Decrypt connector auth file
         env:

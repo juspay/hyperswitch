@@ -42,9 +42,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "true"
 
     strategy:
       fail-fast: true
@@ -77,16 +77,21 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       # - name: Install sccache
       #   uses: taiki-e/install-action@v2.33.28
       #   with:
       #     tool: sccache
       #     checksum: true
+      
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
 
-      - uses: Swatinem/rust-cache@v2.7.7
-        with:
-          save-if: ${{ github.event_name == 'push' }}
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with:
+      #     shared-key: "rust-cache-check-msrv"
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -139,9 +144,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "true"
 
     strategy:
       fail-fast: true
@@ -170,12 +175,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
         with:
@@ -195,10 +194,20 @@ jobs:
       #   uses: baptiste0928/cargo-install@v2.2.0
       #   with:
       #     crate: cargo-nextest
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.7.7
-        with:
-          save-if: ${{ github.event_name == 'push' }}
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
+
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with:
+      #     shared-key: "rust-cache-test"
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run clippy
         shell: bash
@@ -228,6 +237,10 @@ jobs:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
 
+    env:
+      RUSTC_WRAPPER: "sccache"
+      SCCACHE_GHA_ENABLED: "true"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -248,8 +261,20 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
+      - name: Sccache Action
+        uses: Mozilla-Actions/sccache-action@v0.0.7
+
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with:
+      #     shared-key: "rust-cache-check-v2"
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
