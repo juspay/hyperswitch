@@ -211,6 +211,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
+    let connector_customer_id = customer.as_ref().and_then(|customer| {
+        customer
+            .get_connector_customer_id(&merchant_connector_account.get_id())
+            .map(String::from)
+    });
+
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
     let router_base_url = &state.base_url;
@@ -352,7 +358,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         reference_id: None,
         payment_method_status: None,
         payment_method_token: None,
-        connector_customer: None,
+        connector_customer: connector_customer_id,
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
@@ -787,7 +793,10 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
             .map(ToOwned::to_owned),
         // TODO: Create unified address
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-        auth_type: payment_data.payment_intent.authentication_type,
+        auth_type: payment_data
+            .payment_intent
+            .authentication_type
+            .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: None,
         request,
@@ -863,6 +872,12 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .attach_printable(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
+
+    let connector_customer_id = customer.as_ref().and_then(|customer| {
+        customer
+            .get_connector_customer_id(&merchant_connector_account.get_id())
+            .map(String::from)
+    });
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
@@ -991,7 +1006,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         reference_id: None,
         payment_method_status: None,
         payment_method_token: None,
-        connector_customer: None,
+        connector_customer: connector_customer_id,
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
@@ -1647,6 +1662,8 @@ where
             merchant_connector_id,
             browser_info: None,
             error,
+            authentication_type: payment_intent.authentication_type,
+            applied_authentication_type: payment_attempt.authentication_type,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2491,6 +2508,9 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            capture_before: payment_attempt.capture_before,
+            extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            card_discovery: payment_attempt.card_discovery,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2744,9 +2764,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             updated: None,
             split_payments: None,
             frm_metadata: None,
+            capture_before: pa.capture_before,
+            extended_authorization_applied: pa.extended_authorization_applied,
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            card_discovery: pa.card_discovery
         }
     }
 }
@@ -3847,7 +3870,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 connector_response_reference_id,
                 ..
             } => {
-                let (connector_capture_id, connector_capture_data) = match resource_id {
+                let (connector_capture_id, processor_capture_data) = match resource_id {
                     types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => {
                         (None, None)
                     }
@@ -3861,7 +3884,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                     status: enums::CaptureStatus::foreign_try_from(status)?,
                     connector_capture_id,
                     connector_response_reference_id,
-                    connector_capture_data,
+                    processor_capture_data,
                 })
             }
             types::CaptureSyncResponse::Error {
@@ -4282,6 +4305,8 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 )
             }),
             payment_button_text: config.payment_button_text,
+            custom_message_for_card_terms: config.custom_message_for_card_terms,
+            payment_button_colour: config.payment_button_colour,
         }
     }
 }
@@ -4345,6 +4370,8 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
                 )
             }),
             payment_button_text: config.payment_button_text,
+            custom_message_for_card_terms: config.custom_message_for_card_terms,
+            payment_button_colour: config.payment_button_colour,
         }
     }
 }

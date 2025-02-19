@@ -100,31 +100,29 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 6500,
+          amount_received: 6000,
         },
       },
     },
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 100,
+          amount_received: 2000,
         },
       },
     },
@@ -133,11 +131,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 501,
@@ -153,11 +147,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 501,
@@ -173,11 +163,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 501,
@@ -193,11 +179,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 501,

@@ -11,7 +11,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -108,6 +108,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
 }
@@ -351,7 +352,7 @@ pub struct PaymentIntent {
     /// Capture method for the payment
     pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.
-    pub authentication_type: common_enums::AuthenticationType,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
     pub prerouting_algorithm: Option<Value>,
     /// The organization id for the payment. This is derived from the merchant account
@@ -498,7 +499,7 @@ impl PaymentIntent {
                 .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to decode shipping address")?,
             capture_method: request.capture_method.unwrap_or_default(),
-            authentication_type: request.authentication_type.unwrap_or_default(),
+            authentication_type: request.authentication_type,
             prerouting_algorithm: None,
             organization_id: merchant_account.organization_id.clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),

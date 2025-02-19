@@ -224,6 +224,7 @@ diesel::table! {
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
+        always_request_extended_authorization -> Nullable<Bool>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
@@ -278,8 +279,7 @@ diesel::table! {
         capture_sequence -> Int2,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
-        #[max_length = 512]
-        connector_capture_data -> Nullable<Varchar>,
+        processor_capture_data -> Nullable<Text>,
     }
 }
 
@@ -872,13 +872,15 @@ diesel::table! {
         tax_on_surcharge -> Nullable<Int8>,
         payment_method_billing_address -> Nullable<Bytea>,
         redirection_data -> Nullable<Jsonb>,
-        #[max_length = 512]
-        connector_payment_data -> Nullable<Varchar>,
+        connector_payment_data -> Nullable<Text>,
         connector_token_details -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        request_extended_authorization -> Nullable<Bool>,
+        extended_authorization_applied -> Nullable<Bool>,
+        capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
     }
@@ -954,6 +956,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        request_extended_authorization -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -1198,15 +1201,13 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
-        #[max_length = 512]
-        connector_refund_data -> Nullable<Varchar>,
-        #[max_length = 512]
-        connector_transaction_data -> Nullable<Varchar>,
         split_refunds -> Nullable<Jsonb>,
         #[max_length = 255]
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        processor_refund_data -> Nullable<Text>,
+        processor_transaction_data -> Nullable<Text>,
     }
 }
 

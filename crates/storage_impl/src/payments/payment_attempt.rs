@@ -474,6 +474,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -498,6 +499,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             authentication_type,
             merchant_connector_id,
             card_network,
+            card_discovery,
         )
         .await
         .map_err(|er| {
@@ -601,6 +603,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
+                    request_extended_authorization: payment_attempt.request_extended_authorization,
+                    extended_authorization_applied: payment_attempt.extended_authorization_applied,
+                    capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
                 };
@@ -1404,6 +1409,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1416,6 +1422,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 authentication_type,
                 merchant_connector_id,
                 card_network,
+                card_discovery,
                 storage_scheme,
             )
             .await
@@ -1490,7 +1497,7 @@ impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
     fn to_storage_model(self) -> Self::StorageModel {
-        let (connector_transaction_id, connector_transaction_data) = self
+        let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -1565,12 +1572,17 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
-            connector_transaction_data,
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
+            request_extended_authorization: self.request_extended_authorization,
+            extended_authorization_applied: self.extended_authorization_applied,
+            capture_before: self.capture_before,
+            processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_transaction_data: None,
         }
     }
 
@@ -1647,6 +1659,9 @@ impl DataModelExt for PaymentAttempt {
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
+            request_extended_authorization: storage_model.request_extended_authorization,
+            extended_authorization_applied: storage_model.extended_authorization_applied,
+            capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             charges: storage_model.charges,
         }
@@ -1731,6 +1746,9 @@ impl DataModelExt for PaymentAttemptNew {
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
+            request_extended_authorization: self.request_extended_authorization,
+            extended_authorization_applied: self.extended_authorization_applied,
+            capture_before: self.capture_before,
             card_discovery: self.card_discovery,
         }
     }
@@ -1803,6 +1821,9 @@ impl DataModelExt for PaymentAttemptNew {
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
+            request_extended_authorization: storage_model.request_extended_authorization,
+            extended_authorization_applied: storage_model.extended_authorization_applied,
+            capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
         }
     }

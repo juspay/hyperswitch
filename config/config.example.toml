@@ -196,7 +196,7 @@ cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
-coingate.base_url = "https://api-sandbox.coingate.com/v2"
+coingate.base_url = "https://api-sandbox.coingate.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
@@ -227,6 +227,7 @@ jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
@@ -327,6 +328,7 @@ cards = [
   "gpayments",
   "helcim",
   "mollie",
+    "moneris",
   "paypal",
   "shift4",
   "square",
@@ -463,11 +465,11 @@ bank_debit.becs = { connector_list = "gocardless" }                             
 bank_debit.bacs = { connector_list = "adyen" }                                        # Mandate supported payment method type and connector for bank_debit
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
+bank_redirect.sofort = { connector_list = "stripe,globalpay" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.google_pay = { connector_list = "bankofamerica" }
-bank_redirect.giropay = { connector_list = "adyen,globalpay" }
+bank_redirect.giropay = { connector_list = "globalpay" }
 
 
 [mandates.update_mandate_supported]
@@ -776,6 +778,7 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = ""
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"               # URL of the tenant
 schema = "public"                                # Postgres db schema
+accounts_schema = "public"
 redis_key_prefix = ""                            # Redis key distinguisher
 clickhouse_database = "default"                  # Clickhouse database
 
