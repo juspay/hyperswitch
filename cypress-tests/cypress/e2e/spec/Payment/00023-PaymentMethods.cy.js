@@ -113,14 +113,10 @@ describe("Payment Methods Tests", () => {
       }
     });
 
-    // Create a customer
     it("Create customer", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    // Create a payment with one card (no 3ds)
-    // setup future usage off_session with customer acceptance in confirm call
-    // should get a token in confirm response
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -147,15 +143,10 @@ describe("Payment Methods Tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // List payment method for a customer
-    // token should be listed
     it("List PM for customer", () => {
       cy.listCustomerPMCallTest(globalState);
     });
 
-    // Create a payment with another card (3ds)
-    // setup future usage off_session with customer acceptance in confirm call
-    // should get a token in confirm response
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -187,14 +178,9 @@ describe("Payment Methods Tests", () => {
       cy.handleRedirection(globalState, expectedRedirection);
     });
 
-    // List payment method for a customer
-    // token should be listed
     it("List PM for customer", () => {
       cy.listCustomerPMCallTest(globalState);
     });
-
-    // Create a payment using token and off_session
-    // confirm call off session with token
 
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -233,13 +219,9 @@ describe("Payment Methods Tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Now list payment method for same customer and verify the last used card should be at the top
     it("List PM for customer", () => {
       cy.listCustomerPMCallTest(globalState, 1 /* order */);
     });
-
-    // Create a payment with token and on_session with another card which is at the bottom
-    // confirm call on session with token
 
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -267,7 +249,6 @@ describe("Payment Methods Tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Now list payment method for same customer and verify the last used card should be at the top*
     it("List PM for customer", () => {
       cy.listCustomerPMCallTest(globalState);
     });

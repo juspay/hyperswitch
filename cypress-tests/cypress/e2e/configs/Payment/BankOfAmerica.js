@@ -477,7 +477,7 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardUse3DSAutoCaptureOffSession: {
+    SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -493,14 +493,8 @@ export const connectorDetails = {
             user_agent: "amet irure esse",
           },
         },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+      }
+    }),
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
         payment_method: "card",
