@@ -84,6 +84,9 @@ pub struct PaymentAttempt {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
@@ -98,13 +101,6 @@ pub struct PaymentAttempt {
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub id: id_type::GlobalAttemptId,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
-    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
-    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
-    pub capture_before: Option<PrimitiveDateTime>,
-    pub card_discovery: Option<storage_enums::CardDiscovery>,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -320,7 +316,6 @@ pub struct PaymentAttemptNew {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
