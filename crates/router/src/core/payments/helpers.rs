@@ -2178,6 +2178,10 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn fetch_card_details_from_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
@@ -2232,6 +2236,10 @@ pub async fn fetch_card_details_from_locker(
     Ok(api_card.into())
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn fetch_network_token_details_from_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
@@ -2280,6 +2288,10 @@ pub async fn fetch_network_token_details_from_locker(
     Ok(network_token_data)
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
