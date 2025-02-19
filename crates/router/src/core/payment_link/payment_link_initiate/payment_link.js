@@ -308,6 +308,7 @@ function initializeEventListeners(paymentDetails) {
 
   if (submitButtonNode instanceof HTMLButtonElement) {
     submitButtonNode.style.color = contrastBWColor;
+    submitButtonNode.style.backgroundColor = paymentDetails.payment_button_colour || primaryColor;
   }
 
   if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {

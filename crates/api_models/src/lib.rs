@@ -41,3 +41,12 @@ pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
+
+pub trait ValidateFieldAndGet<Request> {
+    fn validate_field_and_get(
+        &self,
+        request: &Request,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ValidationError>
+    where
+        Self: Sized;
+}

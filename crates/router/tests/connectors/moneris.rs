@@ -13,7 +13,7 @@ impl utils::Connector for MonerisTest {
         use router::connector::Moneris;
         utils::construct_connector_data_old(
             Box::new(Moneris::new()),
-            types::Connector::Plaid,
+            types::Connector::Moneris,
             api::GetToken::Connector,
             None,
         )
