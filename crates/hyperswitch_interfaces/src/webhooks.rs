@@ -277,11 +277,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     }
 
     /// get revenue recovery invoice details
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_transaction_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<crate::recovery::RevenueRecoveryTransactionData, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryTransactionData, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented(
             "get_revenue_recovery_transaction_details method".to_string(),
         )
@@ -289,11 +288,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     }
 
     /// get revenue recovery transaction details
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<crate::recovery::RevenueRecoveryInvoiceData, errors::ConnectorError> {
+    ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented(
             "get_revenue_recovery_invoice_details method".to_string(),
         )

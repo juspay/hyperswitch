@@ -2099,6 +2099,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
+            feature_metadata,
         } = self;
 
         let card_network = payment_method_data
@@ -2174,7 +2175,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: None,
             request_extended_authorization: None,
             capture_before: None,
-            feature_metadata: self.feature_metadata.as_ref().map(From::from),
+            feature_metadata: feature_metadata.as_ref().map(From::from),
         })
     }
 }

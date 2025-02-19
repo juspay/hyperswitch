@@ -5427,6 +5427,21 @@ pub struct PaymentsRetrieveResponse {
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
 }
 
+impl PaymentsRetrieveResponse {
+    pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
+        self,
+        connector_transaction_id: &String,
+    ) -> Option<PaymentAttemptResponse> {
+        self.attempts.as_ref().and_then(|attempts|{
+            attempts.iter().find(|attempt|{
+                attempt.connector_payment_id.as_ref().is_some_and(|txn_id|{
+                    txn_id.to_owned() == connector_transaction_id.to_owned()
+                })
+            })
+        }).cloned()
+    }
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[cfg(feature = "v2")]
 pub struct PaymentStartRedirectionRequest {

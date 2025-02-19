@@ -27,6 +27,8 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod revenue_recovery;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
