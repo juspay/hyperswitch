@@ -135,7 +135,6 @@ export const connectorDetails = {
         amount_to_capture: 6000,
       },
       Response: {
-        status: 200,
         body: {
           status: "succeeded",
           amount: 6000,
@@ -230,6 +229,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it",
+          },
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -246,6 +248,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it"
+          },
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
