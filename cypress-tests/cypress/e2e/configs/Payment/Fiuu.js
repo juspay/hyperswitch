@@ -166,12 +166,11 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: { 
+    Refund: {
       Request: {
         amount: 6000,
       },
       Response: {
-        // status: 200,
         body: {
           status: "pending",
         },
