@@ -706,14 +706,13 @@ fn create_samsung_pay_session_token(
 /// Function to determine whether the billing address is required to be collected from the wallet,
 /// based on business profile settings, the payment method type, and the connector's required fields
 /// for the specific payment method.
-
+///
 /// If `always_collect_billing_details_from_wallet_connector` is enabled, it indicates that the
 /// billing address is always required to be collected from the wallet.
-
+///
 /// If only `collect_billing_details_from_wallet_connector` is enabled, the billing address will be
 /// collected only if the connector required fields for the specific payment method type contain
 /// the billing fields.
-
 fn is_billing_address_required_to_be_collected_from_wallet(
     state: &routes::SessionState,
     connector: &api::ConnectorData,
@@ -724,13 +723,14 @@ fn is_billing_address_required_to_be_collected_from_wallet(
         .always_collect_billing_details_from_wallet_connector
         .unwrap_or(false);
 
-    let billing_address_required = if always_collect_billing_details_from_wallet_connector {
+    if always_collect_billing_details_from_wallet_connector {
         always_collect_billing_details_from_wallet_connector
     } else if business_profile
         .collect_billing_details_from_wallet_connector
         .unwrap_or(false)
     {
         let billing_variants = enums::FieldType::get_billing_variants();
+
         is_dynamic_fields_required(
             &state.conf.required_fields,
             enums::PaymentMethod::Wallet,
@@ -740,22 +740,19 @@ fn is_billing_address_required_to_be_collected_from_wallet(
         )
     } else {
         false
-    };
-
-    billing_address_required
+    }
 }
 
 /// Function to determine whether the shipping address is required to be collected from the wallet,
 /// based on business profile settings, the payment method type, and the connector required fields
 /// for the specific payment method type.
-
+///
 /// If `always_collect_shipping_details_from_wallet_connector` is enabled, it indicates that the
 /// shipping address is always required to be collected from the wallet.
-
+///
 /// If only `collect_shipping_details_from_wallet_connector` is enabled, the shipping address will be
 /// collected only if the connector required fields for the specific payment method type contain
 /// the shipping fields.
-
 fn is_shipping_address_required_to_be_collected_form_wallet(
     state: &routes::SessionState,
     connector: &api::ConnectorData,
@@ -766,9 +763,8 @@ fn is_shipping_address_required_to_be_collected_form_wallet(
         .always_collect_shipping_details_from_wallet_connector
         .unwrap_or(false);
 
-    let required_shipping_contact_fields = if always_collect_shipping_details_from_wallet_connector
-    {
-        true
+    if always_collect_shipping_details_from_wallet_connector {
+        always_collect_shipping_details_from_wallet_connector
     } else if business_profile
         .collect_shipping_details_from_wallet_connector
         .unwrap_or(false)
@@ -784,9 +780,7 @@ fn is_shipping_address_required_to_be_collected_form_wallet(
         )
     } else {
         false
-    };
-
-    required_shipping_contact_fields
+    }
 }
 
 fn get_session_request_for_simplified_apple_pay(
