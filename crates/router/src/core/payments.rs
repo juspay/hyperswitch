@@ -392,6 +392,8 @@ where
             helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
                 .await?;
 
+        let mut should_do_uas_confirmation_call = false;
+
         if is_eligible_for_uas {
             operation
                 .to_domain()?
@@ -403,7 +405,7 @@ where
                     &business_profile,
                     &key_store,
                     mandate_type,
-                    &false,
+                    &should_do_uas_confirmation_call,
                 )
                 .await?;
         } else {
@@ -504,6 +506,7 @@ where
                     .await?;
 
                     if is_eligible_for_uas {
+                        should_do_uas_confirmation_call = true;
                         operation
                             .to_domain()?
                             .call_unified_authentication_service_if_eligible(
@@ -514,7 +517,7 @@ where
                                 &business_profile,
                                 &key_store,
                                 mandate_type,
-                                &true,
+                                &should_do_uas_confirmation_call,
                             )
                             .await?;
                     }
@@ -661,6 +664,7 @@ where
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
                     if is_eligible_for_uas {
+                        should_do_uas_confirmation_call = true;
                         operation
                             .to_domain()?
                             .call_unified_authentication_service_if_eligible(
@@ -671,7 +675,7 @@ where
                                 &business_profile,
                                 &key_store,
                                 mandate_type,
-                                &true,
+                                &should_do_uas_confirmation_call,
                             )
                             .await?;
                     }
