@@ -1,20 +1,6 @@
 use std::fmt::Debug;
 
 use api_models::enums as api_enums;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::generate_id;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
-
-use masking::Secret;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{
-    consts,
-    types::{api, domain, storage},
-};
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -22,9 +8,19 @@ use crate::{
 use cards::CardNumber;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::generate_id;
 use common_utils::id_type;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::{
+    consts,
+    types::{api, domain, storage},
+};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub trait VaultingInterface {
@@ -122,8 +118,6 @@ impl VaultingInterface for VaultDelete {
         consts::VAULT_DELETE_FLOW_TYPE
     }
 }
-
-
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct SavedPMLPaymentsInfo {

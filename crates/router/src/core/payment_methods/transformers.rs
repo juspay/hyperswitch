@@ -830,7 +830,6 @@ pub fn get_card_detail(
     Ok(card_detail)
 }
 
-
 //------------------------------------------------TokenizeService------------------------------------------------
 pub fn mk_crud_locker_request(
     locker: &settings::Locker,

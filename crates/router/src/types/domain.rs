@@ -41,7 +41,7 @@ pub mod consts {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub mod vault{
+pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
 }
 

@@ -1007,7 +1007,6 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
 ) -> Option<NetworkTokenPaymentMethodDetails> {
-
     let network_token_pm_details_result: RouterResult<NetworkTokenPaymentMethodDetails> = async {
         when(!network_tokenization_enabled_for_profile, || {
             Err(report!(errors::ApiErrorResponse::NotSupported {
@@ -1027,14 +1026,20 @@ pub async fn network_tokenize_and_vault_the_pmd(
                 Ok(data)
             }
             _ => Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Network Tokenization is not supported for this payment method".to_string()
+                message: "Network Tokenization is not supported for this payment method"
+                    .to_string()
             })),
         }?;
 
         let (resp, network_token_req_ref_id) =
-            network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id)
-                .await.change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to generate network token")?;        
+            network_tokenization::make_card_network_tokenization_request(
+                state,
+                card_data,
+                customer_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to generate network token")?;
 
         let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
         let vaulting_resp = vault::add_payment_method_to_vault(
@@ -1043,7 +1048,8 @@ pub async fn network_tokenize_and_vault_the_pmd(
             &network_token_vaulting_data,
             None,
         )
-        .await.change_context(errors::ApiErrorResponse::InternalServerError)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to vault network token")?;
 
         let key_manager_state = &(state).into();
@@ -1055,7 +1061,9 @@ pub async fn network_tokenize_and_vault_the_pmd(
             }
             domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
                 payment_method_data::PaymentMethodsData::NetworkToken(
-                    payment_method_data::NetworkTokenDetailsPaymentMethod::from(network_token.clone()),
+                    payment_method_data::NetworkTokenDetailsPaymentMethod::from(
+                        network_token.clone(),
+                    ),
                 )
             }
         };
@@ -1071,7 +1079,8 @@ pub async fn network_tokenize_and_vault_the_pmd(
             network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
             network_token_pmd,
         })
-    }.await;
+    }
+    .await;
     network_token_pm_details_result.ok()
 }
 
@@ -1099,7 +1108,7 @@ pub async fn populate_bin_details_for_payment_method(
                     .ok()
                     .flatten();
 
-                    domain::PaymentMethodVaultingData::Card(payment_methods::CardDetail {
+                domain::PaymentMethodVaultingData::Card(payment_methods::CardDetail {
                     card_number: card.card_number.clone(),
                     card_exp_month: card.card_exp_month.clone(),
                     card_exp_year: card.card_exp_year.clone(),
