@@ -106,6 +106,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
+
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
@@ -983,6 +985,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     business_profile,
                     Some(acquirer_details),
                     Some(payment_data.payment_attempt.payment_id.clone()),
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
                 if authentication.is_separate_authn_required()
@@ -1175,6 +1178,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     &authentication_id,
                     payment_data.service_details.clone(),
                     authentication_status,
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
             },
@@ -1197,6 +1201,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .get_mca_id()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while finding mca_id from merchant_connector_account")?,
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
 

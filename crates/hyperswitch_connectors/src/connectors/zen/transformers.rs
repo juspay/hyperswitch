@@ -752,7 +752,6 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
         match value {
             PayLaterData::KlarnaRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
-            | PayLaterData::KlarnaCheckout {}
             | PayLaterData::AffirmRedirect {}
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
@@ -951,7 +950,7 @@ fn get_zen_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -995,7 +994,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..value.data
         })

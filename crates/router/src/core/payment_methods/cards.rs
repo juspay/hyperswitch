@@ -63,6 +63,7 @@ use strum::IntoEnumIterator;
     not(feature = "payment_methods_v2")
 ))]
 use super::migration;
+#[cfg(feature = "v1")]
 use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
@@ -5434,10 +5435,7 @@ pub async fn get_masked_bank_details(
         .transpose()?;
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    let payment_method_data = pm
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose().into_inner());
+    let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
 
     match payment_method_data {
         Some(pmd) => match pmd {

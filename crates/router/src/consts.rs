@@ -42,7 +42,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
@@ -216,5 +215,14 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
 
+/// Default payment method session expiry
+pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
+
 /// Authorize flow identifier used for performing GSM operations
 pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";
