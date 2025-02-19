@@ -26,7 +26,7 @@ pub struct CardNetworkTokenizeRequest {
 #[derive(Debug)]
 pub enum TokenizeDataRequest {
     Card(TokenizeCardRequest),
-    PaymentMethod(TokenizePaymentMethodRequest),
+    ExistingPaymentMethod(TokenizePaymentMethodRequest),
 }
 
 #[derive(Clone, Debug)]
@@ -171,7 +171,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
             }
             (None, None, None, Some(payment_method_id)) => Ok(Self {
                 merchant_id,
-                data: payment_methods_api::TokenizeDataRequest::PaymentMethod(
+                data: payment_methods_api::TokenizeDataRequest::ExistingPaymentMethod(
                     payment_methods_api::TokenizePaymentMethodRequest {
                         payment_method_id,
                         card_cvc: record.card_cvc,
@@ -250,8 +250,8 @@ impl ForeignFrom<payment_methods_api::TokenizeDataRequest> for TokenizeDataReque
                     card_type: card.card_type,
                 })
             }
-            payment_methods_api::TokenizeDataRequest::PaymentMethod(pm) => {
-                Self::PaymentMethod(TokenizePaymentMethodRequest {
+            payment_methods_api::TokenizeDataRequest::ExistingPaymentMethod(pm) => {
+                Self::ExistingPaymentMethod(TokenizePaymentMethodRequest {
                     payment_method_id: pm.payment_method_id,
                     card_cvc: pm.card_cvc,
                 })

@@ -6047,7 +6047,7 @@ pub async fn tokenize_card_flow(
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::default();
             execute_card_tokenization(executor, builder, card_req).await
         }
-        domain::TokenizeDataRequest::PaymentMethod(ref payment_method) => {
+        domain::TokenizeDataRequest::ExistingPaymentMethod(ref payment_method) => {
             let executor = tokenize::CardNetworkTokenizeExecutor::new(
                 state,
                 key_store,

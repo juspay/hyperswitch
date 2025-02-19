@@ -119,7 +119,7 @@ pub async fn tokenize_cards(
             .unwrap_or_else(|e| {
                 let err = e.current_context();
                 payment_methods_api::CardNetworkTokenizeResponse {
-                    req: Some(tokenize_request),
+                    tokenization_data: Some(tokenize_request),
                     error_code: Some(err.error_code()),
                     error_message: Some(err.error_message()),
                     card_tokenized: false,

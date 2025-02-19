@@ -261,7 +261,7 @@ impl NetworkTokenizationBuilder<'_, PmTokenUpdated> {
             error_code: self.error_code.cloned(),
             error_message: self.error_message.cloned(),
             // Below field is mutated by caller functions for batched API operations
-            req: None,
+            tokenization_data: None,
         }
     }
 }

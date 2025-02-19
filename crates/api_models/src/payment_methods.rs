@@ -2510,7 +2510,7 @@ impl common_utils::events::ApiEventMetric for CardNetworkTokenizeRequest {}
 #[serde(rename_all = "snake_case")]
 pub enum TokenizeDataRequest {
     Card(TokenizeCardRequest),
-    PaymentMethod(TokenizePaymentMethodRequest),
+    ExistingPaymentMethod(TokenizePaymentMethodRequest),
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2584,7 +2584,7 @@ pub struct CardNetworkTokenizeResponse {
 
     /// Details that were sent for tokenization
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub req: Option<TokenizeDataRequest>,
+    pub tokenization_data: Option<TokenizeDataRequest>,
 }
 
 impl common_utils::events::ApiEventMetric for CardNetworkTokenizeResponse {}
