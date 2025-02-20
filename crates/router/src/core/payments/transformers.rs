@@ -2775,6 +2775,54 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
+    for api_models::payments::PaymentsListResponseItem
+{
+    fn foreign_from((pi, pa): (storage::PaymentIntent, Option<storage::PaymentAttempt>)) -> Self {
+        Self {
+            id: pi.id,
+            merchant_id: pi.merchant_id,
+            profile_id: pi.profile_id,
+            customer_id: pi.customer_id,
+            payment_method_id: pa.as_ref().and_then(|p| p.payment_method_id.clone()),
+            status: pi.status,
+            amount: api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+                &pi.amount_details,
+                pa.as_ref().map(|p| &p.amount_details),
+            )),
+            created: pi.created_at,
+            payment_method_type: pa.as_ref().and_then(|p| p.payment_method_type.into()),
+            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype.into()),
+            connector: pa.as_ref().and_then(|p| p.connector.clone()),
+            merchant_connector_id: pa.as_ref().and_then(|p| p.merchant_connector_id.clone()),
+            customer: None,
+            merchant_reference_id: pi.merchant_reference_id,
+            connector_payment_id: pa.as_ref().and_then(|p| p.connector_payment_id.clone()),
+            connector_response_reference_id: pa
+                .as_ref()
+                .and_then(|p| p.connector_response_reference_id.clone()),
+            metadata: pi.metadata,
+            description: pi.description.map(|val| val.get_string_repr().to_string()),
+            authentication_type: pi.authentication_type,
+            capture_method: Some(pi.capture_method),
+            setup_future_usage: Some(pi.setup_future_usage),
+            attempt_count: pi.attempt_count,
+            error: pa
+                .as_ref()
+                .and_then(|p| p.error.as_ref())
+                .map(|e| api_models::payments::ErrorDetails::foreign_from(e.clone())),
+            cancellation_reason: pa.as_ref().and_then(|p| p.cancellation_reason.clone()),
+            order_details: None,
+            return_url: pi.return_url,
+            statement_descriptor: pi.statement_descriptor,
+            allowed_payment_method_types: pi.allowed_payment_method_types,
+            authorization_count: pi.authorization_count,
+            modified_at: pa.as_ref().map(|p| p.modified_at),
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
