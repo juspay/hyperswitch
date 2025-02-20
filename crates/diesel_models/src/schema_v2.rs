@@ -228,6 +228,7 @@ diesel::table! {
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
+        is_clear_pan_retries_enabled -> Bool,
     }
 }
 
@@ -577,6 +578,7 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
+        clear_pan_possible -> Bool,
     }
 }
 

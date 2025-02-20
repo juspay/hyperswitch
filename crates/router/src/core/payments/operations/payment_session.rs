@@ -216,6 +216,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             tax_data: None,
             session_id: None,
             service_details: None,
+            vault_operation: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -338,6 +339,7 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionOperation<'b, F>,
         Option<domain::PaymentMethodData>,

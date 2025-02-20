@@ -3717,6 +3717,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
         }))
     }
 
@@ -3827,6 +3828,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: None,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
         }))
     }
 }
@@ -4078,6 +4080,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
+                is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
             },
         )))
     }

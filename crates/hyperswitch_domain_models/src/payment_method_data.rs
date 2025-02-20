@@ -71,6 +71,10 @@ impl PaymentMethodData {
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
+
+    pub fn is_network_token_payment_method_data(&self) -> bool {
+        matches!(self, Self::NetworkToken(_))
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

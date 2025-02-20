@@ -51,7 +51,7 @@ use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
-    payments::HeaderPayload,
+    payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
 };
@@ -214,6 +214,7 @@ where
                 None,
                 &profile,
                 false,
+                false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
             )
             .await?;
 
@@ -501,6 +502,7 @@ where
                         None,
                         &business_profile,
                         false,
+                        false,
                     )
                     .await?;
 
@@ -620,6 +622,7 @@ where
                         None,
                         &business_profile,
                         false,
+                        false,
                     )
                     .await?;
 
@@ -641,7 +644,7 @@ where
                                 req_state.clone(),
                                 &mut payment_data,
                                 connectors,
-                                connector_data.clone(),
+                                &connector_data,
                                 router_data,
                                 &merchant_account,
                                 &key_store,
@@ -2772,6 +2775,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     is_retry_payment: bool,
+    should_retry_with_pan: bool,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -2824,6 +2828,7 @@ where
         key_store,
         customer,
         business_profile,
+        should_retry_with_pan,
     )
     .await?;
     *payment_data = pd;
@@ -3024,6 +3029,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     is_retry_payment: bool,
+    should_retry_with_pan: bool,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4728,6 +4734,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -4799,6 +4806,7 @@ where
                             merchant_key_store,
                             customer,
                             business_profile,
+                            should_retry_with_pan,
                         )
                         .await?;
                     payment_data.set_payment_method_data(payment_method_data);
@@ -4818,6 +4826,7 @@ where
                             merchant_key_store,
                             customer,
                             business_profile,
+                            should_retry_with_pan,
                         )
                         .await?;
 
@@ -4906,6 +4915,7 @@ where
                     merchant_key_store,
                     customer,
                     business_profile,
+                    false,
                 )
                 .await?;
             payment_data.set_payment_method_data(payment_method_data);
@@ -4971,6 +4981,7 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
+    pub vault_operation: Option<domain_payments::VaultOperation>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -7203,7 +7214,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         &payment_intent,
         &key_store,
         storage_scheme,
-        &business_profile,
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -7616,6 +7626,9 @@ pub trait OperationSessionGetters<F> {
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
 
+    #[cfg(feature = "v1")]
+    fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation>;
+
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
 }
@@ -7660,6 +7673,9 @@ pub trait OperationSessionSetters<F> {
         straight_through_algorithm: serde_json::Value,
     );
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
+
+    #[cfg(feature = "v1")]
+    fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
 }
 
 #[cfg(feature = "v1")]
@@ -7792,6 +7808,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.capture_method
     }
 
+    #[cfg(feature = "v1")]
+    fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation> {
+        self.vault_operation.as_ref()
+    }
+
     // #[cfg(feature = "v2")]
     // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
     //     Some(self.payment_intent.capture_method)
@@ -7907,6 +7928,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
+    }
+
+    fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {
+        self.vault_operation = Some(vault_operation);
     }
 }
 

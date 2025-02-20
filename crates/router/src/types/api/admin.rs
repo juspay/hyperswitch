@@ -179,6 +179,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_request_extended_authorization: item.always_request_extended_authorization,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
         })
     }
 }
@@ -250,6 +251,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
         })
     }
 }
@@ -379,5 +381,6 @@ pub async fn create_profile_from_merchant_account(
         always_request_extended_authorization: request.always_request_extended_authorization,
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
         authentication_product_ids: request.authentication_product_ids,
+        is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
     }))
 }
