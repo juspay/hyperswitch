@@ -87,6 +87,10 @@ impl MerchantConnectorAccount {
     pub fn get_connector_test_mode(&self) -> Option<bool> {
         self.test_mode
     }
+
+    pub fn get_connector_name_as_string(&self) -> String {
+        self.connector_name.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -150,6 +154,10 @@ impl MerchantConnectorAccount {
 
     pub fn get_connector_test_mode(&self) -> Option<bool> {
         todo!()
+    }
+
+    pub fn get_connector_name_as_string(&self) -> String {
+        self.connector_name.clone().to_string()
     }
 }
 

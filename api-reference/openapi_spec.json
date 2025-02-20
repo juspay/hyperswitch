@@ -23851,7 +23851,7 @@
             ],
             "properties": {
               "refund": {
-                "$ref": "#/components/schemas/RelayRefundRequest"
+                "$ref": "#/components/schemas/RelayRefundRequestData"
               }
             }
           }
@@ -23874,7 +23874,7 @@
           }
         }
       },
-      "RelayRefundRequest": {
+      "RelayRefundRequestData": {
         "type": "object",
         "required": [
           "amount",
