@@ -1760,3 +1760,36 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
         (None, None) | (None, Some(_)) => Ok(()),
     }
 }
+
+pub(crate) trait ValidatePlatformMerchant {
+    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId>;
+
+    fn validate_platform_merchant(
+        &self,
+        auth_platform_merchant_id: Option<&common_utils::id_type::MerchantId>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let data_platform_merchant_id = self.get_platform_merchant_id();
+        match (data_platform_merchant_id, auth_platform_merchant_id) {
+            (Some(data_platform_merchant_id), Some(auth_platform_merchant_id)) => {
+                common_utils::fp_utils::when(
+                    data_platform_merchant_id != auth_platform_merchant_id,
+                    || {
+                        Err(report!(errors::ApiErrorResponse::PaymentNotFound)).attach_printable(format!(
+                     "Data platform merchant id: {data_platform_merchant_id:?} does not match with auth platform merchant id: {auth_platform_merchant_id:?}"))
+                    },
+                )
+            }
+            (Some(_), None) | (None, Some(_)) => {
+                Err(report!(errors::ApiErrorResponse::InvalidPlatformOperation))
+                    .attach_printable("Platform merchant id is missing in either data or auth")
+            }
+            (None, None) => Ok(()),
+        }
+    }
+}
+
+impl ValidatePlatformMerchant for storage::PaymentIntent {
+    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        self.platform_merchant_id.as_ref()
+    }
+}

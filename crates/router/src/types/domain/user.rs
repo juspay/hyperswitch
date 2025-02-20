@@ -245,7 +245,7 @@ pub struct NewUserOrganization(diesel_org::OrganizationNew);
 impl NewUserOrganization {
     pub async fn insert_org_in_db(self, state: SessionState) -> UserResult<Organization> {
         state
-            .store
+            .accounts_store
             .insert_organization(self.0)
             .await
             .map_err(|e| {

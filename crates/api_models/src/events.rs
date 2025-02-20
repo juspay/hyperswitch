@@ -2,6 +2,7 @@ pub mod apple_pay_certificates_migration;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
+pub mod external_service_auth;
 pub mod gsm;
 mod locker_migration;
 pub mod payment;

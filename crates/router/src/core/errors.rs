@@ -442,4 +442,6 @@ pub enum NetworkTokenizationError {
     DeleteNetworkTokenFailed,
     #[error("Network token service not configured")]
     NetworkTokenizationServiceNotConfigured,
+    #[error("Failed while calling Network Token Service API")]
+    ApiError,
 }
