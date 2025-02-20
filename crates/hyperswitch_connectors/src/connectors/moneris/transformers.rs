@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
@@ -18,10 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData,
-        RouterData as OtherRouterData,
-    },
+    utils::{CardData as _, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 const CLIENT_CREDENTIALS: &str = "client_credentials";
@@ -52,7 +49,6 @@ pub struct MonerisPaymentsRequest {
     amount: Amount,
     payment_method: PaymentMethod,
     automatic_capture: bool,
-    ipv4: Secret<String, common_utils::pii::IpAddress>,
 }
 #[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -63,15 +59,33 @@ pub struct Amount {
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentMethod {
+#[serde(untagged)]
+pub enum PaymentMethod {
+    Card(PaymentMethodCard),
+    PaymentMethodId(PaymentMethodId),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodCard {
     payment_method_source: PaymentMethodSource,
     card: MonerisCard,
+    store_payment_method: StorePaymentMethod,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodId {
+    payment_method_source: PaymentMethodSource,
+    payment_method_id: String,
+    store_payment_method: StorePaymentMethod,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodSource {
     Card,
+    PaymentMethodId,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -81,6 +95,14 @@ pub struct MonerisCard {
     expiry_month: Secret<i64>,
     expiry_year: Secret<i64>,
     card_security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StorePaymentMethod {
+    DoNotStore,
+    CardholderInitiated,
+    MerchantInitiated,
 }
 
 impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymentsRequest {
@@ -101,7 +123,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                     currency: item.router_data.request.currency,
                     amount: item.amount,
                 };
-                let payment_method = PaymentMethod {
+                let payment_method = PaymentMethod::Card(PaymentMethodCard {
                     payment_method_source: PaymentMethodSource::Card,
                     card: MonerisCard {
                         card_number: req_card.card_number.clone(),
@@ -121,18 +143,54 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                         ),
                         card_security_code: req_card.card_cvc.clone(),
                     },
-                };
+                    store_payment_method: match item.router_data.request.setup_future_usage {
+                        Some(setup_future_usage) => match setup_future_usage {
+                            enums::FutureUsage::OffSession => {
+                                StorePaymentMethod::CardholderInitiated
+                            }
+                            enums::FutureUsage::OnSession => StorePaymentMethod::DoNotStore,
+                        },
+                        None => StorePaymentMethod::DoNotStore,
+                    },
+                });
                 let automatic_capture = item.router_data.request.is_auto_capture()?;
-
-                let browser_info = item.router_data.request.get_browser_info()?;
-                let ipv4 = browser_info.get_ip_address()?;
 
                 Ok(Self {
                     idempotency_key,
                     amount,
                     payment_method,
                     automatic_capture,
-                    ipv4,
+                })
+            }
+            PaymentMethodData::MandatePayment => {
+                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let amount = Amount {
+                    currency: item.router_data.request.currency,
+                    amount: item.amount,
+                };
+                let automatic_capture = item.router_data.request.is_auto_capture()?;
+                let payment_method = PaymentMethod::PaymentMethodId(PaymentMethodId {
+                    payment_method_source: PaymentMethodSource::PaymentMethodId,
+                    payment_method_id: item.router_data.request.connector_mandate_id().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                        },
+                    )?,
+                    store_payment_method: match item.router_data.request.setup_future_usage {
+                        Some(setup_future_usage) => match setup_future_usage {
+                            enums::FutureUsage::OffSession => {
+                                StorePaymentMethod::CardholderInitiated
+                            }
+                            enums::FutureUsage::OnSession => StorePaymentMethod::DoNotStore,
+                        },
+                        None => StorePaymentMethod::DoNotStore,
+                    },
+                });
+                Ok(Self {
+                    idempotency_key,
+                    amount,
+                    payment_method,
+                    automatic_capture,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -240,6 +298,13 @@ impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
 pub struct MonerisPaymentsResponse {
     payment_status: MonerisPaymentStatus,
     payment_id: String,
+    payment_method: MonerisPaymentMethodData,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisPaymentMethodData {
+    payment_method_id: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsResponseData>>
@@ -254,7 +319,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: Some(item.response.payment_method.payment_method_id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment_id),
