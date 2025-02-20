@@ -1978,19 +1978,19 @@ pub async fn payment_methods_session_update(
         &key_store,
         &payment_method_session_id,
         payment_method_session_domain_model,
-        existing_payment_method_session_state.clone()
+        existing_payment_method_session_state.clone(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment methods session in db")?;
-    
+
     let update_state_change = db
-    .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "payment methods session does not exist or has expired".to_string(),
-    })
-    .attach_printable("Failed to retrieve payment methods session from db")?;
+        .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
 
     let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
         update_state_change,
@@ -2024,7 +2024,6 @@ pub async fn payment_methods_session_retrieve(
 
     Ok(services::ApplicationResponse::Json(response))
 }
-
 
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update_payment_method(

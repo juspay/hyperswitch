@@ -672,12 +672,11 @@ pub struct PaymentMethodsSessionUpdate {
 
 #[cfg(feature = "v2")]
 pub enum PaymentMethodsSessionUpdateEnum {
-    GeneralUpdate 
-    {   
+    GeneralUpdate {
         billing: Option<Encryptable<Address>>,
         psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
         network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-    }
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -699,7 +698,10 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
 
 #[cfg(feature = "v2")]
 impl PaymentMethodsSession {
-    pub fn apply_changeset(self , update_session: PaymentMethodsSessionUpdateInternal) -> PaymentMethodsSession {
+    pub fn apply_changeset(
+        self,
+        update_session: PaymentMethodsSessionUpdateInternal,
+    ) -> PaymentMethodsSession {
         let Self {
             id,
             customer_id,
@@ -711,12 +713,9 @@ impl PaymentMethodsSession {
         PaymentMethodsSession {
             id,
             customer_id,
-            billing: update_session.billing
-                        .or(billing),
-            psp_tokenization: update_session.psp_tokenization
-                                .or(psp_tokenization),
-            network_tokenization: update_session.network_tokenization
-                                    .or(network_tokenization),
+            billing: update_session.billing.or(billing),
+            psp_tokenization: update_session.psp_tokenization.or(psp_tokenization),
+            network_tokenization: update_session.network_tokenization.or(network_tokenization),
             expires_at,
         }
     }
@@ -738,7 +737,7 @@ impl super::behaviour::Conversion for PaymentMethodsSessionUpdate {
         Ok(Self::DstType {
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokenization: self.network_tokenization
+            network_tokenization: self.network_tokenization,
         })
     }
 

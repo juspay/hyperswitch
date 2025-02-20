@@ -128,8 +128,8 @@ mod storage {
             let update_state = current_session.apply_changeset(internal_obj);
 
             // let update_session = diesel_models::payment_methods_session::PaymentMethodsSession::apply_changeset(current_session, internal_obj);
-            
-            let db_model = update_state 
+
+            let db_model = update_state
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
