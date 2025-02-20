@@ -218,6 +218,25 @@ pub async fn signin_token_only_flow(
 
     user_from_db.compare_password(&request.password)?;
 
+    // Check whether any role exist for user in the current tenancy
+    state
+        .global_store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: user_from_db.get_user_id(),
+            tenant_id: &state.tenant.tenant_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: None,
+            limit: Some(1),
+        })
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .pop()
+        .ok_or(UserErrors::UserRoleNotFound)?;
+
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
 
@@ -250,6 +269,25 @@ pub async fn connect_account(
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
+
+        // Check whether any role exist for user in the current tenancy
+        state
+            .global_store
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                user_id: user_from_db.get_user_id(),
+                tenant_id: &state.tenant.tenant_id,
+                org_id: None,
+                merchant_id: None,
+                profile_id: None,
+                entity_id: None,
+                version: None,
+                status: None,
+                limit: Some(1),
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .pop()
+            .ok_or(UserErrors::UserRoleNotFound)?;
 
         let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 
