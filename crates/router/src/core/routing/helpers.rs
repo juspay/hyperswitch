@@ -747,13 +747,17 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 success_based_algo_ref
                     .algorithm_id_with_timestamp
                     .algorithm_id
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "success_rate algorithm_id not found".to_string(),
+                    })
                     .attach_printable(
                         "success_based_routing_algorithm_id not found in business_profile",
                     )?,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "success_rate based dynamic routing configs not found".to_string(),
+            })
             .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
             let success_based_routing_config_params = dynamic_routing_config_params_interpolator
@@ -984,13 +988,17 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     contract_routing_algo_ref
                         .algorithm_id_with_timestamp
                         .algorithm_id
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "contract_routing algorithm_id not found".to_string(),
+                        })
                         .attach_printable(
                             "contract_based_routing_algorithm_id not found in business_profile",
                         )?,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "contract based dynamic routing configs not found".to_string(),
+                })
                 .attach_printable("unable to retrieve contract based dynamic routing configs")?;
 
             let mut existing_label_info = None;
@@ -1009,7 +1017,10 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 });
 
             let final_label_info = existing_label_info
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "LabelInformation from ContractBasedRoutingConfig not found"
+                        .to_string(),
+                })
                 .attach_printable(
                     "unable to get LabelInformation from ContractBasedRoutingConfig",
                 )?;
