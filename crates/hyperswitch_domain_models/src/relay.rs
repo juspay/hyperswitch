@@ -102,6 +102,20 @@ impl RelayUpdate {
     }
 }
 
+impl From<RelayData> for api_models::relay::RelayData {
+    fn from(relay: RelayData) -> Self {
+        match relay {
+            RelayData::Refund(relay_refund_request) => {
+                Self::Refund(api_models::relay::RelayRefundRequestData {
+                    amount: relay_refund_request.amount,
+                    currency: relay_refund_request.currency,
+                    reason: relay_refund_request.reason,
+                })
+            }
+        }
+    }
+}
+
 impl From<Relay> for api_models::relay::RelayResponse {
     fn from(value: Relay) -> Self {
         let error = value

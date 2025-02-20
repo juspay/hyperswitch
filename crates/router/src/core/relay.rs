@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use api_models::relay as relay_api_models;
 use async_trait::async_trait;
 use common_enums::RelayStatus;
-use common_utils::{self, id_type, id_type::GenerateId};
+use common_utils::{
+    self, fp_utils,
+    id_type::{self, GenerateId},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::relay;
 
@@ -29,11 +32,11 @@ pub trait Validate {
 impl Validate for relay_api_models::RelayRefundRequestData {
     type Error = errors::ApiErrorResponse;
     fn validate(&self) -> Result<(), Self::Error> {
-        if self.amount.get_amount_as_i64() <= 0 {
+        fp_utils::when(self.amount.get_amount_as_i64() <= 0, || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Amount should be greater than 0".to_string(),
-            })?
-        }
+            })
+        })?;
         Ok(())
     }
 }
@@ -61,7 +64,7 @@ pub trait RelayInterface {
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate>;
 
-    fn generate_response(value: relay::Relay) -> api_models::relay::RelayResponse;
+    fn generate_response(value: relay::Relay) -> RouterResult<api_models::relay::RelayResponse>;
 }
 
 pub struct RelayRequestInner<T: RelayInterface + ?Sized> {
@@ -128,11 +131,7 @@ impl RelayInterface for RelayRefund {
 
         let merchant_id = merchant_account.get_id();
 
-        #[cfg(feature = "v1")]
-        let connector_name = &connector_account.connector_name;
-
-        #[cfg(feature = "v2")]
-        let connector_name = &connector_account.connector_name.to_string();
+        let connector_name = &connector_account.get_connector_name_as_string();
 
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
@@ -165,12 +164,12 @@ impl RelayInterface for RelayRefund {
         .await
         .to_refund_failed_response()?;
 
-        let relay_response = relay::RelayUpdate::from(router_data_res.response);
+        let relay_update = relay::RelayUpdate::from(router_data_res.response);
 
-        Ok(relay_response)
+        Ok(relay_update)
     }
 
-    fn generate_response(value: relay::Relay) -> api_models::relay::RelayResponse {
+    fn generate_response(value: relay::Relay) -> RouterResult<api_models::relay::RelayResponse> {
         let error = value
             .error_code
             .zip(value.error_message)
@@ -181,17 +180,10 @@ impl RelayInterface for RelayRefund {
                 },
             );
 
-        let data = value.request_data.map(|relay_data| match relay_data {
-            relay::RelayData::Refund(relay_refund_request) => {
-                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequestData {
-                    amount: relay_refund_request.amount,
-                    currency: relay_refund_request.currency,
-                    reason: relay_refund_request.reason,
-                })
-            }
-        });
+        let data =
+            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
 
-        api_models::relay::RelayResponse {
+        Ok(api_models::relay::RelayResponse {
             id: value.id,
             status: value.status,
             error,
@@ -199,9 +191,9 @@ impl RelayInterface for RelayRefund {
             connector_id: value.connector_id,
             profile_id: value.profile_id,
             relay_type: value.relay_type,
-            data,
+            data: Some(data),
             connector_reference_id: value.connector_reference_id,
-        }
+        })
     }
 }
 
@@ -294,7 +286,8 @@ pub async fn relay<T: RelayInterface>(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let response = T::generate_response(relay_update_record);
+    let response = T::generate_response(relay_update_record)
+        .attach_printable("Failed to generate relay response")?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
