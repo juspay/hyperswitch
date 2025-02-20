@@ -540,6 +540,15 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITWithoutBillingAddress: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnosticNTID"],
+          value: "connector_2",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITWithoutBillingAddress,
+    },
     MITManualCapture: {
       Request: {},
       Response: {

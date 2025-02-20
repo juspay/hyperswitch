@@ -365,6 +365,19 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithoutBillingAddress: {
+      Request: {
+        currency: "EUR",
+        amount: 6000,
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: {
         currency: "EUR",
