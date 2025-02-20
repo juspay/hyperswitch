@@ -985,7 +985,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
 pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
-    associated_payment: Option<api_models::payments::PaymentsRetrieveResponse>,
+    associated_payment: Option<api_models::payments::PaymentsResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
@@ -999,6 +999,7 @@ pub fn generate_payment_method_session_response(
         expires_at: payment_method_session.expires_at,
         client_secret,
         associated_payment,
+        return_url: payment_method_session.return_url,
     }
 }
 

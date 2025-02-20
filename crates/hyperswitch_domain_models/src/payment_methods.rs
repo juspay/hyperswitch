@@ -586,6 +586,7 @@ pub struct PaymentMethodSession {
     pub customer_id: common_utils::id_type::GlobalCustomerId,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
+    pub return_url: Option<common_utils::types::Url>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub expires_at: PrimitiveDateTime,
@@ -608,6 +609,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             expires_at: self.expires_at,
             associated_payment_method: self.associated_payment_method,
             associated_payment: self.associated_payment,
+            return_url: self.return_url,
         })
     }
 
@@ -659,6 +661,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 expires_at: storage_model.expires_at,
                 associated_payment_method: storage_model.associated_payment_method,
                 associated_payment: storage_model.associated_payment,
+                return_url: storage_model.return_url,
             })
         }
         .await
@@ -677,6 +680,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             expires_at: self.expires_at,
             associated_payment_method: self.associated_payment_method,
             associated_payment: self.associated_payment,
+            return_url: self.return_url,
         })
     }
 }

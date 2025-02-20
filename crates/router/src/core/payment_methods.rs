@@ -2093,6 +2093,7 @@ pub async fn payment_methods_session_create(
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
             expires_at,
+            return_url: request.return_url,
             associated_payment_method: None,
             associated_payment: None,
         };
@@ -2204,7 +2205,7 @@ fn construct_zero_auth_payments_request(
         billing: None,
         shipping: None,
         description: None,
-        return_url: None,
+        return_url: payment_method_session.return_url.clone(),
         apply_mit_exemption: None,
         statement_descriptor: None,
         order_details: None,
@@ -2231,7 +2232,7 @@ async fn create_zero_auth_payment(
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     request: api_models::payments::PaymentsRequest,
-) -> RouterResult<api_models::payments::PaymentsRetrieveResponse> {
+) -> RouterResult<api_models::payments::PaymentsResponse> {
     let response = Box::pin(payments_core::payments_create_and_confirm_intent(
         state,
         req_state,

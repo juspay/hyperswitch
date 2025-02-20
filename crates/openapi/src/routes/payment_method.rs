@@ -340,7 +340,7 @@ pub async fn payment_method_delete_api() {}
         )))
     ),
     responses(
-        (status = 200, description = "Create the payment method session", body = PaymentMethodsSessionResponse),
+        (status = 200, description = "Create the payment method session", body = PaymentMethodSessionResponse),
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -360,7 +360,7 @@ pub fn payment_method_session_create() {}
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodsSessionResponse),
+        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",

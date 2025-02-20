@@ -2548,6 +2548,10 @@ pub struct PaymentMethodSessionRequest {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
+    /// The return url to which the customer should be redirected to after adding the payment method
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+
     /// The tokenization type to be applied
     #[schema(value_type = Option<PspTokenization>)]
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
@@ -2588,6 +2592,10 @@ pub struct PaymentMethodSessionConfirmRequest {
     /// The payment instrument data to be used for the payment
     #[schema(value_type = PaymentMethodDataRequest)]
     pub payment_method_data: payments::PaymentMethodDataRequest,
+
+    /// The return url to which the customer should be redirected to after adding the payment method
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
 }
 
 #[cfg(feature = "v2")]
@@ -2622,5 +2630,10 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = String)]
     pub client_secret: masking::Secret<String>,
 
-    pub associated_payment: Option<payments::PaymentsRetrieveResponse>,
+    /// The return url to which the user should be redirected to
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+
+    #[schema(value_type = Option<PaymentsResponse>)]
+    pub associated_payment: Option<payments::PaymentsResponse>,
 }

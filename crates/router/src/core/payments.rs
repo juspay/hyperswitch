@@ -131,7 +131,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    profile: domain::Profile,
+    profile: &domain::Profile,
     operation: Op,
     req: Req,
     get_tracker_response: operations::GetTrackerResponse<D>,
@@ -1688,7 +1688,7 @@ where
             req_state,
             merchant_account.clone(),
             key_store,
-            profile,
+            &profile,
             operation.clone(),
             req,
             get_tracker_response,
@@ -1703,6 +1703,7 @@ where
         external_latency,
         header_payload.x_hs_latency,
         &merchant_account,
+        &profile,
     )
 }
 
@@ -1717,7 +1718,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
     request: payments_api::PaymentsRequest,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<payments_api::PaymentsRetrieveResponse> {
+) -> RouterResponse<payments_api::PaymentsResponse> {
     use hyperswitch_domain_models::{
         payments::PaymentIntentData, router_flow_types::PaymentCreateIntent,
     };
@@ -1773,47 +1774,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
 
     logger::info!(?confirm_intent_response);
 
-    let confirm_intent_response = confirm_intent_response
-        .get_json_body()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unexpected response from payments core")?;
-
-    construct_payments_response(create_intent_response, confirm_intent_response)
-}
-
-#[cfg(feature = "v2")]
-#[inline]
-fn construct_payments_response(
-    create_intent_response: payments_api::PaymentsIntentResponse,
-    confirm_intent_response: payments_api::PaymentsConfirmIntentResponse,
-) -> RouterResponse<payments_api::PaymentsRetrieveResponse> {
-    let response = payments_api::PaymentsRetrieveResponse {
-        id: confirm_intent_response.id,
-        status: confirm_intent_response.status,
-        amount: confirm_intent_response.amount,
-        customer_id: confirm_intent_response.customer_id,
-        connector: Some(confirm_intent_response.connector),
-        client_secret: confirm_intent_response.client_secret,
-        created: confirm_intent_response.created,
-        payment_method_data: confirm_intent_response.payment_method_data,
-        payment_method_type: Some(confirm_intent_response.payment_method_type),
-        payment_method_subtype: Some(confirm_intent_response.payment_method_subtype),
-        next_action: confirm_intent_response.next_action,
-        connector_transaction_id: confirm_intent_response.connector_transaction_id,
-        connector_reference_id: confirm_intent_response.connector_reference_id,
-        connector_token_details: confirm_intent_response.connector_token_details,
-        merchant_connector_id: Some(confirm_intent_response.merchant_connector_id),
-        browser_info: confirm_intent_response.browser_info,
-        error: confirm_intent_response.error,
-        payment_method_id: confirm_intent_response.payment_method_id,
-        shipping: None,
-        attempts: None,
-        billing: None,
-    };
-
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
-    ))
+    Ok(confirm_intent_response)
 }
 
 #[cfg(feature = "v2")]
@@ -1828,7 +1789,7 @@ async fn decide_authorize_or_setup_intent_flow(
     confirm_intent_request: payments_api::PaymentsConfirmIntentRequest,
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
-) -> RouterResponse<payments_api::PaymentsConfirmIntentResponse> {
+) -> RouterResponse<payments_api::PaymentsResponse> {
     use hyperswitch_domain_models::{
         payments::PaymentConfirmData,
         router_flow_types::{Authorize, SetupMandate},
@@ -1837,7 +1798,7 @@ async fn decide_authorize_or_setup_intent_flow(
     if create_intent_response.amount_details.order_amount == MinorUnit::zero() {
         Box::pin(payments_core::<
             SetupMandate,
-            api_models::payments::PaymentsConfirmIntentResponse,
+            api_models::payments::PaymentsResponse,
             _,
             _,
             _,
@@ -1858,7 +1819,7 @@ async fn decide_authorize_or_setup_intent_flow(
     } else {
         Box::pin(payments_core::<
             Authorize,
-            api_models::payments::PaymentsConfirmIntentResponse,
+            api_models::payments::PaymentsResponse,
             _,
             _,
             _,
@@ -2413,7 +2374,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 req_state,
                 merchant_account,
                 merchant_key_store.clone(),
-                profile.clone(),
+                &profile,
                 operation,
                 payment_sync_request,
                 get_tracker_response,

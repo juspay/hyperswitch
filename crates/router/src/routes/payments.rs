@@ -2394,7 +2394,7 @@ pub async fn payment_confirm_intent(
 
             Box::pin(payments::payments_core::<
                 api_types::Authorize,
-                api_models::payments::PaymentsConfirmIntentResponse,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,
@@ -2464,7 +2464,7 @@ pub async fn payment_status(
 
             Box::pin(payments::payments_core::<
                 api_types::PSync,
-                api_models::payments::PaymentsRetrieveResponse,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,
