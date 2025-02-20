@@ -1973,7 +1973,7 @@ pub async fn payment_methods_session_update(
             network_tokenization: request.network_tokenization,
         };
 
-    db.update_payment_method_session(
+    let update_state_change = db.update_payment_method_session(
         key_manager_state,
         &key_store,
         &payment_method_session_id,
@@ -1983,14 +1983,6 @@ pub async fn payment_methods_session_update(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment methods session in db")?;
-    
-    let update_state_change = db
-    .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "payment methods session does not exist or has expired".to_string(),
-    })
-    .attach_printable("Failed to retrieve payment methods session from db")?;
 
     let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
         update_state_change,

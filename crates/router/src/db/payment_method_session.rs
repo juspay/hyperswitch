@@ -20,7 +20,10 @@ pub trait PaymentMethodsSessionInterface {
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
         current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-    ) -> CustomResult<(), errors::StorageError>;
+    ) -> CustomResult<
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        errors::StorageError,
+    >;
 
     async fn get_payment_methods_session(
         &self,
@@ -120,14 +123,15 @@ mod storage {
             session_id: &common_utils::id_type::GlobalPaymentMethodSessionId,
             update_request: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
             current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-        ) -> CustomResult<(), errors::StorageError> {
+        ) -> CustomResult<
+                hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+                errors::StorageError,
+        > {
             let redis_key = session_id.get_redis_key();
 
             let internal_obj = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateInternal::from(update_request);
 
             let update_state = current_session.apply_changeset(internal_obj);
-
-            // let update_session = diesel_models::payment_methods_session::PaymentMethodsSession::apply_changeset(current_session, internal_obj);
             
             let db_model = update_state 
                 .construct_new()
@@ -139,10 +143,20 @@ mod storage {
                 .map_err(Into::<errors::StorageError>::into)?;
 
             redis_connection
-                .serialize_and_set_key_without_modifying_ttl(&redis_key.into(), db_model)
+                .serialize_and_set_key_without_modifying_ttl(&redis_key.into(), db_model.clone())
                 .await
                 .change_context(errors::StorageError::KVError)
-                .attach_printable("Failed to insert payment methods session to redis")
+                .attach_printable("Failed to insert payment methods session to redis");
+            
+            let key_manager_identifier = common_utils::types::keymanager::Identifier::Merchant(
+                key_store.merchant_id.clone(),
+            );
+
+            db_model
+                .convert(state, &key_store.key, key_manager_identifier)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+                .attach_printable("Failed to decrypt payment methods session")
         }
     }
 }
@@ -166,9 +180,12 @@ impl PaymentMethodsSessionInterface for MockDb {
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
         current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-    ) -> CustomResult<(), errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
+    ) -> CustomResult<
+            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            errors::StorageError,
+        > {
+            Err(errors::StorageError::MockDbError)?
+        }
 
     #[cfg(feature = "v2")]
     async fn get_payment_methods_session(

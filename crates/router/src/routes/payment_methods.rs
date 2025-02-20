@@ -928,7 +928,6 @@ pub async fn payment_methods_session_update(
     let flow = Flow::PaymentMethodSessionUpdate;
     let payment_method_session_id = path.into_inner();
     let payload = json_payload.into_inner();
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -947,15 +946,7 @@ pub async fn payment_methods_session_update(
                 .await
             }
         },
-        auth::api_or_client_auth(
-            &auth::V2ApiKeyAuth,
-            &auth::V2ClientAuth(
-                common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                    payment_method_session_id.clone(),
-                ),
-            ),
-            req.headers(),
-        ),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
