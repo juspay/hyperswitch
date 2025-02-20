@@ -1,4 +1,4 @@
-use common_utils;
+use common_utils::{self, fp_utils};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -79,11 +79,9 @@ pub async fn list_initial_delivery_attempts(
                 _ => None,
             };
 
-            if let (Some(created_after),Some(created_before)) = (created_after,created_before) {
-                if !(created_after<=created_before){
-                    Err(errors::ApiErrorResponse::InvalidRequestData { message: "Invalid time range provided with `created_after` and `created_before`".to_string() })?
-                }
-            }
+            fp_utils::when(!created_after.zip(created_before).map(|(created_after,created_before)| created_after<=created_before).unwrap_or(true), || {
+                Err(errors::ApiErrorResponse::InvalidRequestData { message: "Invalid time range provided with `created_after` and `created_before`".to_string() })
+            })?;
 
             let created_after = match created_after {
                 Some(created_after) => {
