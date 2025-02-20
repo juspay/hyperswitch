@@ -189,12 +189,12 @@ pub enum ThreeDSecureData {
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSData {
     #[serde(rename = "threeDSTransactionId")]
-    pub three_ds_transaction_id: Secret<String>,
+    pub three_ds_transaction_id: Option<Secret<String>>,
     pub cavv: Secret<String>,
     pub eci: Option<String>,
     pub xid: Option<Secret<String>>,
     #[serde(rename = "threeDSVersion")]
-    pub three_ds_version: String,
+    pub three_ds_version: Option<String>,
     #[serde(rename = "authenticationResponse")]
     pub authentication_response: String,
 }
@@ -452,11 +452,17 @@ fn create_card_details(
 
     if let Some(auth_data) = &item.router_data.request.authentication_data {
         details.three_ds = Some(ThreeDSecureData::Authentication(ThreeDSData {
-            three_ds_transaction_id: Secret::new(auth_data.threeds_server_transaction_id.clone()),
+            three_ds_transaction_id: auth_data
+                .threeds_server_transaction_id
+                .clone()
+                .map(Secret::new),
             cavv: Secret::new(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
             xid: auth_data.ds_trans_id.clone().map(Secret::new),
-            three_ds_version: auth_data.message_version.to_string(),
+            three_ds_version: auth_data
+                .message_version
+                .clone()
+                .map(|version| version.to_string()),
             authentication_response: "Y".to_string(),
         }));
     } else if item.router_data.is_three_ds() {
