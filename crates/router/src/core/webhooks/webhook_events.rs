@@ -79,6 +79,12 @@ pub async fn list_initial_delivery_attempts(
                 _ => None,
             };
 
+            if let (Some(created_after),Some(created_before)) = (created_after,created_before) {
+                if !(created_after<=created_before){
+                    Err(errors::ApiErrorResponse::InvalidRequestData { message: "Invalid time range provided with `created_after` and `created_before`".to_string() })?
+                }
+            }
+
             let created_after = match created_after {
                 Some(created_after) => {
                     if created_after < events_list_begin_time {
