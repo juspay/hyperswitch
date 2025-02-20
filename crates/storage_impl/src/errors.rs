@@ -111,6 +111,7 @@ impl StorageError {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
             Self::ValueNotFound(_) => true,
+            Self::RedisError(err) => matches!(err.current_context(), RedisError::NotFound),
             _ => false,
         }
     }

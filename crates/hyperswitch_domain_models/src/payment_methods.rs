@@ -21,7 +21,7 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
-    mandates::{CommonMandateReference, PaymentsMandateReference},
+    mandates::{self, CommonMandateReference},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
@@ -169,11 +169,10 @@ impl PaymentMethod {
                     .as_object_mut()
                     .map(|obj| obj.remove("payouts"));
 
-                serde_json::from_value::<PaymentsMandateReference>(mandate_details).inspect_err(
-                    |err| {
+                serde_json::from_value::<mandates::PaymentsMandateReference>(mandate_details)
+                    .inspect_err(|err| {
                         router_env::logger::error!("Failed to parse payments data: {:?}", err);
-                    },
-                )
+                    })
             })
             .transpose()
             .map_err(|err| {
@@ -217,6 +216,19 @@ impl PaymentMethod {
                 payouts: None,
             })
         }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
+        self.payment_method_type = Some(payment_method_type);
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn set_payment_method_subtype(
+        &mut self,
+        payment_method_subtype: common_enums::PaymentMethodType,
+    ) {
+        self.payment_method_subtype = Some(payment_method_subtype);
     }
 }
 
@@ -569,19 +581,22 @@ impl super::behaviour::Conversion for PaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
-pub struct PaymentMethodsSession {
+pub struct PaymentMethodSession {
     pub id: common_utils::id_type::GlobalPaymentMethodSessionId,
     pub customer_id: common_utils::id_type::GlobalCustomerId,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
+    pub return_url: Option<common_utils::types::Url>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub expires_at: PrimitiveDateTime,
+    pub associated_payment_method: Option<common_utils::id_type::GlobalPaymentMethodId>,
+    pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for PaymentMethodsSession {
+impl super::behaviour::Conversion for PaymentMethodSession {
     type DstType = diesel_models::payment_methods_session::PaymentMethodsSession;
     type NewDstType = diesel_models::payment_methods_session::PaymentMethodsSession;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -592,6 +607,9 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             psp_tokenization: self.psp_tokenization,
             network_tokeinzation: self.network_tokenization,
             expires_at: self.expires_at,
+            associated_payment_method: self.associated_payment_method,
+            associated_payment: self.associated_payment,
+            return_url: self.return_url,
         })
     }
 
@@ -610,8 +628,8 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentMethodsSession::to_encryptable(
-                    EncryptedPaymentMethodsSession {
+                CryptoOperation::BatchDecrypt(EncryptedPaymentMethodSession::to_encryptable(
+                    EncryptedPaymentMethodSession {
                         billing: storage_model.billing,
                     },
                 )),
@@ -621,7 +639,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             .await
             .and_then(|val| val.try_into_batchoperation())?;
 
-            let data = EncryptedPaymentMethodsSession::from_encryptable(decrypted_data)
+            let data = EncryptedPaymentMethodSession::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Invalid batch operation data")?;
 
@@ -641,6 +659,9 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
                 psp_tokenization: storage_model.psp_tokenization,
                 network_tokenization: storage_model.network_tokeinzation,
                 expires_at: storage_model.expires_at,
+                associated_payment_method: storage_model.associated_payment_method,
+                associated_payment: storage_model.associated_payment,
+                return_url: storage_model.return_url,
             })
         }
         .await
@@ -657,6 +678,9 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             psp_tokenization: self.psp_tokenization,
             network_tokeinzation: self.network_tokenization,
             expires_at: self.expires_at,
+            associated_payment_method: self.associated_payment_method,
+            associated_payment: self.associated_payment,
+            return_url: self.return_url,
         })
     }
 }

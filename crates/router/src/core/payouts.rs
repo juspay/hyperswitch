@@ -26,10 +26,6 @@ use diesel_models::{
     generic_link::{GenericLinkNew, PayoutLink},
     CommonMandateReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use diesel_models::{
-    PaymentsMandateReference, PaymentsMandateReferenceRecord as PaymentsMandateReferenceRecordV2,
-};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
