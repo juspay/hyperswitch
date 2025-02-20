@@ -112,6 +112,9 @@ describe("Payment Methods Tests", () => {
         this.skip();
       }
     });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
     it("Create customer", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
@@ -152,29 +155,18 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment", () => {
-      it("create-payment-call-test", () => {
+      it("create+confirm-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntentOffSession"];
+        ]["SaveCardUse3DSAutoCaptureOffSession"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
           data,
           "three_ds",
           "automatic",
           globalState
         );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("confirm-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["SaveCardUse3DSAutoCaptureOffSession"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -199,7 +191,7 @@ describe("Payment Methods Tests", () => {
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
-          "no_three_ds",
+          "three_ds",
           "automatic",
           globalState
         );
@@ -228,6 +220,11 @@ describe("Payment Methods Tests", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("Handle redirection", () => {
+        const expectedRedirection = fixtures.confirmBody["return_url"];
+        cy.handleRedirection(globalState, expectedRedirection);
       });
 
       it("List PM for customer", () => {
