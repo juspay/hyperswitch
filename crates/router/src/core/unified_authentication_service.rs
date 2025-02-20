@@ -11,7 +11,8 @@ use hyperswitch_domain_models::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
             PaymentDetails, ServiceSessionIds, TransactionDetails, UasAuthenticationRequestData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         BrowserInformation,
     },
@@ -20,6 +21,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
+use masking::ExposeInterface;
 
 use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
 use crate::{
@@ -152,12 +154,76 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         .await
     }
 
-    fn confirmation(
-        _state: &SessionState,
+    async fn confirmation(
+        state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _merchant_connector_account: &MerchantConnectorAccountType,
+        payment_data: &PaymentData<F>,
+        merchant_connector_account: &MerchantConnectorAccountType,
+        connector_name: &str,
+        payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<()> {
+        let authentication_id = payment_data
+            .payment_attempt
+            .authentication_id
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing authentication id in payment attempt")?;
+
+        let currency = payment_data.payment_attempt.currency.ok_or(
+            ApiErrorResponse::MissingRequiredField {
+                field_name: "currency",
+            },
+        )?;
+
+        let current_time = common_utils::date_time::now();
+
+        let payment_attempt_status = payment_data.payment_attempt.status;
+
+        let (checkout_event_status, confirmation_reason) =
+            utils::get_checkout_event_status_and_reason(payment_attempt_status);
+
+        let click_to_pay_details = payment_data.service_details.clone();
+
+        let authentication_confirmation_data = UasConfirmationRequestData {
+            x_src_flow_id: payment_data
+                .service_details
+                .as_ref()
+                .and_then(|details| details.x_src_flow_id.clone()),
+            transaction_amount: payment_data.payment_attempt.net_amount.get_order_amount(),
+            transaction_currency: currency,
+            checkout_event_type: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
+            checkout_event_status: checkout_event_status.clone(),
+            confirmation_status: checkout_event_status.clone(),
+            confirmation_reason,
+            confirmation_timestamp: Some(current_time),
+            network_authorization_code: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
+            network_transaction_identifier: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
+            correlation_id: click_to_pay_details
+                .clone()
+                .and_then(|details| details.correlation_id),
+            merchant_transaction_id: click_to_pay_details
+                .and_then(|details| details.merchant_transaction_id),
+        };
+
+        let authentication_confirmation_router_data : hyperswitch_domain_models::types::UasAuthenticationConfirmationRouterData = utils::construct_uas_router_data(
+            state,
+            connector_name.to_string(),
+            payment_method,
+            payment_data.payment_attempt.merchant_id.clone(),
+            None,
+            authentication_confirmation_data,
+            merchant_connector_account,
+            Some(authentication_id.clone()),
+        )?;
+
+        utils::do_auth_connector_call(
+            state,
+            UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+            authentication_confirmation_router_data,
+        )
+        .await?;
+
         Ok(())
     }
 }
@@ -388,17 +454,12 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         )
         .await
     }
-
-    fn confirmation(
-        _state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
-        _business_profile: &domain::Profile,
-        _merchant_connector_account: &MerchantConnectorAccountType,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
@@ -410,6 +471,7 @@ pub async fn create_new_authentication(
     authentication_id: &str,
     service_details: Option<payments::CtpServiceDetails>,
     authentication_status: common_enums::AuthenticationStatus,
+    network_token: Option<payment_method_data::NetworkTokenData>,
     organization_id: common_utils::id_type::OrganizationId,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
@@ -433,10 +495,12 @@ pub async fn create_new_authentication(
         connector_metadata: None,
         maximum_supported_version: None,
         threeds_server_transaction_id: None,
-        cavv: None,
+        cavv: network_token
+            .clone()
+            .and_then(|data| data.token_cryptogram.map(|cavv| cavv.expose())),
         authentication_flow_type: None,
         message_version: None,
-        eci: None,
+        eci: network_token.and_then(|data| data.eci),
         trans_status: None,
         acquirer_bin: None,
         acquirer_merchant_id: None,

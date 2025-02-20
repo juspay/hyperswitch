@@ -620,8 +620,14 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
             cardholder_auth: None,
-            three_ds_version: Some(auth_data.message_version.to_string()),
-            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
+            three_ds_version: auth_data
+                .message_version
+                .clone()
+                .map(|version| version.to_string()),
+            directory_server_id: auth_data
+                .threeds_server_transaction_id
+                .clone()
+                .map(Secret::new),
         };
 
         Ok(Self::CardThreeDs(Box::new(card_3ds_details)))

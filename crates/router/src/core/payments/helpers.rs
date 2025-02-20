@@ -3613,6 +3613,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -3684,6 +3685,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -3753,6 +3755,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -4286,6 +4289,9 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            request_extended_authorization: None,
+            extended_authorization_applied: None,
+            capture_before: None,
             card_discovery: None,
         }
     }
@@ -6540,6 +6546,7 @@ pub enum UnifiedAuthenticationServiceFlow {
     ExternalAuthenticationPostAuthenticate {
         authentication_id: String,
     },
+    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6550,6 +6557,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
+    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6580,7 +6588,9 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if *do_authorisation_confirmation {
+                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
@@ -6590,6 +6600,11 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     None
                 }
             } else {
+                logger::info!(
+                    payment_method=?payment_data.payment_attempt.payment_method,
+                    click_to_pay_enabled=?business_profile.is_click_to_pay_enabled,
+                    "skipping unified authentication service call since payment conditions are not satisfied"
+                );
                 None
             }
         }

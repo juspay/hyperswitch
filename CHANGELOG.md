@@ -4,6 +4,76 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.20.0
+
+### Features
+
+- **core:** Add hypersense integration api ([#7218](https://github.com/juspay/hyperswitch/pull/7218)) ([`22633be`](https://github.com/juspay/hyperswitch/commit/22633be55cfc42dc4a7171c3193da594d0557bfb))
+
+### Bug Fixes
+
+- **connector:** [SCRIPT] Update template generating script and updated connector doc ([#7301](https://github.com/juspay/hyperswitch/pull/7301)) ([`2d9df53`](https://github.com/juspay/hyperswitch/commit/2d9df53491b1ef662736efec60ec5e5368466bb4))
+
+### Refactors
+
+- **utils:** Match string for state with SDK's naming convention ([#7300](https://github.com/juspay/hyperswitch/pull/7300)) ([`f3ca200`](https://github.com/juspay/hyperswitch/commit/f3ca2009c1902094a72b8bf43e89b406e44ecfd4))
+
+**Full Changelog:** [`2025.02.19.0...2025.02.20.0`](https://github.com/juspay/hyperswitch/compare/2025.02.19.0...2025.02.20.0)
+
+- - -
+
+## 2025.02.19.0
+
+### Features
+
+- **connector:** [Moneris] Add payments flow ([#7249](https://github.com/juspay/hyperswitch/pull/7249)) ([`d18d98a`](https://github.com/juspay/hyperswitch/commit/d18d98a1f687aef1e0f21f6a26387cb9ca7a347d))
+- **core:** Api ,domain and diesel model changes for extended authorization ([#6607](https://github.com/juspay/hyperswitch/pull/6607)) ([`e14d6c4`](https://github.com/juspay/hyperswitch/commit/e14d6c4465bb1276a348a668051c084af72de8e3))
+- **payments:** [Payment links] Add configs for payment link ([#7288](https://github.com/juspay/hyperswitch/pull/7288)) ([`72080c6`](https://github.com/juspay/hyperswitch/commit/72080c67c7927b53d5ca013983f379e9b027c51f))
+
+**Full Changelog:** [`2025.02.18.0...2025.02.19.0`](https://github.com/juspay/hyperswitch/compare/2025.02.18.0...2025.02.19.0)
+
+- - -
+
+## 2025.02.18.0
+
+### Features
+
+- **coingate:** Add Crypto Pay Flow ([#7247](https://github.com/juspay/hyperswitch/pull/7247)) ([`c868ff3`](https://github.com/juspay/hyperswitch/commit/c868ff38e0234fa83f1615e751af12cb7d32a3d9))
+
+### Refactors
+
+- **utils:** Use to_state_code of hyperswitch_connectors in router ([#7278](https://github.com/juspay/hyperswitch/pull/7278)) ([`b97370d`](https://github.com/juspay/hyperswitch/commit/b97370d59fd167af9c24f4470f4668ce2ee76a89))
+
+**Full Changelog:** [`2025.02.15.0...2025.02.18.0`](https://github.com/juspay/hyperswitch/compare/2025.02.15.0...2025.02.18.0)
+
+- - -
+
+## 2025.02.15.0
+
+### Features
+
+- **connector:** [Datatrans] add mandate flow ([#7245](https://github.com/juspay/hyperswitch/pull/7245)) ([`e2043de`](https://github.com/juspay/hyperswitch/commit/e2043dee224bac63b4288e53475176f0941c4abb))
+- **core:**
+  - Add card_discovery filter to payment list and payments Response ([#7230](https://github.com/juspay/hyperswitch/pull/7230)) ([`3c7cb9e`](https://github.com/juspay/hyperswitch/commit/3c7cb9e59dc28bf79cf83793ae168491cfed717f))
+  - Introduce accounts schema for accounts related tables ([#7113](https://github.com/juspay/hyperswitch/pull/7113)) ([`0ba4ccf`](https://github.com/juspay/hyperswitch/commit/0ba4ccfc8b38a918a56eab66715005b4c448172b))
+- **payment_methods_v2:** Add support for network tokenization ([#7145](https://github.com/juspay/hyperswitch/pull/7145)) ([`0b972e3`](https://github.com/juspay/hyperswitch/commit/0b972e38abd08380b75165dfd755087769f35a62))
+- **router:** Add v2 endpoint retrieve payment aggregate based on merchant profile ([#7196](https://github.com/juspay/hyperswitch/pull/7196)) ([`c17eb01`](https://github.com/juspay/hyperswitch/commit/c17eb01e35749343b3bf4fdda51782ea962ee57a))
+- **utils:** Add iso representation for each state for european countries ([#7273](https://github.com/juspay/hyperswitch/pull/7273)) ([`c337be6`](https://github.com/juspay/hyperswitch/commit/c337be66f9ca8b3f0a2c0a510298d4f48f09f588))
+
+### Bug Fixes
+
+- **cypress:** Resolve cypress issue for NMI connector ([#7267](https://github.com/juspay/hyperswitch/pull/7267)) ([`0d5c6fa`](https://github.com/juspay/hyperswitch/commit/0d5c6faae06c9e6e793a271c121a43818fb3e53f))
+
+### Refactors
+
+- **payments:** Add platform merchant account checks for payment intent ([#7204](https://github.com/juspay/hyperswitch/pull/7204)) ([`12ef8ee`](https://github.com/juspay/hyperswitch/commit/12ef8ee0fc63829429697c42b98f4c773f12cade))
+- **payments_v2:** Create customer at connector end and populate connector customer ID ([#7246](https://github.com/juspay/hyperswitch/pull/7246)) ([`17f9e6e`](https://github.com/juspay/hyperswitch/commit/17f9e6ee9e99366fa0236a3f4266483d1d8dfa22))
+- **router:** Add revenue_recovery_metadata to payment intent in diesel and api model for v2 flow ([#7176](https://github.com/juspay/hyperswitch/pull/7176)) ([`2ee22cd`](https://github.com/juspay/hyperswitch/commit/2ee22cdf8aced4881c1aab70cd10797a4deb57ed))
+
+**Full Changelog:** [`2025.02.14.0...2025.02.15.0`](https://github.com/juspay/hyperswitch/compare/2025.02.14.0...2025.02.15.0)
+
+- - -
+
 ## 2025.02.14.0
 
 ### Features
