@@ -5507,11 +5507,11 @@ pub async fn get_payment_filters(
                         payment_method_types_map
                             .entry(payment_method)
                             .or_default()
-                            .extend(
-                                payment_method_types_vec
-                                    .iter()
-                                    .filter_map(|req_payment_method_types| req_payment_method_types.get_payment_method_type()),
-                            );
+                            .extend(payment_method_types_vec.iter().filter_map(
+                                |req_payment_method_types| {
+                                    req_payment_method_types.get_payment_method_type()
+                                },
+                            ));
                     }
                 },
             );
