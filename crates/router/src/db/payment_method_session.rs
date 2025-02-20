@@ -18,7 +18,8 @@ pub trait PaymentMethodsSessionInterface {
         state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
     ) -> CustomResult<(), errors::StorageError>;
 
     async fn get_payment_methods_session(
@@ -117,11 +118,18 @@ mod storage {
             state: &common_utils::types::keymanager::KeyManagerState,
             key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             session_id: &common_utils::id_type::GlobalPaymentMethodSessionId,
-            update_request: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            update_request: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
+            current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
         ) -> CustomResult<(), errors::StorageError> {
             let redis_key = session_id.get_redis_key();
 
-            let db_model = update_request
+            let internal_obj = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateInternal::from(update_request);
+
+            let update_state = current_session.apply_changeset(internal_obj);
+
+            // let update_session = diesel_models::payment_methods_session::PaymentMethodsSession::apply_changeset(current_session, internal_obj);
+            
+            let db_model = update_state 
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -156,7 +164,8 @@ impl PaymentMethodsSessionInterface for MockDb {
         state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
     ) -> CustomResult<(), errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

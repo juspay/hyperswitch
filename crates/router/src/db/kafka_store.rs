@@ -3961,10 +3961,11 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &id_type::GlobalPaymentMethodSessionId,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
-            .update_payment_method_session(state, key_store, id, payment_methods_session)
+            .update_payment_method_session(state, key_store, id, payment_methods_session, current_session)
             .await
     }
 }

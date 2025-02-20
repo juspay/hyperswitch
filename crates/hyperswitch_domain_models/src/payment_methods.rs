@@ -590,7 +590,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             customer_id: self.customer_id,
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokeinzation: self.network_tokenization,
+            network_tokenization: self.network_tokenization,
             expires_at: self.expires_at,
         })
     }
@@ -639,7 +639,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
                 customer_id: storage_model.customer_id,
                 billing,
                 psp_tokenization: storage_model.psp_tokenization,
-                network_tokenization: storage_model.network_tokeinzation,
+                network_tokenization: storage_model.network_tokenization,
                 expires_at: storage_model.expires_at,
             })
         }
@@ -655,7 +655,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             customer_id: self.customer_id,
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokeinzation: self.network_tokenization,
+            network_tokenization: self.network_tokenization,
             expires_at: self.expires_at,
         })
     }
@@ -664,8 +664,66 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodsSessionUpdate {
-    pub id: common_utils::id_type::GlobalPaymentMethodSessionId,
     #[encrypt(ty = Value)]
+    pub billing: Option<Encryptable<Address>>,
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+}
+
+#[cfg(feature = "v2")]
+pub enum PaymentMethodsSessionUpdateEnum {
+    GeneralUpdate 
+    {   
+        billing: Option<Encryptable<Address>>,
+        psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+        network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateInternal {
+    fn from(update: PaymentMethodsSessionUpdateEnum) -> Self {
+        match update {
+            PaymentMethodsSessionUpdateEnum::GeneralUpdate {
+                billing,
+                psp_tokenization,
+                network_tokenization,
+            } => Self {
+                billing: billing.map(|val| val.into()),
+                psp_tokenization: psp_tokenization,
+                network_tokenization: network_tokenization,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodsSession {
+    pub fn apply_changeset(self , update_session: PaymentMethodsSessionUpdateInternal) -> PaymentMethodsSession {
+        let Self {
+            id,
+            customer_id,
+            billing,
+            psp_tokenization,
+            network_tokenization,
+            expires_at,
+        } = self;
+        PaymentMethodsSession {
+            id,
+            customer_id,
+            billing: update_session.billing
+                        .or(billing),
+            psp_tokenization: update_session.psp_tokenization
+                                .or(psp_tokenization),
+            network_tokenization: update_session.network_tokenization
+                                    .or(network_tokenization),
+            expires_at,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodsSessionUpdateInternal {
     pub billing: Option<Encryptable<Address>>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -678,10 +736,9 @@ impl super::behaviour::Conversion for PaymentMethodsSessionUpdate {
     type NewDstType = diesel_models::payment_methods_session::PaymentMethodsSessionUpdate;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(Self::DstType {
-            id: self.id,
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokeinzation: self.network_tokenization,
+            network_tokenization: self.network_tokenization
         })
     }
 
@@ -727,10 +784,9 @@ impl super::behaviour::Conversion for PaymentMethodsSessionUpdate {
                 .attach_printable("Error while deserializing Address")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                id: storage_model.id,
                 billing,
                 psp_tokenization: storage_model.psp_tokenization,
-                network_tokenization: storage_model.network_tokeinzation,
+                network_tokenization: storage_model.network_tokenization,
             })
         }
         .await
@@ -741,10 +797,9 @@ impl super::behaviour::Conversion for PaymentMethodsSessionUpdate {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(Self::NewDstType {
-            id: self.id,
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokeinzation: self.network_tokenization,
+            network_tokenization: self.network_tokenization,
         })
     }
 }

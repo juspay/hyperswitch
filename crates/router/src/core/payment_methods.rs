@@ -1941,7 +1941,7 @@ pub async fn payment_methods_session_update(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let payment_method_session_state = db
+    let existing_payment_method_session_state = db
         .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -1967,33 +1967,36 @@ pub async fn payment_methods_session_update(
         .attach_printable("Unable to decode billing address")?;
 
     let payment_method_session_domain_model =
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdate {
-            id: payment_method_session_id.clone(),
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::GeneralUpdate{
             billing,
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
         };
 
-    let update_state_change = payment_method_session_update_to_current_state(
-        payment_method_session_domain_model,
-        payment_method_session_state,
-    )
-    .await;
-
     db.update_payment_method_session(
         key_manager_state,
         &key_store,
         &payment_method_session_id,
-        update_state_change.clone(),
+        payment_method_session_domain_model,
+        existing_payment_method_session_state.clone()
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment methods session in db")?;
+    
+    let update_state_change = db
+    .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "payment methods session does not exist or has expired".to_string(),
+    })
+    .attach_printable("Failed to retrieve payment methods session from db")?;
 
     let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
         update_state_change,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
     ));
+
     Ok(services::ApplicationResponse::Json(response))
 }
 #[cfg(feature = "v2")]
@@ -2021,6 +2024,7 @@ pub async fn payment_methods_session_retrieve(
 
     Ok(services::ApplicationResponse::Json(response))
 }
+
 
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update_payment_method(
@@ -2112,21 +2116,21 @@ impl pm_types::SavedPMLPaymentsInfo {
     }
 }
 
-#[cfg(feature = "v2")]
-pub async fn payment_method_session_update_to_current_state(
-    update_state: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdate,
-    current_state: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-) -> hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
-    hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
-        id: current_state.id,
-        customer_id: current_state.customer_id,
-        billing: update_state.billing.or(current_state.billing),
-        psp_tokenization: update_state
-            .psp_tokenization
-            .or(current_state.psp_tokenization),
-        network_tokenization: update_state
-            .network_tokenization
-            .or(current_state.network_tokenization),
-        expires_at: current_state.expires_at,
-    }
-}
+// #[cfg(feature = "v2")]
+// pub async fn payment_method_session_update_to_current_state(
+//     update_state: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdate,
+//     current_state: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+// ) -> hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
+//     hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
+//         id: current_state.id,
+//         customer_id: current_state.customer_id,
+//         billing: update_state.billing.or(current_state.billing),
+//         psp_tokenization: update_state
+//             .psp_tokenization
+//             .or(current_state.psp_tokenization),
+//         network_tokenization: update_state
+//             .network_tokenization
+//             .or(current_state.network_tokenization),
+//         expires_at: current_state.expires_at,
+//     }
+// }
