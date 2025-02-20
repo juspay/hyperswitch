@@ -349,7 +349,6 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {},
       Response: {
-        status: 200,
         body: {
           status: "failed",
           error_code: "The currency not allow for the RecordType",
@@ -576,7 +575,6 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 200,
         body: {
           status: "failed",
           error_message: "The currency not allow for the RecordType",
