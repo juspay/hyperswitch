@@ -22,10 +22,8 @@ pub struct BlocklistLookupNew {
     Deserialize,
     Serialize,
 )]
-#[diesel(table_name = blocklist_lookup, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = blocklist_lookup, primary_key(merchant_id, fingerprint), check_for_backend(diesel::pg::Pg))]
 pub struct BlocklistLookup {
-    #[serde(skip)]
-    pub id: i32,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub fingerprint: String,
 }

@@ -3,9 +3,8 @@ use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use crate::schema::locker_mock_up;
 
 #[derive(Clone, Debug, Eq, Identifiable, Queryable, Selectable, PartialEq)]
-#[diesel(table_name = locker_mock_up, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = locker_mock_up, primary_key(card_id), check_for_backend(diesel::pg::Pg))]
 pub struct LockerMockUp {
-    pub id: i32,
     pub card_id: String,
     pub external_id: String,
     pub card_fingerprint: String,
