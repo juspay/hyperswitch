@@ -7084,7 +7084,7 @@ pub enum PaymentConnectorTransmission {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TriggeredBy {
-    /// Denotes payment attempt is been created by hyperswitch system.
+    /// Denotes payment attempt is been created by internal system.
     #[default]
     Internal,
     /// Denotes payment attempt is been created by external system.

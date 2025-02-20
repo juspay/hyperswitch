@@ -1,21 +1,19 @@
-use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{transformers::ForeignFrom, types::MinorUnit};
+use api_models::webhooks;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::revenue_recovery;
 use router_env::{instrument, tracing};
 
 use crate::{
     core::{
-        api_locking,
         errors::{self, CustomResult},
         payments::{self, operations},
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface},
-    types::{
-        api::{self, IncomingWebhook},
-        domain,
-    },
+    types::{api, domain},
 };
+use hyperswitch_interfaces::webhooks as interface_webhooks;
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -31,18 +29,23 @@ pub async fn recovery_incoming_webhook_flow(
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     req_state: ReqState,
-) -> CustomResult<WebhookResponseTracker, errors::RevenueRecoveryError> {
+) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     // Source verification is necessary for revenue recovery webhooks flow since We don't have payment intent/attempt object created before in our system.
-    common_utils::fp_utils::when(source_verified, || {
+
+    common_utils::fp_utils::when(!source_verified, || {
         Err(report!(
             errors::RevenueRecoveryError::WebhookAuthenticationFailed
         ))
     })?;
 
-    let invoice_details = connector
-        .get_revenue_recovery_invoice_details(request_details)
+    let invoice_details = RevenueRecoveryInvoice(
+        interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
+            connector,
+            request_details,
+        )
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
-        .attach_printable("Failed while getting revenue recovery invoice details")?;
+        .attach_printable("Failed while getting revenue recovery invoice details")?,
+    );
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
         .get_payment_intent(
@@ -52,8 +55,9 @@ pub async fn recovery_incoming_webhook_flow(
             &business_profile,
             &key_store,
         )
-        .await?
-        .unwrap_or(
+        .await
+        .transpose()
+        .async_unwrap_or_else(|| async {
             invoice_details
                 .create_payment_intent(
                     &state,
@@ -62,14 +66,19 @@ pub async fn recovery_incoming_webhook_flow(
                     &business_profile,
                     &key_store,
                 )
-                .await?,
-        );
+                .await
+        })
+        .await?;
 
     let payment_attempt = match event_type.is_recovery_transaction_event() {
         true => {
-            let invoice_transaction_details = connector
-                .get_revenue_recovery_attempt_details(request_details)
-                .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)?;
+            let invoice_transaction_details = RevenueRecoveryAttempt(
+                interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
+                    connector,
+                    request_details,
+                )
+                .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)?,
+            );
 
             invoice_transaction_details
                 .get_payment_attempt(
@@ -85,108 +94,44 @@ pub async fn recovery_incoming_webhook_flow(
         false => None,
     };
 
-    let attempt_triggered_by = payment_attempt.and_then(|attempt| {
-        attempt.feature_metadata.and_then(|metadata| {
-            metadata
-                .revenue_recovery
-                .map(|recovery| recovery.attempt_triggered_by)
-        })
-    });
+    let attempt_triggered_by = payment_attempt
+        .and_then(revenue_recovery::RecoveryPaymentAttempt::get_attempt_triggered_by);
 
-    let action = hyperswitch_domain_models::revenue_recovery::RecoveryAction::find_action(
-        event_type,
-        attempt_triggered_by,
-    );
+    let action = revenue_recovery::RecoveryAction::get_action(event_type, attempt_triggered_by);
 
     match action {
-        hyperswitch_domain_models::revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
-        hyperswitch_domain_models::revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
+        revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
+        revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
             todo!()
         }
-        hyperswitch_domain_models::revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
+        revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
             todo!()
         }
-        hyperswitch_domain_models::revenue_recovery::RecoveryAction::PendingPayment => {
+        revenue_recovery::RecoveryAction::PendingPayment => {
             router_env::logger::info!(
                 "Pending transactions are not consumed by the revenue recovery webhooks"
             );
-            Ok(WebhookResponseTracker::NoEffect)
+            Ok(webhooks::WebhookResponseTracker::NoEffect)
         }
-        hyperswitch_domain_models::revenue_recovery::RecoveryAction::NoAction => {
+        revenue_recovery::RecoveryAction::NoAction => {
             router_env::logger::info!(
                 "No Recovery action is taken place for recovery event : {:?} and attempt triggered_by : {:?} ", event_type.clone(), attempt_triggered_by
             );
-            Ok(WebhookResponseTracker::NoEffect)
+            Ok(webhooks::WebhookResponseTracker::NoEffect)
         }
-        hyperswitch_domain_models::revenue_recovery::RecoveryAction::InvalidAction => {
+        revenue_recovery::RecoveryAction::InvalidAction => {
             router_env::logger::error!(
                 "Invalid Revenue recovery action state has been received, event : {:?}, triggered_by : {:?}", event_type, attempt_triggered_by
             );
-            Ok(WebhookResponseTracker::NoEffect)
+            Ok(webhooks::WebhookResponseTracker::NoEffect)
         }
     }
 }
 
-// Intent related functions for the invoice are implemented in this trait
-pub trait RevenueRecoveryInvoice {
-    /// get the payment intent using merchant reference id.
-    async fn get_payment_intent(
-        &self,
-        state: &SessionState,
-        req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<
-        Option<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent>,
-        errors::RevenueRecoveryError,
-    >;
-    /// create payment intent if intent was not found for merchant reference id.
-    async fn create_payment_intent(
-        &self,
-        state: &SessionState,
-        req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<
-        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
-        errors::RevenueRecoveryError,
-    >;
-}
-/// Attempt related functions for the invoice transactions are implemented in this trait
-pub trait RevenueRecoveryAttempt {
-    /// Get the payment attempt using connector transaction id.
-    async fn get_payment_attempt(
-        &self,
-        state: &SessionState,
-        req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
-        payment_id: common_utils::id_type::GlobalPaymentId,
-    ) -> CustomResult<
-        Option<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt>,
-        errors::RevenueRecoveryError,
-    >;
-    /// record payment attempt against given intent.
-    async fn record_payment_attempt(
-        &self,
-        state: &SessionState,
-        req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
-        payment_id: common_utils::id_type::GlobalPaymentId,
-    ) -> CustomResult<
-        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt,
-        errors::RevenueRecoveryError,
-    >;
-}
+pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
+pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
 
-impl RevenueRecoveryInvoice
-    for hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData
-{
+impl RevenueRecoveryInvoice {
     async fn get_payment_intent(
         &self,
         state: &SessionState,
@@ -194,17 +139,15 @@ impl RevenueRecoveryInvoice
         merchant_account: &domain::MerchantAccount,
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<
-        Option<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent>,
-        errors::RevenueRecoveryError,
-    > {
+    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentIntent>, errors::RevenueRecoveryError>
+    {
         let payment_response = Box::pin(payments::payments_get_intent_using_merchant_reference(
             state.clone(),
             merchant_account.clone(),
             profile.clone(),
             key_store.clone(),
             req_state.clone(),
-            &self.merchant_reference_id,
+            &self.0.merchant_reference_id,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
             None,
         ))
@@ -215,13 +158,11 @@ impl RevenueRecoveryInvoice
                 let payment_id = payments_response.id.clone();
                 let status = payments_response.status;
                 let feature_metadata = payments_response.feature_metadata;
-                Ok(Some(
-                    hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent {
-                        payment_id,
-                        status,
-                        feature_metadata,
-                    },
-                ))
+                Ok(Some(revenue_recovery::RecoveryPaymentIntent {
+                    payment_id,
+                    status,
+                    feature_metadata,
+                }))
             }
             Err(err)
                 if matches!(
@@ -243,11 +184,8 @@ impl RevenueRecoveryInvoice
         merchant_account: &domain::MerchantAccount,
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<
-        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
-        errors::RevenueRecoveryError,
-    > {
-        let payload = api_models::payments::PaymentsCreateIntentRequest::from(self);
+    ) -> CustomResult<revenue_recovery::RecoveryPaymentIntent, errors::RevenueRecoveryError> {
+        let payload = api_models::payments::PaymentsCreateIntentRequest::from(&self.0);
         let global_payment_id =
             common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
 
@@ -277,19 +215,15 @@ impl RevenueRecoveryInvoice
         let response = payments::handle_payments_intent_response(create_intent_response)
             .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)?;
 
-        Ok(
-            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent {
-                payment_id: response.id,
-                status: response.status,
-                feature_metadata: response.feature_metadata,
-            },
-        )
+        Ok(revenue_recovery::RecoveryPaymentIntent {
+            payment_id: response.id,
+            status: response.status,
+            feature_metadata: response.feature_metadata,
+        })
     }
 }
 
-impl RevenueRecoveryAttempt
-    for hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData
-{
+impl RevenueRecoveryAttempt {
     async fn get_payment_attempt(
         &self,
         state: &SessionState,
@@ -298,10 +232,8 @@ impl RevenueRecoveryAttempt
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         payment_id: common_utils::id_type::GlobalPaymentId,
-    ) -> CustomResult<
-        Option<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt>,
-        errors::RevenueRecoveryError,
-    > {
+    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentAttempt>, errors::RevenueRecoveryError>
+    {
         let attempt_response = Box::pin(payments::payments_core::<
             hyperswitch_domain_models::router_flow_types::payments::PSync,
             api_models::payments::PaymentsRetrieveResponse,
@@ -332,7 +264,8 @@ impl RevenueRecoveryAttempt
         let response = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
                 let final_attempt =
-                    self.connector_transaction_id
+                    self.0
+                        .connector_transaction_id
                         .as_ref()
                         .and_then(|transaction_id| {
                             payments_response
@@ -340,13 +273,12 @@ impl RevenueRecoveryAttempt
                                     transaction_id,
                                 )
                         });
-                let payment_attempt = final_attempt.map(|attempt_res| {
-                    hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt {
+                let payment_attempt =
+                    final_attempt.map(|attempt_res| revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_res.id.to_owned(),
                         attempt_status: attempt_res.status.to_owned(),
                         feature_metadata: attempt_res.feature_metadata.to_owned(),
-                    }
-                });
+                    });
                 Ok(payment_attempt)
             }
             Ok(_) | Err(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
@@ -362,10 +294,7 @@ impl RevenueRecoveryAttempt
         _profile: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
         _payment_id: common_utils::id_type::GlobalPaymentId,
-    ) -> CustomResult<
-        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt,
-        errors::RevenueRecoveryError,
-    > {
+    ) -> CustomResult<revenue_recovery::RecoveryPaymentAttempt, errors::RevenueRecoveryError> {
         todo!()
     }
 }

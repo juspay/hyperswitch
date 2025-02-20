@@ -11,16 +11,16 @@ pub struct RevenueRecoveryAttemptData {
     /// merchant reference id at billing connector. ex: invoice_id
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
     /// transaction id reference at payment connector
-    pub connector_transaction_id: Option<String>,
+    pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
     /// error code sent by billing connector.
     pub error_code: Option<String>,
     /// error message sent by billing connector.
     pub error_message: Option<String>,
     /// mandate token at payment processor end.
-    pub processor_payment_token: Option<String>,
+    pub processor_payment_method_token: Option<String>,
     /// customer id at payment connector for which mandate is attached.
     pub connector_customer_id: Option<String>,
-    /// payment merchant connnector account reference id at billing connector.
+    /// Payment gateway identifier id at billing processor.
     pub connector_account_reference_id: Option<String>,
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
@@ -72,8 +72,18 @@ pub struct RecoveryPaymentAttempt {
     pub feature_metadata: Option<api_models::payments::PaymentAttemptFeatureMetadata>,
 }
 
+impl RecoveryPaymentAttempt {
+    pub fn get_attempt_triggered_by(self) -> Option<common_enums::TriggeredBy> {
+            self.feature_metadata.and_then(|metadata| {
+            metadata
+                .revenue_recovery
+                .map(|recovery| recovery.attempt_triggered_by)
+        })
+    }
+}
+
 impl RecoveryAction {
-    pub fn find_action(
+    pub fn get_action(
         event_type: webhooks::IncomingWebhookEvent,
         attempt_triggered_by: Option<common_enums::TriggeredBy>,
     ) -> Self {
@@ -151,6 +161,8 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
             amount_details,
             merchant_reference_id: Some(data.merchant_reference_id.clone()),
             routing_algorithm_id: None,
+            // Payments in the revenue recovery flow are always recurring transactions,
+            // so capture method will be always automatic.
             capture_method: Some(common_enums::CaptureMethod::Automatic),
             authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
             billing: None,
@@ -159,6 +171,8 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
             description: None,
             return_url: None,
+            // Payments in the revenue recovery flow are always recurring transactions,
+            // so customer will not be not be present in this scenario.
             setup_future_usage: Some(common_enums::FutureUsage::OffSession),
             apply_mit_exemption: None,
             statement_descriptor: None,

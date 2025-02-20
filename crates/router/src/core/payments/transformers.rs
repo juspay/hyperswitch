@@ -1615,7 +1615,7 @@ where
 
         let error = payment_attempt
             .error
-            .clone()
+            .as_ref()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
         let payment_address = self.payment_address;
@@ -1703,6 +1703,7 @@ where
 
         let error = optional_payment_attempt
             .and_then(|payment_attempt| payment_attempt.error.clone())
+            .as_ref()
             .map(api_models::payments::ErrorDetails::foreign_from);
         let attempts = self.attempts.as_ref().map(|attempts| {
             attempts
@@ -4193,7 +4194,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             connector: attempt.connector.clone(),
             error: attempt
                 .error
-                .clone()
+                .as_ref()
                 .map(api_models::payments::ErrorDetails::foreign_from),
             authentication_type: attempt.authentication_type,
             created_at: attempt.created_at,
@@ -4205,7 +4206,9 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             payment_method_type: attempt.payment_method_type,
             connector_reference_id: attempt.connector_response_reference_id.clone(),
             payment_method_subtype: attempt.get_payment_method_type(),
-            connector_payment_id: attempt.get_connector_payment_id().map(ToString::to_string),
+            connector_payment_id: attempt
+                .get_connector_payment_id()
+                .map(|str| common_utils::types::ConnectorTransactionId::from(str.to_owned())),
             payment_method_id: attempt.payment_method_id.clone(),
             client_source: attempt.client_source.clone(),
             client_version: attempt.client_version.clone(),
@@ -4237,44 +4240,34 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
+impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
     for api_models::payments::ErrorDetails
 {
     fn foreign_from(
-        amount_details: hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
+        error_details: &hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
     ) -> Self {
-        let hyperswitch_domain_models::payments::payment_attempt::ErrorDetails {
-            code,
-            message,
-            reason,
-            unified_code,
-            unified_message,
-        } = amount_details;
-
-        Self {
-            code,
-            message: reason.unwrap_or(message),
-            unified_code,
-            unified_message,
+        Self{
+            code: error_details.code.to_owned(),
+            message: error_details.message.to_owned(),
+            unified_code: error_details.unified_code.clone(),
+            unified_message: error_details.unified_message.clone(),
         }
     }
 }
 
 #[cfg(feature = "v2")]
 impl
-    ForeignFrom<
-        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
-    > for api_models::payments::PaymentAttemptFeatureMetadata
+    ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata>
+    for api_models::payments::PaymentAttemptFeatureMetadata
 {
     fn foreign_from(
         feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
     ) -> Self {
-        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|data| {
+        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|recovery| {
             api_models::payments::PaymentAttemptRevenueRecoveryData {
-                attempt_triggered_by: data.attempt_triggered_by,
+                attempt_triggered_by: recovery.attempt_triggered_by,
             }
         });
-
         Self { revenue_recovery }
     }
 }

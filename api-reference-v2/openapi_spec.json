@@ -13064,7 +13064,8 @@
           "amount",
           "authentication_type",
           "created_at",
-          "modified_at"
+          "modified_at",
+          "connector_payment_id"
         ],
         "properties": {
           "id": {
@@ -13160,9 +13161,7 @@
           },
           "connector_payment_id": {
             "type": "string",
-            "description": "A unique identifier for a payment provided by the connector",
-            "example": "993672945374576J",
-            "nullable": true
+            "description": "A unique identifier for a payment provided by the connector"
           },
           "payment_method_id": {
             "type": "string",
@@ -13192,12 +13191,14 @@
       },
       "PaymentAttemptRevenueRecoveryData": {
         "type": "object",
-        "required": [
-          "attempt_triggered_by"
-        ],
         "properties": {
           "attempt_triggered_by": {
-            "$ref": "#/components/schemas/TriggeredBy"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TriggeredBy"
+              }
+            ],
+            "nullable": true
           }
         }
       },

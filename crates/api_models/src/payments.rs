@@ -7,7 +7,7 @@ pub mod additional_info;
 pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
-use common_enums::enums::{PaymentConnectorTransmission, TriggeredBy};
+use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
@@ -1491,8 +1491,8 @@ pub struct PaymentAttemptResponse {
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// A unique identifier for a payment provided by the connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_payment_id: Option<String>,
+    #[schema(value_type = String)]
+    pub connector_payment_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// Identifier for Payment Method used for the payment attempt
     #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -1518,7 +1518,8 @@ pub struct PaymentAttemptFeatureMetadata {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
-    pub attempt_triggered_by: TriggeredBy,
+    #[schema(value_type = Option<TriggeredBy>, example = "internal")]
+    pub attempt_triggered_by: common_enums::TriggeredBy,
 }
 
 #[derive(
@@ -5431,7 +5432,7 @@ pub struct PaymentsRetrieveResponse {
 impl PaymentsRetrieveResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
         self,
-        connector_transaction_id: &String,
+        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
     ) -> Option<PaymentAttemptResponse> {
         self.attempts
             .as_ref()
