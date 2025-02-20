@@ -314,9 +314,9 @@ pub struct Profile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
-    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
 }
 
 impl Profile {
