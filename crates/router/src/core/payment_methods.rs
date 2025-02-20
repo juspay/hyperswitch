@@ -1978,7 +1978,7 @@ pub async fn payment_methods_session_update(
         &key_store,
         &payment_method_session_id,
         payment_method_session_domain_model,
-        existing_payment_method_session_state.clone()
+        existing_payment_method_session_state.clone(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2016,7 +2016,6 @@ pub async fn payment_methods_session_retrieve(
 
     Ok(services::ApplicationResponse::Json(response))
 }
-
 
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update_payment_method(
