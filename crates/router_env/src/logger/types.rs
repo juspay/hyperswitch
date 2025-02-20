@@ -555,6 +555,12 @@ pub enum Flow {
     PaymentMethodSessionRetrieve,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Create Cards Info flow
+    CreateCardsInfo,
+    /// Update Cards Info flow
+    UpdateCardsInfo,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
 }
 
 /// Trait for providing generic behaviour to flow metric
