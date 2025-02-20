@@ -184,7 +184,7 @@ pub struct CustomerResponse {
     pub merchant_reference_id: Option<id_type::CustomerId>,
     /// Connector specific customer reference ids
     #[schema(value_type = Option<Object>, example = json!({"mca_hwySG2NtpzX0qr7toOy8": "cus_Rnm2pDKGyQi506"}))]
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer_ids: Option<ConnectorCustomerMap>,
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: crypto::OptionalEncryptableName,
