@@ -1,6 +1,6 @@
 pub mod helpers;
 pub mod transformers;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::DynamicRoutingAlgoAccessor;
@@ -11,6 +11,7 @@ use api_models::{
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
+use common_utils::id_type::MerchantConnectorAccountId;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -18,7 +19,9 @@ use external_services::grpc_client::dynamic_routing::{
     contract_routing_client::ContractBasedDynamicRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
-use hyperswitch_domain_models::{mandates, payment_address};
+use hyperswitch_domain_models::{
+    mandates, merchant_connector_account::MerchantConnectorAccount, payment_address,
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
 use rustc_hash::FxHashSet;
@@ -976,16 +979,64 @@ pub async fn retrieve_default_routing_config(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_account.get_id(),
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let id = profile_id
         .map(|profile_id| profile_id.get_string_repr().to_owned())
         .unwrap_or_else(|| merchant_account.get_id().get_string_repr().to_string());
 
-    helpers::get_merchant_default_config(db, &id, transaction_type)
+    let mut merchant_connector_details: HashMap<
+        MerchantConnectorAccountId,
+        MerchantConnectorAccount,
+    > = HashMap::new();
+    let _ = state
+        .store
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            key_manager_state,
+            merchant_account.get_id(),
+            false,
+            &key_store,
+        )
         .await
-        .map(|conn_choice| {
-            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
-            service_api::ApplicationResponse::Json(conn_choice)
-        })
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Unable to find merchant_connector_accounts associate with merchant_id: {}",
+                merchant_account.get_id().get_string_repr()
+            ),
+        })?
+        .iter()
+        .map(|mca| merchant_connector_details.insert(mca.get_id(), mca.clone()));
+
+    let mut connectors = Vec::new();
+    let conn_choice = helpers::get_merchant_default_config(db, &id, transaction_type).await?;
+    for connector in conn_choice.iter() {
+        connector.merchant_connector_id.clone().map(|mca_id| {
+            if let Some(mca) = merchant_connector_details.get(&mca_id) {
+                if *transaction_type == common_enums::TransactionType::Payment
+                    && mca.connector_type == common_enums::ConnectorType::PaymentProcessor
+                {
+                    connectors.push(connector.clone());
+                }
+
+                if *transaction_type == common_enums::TransactionType::Payout
+                    && mca.connector_type == common_enums::ConnectorType::PayoutProcessor
+                {
+                    connectors.push(connector.clone());
+                }
+            }
+        });
+    }
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+    Ok(service_api::ApplicationResponse::Json(connectors))
 }
 
 #[cfg(feature = "v2")]
