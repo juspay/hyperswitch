@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.20.0
+
+### Features
+
+- **core:** Add hypersense integration api ([#7218](https://github.com/juspay/hyperswitch/pull/7218)) ([`22633be`](https://github.com/juspay/hyperswitch/commit/22633be55cfc42dc4a7171c3193da594d0557bfb))
+
+### Bug Fixes
+
+- **connector:** [SCRIPT] Update template generating script and updated connector doc ([#7301](https://github.com/juspay/hyperswitch/pull/7301)) ([`2d9df53`](https://github.com/juspay/hyperswitch/commit/2d9df53491b1ef662736efec60ec5e5368466bb4))
+
+### Refactors
+
+- **utils:** Match string for state with SDK's naming convention ([#7300](https://github.com/juspay/hyperswitch/pull/7300)) ([`f3ca200`](https://github.com/juspay/hyperswitch/commit/f3ca2009c1902094a72b8bf43e89b406e44ecfd4))
+
+**Full Changelog:** [`2025.02.19.0...2025.02.20.0`](https://github.com/juspay/hyperswitch/compare/2025.02.19.0...2025.02.20.0)
+
+- - -
+
 ## 2025.02.19.0
 
 ### Features
