@@ -2958,19 +2958,21 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleBankRedirectRedirection",
-  (globalState, payment_method_type, expected_redirection) => {
+  (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
 
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && payment_method_type == "sofort")) {
+    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
       handleRedirection(
         "bank_redirect",
-        { redirection_url, expected_url },
+        { redirectionUrl, expectedUrl },
         connectorId,
-        payment_method_type
+        paymentMethodType
       );
     }
   }
@@ -2978,20 +2980,21 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleBankTransferRedirection",
-  (globalState, payment_method_type, expected_redirection) => {
+  (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
-    const next_action_type = globalState.get("nextActionType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+    const nextActionType = globalState.get("nextActionType");
 
-    cy.log(payment_method_type);
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
     handleRedirection(
       "bank_transfer",
-      { redirection_url, expected_url },
+      { redirectionUrl, expectedUrl },
       connectorId,
-      payment_method_type,
+      paymentMethodType,
       {
-        next_action_type,
+        nextActionType,
       }
     );
   }
@@ -2999,16 +3002,18 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleUpiRedirection",
-  (globalState, payment_method_type, expected_redirection) => {
+  (globalState, paymentMethodType, expected_redirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expected_redirection);
+    const redirectionUrl = new URL(nextActionUrl);
 
     handleRedirection(
       "upi",
-      { redirection_url, expected_url },
+      { redirectionUrl, expectedUrl },
       connectorId,
-      payment_method_type
+      paymentMethodType
     );
   }
 );

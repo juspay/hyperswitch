@@ -43,7 +43,7 @@ export function handleRedirection(
         urls.expectedUrl,
         connectorId,
         paymentMethodType,
-        handlerMetadata.next_action_type
+        handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
