@@ -16,6 +16,7 @@ pub mod ephemeral_key;
 #[cfg(feature = "errors")]
 pub mod errors;
 pub mod events;
+pub mod external_service_auth;
 pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
@@ -41,3 +42,12 @@ pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
+
+pub trait ValidateFieldAndGet<Request> {
+    fn validate_field_and_get(
+        &self,
+        request: &Request,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ValidationError>
+    where
+        Self: Sized;
+}

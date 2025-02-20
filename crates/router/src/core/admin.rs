@@ -35,7 +35,7 @@ use crate::{
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
     },
-    db::StorageInterface,
+    db::{AccountsStorageInterface, StorageInterface},
     routes::{metrics, SessionState},
     services::{
         self,
@@ -121,7 +121,7 @@ pub async fn create_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     let db_organization = ForeignFrom::foreign_from(req);
     state
-        .store
+        .accounts_store
         .insert_organization(db_organization)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
@@ -144,7 +144,7 @@ pub async fn update_organization(
         metadata: req.metadata,
     };
     state
-        .store
+        .accounts_store
         .update_organization_by_org_id(&org_id.organization_id, organization_update)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -166,7 +166,7 @@ pub async fn get_organization(
     #[cfg(all(feature = "v1", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(Some(org_id.organization_id))
-            .create_or_validate(state.store.as_ref())
+            .create_or_validate(state.accounts_store.as_ref())
             .await
             .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
@@ -174,7 +174,7 @@ pub async fn get_organization(
     #[cfg(all(feature = "v2", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(org_id.organization_id)
-            .create_or_validate(state.store.as_ref())
+            .create_or_validate(state.accounts_store.as_ref())
             .await
             .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
@@ -284,7 +284,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
     ) -> RouterResult<domain::MerchantAccount> {
-        let db = &*state.store;
+        let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
 
         let primary_business_details = self.get_primary_details_as_value().change_context(
@@ -455,7 +455,7 @@ impl CreateOrValidateOrganization {
     /// Apply the action, whether to create the organization or validate the given organization_id
     async fn create_or_validate(
         &self,
-        db: &dyn StorageInterface,
+        db: &dyn AccountsStorageInterface,
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
             #[cfg(feature = "v1")]
@@ -610,7 +610,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         identifier: &id_type::MerchantId,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
-        let db = &*state.store;
+        let db = &*state.accounts_store;
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
@@ -1322,6 +1322,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 coinbase::transformers::CoinbaseConnectorMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            api_enums::Connector::Coingate => {
+                coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cryptopay => {
                 cryptopay::transformers::CryptopayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1432,6 +1436,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Mollie => {
                 mollie::transformers::MollieAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Moneris => {
+                moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Multisafepay => {
@@ -3711,6 +3719,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+            always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
         }))

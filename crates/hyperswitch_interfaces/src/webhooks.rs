@@ -7,8 +7,6 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 
-#[cfg(feature = "recovery")]
-use crate::recovery::RecoveryPayload;
 use crate::{api::ConnectorCommon, errors};
 
 /// struct IncomingWebhookRequestDetails
@@ -278,15 +276,32 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(None)
     }
 
-    /// get passive churn recovery details
-    #[cfg(feature = "recovery")]
-    fn get_recovery_details(
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    /// get revenue recovery invoice details
+    fn get_revenue_recovery_attempt_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<RecoveryPayload, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("get_recovery_details method".to_string())
-                .into(),
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_revenue_recovery_attempt_details method".to_string(),
         )
+        .into())
+    }
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    /// get revenue recovery transaction details
+    fn get_revenue_recovery_invoice_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_revenue_recovery_invoice_details method".to_string(),
+        )
+        .into())
     }
 }

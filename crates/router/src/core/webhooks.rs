@@ -4,7 +4,7 @@ mod incoming;
 mod incoming_v2;
 #[cfg(feature = "v1")]
 mod outgoing;
-#[cfg(feature = "recovery")]
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 mod recovery_incoming;
 pub mod types;
 pub mod utils;
