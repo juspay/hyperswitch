@@ -31,28 +31,28 @@ export function handleRedirection(
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
       break;
     case "bank_transfer":
       bankTransferRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType,
         handlerMetadata.next_action_type
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirection_url, urls.expected_url, connectorId);
+      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
       break;
     case "upi":
       upiRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );

@@ -2932,13 +2932,16 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "handleRedirection",
-  (globalState, expected_redirection) => {
+  (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
     handleRedirection(
       "three_ds",
-      { redirection_url, expected_url },
+      { redirectionUrl, expectedUrl },
       connectorId,
       null
     );
