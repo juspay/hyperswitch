@@ -77,6 +77,7 @@ mod powertranz;
 mod prophetpay;
 mod rapyd;
 mod razorpay;
+mod recurly;
 mod redsys;
 mod shift4;
 mod square;

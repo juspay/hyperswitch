@@ -81,6 +81,7 @@ pub struct ConnectorAuthentication {
     pub prophetpay: Option<HeaderKey>,
     pub rapyd: Option<BodyKey>,
     pub razorpay: Option<BodyKey>,
+    pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
     pub shift4: Option<HeaderKey>,
     pub square: Option<BodyKey>,
