@@ -318,6 +318,7 @@ impl<F>
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
             integrity_object: None,
+            webhook_url: None,
         })
     }
 }

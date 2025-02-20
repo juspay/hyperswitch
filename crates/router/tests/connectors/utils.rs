@@ -406,6 +406,7 @@ pub trait ConnectorActions: Connector {
                 split_refunds: None,
                 integrity_object: None,
                 refund_status: enums::RefundStatus::Pending,
+                capture_method: None,
             }),
             payment_info,
         );
@@ -1069,6 +1070,7 @@ impl Default for PaymentRefundType {
             split_refunds: None,
             integrity_object: None,
             refund_status: enums::RefundStatus::Pending,
+            capture_method: None,
         };
         Self(data)
     }

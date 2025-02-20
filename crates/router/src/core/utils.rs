@@ -337,6 +337,7 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_attempt.capture_method;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -376,6 +377,7 @@ pub async fn construct_refund_router_data<'a, F>(
             split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
+            capture_method,
         },
 
         response: Ok(types::RefundsResponseData {
