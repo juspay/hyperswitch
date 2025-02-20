@@ -576,6 +576,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
