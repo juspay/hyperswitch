@@ -125,7 +125,12 @@ pub enum PaymentStatus {
     AwaitingCapture,
     Verified,
 }
-
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum XenditResponse {
+    Payment(XenditPaymentResponse),
+    Webhook(XenditWebhookEvent),
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct XenditPaymentResponse {
     pub id: String,
@@ -388,53 +393,68 @@ impl<F>
         })
     }
 }
-impl TryFrom<PaymentsSyncResponseRouterData<XenditPaymentResponse>> for PaymentsSyncRouterData {
+impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: PaymentsSyncResponseRouterData<XenditPaymentResponse>,
-    ) -> Result<Self, Self::Error> {
-        let status = map_payment_response_to_attempt_status(
-            item.response.clone(),
-            item.data.request.is_auto_capture()?,
-        );
-        let response = if status == enums::AttemptStatus::Failure {
-            Err(ErrorResponse {
-                code: item
-                    .response
-                    .failure_code
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .failure_code
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: Some(
-                    item.response
-                        .failure_code
-                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                ),
-                attempt_status: None,
-                connector_transaction_id: Some(item.response.id.clone()),
-                status_code: item.http_code,
-            })
-        } else {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            })
-        };
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
+    fn try_from(item: PaymentsSyncResponseRouterData<XenditResponse>) -> Result<Self, Self::Error> {
+        match item.response {
+            XenditResponse::Payment(payment_response) => {
+                let status = map_payment_response_to_attempt_status(
+                    payment_response.clone(),
+                    item.data.request.is_auto_capture()?,
+                );
+                let response = if status == enums::AttemptStatus::Failure {
+                    Err(ErrorResponse {
+                        code: payment_response
+                            .failure_code
+                            .clone()
+                            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                        message: payment_response
+                            .failure_code
+                            .clone()
+                            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        reason: Some(
+                            payment_response
+                                .failure_code
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        ),
+                        attempt_status: None,
+                        connector_transaction_id: Some(payment_response.id.clone()),
+                        status_code: item.http_code,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
+            XenditResponse::Webhook(webhook_event) => {
+                let status = match webhook_event.event {
+                    XenditEventType::PaymentSucceeded | XenditEventType::CaptureSucceeded => {
+                        enums::AttemptStatus::Charged
+                    }
+                    XenditEventType::PaymentAwaitingCapture => enums::AttemptStatus::Authorized,
+                    XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
+                        enums::AttemptStatus::Failure
+                    }
+                };
+                Ok(Self {
+                    status,
+                    ..item.data
+                })
+            }
+        }
     }
 }
 impl<T> From<(FloatMajorUnit, T)> for XenditRouterData<T> {
@@ -537,4 +557,30 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
             ..item.data
         })
     }
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct XenditWebhookEvent {
+    pub event: XenditEventType,
+    pub data: EventDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EventDetails {
+    pub id: String,
+    pub payment_request_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum XenditEventType {
+    #[serde(rename = "payment.succeeded")]
+    PaymentSucceeded,
+    #[serde(rename = "payment.awaiting_capture")]
+    PaymentAwaitingCapture,
+    #[serde(rename = "payment.failed")]
+    PaymentFailed,
+    #[serde(rename = "capture.succeeded")]
+    CaptureSucceeded,
+    #[serde(rename = "capture.failed")]
+    CaptureFailed,
 }
