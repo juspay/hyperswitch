@@ -2094,7 +2094,7 @@ pub async fn payment_methods_session_create(
             network_tokenization: request.network_tokenization,
             expires_at,
             return_url: request.return_url,
-            associated_payment_method: None,
+            associated_payment_methods: None,
             associated_payment: None,
         };
 

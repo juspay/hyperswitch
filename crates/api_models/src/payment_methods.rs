@@ -272,7 +272,7 @@ pub struct PaymentMethodMigrate {
     pub network_transaction_id: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodMigrateResponse {
     //payment method response when payment method entry is created
     pub payment_method_response: PaymentMethodResponse,
@@ -906,7 +906,7 @@ pub struct ConnectorTokenDetails {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
+#[derive(Debug, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -2634,6 +2634,22 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
 
-    #[schema(value_type = Option<PaymentsResponse>)]
-    pub associated_payment: Option<payments::PaymentsResponse>,
+    /// The next action details for the payment method session
+    #[schema(value_type = Option<NextActionData>)]
+    pub next_action: Option<payments::NextActionData>,
+
+    /// The customer authenticaion details for the payment method
+    /// This refers to either the payment / external authentication details
+    pub customer_authentication_details: Option<CustomerAuthenticationDetails>,
+
+    /// The payment method that was created using this payment method session
+    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema, Clone)]
+pub struct CustomerAuthenticationDetails {
+    #[schema(value_type = String)]
+    pub reference_id: id_type::GlobalPaymentId,
+    pub status: common_enums::IntentStatus,
+    pub error: Option<payments::ErrorDetails>,
 }

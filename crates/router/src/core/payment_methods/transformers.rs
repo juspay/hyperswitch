@@ -987,6 +987,18 @@ pub fn generate_payment_method_session_response(
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
+    let next_action = associated_payment
+        .as_ref()
+        .and_then(|payment| payment.next_action.clone());
+
+    let customer_authentication_details = associated_payment.map(|payment| {
+        api_models::payment_methods::CustomerAuthenticationDetails {
+            reference_id: payment.id,
+            status: payment.status,
+            error: payment.error,
+        }
+    });
+
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
         customer_id: payment_method_session.customer_id,
@@ -998,8 +1010,10 @@ pub fn generate_payment_method_session_response(
         network_tokenization: payment_method_session.network_tokenization,
         expires_at: payment_method_session.expires_at,
         client_secret,
-        associated_payment,
+        next_action,
         return_url: payment_method_session.return_url,
+        associated_payment_methods: payment_method_session.associated_payment_methods,
+        customer_authentication_details,
     }
 }
 

@@ -590,7 +590,7 @@ pub struct PaymentMethodSession {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_method: Option<common_utils::id_type::GlobalPaymentMethodId>,
+    pub associated_payment_methods: Option<Vec<common_utils::id_type::GlobalPaymentMethodId>>,
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
 }
 
@@ -607,7 +607,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             psp_tokenization: self.psp_tokenization,
             network_tokeinzation: self.network_tokenization,
             expires_at: self.expires_at,
-            associated_payment_method: self.associated_payment_method,
+            associated_payment_methods: self.associated_payment_methods,
             associated_payment: self.associated_payment,
             return_url: self.return_url,
         })
@@ -659,7 +659,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 psp_tokenization: storage_model.psp_tokenization,
                 network_tokenization: storage_model.network_tokeinzation,
                 expires_at: storage_model.expires_at,
-                associated_payment_method: storage_model.associated_payment_method,
+                associated_payment_methods: storage_model.associated_payment_methods,
                 associated_payment: storage_model.associated_payment,
                 return_url: storage_model.return_url,
             })
@@ -678,7 +678,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             psp_tokenization: self.psp_tokenization,
             network_tokeinzation: self.network_tokenization,
             expires_at: self.expires_at,
-            associated_payment_method: self.associated_payment_method,
+            associated_payment_methods: self.associated_payment_methods,
             associated_payment: self.associated_payment,
             return_url: self.return_url,
         })
