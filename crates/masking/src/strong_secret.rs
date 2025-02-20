@@ -32,6 +32,10 @@ impl<Secret: ZeroizableSecret, MaskingStrategy> PeekInterface<Secret>
     fn peek(&self) -> &Secret {
         &self.inner_secret
     }
+
+    fn peek_mut(&mut self) -> &mut Secret {
+        &mut self.inner_secret
+    }
 }
 
 impl<Secret: ZeroizableSecret, MaskingStrategy> From<Secret>

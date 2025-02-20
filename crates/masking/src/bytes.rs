@@ -28,6 +28,10 @@ impl PeekInterface<BytesMut> for SecretBytesMut {
     fn peek(&self) -> &BytesMut {
         &self.0
     }
+
+    fn peek_mut(&mut self) -> &mut BytesMut {
+        &mut self.0
+    }
 }
 
 impl fmt::Debug for SecretBytesMut {
