@@ -81,11 +81,8 @@ struct Colors {
 #[serde(rename_all = "camelCase")]
 struct Sidebar {
     primary: String,
-    secondary: Option<String>,
-    hover_color: Option<String>,
-    primary_text_color: Option<String>,
-    secondary_text_color: Option<String>,
-    border_color: Option<String>,
+    text_color: Option<String>,
+    text_color_primary: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
