@@ -933,6 +933,60 @@ pub async fn tokenize_card_api(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
     not(feature = "payment_methods_v2")
 ))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCardUsingPaymentMethodId))]
+pub async fn tokenize_card_using_pm_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<payment_methods::CardNetworkTokenizeRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCardUsingPaymentMethodId;
+    let pm_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    match payload.data {
+        payment_methods::TokenizeDataRequest::ExistingPaymentMethod(pm_data) => {
+            let updated_data = payment_methods::TokenizeDataRequest::ExistingPaymentMethod(
+                payment_methods::TokenizePaymentMethodRequest {
+                    payment_method_id: pm_id,
+                    ..pm_data
+                },
+            );
+            payload.data = updated_data;
+        }
+        payment_methods::TokenizeDataRequest::Card(_) => {
+            return api::log_and_return_error_response(error_stack::report!(
+                errors::ApiErrorResponse::InvalidDataValue { field_name: "card" }
+            ));
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            let res = Box::pin(cards::tokenize_card_flow(
+                &state,
+                CardNetworkTokenizeRequest::foreign_from(req),
+                &merchant_account,
+                &key_store,
+            ))
+            .await?;
+            Ok(services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
 pub async fn tokenize_card_batch_api(
     state: web::Data<AppState>,

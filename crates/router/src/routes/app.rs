@@ -1247,6 +1247,10 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::tokenize_card_api)),
                 )
                 .service(
+                    web::resource("/tokenize-card/{payment_method_id}")
+                        .route(web::post().to(payment_methods::tokenize_card_using_pm_api)),
+                )
+                .service(
                     web::resource("/tokenize-card-batch")
                         .route(web::post().to(payment_methods::tokenize_card_batch_api)),
                 )

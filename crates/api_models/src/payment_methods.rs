@@ -2554,9 +2554,10 @@ pub struct TokenizeCardRequest {
     pub card_type: Option<CardType>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct TokenizePaymentMethodRequest {
     /// Payment method's ID
+    #[serde(skip_deserializing)]
     pub payment_method_id: String,
 
     /// The CVC number for the card

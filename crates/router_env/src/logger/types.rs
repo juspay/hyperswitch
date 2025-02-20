@@ -543,6 +543,8 @@ pub enum Flow {
     RelayRetrieve,
     /// Card tokenization flow
     TokenizeCard,
+    /// Card tokenization using payment method flow
+    TokenizeCardUsingPaymentMethodId,
     /// Cards batch tokenization flow
     TokenizeCardBatch,
     /// Incoming Relay Webhook Receive

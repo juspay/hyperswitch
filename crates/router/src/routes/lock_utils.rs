@@ -313,7 +313,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FeatureMatrix => Self::Documentation,
 
-            Flow::TokenizeCard | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
+            Flow::TokenizeCard
+            | Flow::TokenizeCardUsingPaymentMethodId
+            | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
 
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
