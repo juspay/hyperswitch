@@ -330,7 +330,8 @@ pub struct ConnectorWebhookSecrets {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl IncomingWebhookEvent {
     pub fn is_recovery_transaction_event(&self) -> bool {
-        matches!(self,
+        matches!(
+            self,
             Self::RecoveryPaymentFailure
                 | Self::RecoveryPaymentSuccess
                 | Self::RecoveryPaymentPending

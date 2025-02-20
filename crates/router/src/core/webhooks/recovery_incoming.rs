@@ -2,6 +2,7 @@ use api_models::webhooks;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::revenue_recovery;
+use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -13,7 +14,6 @@ use crate::{
     services::{self, connector_integration_interface},
     types::{api, domain},
 };
-use hyperswitch_interfaces::webhooks as interface_webhooks;
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]

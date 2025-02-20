@@ -74,7 +74,7 @@ pub struct RecoveryPaymentAttempt {
 
 impl RecoveryPaymentAttempt {
     pub fn get_attempt_triggered_by(self) -> Option<common_enums::TriggeredBy> {
-            self.feature_metadata.and_then(|metadata| {
+        self.feature_metadata.and_then(|metadata| {
             metadata
                 .revenue_recovery
                 .map(|recovery| recovery.attempt_triggered_by)

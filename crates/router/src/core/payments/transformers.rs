@@ -4246,7 +4246,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
     fn foreign_from(
         error_details: &hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
     ) -> Self {
-        Self{
+        Self {
             code: error_details.code.to_owned(),
             message: error_details.message.to_owned(),
             unified_code: error_details.unified_code.clone(),
@@ -4257,8 +4257,9 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
 
 #[cfg(feature = "v2")]
 impl
-    ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata>
-    for api_models::payments::PaymentAttemptFeatureMetadata
+    ForeignFrom<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    > for api_models::payments::PaymentAttemptFeatureMetadata
 {
     fn foreign_from(
         feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
