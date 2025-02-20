@@ -4,9 +4,10 @@ use std::{
     num::NonZeroI64,
 };
 pub mod additional_info;
+pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
-use common_enums::enums::{PaymentConnectorTransmission, TriggeredBy};
+use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
@@ -18,7 +19,10 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    types::{
+        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
+        StringMajorUnit,
+    },
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -37,7 +41,7 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
     mandates::RecurringDetails,
-    refunds,
+    refunds, ValidateFieldAndGet,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1042,6 +1046,12 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<SplitPaymentsRequest>)]
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
+    /// Optional boolean value to extent authorization period of this payment
+    ///
+    /// capture method must be manual or manual_multiple
+    #[schema(value_type = Option<bool>, default = false)]
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
@@ -1099,6 +1109,18 @@ impl PaymentsRequest {
         self.customer_id
             .as_ref()
             .or(self.customer.as_ref().map(|customer| &customer.id))
+    }
+
+    pub fn validate_and_get_request_extended_authorization(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<RequestExtendedAuthorizationBool>, ValidationError>
+    {
+        self.request_extended_authorization
+            .as_ref()
+            .map(|request_extended_authorization| {
+                request_extended_authorization.validate_field_and_get(self)
+            })
+            .transpose()
     }
 
     /// Checks if the customer details are passed in both places
@@ -1469,8 +1491,8 @@ pub struct PaymentAttemptResponse {
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// A unique identifier for a payment provided by the connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_payment_id: Option<String>,
+    #[schema(value_type = String)]
+    pub connector_payment_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// Identifier for Payment Method used for the payment attempt
     #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -1496,7 +1518,8 @@ pub struct PaymentAttemptFeatureMetadata {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
-    pub attempt_triggered_by: TriggeredBy,
+    #[schema(value_type = Option<TriggeredBy>, example = "internal")]
+    pub attempt_triggered_by: common_enums::TriggeredBy,
 }
 
 #[derive(
@@ -4859,6 +4882,14 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
+    /// flag that indicates if extended authorization is applied on this payment or not
+    #[schema(value_type = Option<bool>)]
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+
+    /// date and time after which this payment cannot be captured
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
+
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
@@ -5395,6 +5426,26 @@ pub struct PaymentsRetrieveResponse {
 
     /// List of payment attempts associated with payment intent
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentsRetrieveResponse {
+    pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
+        self,
+        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
+    ) -> Option<PaymentAttemptResponse> {
+        self.attempts
+            .as_ref()
+            .and_then(|attempts| {
+                attempts.iter().find(|attempt| {
+                    attempt
+                        .connector_payment_id
+                        .as_ref()
+                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
+                })
+            })
+            .cloned()
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -7548,6 +7599,8 @@ pub struct PaymentLinkDetails {
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     pub branding_visibility: Option<bool>,
     pub payment_button_text: Option<String>,
+    pub custom_message_for_card_terms: Option<String>,
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7558,6 +7611,8 @@ pub struct SecurePaymentLinkDetails {
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
     pub payment_button_text: Option<String>,
+    pub custom_message_for_card_terms: Option<String>,
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]

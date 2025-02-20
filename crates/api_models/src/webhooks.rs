@@ -330,47 +330,11 @@ pub struct ConnectorWebhookSecrets {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl IncomingWebhookEvent {
     pub fn is_recovery_transaction_event(&self) -> bool {
-        match self {
-            Self::PaymentIntentFailure
-            | Self::PaymentIntentSuccess
-            | Self::PaymentIntentPartiallyFunded
-            | Self::PaymentIntentProcessing
-            | Self::PaymentIntentCancelled
-            | Self::PaymentIntentCancelFailure
-            | Self::PaymentIntentAuthorizationSuccess
-            | Self::PaymentIntentAuthorizationFailure
-            | Self::PaymentIntentCaptureSuccess
-            | Self::PaymentIntentCaptureFailure
-            | Self::PaymentActionRequired
-            | Self::EventNotSupported
-            | Self::SourceChargeable
-            | Self::SourceTransactionCreated
-            | Self::RefundFailure
-            | Self::RefundSuccess
-            | Self::DisputeOpened
-            | Self::DisputeExpired
-            | Self::DisputeAccepted
-            | Self::DisputeCancelled
-            | Self::DisputeChallenged
-            | Self::DisputeWon
-            | Self::DisputeLost
-            | Self::MandateActive
-            | Self::MandateRevoked
-            | Self::EndpointVerification
-            | Self::ExternalAuthenticationARes
-            | Self::FrmApproved
-            | Self::FrmRejected
-            | Self::PayoutSuccess
-            | Self::PayoutFailure
-            | Self::PayoutProcessing
-            | Self::PayoutCancelled
-            | Self::PayoutCreated
-            | Self::PayoutExpired
-            | Self::PayoutReversed
-            | Self::RecoveryInvoiceCancel => false,
+        matches!(
+            self,
             Self::RecoveryPaymentFailure
-            | Self::RecoveryPaymentSuccess
-            | Self::RecoveryPaymentPending => true,
-        }
+                | Self::RecoveryPaymentSuccess
+                | Self::RecoveryPaymentPending
+        )
     }
 }

@@ -8,7 +8,10 @@ use common_utils::{
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v1")]
-use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
+use common_utils::{
+    crypto::OptionalEncryptableName, ext_traits::ValueExt,
+    types::AlwaysRequestExtendedAuthorization,
+};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -1897,6 +1900,10 @@ pub struct ProfileCreate {
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
@@ -2151,6 +2158,10 @@ pub struct ProfileResponse {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<i16>,
+
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
@@ -2708,6 +2719,10 @@ pub struct PaymentLinkConfigRequest {
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Text for customizing message for card terms
+    pub custom_message_for_card_terms: Option<String>,
+    /// Custom background colour for payment link's handle confirm button
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2779,6 +2794,10 @@ pub struct PaymentLinkConfig {
     pub branding_visibility: Option<bool>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Text for customizing message for card terms
+    pub custom_message_for_card_terms: Option<String>,
+    /// Custom background colour for payment link's handle confirm button
+    pub payment_button_colour: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

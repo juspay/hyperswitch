@@ -14,9 +14,6 @@ pub mod events;
 /// connector integrity check interface
 pub mod integrity;
 pub mod metrics;
-/// passive churn recovery interface
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-pub mod recovery;
 pub mod secrets_interface;
 pub mod types;
 pub mod webhooks;

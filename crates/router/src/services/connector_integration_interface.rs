@@ -340,16 +340,16 @@ impl api::IncomingWebhook for ConnectorEnum {
     }
 
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-    fn get_revenue_recovery_transaction_details(
+    fn get_revenue_recovery_attempt_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
-        hyperswitch_interfaces::recovery::RevenueRecoveryTransactionData,
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
         errors::ConnectorError,
     > {
         match self {
-            Self::Old(connector) => connector.get_revenue_recovery_transaction_details(request),
-            Self::New(connector) => connector.get_revenue_recovery_transaction_details(request),
+            Self::Old(connector) => connector.get_revenue_recovery_attempt_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
         }
     }
 
@@ -358,7 +358,7 @@ impl api::IncomingWebhook for ConnectorEnum {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
-        hyperswitch_interfaces::recovery::RevenueRecoveryInvoiceData,
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,
         errors::ConnectorError,
     > {
         match self {
