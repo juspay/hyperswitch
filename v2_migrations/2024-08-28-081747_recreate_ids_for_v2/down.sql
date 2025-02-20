@@ -3,6 +3,7 @@
 ALTER TABLE merchant_connector_account DROP COLUMN IF EXISTS id;
 
 
+ALTER TABLE business_profile DROP COLUMN IF EXISTS id;
 
 ALTER TABLE customers DROP COLUMN IF EXISTS id;
 

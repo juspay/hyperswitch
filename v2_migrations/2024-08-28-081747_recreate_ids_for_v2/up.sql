@@ -8,6 +8,11 @@
 ALTER TABLE merchant_connector_account
 ADD COLUMN IF NOT EXISTS id VARCHAR(64);
 
+------------------------ Business Profile -----------------------
+-- This migration is to modify the id column in business_profile table to be a VARCHAR(64) and to set the id column as primary key
+ALTER TABLE business_profile
+ADD COLUMN id VARCHAR(64);
+
 ------------------------ Customers -----------------------
 
 

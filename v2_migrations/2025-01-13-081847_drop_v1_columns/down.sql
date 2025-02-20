@@ -15,7 +15,7 @@ ADD COLUMN merchant_id VARCHAR(64),
     ADD COLUMN default_profile VARCHAR(64),
     ADD COLUMN payment_link_config JSONB NULL,
     ADD COLUMN pm_collect_link_config JSONB NULL,
-    ADD COLUMN is_recon_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN is_recon_enabled BOOLEAN,
     ADD COLUMN webhook_details JSONB NULL,
     ADD COLUMN routing_algorithm JSON,
     ADD COLUMN frm_routing_algorithm JSONB,
@@ -23,10 +23,7 @@ ADD COLUMN merchant_id VARCHAR(64),
 
 -- The default value is for temporary purpose only
 ALTER TABLE merchant_account
-ADD COLUMN primary_business_details JSON NOT NULL DEFAULT '[{"country": "US", "business": "default"}]';
-
-ALTER TABLE merchant_account
-ALTER COLUMN primary_business_details DROP DEFAULT;
+ADD COLUMN primary_business_details JSON;
 
 ALTER TABLE business_profile
 ADD COLUMN profile_id VARCHAR(64),
@@ -48,7 +45,7 @@ ADD COLUMN customer_id VARCHAR(64),
     ADD COLUMN address_id VARCHAR(64);
 
 ALTER TABLE payment_intent
-ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
+ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64),
     ADD COLUMN connector_id VARCHAR(64),
     ADD COLUMN shipping_address_id VARCHAR(64),
     ADD COLUMN billing_address_id VARCHAR(64),
@@ -69,14 +66,15 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN charges jsonb;
 
 ALTER TABLE payment_attempt
-ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
-    ADD COLUMN amount bigint NOT NULL,
+ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64),
+    ADD COLUMN amount bigint,
     ADD COLUMN currency "Currency",
     ADD COLUMN save_to_locker BOOLEAN,
     ADD COLUMN offer_amount bigint,
     ADD COLUMN payment_method VARCHAR,
     ADD COLUMN connector_transaction_id VARCHAR(64),
     ADD COLUMN connector_transaction_data TEXT,
+    ADD COLUMN processor_transaction_data JSONB,
     ADD COLUMN capture_method "CaptureMethod",
     ADD COLUMN capture_on TIMESTAMP,
     ADD COLUMN mandate_id VARCHAR(64),
@@ -112,7 +110,7 @@ CREATE TYPE "PaymentMethodIssuerCode" AS ENUM (
 );
 
 ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64) NOT NULL,
+    ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS accepted_currency "Currency" [ ],
     ADD COLUMN IF NOT EXISTS scheme VARCHAR(32),
     ADD COLUMN IF NOT EXISTS token VARCHAR(128),
