@@ -2,6 +2,7 @@ pub mod apple_pay_certificates_migration;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
+pub mod external_service_auth;
 pub mod gsm;
 mod locker_migration;
 pub mod payment;
@@ -179,6 +180,16 @@ impl<T> ApiEventMetric for DisputesMetricsResponse<T> {
         Some(ApiEventsType::Miscellaneous)
     }
 }
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: Some(self.request.payment_method_type),
+            payment_method_subtype: Some(self.request.payment_method_subtype),
+        })
+    }
+}
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl ApiEventMetric for PaymentMethodIntentCreate {
@@ -190,5 +201,17 @@ impl ApiEventMetric for PaymentMethodIntentCreate {
 impl ApiEventMetric for DisputeListFilters {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodSessionRequest {}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodsSessionResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodSession {
+            payment_method_session_id: self.id.clone(),
+        })
     }
 }

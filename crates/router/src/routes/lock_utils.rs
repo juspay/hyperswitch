@@ -39,6 +39,8 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
+    Hypersense,
+    PaymentMethodsSession,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -146,7 +148,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsGetIntent
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateIntent
-            | Flow::PaymentStartRedirection => Self::Payments,
+            | Flow::PaymentsCreateAndConfirmIntent
+            | Flow::PaymentStartRedirection
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -307,6 +311,14 @@ impl From<Flow> for ApiIdentifier {
             Flow::RetrievePollStatus => Self::Poll,
 
             Flow::FeatureMatrix => Self::Documentation,
+
+            Flow::HypersenseTokenRequest
+            | Flow::HypersenseVerifyToken
+            | Flow::HypersenseSignoutToken => Self::Hypersense,
+
+            Flow::PaymentMethodSessionCreate
+            | Flow::PaymentMethodSessionRetrieve
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
         }
     }
 }
