@@ -60,6 +60,9 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod recovery_webhooks;
+
 pub mod relay;
 
 #[cfg(feature = "dummy_connector")]

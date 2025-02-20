@@ -883,6 +883,7 @@ diesel::table! {
         capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

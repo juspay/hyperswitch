@@ -1511,8 +1511,8 @@ pub struct PaymentAttemptResponse {
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// A unique identifier for a payment provided by the connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_payment_id: Option<String>,
+    #[schema(value_type = String)]
+    pub connector_payment_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// Identifier for Payment Method used for the payment attempt
     #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -1522,6 +1522,24 @@ pub struct PaymentAttemptResponse {
     pub client_source: Option<String>,
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentAttemptFeatureMetadata {
+    /// Revenue recovery metadata that might be required by hyperswitch.
+    pub revenue_recovery: Option<PaymentAttemptRevenueRecoveryData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentAttemptRevenueRecoveryData {
+    /// Flag to find out whether an attempt was created by external or internal system.
+    #[schema(value_type = Option<TriggeredBy>, example = "internal")]
+    pub attempt_triggered_by: common_enums::TriggeredBy,
 }
 
 #[derive(
@@ -5561,6 +5579,26 @@ pub struct PaymentsRetrieveResponse {
 
     /// List of payment attempts associated with payment intent
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentsRetrieveResponse {
+    pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
+        self,
+        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
+    ) -> Option<PaymentAttemptResponse> {
+        self.attempts
+            .as_ref()
+            .and_then(|attempts| {
+                attempts.iter().find(|attempt| {
+                    attempt
+                        .connector_payment_id
+                        .as_ref()
+                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
+                })
+            })
+            .cloned()
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

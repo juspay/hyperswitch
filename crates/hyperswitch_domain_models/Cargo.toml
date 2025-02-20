@@ -17,6 +17,7 @@ v2 = ["api_models/v2", "diesel_models/v2", "common_utils/v2"]
 v1 = ["api_models/v1", "diesel_models/v1", "common_utils/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2"]
 payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2"]
+revenue_recovery= []
 
 [dependencies]
 # First party deps

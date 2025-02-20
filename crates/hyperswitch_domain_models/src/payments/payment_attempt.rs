@@ -20,6 +20,11 @@ use diesel_models::{
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
+#[cfg(feature = "v2")]
+use diesel_models::{
+    PaymentAttemptFeatureMetadata as DieselPaymentAttemptFeatureMetadata,
+    PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
+};
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
@@ -435,6 +440,8 @@ pub struct PaymentAttempt {
     pub card_discovery: Option<common_enums::CardDiscovery>,
     /// Split payment data
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 impl PaymentAttempt {
@@ -558,6 +565,7 @@ impl PaymentAttempt {
                     consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )),
             }),
+            feature_metadata: None,
             id,
             card_discovery: None,
         })
@@ -1854,6 +1862,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
+            feature_metadata,
         } = self;
 
         let AttemptAmountDetails {
@@ -1870,6 +1879,7 @@ impl behaviour::Conversion for PaymentAttempt {
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
+        let feature_metadata = feature_metadata.as_ref().map(From::from);
 
         Ok(DieselPaymentAttempt {
             payment_id,
@@ -1935,6 +1945,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: None,
             capture_before: None,
             charges,
+            feature_metadata,
         })
     }
 
@@ -2047,6 +2058,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
+                feature_metadata: storage_model.feature_metadata.map(From::from),
             })
         }
         .await
@@ -2102,6 +2114,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
+            feature_metadata,
         } = self;
 
         let card_network = payment_method_data
@@ -2177,6 +2190,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: None,
             request_extended_authorization: None,
             capture_before: None,
+            feature_metadata: feature_metadata.as_ref().map(From::from),
         })
     }
 }
@@ -2210,6 +2224,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_to_capture: None,
                 connector_token_details: None,
                 authentication_type: Some(authentication_type),
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2236,6 +2251,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_to_capture: None,
                 connector_token_details: None,
                 authentication_type: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
@@ -2267,6 +2283,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     amount_to_capture: None,
                     connector_token_details,
                     authentication_type: None,
+                    feature_metadata: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2292,6 +2309,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_to_capture: None,
                 connector_token_details: None,
                 authentication_type: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2316,6 +2334,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 connector_token_details: None,
                 authentication_type: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2339,7 +2358,44 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_capturable: None,
                 connector_token_details: None,
                 authentication_type: None,
+                feature_metadata: None,
             },
         }
+    }
+}
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+pub struct PaymentAttemptFeatureMetadata {
+    pub revenue_recovery: Option<PaymentAttemptRevenueRecoveryData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+pub struct PaymentAttemptRevenueRecoveryData {
+    pub attempt_triggered_by: common_enums::TriggeredBy,
+}
+
+#[cfg(feature = "v2")]
+impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadata {
+    fn from(item: &PaymentAttemptFeatureMetadata) -> Self {
+        let revenue_recovery =
+            item.revenue_recovery
+                .as_ref()
+                .map(|recovery_data| DieselPassiveChurnRecoveryData {
+                    attempt_triggered_by: recovery_data.attempt_triggered_by,
+                });
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata {
+    fn from(item: DieselPaymentAttemptFeatureMetadata) -> Self {
+        let revenue_recovery =
+            item.revenue_recovery
+                .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
+                    attempt_triggered_by: recovery_data.attempt_triggered_by,
+                });
+        Self { revenue_recovery }
     }
 }
