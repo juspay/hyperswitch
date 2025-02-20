@@ -628,6 +628,22 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITWithoutBillingAddress: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {

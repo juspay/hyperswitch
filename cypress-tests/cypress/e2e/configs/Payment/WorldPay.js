@@ -526,6 +526,17 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithoutBillingAddress: {
+      Request: {
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: {},
       Response: {
