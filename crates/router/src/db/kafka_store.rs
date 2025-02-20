@@ -3964,9 +3964,9 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
         current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
     ) -> CustomResult<
-            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-            errors::StorageError,
-        > {
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        errors::StorageError,
+    > {
         self.diesel_store
             .update_payment_method_session(
                 state,

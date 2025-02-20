@@ -124,16 +124,16 @@ mod storage {
             update_request: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
             current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
         ) -> CustomResult<
-                hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-                errors::StorageError,
+            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            errors::StorageError,
         > {
             let redis_key = session_id.get_redis_key();
 
             let internal_obj = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateInternal::from(update_request);
 
             let update_state = current_session.apply_changeset(internal_obj);
-            
-            let db_model = update_state 
+
+            let db_model = update_state
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -147,7 +147,7 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::KVError)
                 .attach_printable("Failed to insert payment methods session to redis");
-            
+
             let key_manager_identifier = common_utils::types::keymanager::Identifier::Merchant(
                 key_store.merchant_id.clone(),
             );
@@ -181,11 +181,11 @@ impl PaymentMethodsSessionInterface for MockDb {
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
         current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
     ) -> CustomResult<
-            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-            errors::StorageError,
-        > {
-            Err(errors::StorageError::MockDbError)?
-        }
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        errors::StorageError,
+    > {
+        Err(errors::StorageError::MockDbError)?
+    }
 
     #[cfg(feature = "v2")]
     async fn get_payment_methods_session(

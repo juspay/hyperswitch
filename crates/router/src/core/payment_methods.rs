@@ -1973,16 +1973,17 @@ pub async fn payment_methods_session_update(
             network_tokenization: request.network_tokenization,
         };
 
-    let update_state_change = db.update_payment_method_session(
-        key_manager_state,
-        &key_store,
-        &payment_method_session_id,
-        payment_method_session_domain_model,
-        existing_payment_method_session_state.clone(),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update payment methods session in db")?;
+    let update_state_change = db
+        .update_payment_method_session(
+            key_manager_state,
+            &key_store,
+            &payment_method_session_id,
+            payment_method_session_domain_model,
+            existing_payment_method_session_state.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment methods session in db")?;
 
     let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
         update_state_change,
