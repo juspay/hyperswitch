@@ -243,6 +243,12 @@ pub enum PayoutIdType {
     ConnectorPayoutId(String),
 }
 
+#[cfg(feature = "recovery")]
+#[derive(Clone)]
+pub enum InvoiceIdType {
+    ConnectorInvoiceId(String),
+}
+
 #[derive(Clone)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),

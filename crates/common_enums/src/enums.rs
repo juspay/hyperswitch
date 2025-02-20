@@ -428,6 +428,8 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Billing Processor
+    BillingProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
