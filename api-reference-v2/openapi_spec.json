@@ -5125,6 +5125,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft"
+            ],
+            "properties": {
+              "eft": {
+                "type": "object",
+                "required": [
+                  "provider"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "description": "The preferred eft provider",
+                    "example": "ozow"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -6988,6 +7009,7 @@
           "payme",
           "payone",
           "paypal",
+          "paystack",
           "payu",
           "placetopay",
           "powertranz",
@@ -14670,6 +14692,7 @@
           "debit",
           "duit_now",
           "efecty",
+          "eft",
           "eps",
           "fps",
           "evoucher",
@@ -19268,6 +19291,7 @@
           "payme",
           "payone",
           "paypal",
+          "paystack",
           "payu",
           "placetopay",
           "powertranz",
