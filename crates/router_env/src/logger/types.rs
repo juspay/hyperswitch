@@ -543,6 +543,12 @@ pub enum Flow {
     RelayRetrieve,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
+    /// Generate Hypersense Token
+    HypersenseTokenRequest,
+    /// Verify Hypersense Token
+    HypersenseVerifyToken,
+    /// Signout Hypersense Token
+    HypersenseSignoutToken,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
