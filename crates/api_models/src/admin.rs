@@ -1335,6 +1335,9 @@ impl MerchantConnectorListResponse {
             merchant_connector_id: self.merchant_connector_id.clone(),
         }
     }
+    pub fn get_connector_name(&self) -> String {
+        self.connector_name.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1390,6 +1393,9 @@ impl MerchantConnectorListResponse {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
         }
+    }
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
+        self.connector_name
     }
 }
 
@@ -1641,6 +1647,20 @@ pub struct PaymentMethodsEnabled {
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
+}
+impl PaymentMethodsEnabled {
+    /// Get payment_method
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
+        Some(self.payment_method)
+    }
+    /// Get payment_method_types
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_type(
+        &self,
+    ) -> Option<&Vec<payment_methods::RequestPaymentMethodTypes>> {
+        self.payment_method_types.as_ref()
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
