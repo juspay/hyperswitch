@@ -901,7 +901,7 @@ pub struct ConnectorTokenDetails {
     /// Metadata associated with the connector token
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// The value of the connector token
+    /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: String,
 }
 
