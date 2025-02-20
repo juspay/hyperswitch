@@ -200,6 +200,21 @@ pub trait PaymentAttemptInterface {
         card_discovery: Option<Vec<storage_enums::CardDiscovery>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<api_models::enums::Connector>,
+        payment_method_type: Option<storage_enums::PaymentMethod>,
+        payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        card_network: Option<storage_enums::CardNetwork>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
