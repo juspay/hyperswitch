@@ -8165,7 +8165,7 @@
             "maxLength": 64,
             "minLength": 1
           },
-          "connector_customer": {
+          "connector_customer_ids": {
             "type": "object",
             "description": "Connector specific customer reference ids",
             "nullable": true
