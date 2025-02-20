@@ -1,16 +1,30 @@
-use common_utils::{ext_traits::Encode, pii, types::StringMajorUnit};
+use common_enums::enums::{self, AttemptStatus};
+use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{Execute, RSync},
+    router_request_types::{MandateRevokeRequestData, ResponseId},
+    router_response_types::{
+        MandateReference, MandateRevokeResponseData, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
+    },
+    types::{
+        MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self as conn_utils, is_refund_failure, CardData, PaymentsAuthorizeRequestData,
-        RevokeMandateRequestData, RouterData, WalletData,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, CardData, PaymentsAuthorizeRequestData, RevokeMandateRequestData,
+        RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom, ErrorResponse},
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -79,7 +93,7 @@ pub struct NoonBilling {
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: StringMajorUnit,
-    currency: Option<diesel_models::enums::Currency>,
+    currency: Option<enums::Currency>,
     channel: NoonChannels,
     category: Option<String>,
     reference: String,
@@ -206,7 +220,7 @@ pub struct NoonApplePay {
 pub struct NoonGooglePay {
     api_version_minor: u8,
     api_version: u8,
-    payment_method_data: conn_utils::GooglePayWalletData,
+    payment_method_data: GooglePayWalletData,
 }
 
 #[derive(Debug, Serialize)]
@@ -245,11 +259,9 @@ pub struct NoonPaymentsRequest {
     billing: Option<NoonBilling>,
 }
 
-impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPaymentsRequest {
+impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        data: &NoonRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(data: &NoonRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         let item = data.router_data;
         let amount = &data.amount;
         let mandate_amount = &data.mandate_amount;
@@ -264,26 +276,22 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
             ),
             _ => (
                 match item.request.payment_method_data.clone() {
-                    domain::PaymentMethodData::Card(req_card) => {
-                        Ok(NoonPaymentData::Card(NoonCard {
-                            name_on_card: item.get_optional_billing_full_name(),
-                            number_plain: req_card.card_number.clone(),
-                            expiry_month: req_card.card_exp_month.clone(),
-                            expiry_year: req_card.get_expiry_year_4_digit(),
-                            cvv: req_card.card_cvc,
-                        }))
-                    }
-                    domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
-                        domain::WalletData::GooglePay(google_pay_data) => {
+                    PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
+                        name_on_card: item.get_optional_billing_full_name(),
+                        number_plain: req_card.card_number.clone(),
+                        expiry_month: req_card.card_exp_month.clone(),
+                        expiry_year: req_card.get_expiry_year_4_digit(),
+                        cvv: req_card.card_cvc,
+                    })),
+                    PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                        WalletData::GooglePay(google_pay_data) => {
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
-                                payment_method_data: conn_utils::GooglePayWalletData::from(
-                                    google_pay_data,
-                                ),
+                                payment_method_data: GooglePayWalletData::from(google_pay_data),
                             }))
                         }
-                        domain::WalletData::ApplePay(apple_pay_data) => {
+                        WalletData::ApplePay(apple_pay_data) => {
                             let payment_token_data = NoonApplePayTokenData {
                                 token: NoonApplePayData {
                                     payment_data: wallet_data
@@ -306,61 +314,57 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
                                 payment_info: Secret::new(payment_token),
                             }))
                         }
-                        domain::WalletData::PaypalRedirect(_) => {
-                            Ok(NoonPaymentData::PayPal(NoonPayPal {
-                                return_url: item.request.get_router_return_url()?,
-                            }))
-                        }
-                        domain::WalletData::AliPayQr(_)
-                        | domain::WalletData::AliPayRedirect(_)
-                        | domain::WalletData::AliPayHkRedirect(_)
-                        | domain::WalletData::AmazonPayRedirect(_)
-                        | domain::WalletData::MomoRedirect(_)
-                        | domain::WalletData::KakaoPayRedirect(_)
-                        | domain::WalletData::GoPayRedirect(_)
-                        | domain::WalletData::GcashRedirect(_)
-                        | domain::WalletData::ApplePayRedirect(_)
-                        | domain::WalletData::ApplePayThirdPartySdk(_)
-                        | domain::WalletData::DanaRedirect {}
-                        | domain::WalletData::GooglePayRedirect(_)
-                        | domain::WalletData::GooglePayThirdPartySdk(_)
-                        | domain::WalletData::MbWayRedirect(_)
-                        | domain::WalletData::MobilePayRedirect(_)
-                        | domain::WalletData::PaypalSdk(_)
-                        | domain::WalletData::Paze(_)
-                        | domain::WalletData::SamsungPay(_)
-                        | domain::WalletData::TwintRedirect {}
-                        | domain::WalletData::VippsRedirect {}
-                        | domain::WalletData::TouchNGoRedirect(_)
-                        | domain::WalletData::WeChatPayRedirect(_)
-                        | domain::WalletData::WeChatPayQr(_)
-                        | domain::WalletData::CashappQr(_)
-                        | domain::WalletData::SwishQr(_)
-                        | domain::WalletData::Mifinity(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                conn_utils::get_unimplemented_payment_method_error_message("Noon"),
-                            ))
-                        }
+                        WalletData::PaypalRedirect(_) => Ok(NoonPaymentData::PayPal(NoonPayPal {
+                            return_url: item.request.get_router_return_url()?,
+                        })),
+                        WalletData::AliPayQr(_)
+                        | WalletData::AliPayRedirect(_)
+                        | WalletData::AliPayHkRedirect(_)
+                        | WalletData::AmazonPayRedirect(_)
+                        | WalletData::MomoRedirect(_)
+                        | WalletData::KakaoPayRedirect(_)
+                        | WalletData::GoPayRedirect(_)
+                        | WalletData::GcashRedirect(_)
+                        | WalletData::ApplePayRedirect(_)
+                        | WalletData::ApplePayThirdPartySdk(_)
+                        | WalletData::DanaRedirect {}
+                        | WalletData::GooglePayRedirect(_)
+                        | WalletData::GooglePayThirdPartySdk(_)
+                        | WalletData::MbWayRedirect(_)
+                        | WalletData::MobilePayRedirect(_)
+                        | WalletData::PaypalSdk(_)
+                        | WalletData::Paze(_)
+                        | WalletData::SamsungPay(_)
+                        | WalletData::TwintRedirect {}
+                        | WalletData::VippsRedirect {}
+                        | WalletData::TouchNGoRedirect(_)
+                        | WalletData::WeChatPayRedirect(_)
+                        | WalletData::WeChatPayQr(_)
+                        | WalletData::CashappQr(_)
+                        | WalletData::SwishQr(_)
+                        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("Noon"),
+                        )),
                     },
-                    domain::PaymentMethodData::CardRedirect(_)
-                    | domain::PaymentMethodData::PayLater(_)
-                    | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
-                    | domain::PaymentMethodData::BankTransfer(_)
-                    | domain::PaymentMethodData::Crypto(_)
-                    | domain::PaymentMethodData::MandatePayment {}
-                    | domain::PaymentMethodData::Reward {}
-                    | domain::PaymentMethodData::RealTimePayment(_)
-                    | domain::PaymentMethodData::MobilePayment(_)
-                    | domain::PaymentMethodData::Upi(_)
-                    | domain::PaymentMethodData::Voucher(_)
-                    | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_)
-                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    PaymentMethodData::CardRedirect(_)
+                    | PaymentMethodData::PayLater(_)
+                    | PaymentMethodData::BankRedirect(_)
+                    | PaymentMethodData::BankDebit(_)
+                    | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::Crypto(_)
+                    | PaymentMethodData::MandatePayment {}
+                    | PaymentMethodData::Reward {}
+                    | PaymentMethodData::RealTimePayment(_)
+                    | PaymentMethodData::MobilePayment(_)
+                    | PaymentMethodData::Upi(_)
+                    | PaymentMethodData::Voucher(_)
+                    | PaymentMethodData::GiftCard(_)
+                    | PaymentMethodData::OpenBanking(_)
+                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
-                            conn_utils::get_unimplemented_payment_method_error_message("Noon"),
+                            utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
                     }
                 }?,
@@ -448,11 +452,11 @@ pub struct NoonAuthType {
     pub(super) business_identifier: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
+impl TryFrom<&ConnectorAuthType> for NoonAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -495,28 +499,28 @@ pub enum NoonPaymentStatus {
     Locked,
 }
 
-impl ForeignFrom<(NoonPaymentStatus, Self)> for enums::AttemptStatus {
-    fn foreign_from(data: (NoonPaymentStatus, Self)) -> Self {
-        let (item, current_status) = data;
-        match item {
-            NoonPaymentStatus::Authorized => Self::Authorized,
-            NoonPaymentStatus::Captured
-            | NoonPaymentStatus::PartiallyCaptured
-            | NoonPaymentStatus::PartiallyRefunded
-            | NoonPaymentStatus::Refunded => Self::Charged,
-            NoonPaymentStatus::Reversed | NoonPaymentStatus::PartiallyReversed => Self::Voided,
-            NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => Self::AuthenticationFailed,
-            NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
-                Self::AuthenticationPending
-            }
-            NoonPaymentStatus::ThreeDsResultVerified => Self::AuthenticationSuccessful,
-            NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => Self::Failure,
-            NoonPaymentStatus::Pending | NoonPaymentStatus::MarkedForReview => Self::Pending,
-            NoonPaymentStatus::Initiated
-            | NoonPaymentStatus::PaymentInfoAdded
-            | NoonPaymentStatus::Authenticated => Self::Started,
-            NoonPaymentStatus::Locked => current_status,
+fn get_payment_status(data: (NoonPaymentStatus, AttemptStatus)) -> AttemptStatus {
+    let (item, current_status) = data;
+    match item {
+        NoonPaymentStatus::Authorized => AttemptStatus::Authorized,
+        NoonPaymentStatus::Captured
+        | NoonPaymentStatus::PartiallyCaptured
+        | NoonPaymentStatus::PartiallyRefunded
+        | NoonPaymentStatus::Refunded => AttemptStatus::Charged,
+        NoonPaymentStatus::Reversed | NoonPaymentStatus::PartiallyReversed => AttemptStatus::Voided,
+        NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => {
+            AttemptStatus::AuthenticationFailed
         }
+        NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
+            AttemptStatus::AuthenticationPending
+        }
+        NoonPaymentStatus::ThreeDsResultVerified => AttemptStatus::AuthenticationSuccessful,
+        NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => AttemptStatus::Failure,
+        NoonPaymentStatus::Pending | NoonPaymentStatus::MarkedForReview => AttemptStatus::Pending,
+        NoonPaymentStatus::Initiated
+        | NoonPaymentStatus::PaymentInfoAdded
+        | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
+        NoonPaymentStatus::Locked => current_status,
     }
 }
 
@@ -554,28 +558,29 @@ pub struct NoonPaymentsResponse {
     result: NoonPaymentsResponseResult,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
-        let status = enums::AttemptStatus::foreign_from((order.status, item.data.status));
-        let redirection_data = item.response.result.checkout_data.map(|redirection_data| {
-            services::RedirectForm::Form {
-                endpoint: redirection_data.post_url.to_string(),
-                method: services::Method::Post,
-                form_fields: std::collections::HashMap::new(),
-            }
-        });
+        let status = get_payment_status((order.status, item.data.status));
+        let redirection_data =
+            item.response
+                .result
+                .checkout_data
+                .map(|redirection_data| RedirectForm::Form {
+                    endpoint: redirection_data.post_url.to_string(),
+                    method: Method::Post,
+                    form_fields: std::collections::HashMap::new(),
+                });
         let mandate_reference =
             item.response
                 .result
                 .subscription
-                .map(|subscription_data| types::MandateReference {
+                .map(|subscription_data| MandateReference {
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
@@ -595,10 +600,8 @@ impl<F, T>
                 _ => {
                     let connector_response_reference_id =
                         order.reference.or(Some(order.id.to_string()));
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            order.id.to_string(),
-                        ),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(order.id.to_string()),
                         redirection_data: Box::new(redirection_data),
                         mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
@@ -618,7 +621,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionTransaction {
     amount: StringMajorUnit,
-    currency: diesel_models::enums::Currency,
+    currency: enums::Currency,
     transaction_reference: Option<String>,
 }
 
@@ -636,11 +639,9 @@ pub struct NoonPaymentsActionRequest {
     transaction: NoonActionTransaction,
 }
 
-impl TryFrom<&NoonRouterData<&types::PaymentsCaptureRouterData>> for NoonPaymentsActionRequest {
+impl TryFrom<&NoonRouterData<&PaymentsCaptureRouterData>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        data: &NoonRouterData<&types::PaymentsCaptureRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(data: &NoonRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
         let item = data.router_data;
         let amount = &data.amount;
         let order = NoonActionOrder {
@@ -666,9 +667,9 @@ pub struct NoonPaymentsCancelRequest {
     order: NoonActionOrder,
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
+impl TryFrom<&PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
@@ -686,9 +687,9 @@ pub struct NoonRevokeMandateRequest {
     subscription: NoonSubscriptionObject,
 }
 
-impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
+impl TryFrom<&MandateRevokeRouterData> for NoonRevokeMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::MandateRevokeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &MandateRevokeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             api_operation: NoonApiOperations::CancelSubscription,
             subscription: NoonSubscriptionObject {
@@ -698,9 +699,9 @@ impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
     }
 }
 
-impl<F> TryFrom<&NoonRouterData<&types::RefundsRouterData<F>>> for NoonPaymentsActionRequest {
+impl<F> TryFrom<&NoonRouterData<&RefundsRouterData<F>>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: &NoonRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(data: &NoonRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let item = data.router_data;
         let refund_amount = &data.amount;
         let order = NoonActionOrder {
@@ -740,26 +741,26 @@ pub struct NoonRevokeMandateResponse {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             NoonRevokeMandateResponse,
-            types::MandateRevokeRequestData,
-            types::MandateRevokeResponseData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
         >,
-    > for types::RouterData<F, types::MandateRevokeRequestData, types::MandateRevokeResponseData>
+    > for RouterData<F, MandateRevokeRequestData, MandateRevokeResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             NoonRevokeMandateResponse,
-            types::MandateRevokeRequestData,
-            types::MandateRevokeResponseData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         match item.response.result.subscription.status {
             NoonRevokeStatus::Cancelled => Ok(Self {
-                response: Ok(types::MandateRevokeResponseData {
+                response: Ok(MandateRevokeResponseData {
                     mandate_status: common_enums::MandateStatus::Revoked,
                 }),
                 ..item.data
@@ -809,17 +810,15 @@ pub struct RefundResponse {
     message: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         let refund_status =
             enums::RefundStatus::from(response.result.transaction.status.to_owned());
-        let response = if is_refund_failure(refund_status) {
+        let response = if utils::is_refund_failure(refund_status) {
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
@@ -829,7 +828,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 connector_transaction_id: Some(response.result.transaction.id.clone()),
             })
         } else {
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 connector_refund_id: item.response.result.transaction.id,
                 refund_status,
             })
@@ -864,12 +863,10 @@ pub struct RefundSyncResponse {
     message: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
+        item: RefundsResponseRouterData<RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let noon_transaction: &NoonRefundResponseTransactions = item
             .response
@@ -886,7 +883,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
             })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         let refund_status = enums::RefundStatus::from(noon_transaction.status.to_owned());
-        let response = if is_refund_failure(refund_status) {
+        let response = if utils::is_refund_failure(refund_status) {
             let response = &item.response;
             Err(ErrorResponse {
                 status_code: item.http_code,
@@ -897,7 +894,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
                 connector_transaction_id: Some(noon_transaction.id.clone()),
             })
         } else {
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 connector_refund_id: noon_transaction.id.to_owned(),
                 refund_status,
             })
