@@ -50,32 +50,32 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "partially_captured" for "status"
+// Response body should have value "processing" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'partially_captured'",
+    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(jsonData.status).to.eql("partially_captured");
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }
 
-// Response body should have value "1001" for "amount"
+// Response body should have value "6540" for "amount"
 if (jsonData?.amount) {
   pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount' matches '1001'",
+    "[post]:://payments/:id/capture - Content check if value for 'amount' matches '6540'",
     function () {
-      pm.expect(jsonData.amount).to.eql(1001);
+      pm.expect(jsonData.amount).to.eql(6540);
     },
   );
 }
 
-// Response body should have value "500" for "amount_received"
+// Response body should have value "6000" for "amount_received"
 if (jsonData?.amount_received) {
   pm.test(
-    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '500'",
+    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'",
     function () {
-      pm.expect(jsonData.amount_received).to.eql(500);
+      pm.expect(jsonData.amount_received).to.eql(6000);
     },
   );
 }
