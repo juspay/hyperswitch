@@ -3,8 +3,10 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
-    types::{AmountConvertor, StringMajorUnitForConnector},
+    // transformers::ForeignTryFrom,
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
+// use std::convert::TryFrom;
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
@@ -1184,6 +1186,187 @@ fn create_paypal_sdk_session_token(
     })
 }
 
+fn create_amazon_pay_delivery_options(
+    value: &serde_json::Value,
+) -> Result<AmazonPayDeliveryOptions, errors::ApiErrorResponse> {
+    let id = value
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?
+        .to_string();
+
+    let price = value
+        .get("price")
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "price",
+        })?;
+
+    let amount_i64 = price.get("amount").and_then(|v| v.as_i64()).ok_or(
+        errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "amount",
+        },
+    )?;
+
+    let amount_minor_unit = MinorUnit::new(amount_i64);
+
+    let currency_code_str = price.get("currency_code").and_then(|v| v.as_str()).ok_or(
+        errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "currency_code",
+        },
+    )?;
+    // currently supports only the US region hence USD is the only supported currency
+    let currency_code = match currency_code_str {
+        "USD" => common_enums::Currency::USD,
+        _ => {
+            return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "currency_code".to_string(),
+                expected_format: "USD".to_string(),
+            })
+        }
+    };
+
+    let required_amount_type = StringMajorUnitForConnector;
+    let amount = required_amount_type
+        .convert(amount_minor_unit, currency_code)
+        .map_err(|e| errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "Failed to convert amount to string major unit for Amazon Pay: {}",
+                e
+            ),
+        })?;
+
+    let shipping_method =
+        value
+            .get("shipping_method")
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "shipping_method",
+            })?;
+    let shipping_method_name = shipping_method
+        .get("shipping_method_name")
+        .and_then(|v| v.as_str())
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "shipping_method_name",
+        })?
+        .to_string();
+    let shipping_method_code = shipping_method
+        .get("shipping_method_code")
+        .and_then(|v| v.as_str())
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "shipping_method_code",
+        })?
+        .to_string();
+
+    let is_default = value.get("is_default").and_then(|v| v.as_bool()).ok_or(
+        errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "is_default",
+        },
+    )?;
+
+    Ok(AmazonPayDeliveryOptions {
+        id,
+        price: AmazonPayDeliveryPrice {
+            amount,
+            currency_code,
+        },
+        shipping_method: AmazonPayShippingMethod {
+            shipping_method_name,
+            shipping_method_code,
+        },
+        is_default,
+    })
+}
+
+fn create_amazon_pay_session_token(
+    router_data: &types::PaymentsSessionRouterData,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let amazon_pay_session_token_data = router_data
+        .connector_wallets_details
+        .clone()
+        .parse_value::<payment_types::AmazonPaySessionTokenData>("AmazonPaySessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorWalletDetails)
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_wallets_details".to_string(),
+            expected_format: "amazon_pay_metadata_format".to_string(),
+        })?;
+    let amazon_pay_metadata = amazon_pay_session_token_data.data;
+    let merchant_id = amazon_pay_metadata.merchant_id;
+    let store_id = amazon_pay_metadata.store_id;
+    // currently supports only the US region hence USD is the only supported currency
+    let ledger_currency = common_enums::Currency::USD;
+    // currently supports only the 'automatic' capture_method
+    let payment_intent = AmazonPayPaymentIntent::AuthorizeWithCapture;
+    let required_amount_type = StringMajorUnitForConnector;
+    let total_tax_amount = required_amount_type
+        .convert(
+            router_data.request.order_tax_amount.unwrap_or_default(),
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for Amazon Pay".to_string(),
+        })?;
+    let total_shipping_amount = required_amount_type
+        .convert(
+            router_data.request.shipping_cost.unwrap_or_default(),
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for Amazon Pay".to_string(),
+        })?;
+    let total_base_amount = required_amount_type
+        .convert(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for Amazon Pay".to_string(),
+        })?;
+
+    let delivery_options = router_data
+        .request
+        .metadata
+        .as_ref()
+        .and_then(|metadata| {
+            metadata
+                .get("delivery_options")
+                .and_then(|value| value.as_array())
+                .map(|options| {
+                    options
+                        .iter()
+                        .map(|option| {
+                            create_amazon_pay_delivery_options(option).map_err(|e| {
+                                logger::error!(
+                                    "Error creating Amazon Pay delivery option: {:?}",
+                                    e
+                                );
+                                e
+                            })
+                        })
+                        .collect::<Result<Vec<AmazonPayDeliveryOptions>, errors::ApiErrorResponse>>(
+                        )
+                })
+        })
+        .transpose()?
+        .unwrap_or_default();
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::AmazonPay(Box::new(
+                payment_types::AmazonPaySessionTokenResponse {
+                    merchant_id,
+                    ledger_currency,
+                    store_id,
+                    payment_intent,
+                    total_shipping_amount,
+                    total_tax_amount,
+                    total_base_amount,
+                    delivery_options,
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
 #[async_trait]
 impl RouterDataSession for types::PaymentsSessionRouterData {
     async fn decide_flow<'a, 'b>(
@@ -1234,6 +1417,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
 
                 Ok(resp)
             }
+            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self),
         }
     }
 }

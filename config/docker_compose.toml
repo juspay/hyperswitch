@@ -111,7 +111,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
-amazonpay.base_url = "https://pay-api.amazon.com/v2"
+amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
@@ -218,14 +218,13 @@ zsl.base_url = "https://api.sitoffalb.net/"
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
-wallets = ["klarna", "mifinity", "braintree", "applepay"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "amazonpay"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
     "adyenplatform",
     "airwallex",
-    "amazonpay",
     "authorizedotnet",
     "bambora",
     "bamboraapac",
@@ -517,6 +516,9 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
+
+[pm_filters.amazonpay]
+amazon_pay = { country = "US", currency = "USD" }
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"

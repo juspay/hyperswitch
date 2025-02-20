@@ -1267,6 +1267,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Amazonpay => {
+                amazonpay::transformers::AmazonpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Authorizedotnet => {
                 authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(self.auth_type)?;
                 Ok(())
