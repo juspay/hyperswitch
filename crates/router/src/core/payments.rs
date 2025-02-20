@@ -178,7 +178,7 @@ where
 
     operation
         .to_domain()?
-        .run_decision_manager(state, &mut payment_data, &profile)
+        .run_decision_manager(state, &mut payment_data, profile)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to run decision manager")?;
@@ -187,7 +187,7 @@ where
         .to_domain()?
         .perform_routing(
             &merchant_account,
-            &profile,
+            profile,
             state,
             &mut payment_data,
             &key_store,
@@ -212,7 +212,7 @@ where
                 None,
                 #[cfg(not(feature = "frm"))]
                 None,
-                &profile,
+                profile,
                 false,
             )
             .await?;
@@ -227,7 +227,7 @@ where
                     &merchant_account,
                     &key_store,
                     &mut payment_data,
-                    &profile,
+                    profile,
                 )
                 .await?;
 
