@@ -2725,10 +2725,19 @@ Cypress.Commands.add(
             response.body.payment_method_id,
             "payment_method_id"
           ).to.include("pm_").and.to.not.be.null;
-          expect(
-            response.body.connector_transaction_id,
-            "connector_transaction_id"
-          ).to.not.be.null;
+          
+          if (response.body.status === "failed") {
+            expect (
+              response.body.connector_transaction_id,
+              "connector_transaction_id"
+            ).to.be.null;
+          } else {
+            expect(
+              response.body.connector_transaction_id,
+              "connector_transaction_id"
+            ).to.not.be.null;
+          }
+          
           expect(
             response.body.payment_method_status,
             "payment_method_status"
