@@ -82,6 +82,7 @@ mod shift4;
 mod square;
 mod stax;
 mod stripe;
+mod stripebilling;
 mod taxjar;
 mod trustpay;
 mod tsys;
