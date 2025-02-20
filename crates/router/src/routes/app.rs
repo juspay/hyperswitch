@@ -2046,7 +2046,7 @@ pub struct User;
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/user").app_data(web::Data::new(state));
+        let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
             .service(web::resource("").route(web::get().to(user::get_user_details)))
@@ -2089,6 +2089,10 @@ impl User {
                     .route(web::get().to(user::get_multiple_dashboard_metadata))
                     .route(web::post().to(user::set_dashboard_metadata)),
             );
+        if state.conf.platform.enabled {
+            route = route
+                .service(web::resource("/platform").route(web::post().to(user::platform_create)));
+        }
 
         route = route
             .service(web::scope("/key").service(
