@@ -1763,6 +1763,29 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentAttemptResponse>
+    for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        _state: &SessionState,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+        let payment_attempt = self.payment_attempt;
+        let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
 where
@@ -4287,21 +4310,6 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
     }
 }
 
-#[cfg(feature = "v2")]
-impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
-    for api_models::payments::ErrorDetails
-{
-    fn foreign_from(
-        error_details: &hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
-    ) -> Self {
-        Self {
-            code: error_details.code.to_owned(),
-            message: error_details.message.to_owned(),
-            unified_code: error_details.unified_code.clone(),
-            unified_message: error_details.unified_message.clone(),
-        }
-    }
-}
 
 #[cfg(feature = "v2")]
 impl
@@ -4312,12 +4320,37 @@ impl
     fn foreign_from(
         feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
     ) -> Self {
-        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|recovery| {
+        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|data| {
             api_models::payments::PaymentAttemptRevenueRecoveryData {
-                attempt_triggered_by: recovery.attempt_triggered_by,
+                attempt_triggered_by: data.attempt_triggered_by,
             }
         });
+
         Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
+    for api_models::payments::ErrorDetails
+{
+    fn foreign_from(
+        error_details: &hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
+    ) -> Self {
+        let hyperswitch_domain_models::payments::payment_attempt::ErrorDetails {
+            code,
+            message,
+            reason,
+            unified_code,
+            unified_message,
+        } = error_details;
+
+        Self {
+            code: error_details.code.to_owned(),
+            message: error_details.message.to_owned(),
+            unified_code: error_details.unified_code.clone(),
+            unified_message: error_details.unified_message.clone(),
+        }
     }
 }
 

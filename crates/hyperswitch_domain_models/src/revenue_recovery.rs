@@ -1,6 +1,8 @@
 use api_models::webhooks;
 use time::PrimitiveDateTime;
 
+use crate::errors;
+
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
