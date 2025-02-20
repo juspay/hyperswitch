@@ -322,6 +322,26 @@ pub async fn payment_method_update_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_delete_api() {}
 
+/// Payment Method - List Customer Saved Payment Methods
+///
+/// List the payment methods saved for a customer
+#[utoipa::path(
+    delete,
+    path = "/v2/customers/{id}/saved-payment-methods",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the customer"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 404, description = "Customer Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "List Customer Saved Payment Methods",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn list_customer_payment_method_api() {}
+
 /// Payment Method Session - Create
 ///
 /// Create a payment method session for a customer
