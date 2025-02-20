@@ -943,22 +943,15 @@ pub async fn tokenize_card_using_pm_api(
     let flow = Flow::TokenizeCardUsingPaymentMethodId;
     let pm_id = path.into_inner();
     let mut payload = json_payload.into_inner();
-    match payload.data {
-        payment_methods::TokenizeDataRequest::ExistingPaymentMethod(pm_data) => {
-            let updated_data = payment_methods::TokenizeDataRequest::ExistingPaymentMethod(
-                payment_methods::TokenizePaymentMethodRequest {
-                    payment_method_id: pm_id,
-                    ..pm_data
-                },
-            );
-            payload.data = updated_data;
-        }
-        payment_methods::TokenizeDataRequest::Card(_) => {
-            return api::log_and_return_error_response(error_stack::report!(
-                errors::ApiErrorResponse::InvalidDataValue { field_name: "card" }
-            ));
-        }
-    };
+    if let payment_methods::TokenizeDataRequest::ExistingPaymentMethod(ref mut pm_data) =
+        payload.data
+    {
+        pm_data.payment_method_id = pm_id;
+    } else {
+        return api::log_and_return_error_response(error_stack::report!(
+            errors::ApiErrorResponse::InvalidDataValue { field_name: "card" }
+        ));
+    }
 
     Box::pin(api::server_wrap(
         flow,
