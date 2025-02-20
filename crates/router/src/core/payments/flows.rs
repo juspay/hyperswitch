@@ -2068,16 +2068,10 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 default_imp_for_uas_authentication_confirmation!(
     connector::Adyenplatform,
     connector::Adyen,
-    connector::Authorizedotnet,
-    connector::Checkout,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
-    connector::Noon,
-    connector::Opayo,
-    connector::Opennode,
-    connector::Payme,
     connector::Payone,
     connector::Paypal,
     connector::Plaid,
@@ -2085,7 +2079,6 @@ default_imp_for_uas_authentication_confirmation!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
