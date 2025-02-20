@@ -91,13 +91,14 @@ pub async fn check_existence_and_add_domain_to_db(
         payment_methods_enabled: None,
         metadata: None,
         frm_configs: None,
-        connector_webhook_details: None,
+        connector_webhook_details: Box::new(None),
         applepay_verified_domains: Some(already_verified_domains.clone()),
         pm_auth_config: Box::new(None),
         connector_label: None,
         status: None,
         connector_wallets_details: Box::new(None),
         additional_merchant_data: Box::new(None),
+        feature_metadata: Box::new(None),
     };
     state
         .store

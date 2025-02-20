@@ -444,7 +444,7 @@ impl<F, T>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -1205,7 +1205,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                     },
                     ..item.data
@@ -1278,7 +1278,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                     },
                     ..item.data
@@ -1361,11 +1361,12 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>> for Cr
 impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
-            AuthorizedotnetRefundStatus::Approved => Self::Success,
             AuthorizedotnetRefundStatus::Declined | AuthorizedotnetRefundStatus::Error => {
                 Self::Failure
             }
-            AuthorizedotnetRefundStatus::HeldForReview => Self::Pending,
+            AuthorizedotnetRefundStatus::Approved | AuthorizedotnetRefundStatus::HeldForReview => {
+                Self::Pending
+            }
         }
     }
 }
@@ -1603,7 +1604,7 @@ impl<F, Req>
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     status: payment_status,
                     ..item.data

@@ -19,6 +19,7 @@ pub mod customers;
 pub mod disputes;
 pub mod encryption;
 pub mod errors;
+pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;

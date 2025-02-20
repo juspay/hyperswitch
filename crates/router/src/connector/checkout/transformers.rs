@@ -407,8 +407,13 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 force_3ds: true,
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
-                xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.map(|auth| auth.message_version.to_string()),
+                xid: authentication_data
+                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.and_then(|auth| {
+                    auth.message_version
+                        .clone()
+                        .map(|version| version.to_string())
+                }),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
@@ -708,7 +713,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status,
@@ -761,7 +766,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status,
@@ -837,7 +842,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status: response.into(),
             ..item.data
@@ -938,7 +943,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status,
             amount_captured,

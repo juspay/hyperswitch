@@ -1535,7 +1535,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_metadata,
                             connector_response_reference_id,
                             incremental_authorization_allowed,
-                            charge_id,
+                            charges,
                             ..
                         } => {
                             payment_data
@@ -1664,7 +1664,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .multiple_capture_data
                             {
                                 Some(multiple_capture_data) => {
-                                    let (connector_capture_id, connector_capture_data) =
+                                    let (connector_capture_id, processor_capture_data) =
                                         match resource_id {
                                             types::ResponseId::NoResponseId => (None, None),
                                             types::ResponseId::ConnectorTransactionId(id)
@@ -1680,7 +1680,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         )?,
                                         connector_capture_id: connector_capture_id.clone(),
                                         connector_response_reference_id,
-                                        connector_capture_data: connector_capture_data.clone(),
+                                        processor_capture_data: processor_capture_data.clone(),
                                     };
                                     let capture_update_list = vec![(
                                         multiple_capture_data.get_latest_capture().clone(),
@@ -1721,11 +1721,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
-                                        charge_id,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail
                                             .clone(),
+                                        charges,
                                     }),
                                 ),
                             };

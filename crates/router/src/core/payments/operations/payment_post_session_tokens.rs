@@ -73,6 +73,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
         helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 
         let mut payment_attempt = db
