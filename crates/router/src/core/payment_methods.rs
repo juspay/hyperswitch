@@ -199,7 +199,7 @@ pub async fn initiate_pm_collect_link(
         )
         .await?;
 
-    // Create DB entries
+    // Create DB entrie
     let pm_collect_link = create_pm_collect_db_entry(
         &state,
         &merchant_account,
@@ -997,6 +997,23 @@ pub async fn create_payment_method(
 
         //TODO: add metrics
     };
+
+    if let Some(common_types::payment_methods::PspTokenization {
+        tokenization_type: common_enums::TokenizationType::SingleUse,
+        ..
+    }) = req.psp_tokenization
+    {
+        Box::pin(add_token_call_to_store(
+            state.clone(),
+            request_state.clone(),
+            merchant_account.clone(),
+            profile.clone(),
+            key_store.clone(),
+            &req,
+            &payment_method,
+        ))
+        .await?;
+    }
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2372,4 +2389,17 @@ impl pm_types::SavedPMLPaymentsInfo {
 
         Ok(())
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn add_token_call_to_store(
+    state: SessionState,
+    req_state: routes::app::ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    payment_method_create_request: &payment_methods::PaymentMethodCreate,
+    payment_method: &domain::PaymentMethod,
+) -> RouterResult<()>{
+    let router_data_creation 
 }
