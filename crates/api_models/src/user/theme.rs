@@ -62,7 +62,7 @@ pub struct ThemeData {
 #[serde(rename_all = "camelCase")]
 struct Settings {
     colors: Colors,
-    sidebar: Sidebar,
+    sidebar: Option<Sidebar>,
     typography: Option<Typography>,
     buttons: Buttons,
     borders: Option<Borders>,
