@@ -164,6 +164,7 @@ impl
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Giropay { .. }
                 | BankRedirectData::Interac { .. }

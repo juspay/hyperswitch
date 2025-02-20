@@ -225,6 +225,7 @@ impl TryFrom<&domain::BankRedirectData> for TrustpayPaymentMethod {
             domain::BankRedirectData::Blik { .. } => Ok(Self::Blik),
             domain::BankRedirectData::BancontactCard { .. }
             | domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Eft { .. }
             | domain::BankRedirectData::Interac { .. }
             | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | domain::BankRedirectData::OnlineBankingFinland { .. }

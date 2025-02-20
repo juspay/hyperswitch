@@ -977,6 +977,7 @@ where
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
                 | BankRedirectData::OnlineBankingFinland { .. }
