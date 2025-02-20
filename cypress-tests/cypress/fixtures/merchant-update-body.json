@@ -21,7 +21,7 @@
       "country": "US"
     }
   },
-  "return_url": "https://duck.com",
+  "return_url": "https://hyperswitch.io",
   "webhook_details": {
     "webhook_version": "1.0.1",
     "webhook_username": "ekart_retail",
