@@ -15,20 +15,25 @@ pub use api_models::{
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },
 };
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, types::keymanager as km_types};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
+    consts,
     core::errors,
     routes::SessionState,
     types::{
-        domain,
+        domain::{
+            self,
+            types::{self as domain_types, AsyncLift},
+        },
         transformers::{ForeignInto, ForeignTryFrom},
         ForeignFrom,
     },
+    utils,
 };
 
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
@@ -179,6 +184,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_request_extended_authorization: item.always_request_extended_authorization,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            card_testing_guard_config: item
+                .card_testing_guard_config
+                .map(ForeignInto::foreign_into),
         })
     }
 }
@@ -250,6 +258,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            card_testing_guard_config: item
+                .card_testing_guard_config
+                .map(ForeignInto::foreign_into),
         })
     }
 }
@@ -262,6 +273,7 @@ pub async fn create_profile_from_merchant_account(
     key_store: &MerchantKeyStore,
 ) -> Result<domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     use common_utils::ext_traits::AsyncExt;
+    use diesel_models::business_profile::CardTestingGuardConfig;
 
     use crate::core;
 
@@ -305,6 +317,34 @@ pub async fn create_profile_from_merchant_account(
             )),
         })
         .transpose()?;
+
+    let key = key_store.key.clone().into_inner();
+    let key_manager_state = state.into();
+
+    let card_testing_secret_key = Some(Secret::new(utils::generate_id(
+        consts::FINGERPRINT_SECRET_LENGTH,
+        "fs",
+    )));
+
+    let card_testing_guard_config = match request.card_testing_guard_config {
+        Some(card_testing_guard_config) => Some(CardTestingGuardConfig::foreign_from(
+            card_testing_guard_config,
+        )),
+        None => Some(CardTestingGuardConfig {
+            is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+            card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+            is_guest_user_card_blocking_enabled:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+            guest_user_card_blocking_threshold:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+            is_customer_id_blocking_enabled:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+            customer_id_blocking_threshold:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+            card_testing_guard_expiry:
+                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+        }),
+    };
 
     Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,
@@ -379,5 +419,21 @@ pub async fn create_profile_from_merchant_account(
         always_request_extended_authorization: request.always_request_extended_authorization,
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
         authentication_product_ids: request.authentication_product_ids,
+        card_testing_guard_config,
+        card_testing_secret_key: card_testing_secret_key
+            .async_lift(|inner| async {
+                domain_types::crypto_operation(
+                    &key_manager_state,
+                    common_utils::type_name!(domain::Profile),
+                    domain_types::CryptoOperation::EncryptOptional(inner),
+                    km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error while generating card testing secret key")?,
     }))
 }
