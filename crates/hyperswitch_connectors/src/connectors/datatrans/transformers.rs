@@ -93,6 +93,8 @@ pub enum TransactionStatus {
     Canceled,
     Transmitted,
     Failed,
+    ChallengeOngoing,
+    ChallengeRequired,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -499,6 +501,9 @@ impl From<SyncResponse> for enums::AttemptStatus {
             TransactionType::Payment => match item.status {
                 TransactionStatus::Authorized => Self::Authorized,
                 TransactionStatus::Settled | TransactionStatus::Transmitted => Self::Charged,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::AuthenticationPending
+                }
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
@@ -507,6 +512,9 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Settled
                 | TransactionStatus::Transmitted
                 | TransactionStatus::Authorized => Self::Charged,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::AuthenticationPending
+                }
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
@@ -521,6 +529,9 @@ impl From<SyncResponse> for enums::RefundStatus {
         match item.res_type {
             TransactionType::Credit => match item.status {
                 TransactionStatus::Settled | TransactionStatus::Transmitted => Self::Success,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::Pending
+                }
                 TransactionStatus::Initialized
                 | TransactionStatus::Authenticated
                 | TransactionStatus::Authorized

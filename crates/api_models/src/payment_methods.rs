@@ -2485,6 +2485,7 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CardNetworkTokenizeRequest {
     /// Merchant ID associated with the tokenization request
+    #[schema(example = "merchant_1671528864", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// Details of the card or payment method to be tokenized
@@ -2492,12 +2493,15 @@ pub struct CardNetworkTokenizeRequest {
     pub data: TokenizeDataRequest,
 
     /// Customer details
+    #[schema(value_type = CustomerDetails)]
     pub customer: payments::CustomerDetails,
 
     /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
@@ -2561,6 +2565,7 @@ pub struct TokenizePaymentMethodRequest {
     pub payment_method_id: String,
 
     /// The CVC number for the card
+    #[schema(value_type = Option<String>,  example = "242")]
     pub card_cvc: Option<masking::Secret<String>>,
 }
 
@@ -2570,6 +2575,7 @@ pub struct CardNetworkTokenizeResponse {
     pub payment_method_response: Option<PaymentMethodResponse>,
 
     /// Customer details
+    #[schema(value_type = CustomerDetails)]
     pub customer: Option<payments::CustomerDetails>,
 
     /// Card network tokenization status
