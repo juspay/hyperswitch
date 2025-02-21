@@ -548,7 +548,7 @@ adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,hal
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
-wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica" }
+wallet.google_pay = { connector_list = "stripe,adyen,cybersource,bankofamerica" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen" }
@@ -561,6 +561,7 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
 bank_redirect.giropay = { connector_list = "globalpay" }
+wallet.paze = { connector_list = "cybersource" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }

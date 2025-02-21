@@ -183,6 +183,7 @@ wallet.gcash.connector_list = "adyen"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
+wallet.paze = { connector_list = "cybersource" }
 
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   
 bank_redirect.sofort.connector_list = "stripe,globalpay"  
