@@ -62,12 +62,12 @@ pub struct Address {
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AccountHolder {
     #[serde(rename = "first-name")]
-    pub first_name: Option<Secret<String>>,
+    pub first_name: Secret<String>,
     #[serde(rename = "last-name")]
-    pub last_name: Option<Secret<String>>,
-    pub email: Option<Email>,
-    pub phone: Option<Secret<String>>,
-    pub address: Option<Address>,
+    pub last_name: Secret<String>,
+    pub email: Email,
+    pub phone: Secret<String>,
+    pub address: Address,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -193,11 +193,11 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                 };
 
                 let account_holder = AccountHolder {
-                    first_name: Some(item.router_data.get_billing_first_name()?),
-                    last_name: Some(item.router_data.get_billing_last_name()?),
-                    email: Some(item.router_data.request.get_email()?),
+                    first_name: item.router_data.get_billing_first_name()?,
+                    last_name: item.router_data.get_billing_last_name()?,
+                    email: item.router_data.request.get_email()?,
                     phone: item.router_data.get_optional_billing_phone_number(),
-                    address: Some(Address {
+                    address: Address {
                         street1: item.router_data.get_optional_billing_line2(),
                         city: item
                             .router_data
@@ -205,7 +205,7 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                             .map(Secret::new),
                         state: item.router_data.get_optional_billing_state(),
                         country: item.router_data.get_optional_billing_country(),
-                    }),
+                    },
                 };
 
                 let card = Card {
@@ -213,13 +213,10 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                     expiration_month: req_card.card_exp_month.clone(),
                     expiration_year: req_card.card_exp_year.clone(),
                     card_security_code: req_card.card_cvc.clone(),
-                    card_type: Some(
-                        req_card
-                            .card_network
-                            .as_ref()
-                            .map(|network| network.to_string().to_lowercase())
-                            .unwrap_or(common_enums::CardNetwork::Visa.to_string().to_lowercase()),
-                    ),
+                    card_type: req_card
+                        .card_network
+                        .as_ref()
+                        .map(|network| network.to_string().to_lowercase()),
                 };
 
                 let payment_method = PaymentMethodContainer {
