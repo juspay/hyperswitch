@@ -2811,7 +2811,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             error: pa
                 .as_ref()
                 .and_then(|p| p.error.as_ref())
-                .map(|e| api_models::payments::ErrorDetails::foreign_from(e)),
+                .map(api_models::payments::ErrorDetails::foreign_from),
             cancellation_reason: pa.as_ref().and_then(|p| p.cancellation_reason.clone()),
             order_details: None,
             return_url: pi.return_url,
