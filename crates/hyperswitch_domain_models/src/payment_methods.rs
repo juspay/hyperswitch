@@ -662,15 +662,6 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, router_derive::ToEncryption)]
-pub struct PaymentMethodsSessionUpdate {
-    #[encrypt(ty = Value)]
-    pub billing: Option<Encryptable<Address>>,
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-}
-
-#[cfg(feature = "v2")]
 pub enum PaymentMethodsSessionUpdateEnum {
     GeneralUpdate {
         billing: Option<Encryptable<Address>>,
