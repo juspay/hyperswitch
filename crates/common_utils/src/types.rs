@@ -29,11 +29,11 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
 pub use primitive_wrappers::bool_wrappers::{
     AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
     RequestExtendedAuthorizationBool,
 };
-use masking::{ExposeInterface, PeekInterface};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
