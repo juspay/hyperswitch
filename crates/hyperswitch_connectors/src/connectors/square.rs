@@ -938,7 +938,6 @@ lazy_static! {
             "Square is the largest business technology platform serving all kinds of businesses.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-    
     static ref SQUARE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_catpure_methods = vec![
             enums::CaptureMethod::Automatic,
@@ -997,7 +996,6 @@ lazy_static! {
 
         square_supported_payment_methods
     };
-    
     static ref SQUARE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
         vec![enums::EventClass::Payments, enums::EventClass::Refunds,];
 }
