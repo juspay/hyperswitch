@@ -9533,6 +9533,7 @@
           "cashtocode",
           "checkout",
           "coinbase",
+          "coingate",
           "cryptopay",
           "ctp_mastercard",
           "cybersource",
@@ -9558,6 +9559,7 @@
           "klarna",
           "mifinity",
           "mollie",
+          "moneris",
           "multisafepay",
           "netcetera",
           "nexinets",
@@ -9619,6 +9621,17 @@
             "properties": {
               "adyen_split_payment": {
                 "$ref": "#/components/schemas/AdyenSplitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "xendit_split_payment"
+            ],
+            "properties": {
+              "xendit_split_payment": {
+                "$ref": "#/components/schemas/XenditChargeResponseData"
               }
             }
           }
@@ -16428,6 +16441,16 @@
             "type": "string",
             "description": "Text for payment link's handle confirm button",
             "nullable": true
+          },
+          "custom_message_for_card_terms": {
+            "type": "string",
+            "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "payment_button_colour": {
+            "type": "string",
+            "description": "Custom background colour for payment link's handle confirm button",
+            "nullable": true
           }
         }
       },
@@ -16517,6 +16540,16 @@
           "payment_button_text": {
             "type": "string",
             "description": "Text for payment link's handle confirm button",
+            "nullable": true
+          },
+          "custom_message_for_card_terms": {
+            "type": "string",
+            "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "payment_button_colour": {
+            "type": "string",
+            "description": "Custom background colour for payment link's handle confirm button",
             "nullable": true
           }
         }
@@ -18270,6 +18303,12 @@
             ],
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -18661,6 +18700,12 @@
                 "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "merchant_order_reference_id": {
@@ -19208,6 +19253,17 @@
           "frm_metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
+            "nullable": true
+          },
+          "extended_authorization_applied": {
+            "type": "boolean",
+            "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "capture_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time after which this payment cannot be captured",
             "nullable": true
           },
           "merchant_order_reference_id": {
@@ -19888,6 +19944,12 @@
             ],
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -20461,6 +20523,17 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
             "nullable": true
           },
+          "extended_authorization_applied": {
+            "type": "boolean",
+            "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "capture_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time after which this payment cannot be captured",
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -20950,6 +21023,12 @@
                 "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "merchant_order_reference_id": {
@@ -22957,6 +23036,11 @@
             "nullable": true,
             "minimum": 0
           },
+          "always_request_extended_authorization": {
+            "type": "boolean",
+            "description": "Bool indicating if extended authentication must be requested for all payments",
+            "nullable": true
+          },
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not."
@@ -23194,6 +23278,11 @@
             "type": "integer",
             "format": "int32",
             "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true
+          },
+          "always_request_extended_authorization": {
+            "type": "boolean",
+            "description": "Bool indicating if extended authentication must be requested for all payments",
             "nullable": true
           },
           "is_click_to_pay_enabled": {
@@ -24352,6 +24441,7 @@
           "cashtocode",
           "checkout",
           "coinbase",
+          "coingate",
           "cryptopay",
           "cybersource",
           "datatrans",
@@ -24375,6 +24465,7 @@
           "klarna",
           "mifinity",
           "mollie",
+          "moneris",
           "multisafepay",
           "nexinets",
           "nexixpay",
@@ -25402,6 +25493,17 @@
                 "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "xendit_split_payment"
+            ],
+            "properties": {
+              "xendit_split_payment": {
+                "$ref": "#/components/schemas/XenditSplitRequest"
+              }
+            }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
@@ -25427,6 +25529,17 @@
             "properties": {
               "adyen_split_refund": {
                 "$ref": "#/components/schemas/AdyenSplitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "xendit_split_refund"
+            ],
+            "properties": {
+              "xendit_split_refund": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
               }
             }
           }
@@ -26971,6 +27084,180 @@
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditChargeResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "multiple_splits"
+            ],
+            "properties": {
+              "multiple_splits": {
+                "$ref": "#/components/schemas/XenditMultipleSplitResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "single_split"
+            ],
+            "properties": {
+              "single_split": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
+          }
+        ],
+        "description": "Charge Information"
+      },
+      "XenditMultipleSplitRequest": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected via xendit",
+        "required": [
+          "name",
+          "description",
+          "routes"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description to identify fee rule"
+          },
+          "for_user_id": {
+            "type": "string",
+            "description": "The sub-account user-id that you want to make this transaction for.",
+            "nullable": true
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/XenditSplitRoute"
+            },
+            "description": "Array of objects that define how the platform wants to route the fees and to which accounts."
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditMultipleSplitResponse": {
+        "type": "object",
+        "description": "Fee information charged on the payment being collected via xendit",
+        "required": [
+          "split_rule_id",
+          "name",
+          "description",
+          "routes"
+        ],
+        "properties": {
+          "split_rule_id": {
+            "type": "string",
+            "description": "Identifier for split rule created for the payment"
+          },
+          "for_user_id": {
+            "type": "string",
+            "description": "The sub-account user-id that you want to make this transaction for.",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description to identify fee rule"
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/XenditSplitRoute"
+            },
+            "description": "Array of objects that define how the platform wants to route the fees and to which accounts."
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditSplitRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "multiple_splits"
+            ],
+            "properties": {
+              "multiple_splits": {
+                "$ref": "#/components/schemas/XenditMultipleSplitRequest"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "single_split"
+            ],
+            "properties": {
+              "single_split": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
+          }
+        ],
+        "description": "Xendit Charge Request"
+      },
+      "XenditSplitRoute": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected via xendit",
+        "required": [
+          "currency",
+          "destination_account_id",
+          "reference_id"
+        ],
+        "properties": {
+          "flat_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "percent_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount of payments to be split, using a percent rate as unit",
+            "nullable": true
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "destination_account_id": {
+            "type": "string",
+            "description": "ID of the destination account where the amount will be routed to"
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "Reference ID which acts as an identifier of the route itself"
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditSplitSubMerchantData": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected for sub-merchant via xendit",
+        "required": [
+          "for_user_id"
+        ],
+        "properties": {
+          "for_user_id": {
+            "type": "string",
+            "description": "The sub-account user-id that you want to make this transaction for."
           }
         },
         "additionalProperties": false
