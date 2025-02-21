@@ -288,6 +288,10 @@ ideal = { country = "NL", currency = "EUR" }
 credit = { country = "US,CA", currency = "USD" }
 debit = { country = "US,CA", currency = "USD" }
 
+[pm_filters.nexixpay]
+credit = { country = "PL,CZ,RO,SE,CH,HU,US,GB,DK,UA,MK,BG,HR,BA,IS,RS,GI", currency = "PLN,CZK,RON,SEK,CHF,HUF,USD,GBP,DKK,UAH,MKD,BGN,HRK,BAM,ISK,RSD,GIP" }
+debit = { country = "PL,CZ,RO,SE,CH,HU,US,GB,DK,UA,MK,BG,HR,BA,IS,RS,GI", currency = "PLN,CZK,RON,SEK,CHF,HUF,USD,GBP,DKK,UAH,MKD,BGN,HRK,BAM,ISK,RSD,GIP" }
+
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
