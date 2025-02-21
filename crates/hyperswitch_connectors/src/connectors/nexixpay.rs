@@ -25,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
@@ -43,6 +46,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use serde_json::Value;
 use transformers as nexixpay;
@@ -999,4 +1003,83 @@ impl webhooks::IncomingWebhook for Nexixpay {
     }
 }
 
-impl ConnectorSpecifications for Nexixpay {}
+lazy_static! {
+    static ref NEXIXPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Nexixpay",
+        description: "Nexixpay is an Italian bank that specialises in payment systems such as Nexi Payments (formerly known as CartaSi).",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref NEXIXPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+
+        let supported_catpure_methods = vec![
+                    enums::CaptureMethod::Automatic,
+                    enums::CaptureMethod::Manual,
+                    enums::CaptureMethod::SequentialAutomatic,
+                ];
+
+        let supported_card_network = vec![
+                    common_enums::CardNetwork::Visa,
+                    common_enums::CardNetwork::Mastercard,
+                    common_enums::CardNetwork::AmericanExpress,
+                    common_enums::CardNetwork::JCB,
+                ];
+
+        let mut nexixpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        nexixpay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_catpure_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                )
+            }
+        );
+        nexixpay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_catpure_methods,
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network,
+                        }
+                    }),
+                )
+            }
+        );
+
+        nexixpay_supported_payment_methods
+    };
+
+    static ref NEXIXPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
+
+impl ConnectorSpecifications for Nexixpay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*NEXIXPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*NEXIXPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*NEXIXPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
