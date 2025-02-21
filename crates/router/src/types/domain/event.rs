@@ -19,24 +19,58 @@ use crate::{
 
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Event {
+    /// A string that uniquely identifies the event.
     pub event_id: String,
+
+    /// Represents the type of event for the webhook.
     pub event_type: EventType,
+
+    /// Represents the class of event for the webhook.
     pub event_class: EventClass,
+
+    /// Indicates whether the current webhook delivery was successful.
     pub is_webhook_notified: bool,
+
+    /// Reference to the object for which the webhook was created.
     pub primary_object_id: String,
+
+    /// Reference to the object type for which the webhook was created.
     pub primary_object_type: EventObjectType,
+
+    /// The timestamp when the webhook was created.
     pub created_at: time::PrimitiveDateTime,
+
+    /// Merchant identifier to which the webhook was sent.
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
+
+    /// Business Profile identifier to which the webhook was sent.
     pub business_profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// The timestamp when the primary object was created.
     pub primary_object_created_at: Option<time::PrimitiveDateTime>,
+
+    /// This allows the event to be uniquely identified to prevent multiple processing.
     pub idempotent_event_id: Option<String>,
+
+    /// Links to the initial attempt of the event.
     pub initial_attempt_id: Option<String>,
+
+    /// This field contains the encrypted request data sent as part of the event.
     #[encrypt]
     pub request: Option<Encryptable<Secret<String>>>,
+
+    /// This field contains the encrypted response data received as part of the event.
     #[encrypt]
     pub response: Option<Encryptable<Secret<String>>>,
+
+    /// Represents the event delivery type.
     pub delivery_attempt: Option<WebhookDeliveryAttempt>,
+
+    /// Holds any additional data related to the event.
     pub metadata: Option<EventMetadata>,
+
+    /// Indicates whether the event was ultimately delivered.
+    pub is_overall_delivery_successful: bool,
 }
 
 #[derive(Debug)]
@@ -44,6 +78,9 @@ pub enum EventUpdate {
     UpdateResponse {
         is_webhook_notified: bool,
         response: OptionalEncryptableSecretString,
+    },
+    ParentUpdate {
+        is_overall_delivery_successful: bool,
     },
 }
 
@@ -56,6 +93,14 @@ impl From<EventUpdate> for EventUpdateInternal {
             } => Self {
                 is_webhook_notified: Some(is_webhook_notified),
                 response: response.map(Into::into),
+                is_overall_delivery_successful: None,
+            },
+            EventUpdate::ParentUpdate {
+                is_overall_delivery_successful,
+            } => Self {
+                is_webhook_notified: None,
+                response: None,
+                is_overall_delivery_successful: Some(is_overall_delivery_successful),
             },
         }
     }
@@ -84,6 +129,7 @@ impl super::behaviour::Conversion for Event {
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
+            is_overall_delivery_successful: self.is_overall_delivery_successful,
         })
     }
 
@@ -133,6 +179,7 @@ impl super::behaviour::Conversion for Event {
             response: encryptable_event.response,
             delivery_attempt: item.delivery_attempt,
             metadata: item.metadata,
+            is_overall_delivery_successful: item.is_overall_delivery_successful,
         })
     }
 
@@ -154,6 +201,7 @@ impl super::behaviour::Conversion for Event {
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
+            is_overall_delivery_successful: self.is_overall_delivery_successful,
         })
     }
 }
