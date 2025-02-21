@@ -2027,7 +2027,7 @@ impl EncryptableData for payment_methods::PaymentMethodSessionRequest {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
-    type Output = hyperswitch_domain_models::payment_methods::DecryptedPaymentMethodsSession;
+    type Output = hyperswitch_domain_models::payment_methods::DecryptedPaymentMethodSession;
 
     async fn encrypt_data(
         &self,
@@ -2047,10 +2047,10 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 
         let batch_encrypted_data = domain_types::crypto_operation(
             key_manager_state,
-            common_utils::type_name!(hyperswitch_domain_models::payment_methods::PaymentMethodsSession),
+            common_utils::type_name!(hyperswitch_domain_models::payment_methods::PaymentMethodSession),
             domain_types::CryptoOperation::BatchEncrypt(
-                hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::to_encryptable(
-                    hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession {
+                hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodSession::to_encryptable(
+                    hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodSession {
                        billing: encrypted_billing_address,
                     },
                 ),
@@ -2064,7 +2064,7 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
         .attach_printable("Failed while encrypting payment methods session details".to_string())?;
 
         let encrypted_data =
-        hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::from_encryptable(
+        hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodSession::from_encryptable(
             batch_encrypted_data,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2174,7 +2174,7 @@ pub async fn payment_methods_session_update(
     key_store: domain::MerchantKeyStore,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     request: payment_methods::PaymentMethodsSessionUpdateRequest,
-) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -2222,10 +2222,11 @@ pub async fn payment_methods_session_update(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment methods session in db")?;
 
-    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
+    let response = transformers::generate_payment_method_session_response(
         update_state_change,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
-    ));
+        None, // TODO: send associated payments response based on the expandable param
+    );
 
     Ok(services::ApplicationResponse::Json(response))
 }

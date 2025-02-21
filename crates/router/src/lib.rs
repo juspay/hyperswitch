@@ -153,7 +153,7 @@ pub fn mk_app(
 
         #[cfg(all(feature = "v2", feature = "oltp"))]
         {
-            server_app = server_app.service(routes::PaymentMethodsSession::server(state.clone()));
+            server_app = server_app.service(routes::PaymentMethodSession::server(state.clone()));
         }
 
         #[cfg(feature = "v1")]

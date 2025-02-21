@@ -2662,10 +2662,9 @@ pub struct PaymentMethodSessionResponse {
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema, Clone)]
 pub struct CustomerAuthenticationDetails {
-    #[schema(value_type = String)]
-    pub reference_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
     pub error: Option<payments::ErrorDetails>,
 }

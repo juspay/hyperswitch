@@ -1274,10 +1274,10 @@ impl PaymentMethods {
 }
 
 #[cfg(all(feature = "v2", feature = "oltp"))]
-pub struct PaymentMethodsSession;
+pub struct PaymentMethodSession;
 
 #[cfg(all(feature = "v2", feature = "oltp"))]
-impl PaymentMethodsSession {
+impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
         route = route.service(

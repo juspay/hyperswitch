@@ -39,7 +39,7 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
-    PaymentMethodsSession,
+    PaymentMethodSession,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -315,7 +315,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionRetrieve
             | Flow::PaymentMethodSessionConfirm
             | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
-            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodsSession,
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
         }
     }
 }

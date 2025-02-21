@@ -597,8 +597,8 @@ pub struct PaymentMethodSession {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for PaymentMethodSession {
-    type DstType = diesel_models::payment_methods_session::PaymentMethodsSession;
-    type NewDstType = diesel_models::payment_methods_session::PaymentMethodsSession;
+    type DstType = diesel_models::payment_methods_session::PaymentMethodSession;
+    type NewDstType = diesel_models::payment_methods_session::PaymentMethodSession;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(Self::DstType {
             id: self.id,
@@ -703,20 +703,17 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
                 psp_tokenization,
                 network_tokenization,
             } => Self {
-                billing: billing.map(|val| val.into()),
-                psp_tokenization: psp_tokenization,
-                network_tokenization: network_tokenization,
+                billing,
+                psp_tokenization,
+                network_tokenization,
             },
         }
     }
 }
 
 #[cfg(feature = "v2")]
-impl PaymentMethodsSession {
-    pub fn apply_changeset(
-        self,
-        update_session: PaymentMethodsSessionUpdateInternal,
-    ) -> PaymentMethodsSession {
+impl PaymentMethodSession {
+    pub fn apply_changeset(self, update_session: PaymentMethodsSessionUpdateInternal) -> Self {
         let Self {
             id,
             customer_id,
@@ -724,14 +721,20 @@ impl PaymentMethodsSession {
             psp_tokenization,
             network_tokenization,
             expires_at,
+            return_url,
+            associated_payment_methods,
+            associated_payment,
         } = self;
-        PaymentMethodsSession {
+        Self {
             id,
             customer_id,
             billing: update_session.billing.or(billing),
             psp_tokenization: update_session.psp_tokenization.or(psp_tokenization),
             network_tokenization: update_session.network_tokenization.or(network_tokenization),
             expires_at,
+            return_url,
+            associated_payment_methods,
+            associated_payment,
         }
     }
 }

@@ -993,7 +993,6 @@ pub fn generate_payment_method_session_response(
 
     let customer_authentication_details = associated_payment.map(|payment| {
         api_models::payment_methods::CustomerAuthenticationDetails {
-            reference_id: payment.id,
             status: payment.status,
             error: payment.error,
         }

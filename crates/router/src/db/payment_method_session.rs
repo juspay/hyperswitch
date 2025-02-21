@@ -19,9 +19,9 @@ pub trait PaymentMethodsSessionInterface {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
-        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     ) -> CustomResult<
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         errors::StorageError,
     >;
 
@@ -100,7 +100,7 @@ mod storage {
                 .map_err(Into::<errors::StorageError>::into)?;
 
             let db_model = redis_connection
-                .get_and_deserialize_key::<diesel_models::payment_methods_session::PaymentMethodsSession>(&redis_key.into(), "PaymentMethodsSession")
+                .get_and_deserialize_key::<diesel_models::payment_methods_session::PaymentMethodSession>(&redis_key.into(), "PaymentMethodSession")
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
@@ -122,9 +122,9 @@ mod storage {
             key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             session_id: &common_utils::id_type::GlobalPaymentMethodSessionId,
             update_request: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
-            current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            current_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         ) -> CustomResult<
-            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            hyperswitch_domain_models::payment_methods::PaymentMethodSession,
             errors::StorageError,
         > {
             let redis_key = session_id.get_redis_key();
@@ -179,9 +179,9 @@ impl PaymentMethodsSessionInterface for MockDb {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
-        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     ) -> CustomResult<
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         errors::StorageError,
     > {
         Err(errors::StorageError::MockDbError)?
