@@ -21,10 +21,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
-    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
@@ -43,13 +40,14 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use rand::distributions::DistString;
 use ring::hmac;
 use transformers as payeezy;
 
-use crate::{constants::headers, types::ResponseRouterData};
+use crate::{
+    constants::headers, types::ResponseRouterData, utils::construct_not_implemented_error_report,
+};
 
 #[derive(Debug, Clone)]
 pub struct Payeezy;
@@ -155,7 +153,24 @@ impl ConnectorCommon for Payeezy {
     }
 }
 
-impl ConnectorValidation for Payeezy {}
+impl ConnectorValidation for Payeezy {
+    fn validate_connector_against_payment_request(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic
+            | CaptureMethod::Manual
+            | CaptureMethod::SequentialAutomatic => Ok(()),
+            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
+                construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
 
 impl api::Payment for Payeezy {}
 
@@ -580,81 +595,4 @@ impl IncomingWebhook for Payeezy {
     }
 }
 
-lazy_static! {
-    static ref PAYEEZY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            CaptureMethod::Automatic,
-            CaptureMethod::Manual,
-            CaptureMethod::SequentialAutomatic,
-        ];
-
-        let supported_card_network = vec![
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Discover,
-        ];
-
-        let mut payeezy_supported_payment_methods = SupportedPaymentMethods::new();
-
-        payeezy_supported_payment_methods.add(
-            PaymentMethod::Card,
-            PaymentMethodType::Credit,
-            PaymentMethodDetails {
-                mandates: common_enums::enums::FeatureStatus::Supported,
-                refunds: common_enums::enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-
-        payeezy_supported_payment_methods.add(
-            PaymentMethod::Card,
-            PaymentMethodType::Debit,
-            PaymentMethodDetails {
-                mandates: common_enums::enums::FeatureStatus::Supported,
-                refunds: common_enums::enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-
-        payeezy_supported_payment_methods
-    };
-    static ref PAYEEZY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Payeezy",
-        description: "Payeezy, a powerful ecommerce platform, allows merchants to easily and safely take credit card payments online.",
-        connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref PAYEEZY_SUPPORTED_WEBHOOK_FLOWS: Vec<common_enums::enums::EventClass> = Vec::new();
-}
-
-impl ConnectorSpecifications for Payeezy {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*PAYEEZY_CONNECTOR_INFO)
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*PAYEEZY_SUPPORTED_PAYMENT_METHODS)
-    }
-
-    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
-        Some(&*PAYEEZY_SUPPORTED_WEBHOOK_FLOWS)
-    }
-}
+impl ConnectorSpecifications for Payeezy {}
