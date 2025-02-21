@@ -1,6 +1,8 @@
 -- Drop not null constraint on org_id in organization table
-ALTER TABLE organization DROP CONSTRAINT organization_pkey;
-ALTER TABLE organization ALTER COLUMN org_id DROP NOT NULL;
+-- Drop not null constraint on org_id in organization table
+ALTER TABLE organization 
+    DROP CONSTRAINT organization_pkey,
+    ALTER COLUMN org_id DROP NOT NULL;
 
 -- Drop not null in merchant_account table for v1 columns that are dropped in v2
 ALTER TABLE merchant_account 
@@ -24,9 +26,8 @@ ALTER TABLE customers
 ALTER TABLE payment_intent 
     DROP CONSTRAINT payment_intent_pkey,
     ALTER COLUMN payment_id DROP NOT NULL,
-    ALTER COLUMN active_attempt_id DROP NOT NULL;
-
-ALTER TABLE payment_intent ALTER COLUMN active_attempt_id DROP DEFAULT;
+    ALTER COLUMN active_attempt_id DROP NOT NULL,
+    ALTER COLUMN active_attempt_id DROP DEFAULT;
 
 ALTER TABLE payment_attempt 
     DROP CONSTRAINT payment_attempt_pkey,

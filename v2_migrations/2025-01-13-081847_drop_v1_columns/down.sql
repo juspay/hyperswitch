@@ -16,7 +16,7 @@ ADD COLUMN merchant_id VARCHAR(64),
     ADD COLUMN payment_link_config JSONB NULL,
     ADD COLUMN pm_collect_link_config JSONB NULL,
     ADD COLUMN is_recon_enabled BOOLEAN,
-    ADD COLUMN webhook_details JSONB NULL,
+    ADD COLUMN webhook_details JSON NULL,
     ADD COLUMN routing_algorithm JSON,
     ADD COLUMN frm_routing_algorithm JSONB,
     ADD COLUMN payout_routing_algorithm JSONB;

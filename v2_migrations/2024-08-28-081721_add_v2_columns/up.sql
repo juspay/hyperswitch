@@ -57,8 +57,7 @@ ADD COLUMN payment_method_type_v2 VARCHAR,
 
 -- Change the type of the column from JSON to JSONB
 ALTER TABLE merchant_connector_account
-ALTER COLUMN payment_methods_enabled TYPE JSONB [ ],
-ADD COLUMN IF NOT EXISTS feature_metadata JSONB;
+    ADD COLUMN IF NOT EXISTS feature_metadata JSONB;
 
 ALTER TABLE payment_methods
     ADD COLUMN IF NOT EXISTS locker_fingerprint_id VARCHAR(64),
