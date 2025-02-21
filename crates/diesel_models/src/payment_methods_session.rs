@@ -15,7 +15,7 @@ impl PaymentMethodsSession {
     pub fn apply_changeset(
         self,
         update_session: PaymentMethodsSessionUpdateInternal,
-    ) -> PaymentMethodsSession {
+    ) -> Self {
         let Self {
             id,
             customer_id,
@@ -24,7 +24,7 @@ impl PaymentMethodsSession {
             network_tokenization,
             expires_at,
         } = self;
-        PaymentMethodsSession {
+        Self {
             id,
             customer_id,
             billing: update_session.billing.or(billing),
