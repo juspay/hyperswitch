@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_types::customers::ConnectorCustomerMap;
 use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -375,9 +377,3 @@ pub struct CustomerUpdateRequestInternal {
     pub id: id_type::GlobalCustomerId,
     pub request: CustomerUpdateRequest,
 }
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-#[derive(Debug, Clone, Serialize)]
-pub struct ConnectorCustomerMap(
-    pub std::collections::HashMap<id_type::MerchantConnectorAccountId, String>,
-);

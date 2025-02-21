@@ -50,9 +50,7 @@ impl ForeignFrom<customer::Customer> for CustomerResponse {
         customers::CustomerResponse {
             id: cust.id,
             merchant_reference_id: cust.merchant_reference_id,
-            connector_customer_ids: cust
-                .connector_customer
-                .map(|val| customers::ConnectorCustomerMap((*val).clone())),
+            connector_customer_ids: cust.connector_customer,
             name: cust.name,
             email: cust.email,
             phone: cust.phone,
