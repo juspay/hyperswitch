@@ -2085,6 +2085,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            display_status_screen: item.display_status_screen,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
         }
     }
 }
@@ -2108,6 +2111,9 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            display_status_screen: item.display_status_screen,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
         }
     }
 }
