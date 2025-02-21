@@ -1,6 +1,6 @@
 pub mod transformers;
 use api_models::webhooks::IncomingWebhookEvent;
-use base64::Engine;
+use base64::{self, Engine};
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -11,6 +11,7 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
+use hmac::{Hmac, Mac};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -40,7 +41,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{self},
 };
-use masking::{Mask, PeekInterface};
+use masking::{Mask, PeekInterface, Secret};
+use sha2::Sha256;
 use transformers as getnet;
 
 use crate::{
@@ -752,7 +754,7 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::Sha256))
+        Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
@@ -762,7 +764,7 @@ impl webhooks::IncomingWebhook for Getnet {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let response_base64 = &notif_item.response_base64.peek();
+        let response_base64 = &notif_item.response_base64.peek().clone();
         BASE64_ENGINE
             .decode(response_base64)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
@@ -774,12 +776,10 @@ impl webhooks::IncomingWebhook for Getnet {
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let serialized_notif = serde_json::to_vec(&notif)
+        let notif = get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        Ok(serialized_notif)
+        Ok(notif.response_base64.peek().clone().into_bytes())
     }
 
     fn get_webhook_object_reference_id(
@@ -824,6 +824,46 @@ impl webhooks::IncomingWebhook for Getnet {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(notif))
+    }
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let notif_item = get_webhook_response(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_name,
+                connector_webhook_details,
+            )
+            .await?;
+
+        let signature = notif_item.response_signature_base64.peek().clone();
+
+        let message = self.get_webhook_source_verification_message(
+            request,
+            merchant_id,
+            &connector_webhook_secrets,
+        )?;
+
+        let secret = connector_webhook_secrets.secret;
+
+        let mut mac: Hmac<Sha256> = Hmac::new_from_slice(&secret)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        mac.update(&message);
+
+        let result = mac.finalize();
+        let code_bytes = result.into_bytes();
+        let computed_signature = BASE64_ENGINE.encode(code_bytes);
+        let normalized_computed_signature = computed_signature.replace("+", " ");
+
+        Ok(signature == normalized_computed_signature)
     }
 }
 
