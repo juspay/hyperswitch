@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix3
+
+### Features
+
+- **router:** Add merchant_configuration_id in netcetera metadata and make other merchant configurations optional ([#7348](https://github.com/juspay/hyperswitch/pull/7348)) ([`2515d75`](https://github.com/juspay/hyperswitch/commit/2515d75fae6d618ab1a8b7cdf0ae90cfa5deefb6))
+
+- - -
+
 ## 2025.02.10.0-hotfix2
 
 ### Features
