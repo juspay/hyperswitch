@@ -118,7 +118,7 @@ pub struct ConfigMetadata {
     pub locale: Option<InputData>,
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
-    pub merchant_configuration_id: Option<String>,
+    pub merchant_configuration_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
