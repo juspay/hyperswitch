@@ -5144,85 +5144,6 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
     }
 }
 
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PaymentsResponse {
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
-    #[schema(
-        min_length = 32,
-        max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String,
-    )]
-    pub id: id_type::GlobalPaymentId,
-
-    #[schema(value_type = IntentStatus, example = "success")]
-    pub status: api_enums::IntentStatus,
-
-    /// Amount related information for this payment and attempt
-    pub amount: PaymentAmountDetailsResponse,
-
-    /// The identifier for the customer
-    #[schema(
-        min_length = 32,
-        max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String
-    )]
-    pub customer_id: Option<id_type::GlobalCustomerId>,
-
-    /// The connector used for the payment
-    #[schema(example = "stripe")]
-    pub connector: String,
-
-    /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: common_utils::types::ClientSecret,
-
-    /// Time when the payment was created
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub created: PrimitiveDateTime,
-
-    /// The payment method information provided for making a payment
-    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
-    #[serde(serialize_with = "serialize_payment_method_data_response")]
-    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
-
-    /// The payment method type for this payment attempt
-    #[schema(value_type = PaymentMethod, example = "wallet")]
-    pub payment_method_type: api_enums::PaymentMethod,
-
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
-
-    /// Additional information required for redirection
-    pub next_action: Option<NextActionData>,
-
-    /// A unique identifier for a payment provided by the connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_transaction_id: Option<String>,
-
-    /// reference(Identifier) to the payment at connector side
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_reference_id: Option<String>,
-
-    /// Connector token information that can be used to make payments directly by the merchant.
-    pub connector_token_details: Option<ConnectorTokenDetails>,
-
-    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
-    #[schema(value_type = String)]
-    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
-
-    /// The browser information used for this payment
-    #[schema(value_type = Option<BrowserInformation>)]
-    pub browser_info: Option<common_utils::types::BrowserInformation>,
-
-    /// Error details for the payment if any
-    pub error: Option<ErrorDetails>,
-}
-
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
@@ -5259,94 +5180,6 @@ pub struct ErrorDetails {
     pub unified_message: Option<String>,
 }
 
-/// Response for Payment Intent Confirm
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PaymentsConfirmIntentResponse {
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
-    #[schema(
-        min_length = 32,
-        max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String,
-    )]
-    pub id: id_type::GlobalPaymentId,
-
-    #[schema(value_type = IntentStatus, example = "success")]
-    pub status: api_enums::IntentStatus,
-
-    /// Amount related information for this payment and attempt
-    pub amount: PaymentAmountDetailsResponse,
-
-    /// The identifier for the customer
-    #[schema(
-        min_length = 32,
-        max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String
-    )]
-    pub customer_id: Option<id_type::GlobalCustomerId>,
-
-    /// The connector used for the payment
-    #[schema(example = "stripe")]
-    pub connector: String,
-
-    /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: common_utils::types::ClientSecret,
-
-    /// Time when the payment was created
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub created: PrimitiveDateTime,
-
-    /// The payment method information provided for making a payment
-    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
-    #[serde(serialize_with = "serialize_payment_method_data_response")]
-    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
-
-    /// The payment method type for this payment attempt
-    #[schema(value_type = PaymentMethod, example = "wallet")]
-    pub payment_method_type: api_enums::PaymentMethod,
-
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
-
-    /// Additional information required for redirection
-    pub next_action: Option<NextActionData>,
-
-    /// A unique identifier for a payment provided by the connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_transaction_id: Option<String>,
-
-    /// reference(Identifier) to the payment at connector side
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_reference_id: Option<String>,
-
-    /// Connector token information that can be used to make payments directly by the merchant.
-    pub connector_token_details: Option<ConnectorTokenDetails>,
-
-    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
-    #[schema(value_type = String)]
-    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
-
-    /// The browser information used for this payment
-    #[schema(value_type = Option<BrowserInformation>)]
-    pub browser_info: Option<common_utils::types::BrowserInformation>,
-
-    /// Error details for the payment if any
-    pub error: Option<ErrorDetails>,
-
-    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
-    pub authentication_type: Option<api_enums::AuthenticationType>,
-
-    /// The authentication type applied for the payment
-    #[schema(value_type = AuthenticationType, example = "no_three_ds")]
-    pub applied_authentication_type: api_enums::AuthenticationType,
-}
-
 /// Token information that can be used to initiate transactions by the merchant.
 #[cfg(feature = "v2")]
 #[derive(Debug, Serialize, ToSchema)]
@@ -5354,13 +5187,19 @@ pub struct ConnectorTokenDetails {
     /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
     pub token: String,
+
+    /// The reference id sent to the connector when creating the token
+    pub connector_token_request_reference_id: Option<String>,
 }
 
-// TODO: have a separate response for detailed, summarized
 /// Response for Payment Intent Confirm
+/// Few fields should be expandable, we need not return these in the normal response
+/// But when explictly requested for expanded objects, these can be returned
+/// For example
+/// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsRetrieveResponse {
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
     #[schema(
@@ -5438,6 +5277,29 @@ pub struct PaymentsRetrieveResponse {
 
     /// List of payment attempts associated with payment intent
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
+
+    /// Connector token information that can be used to make payments directly by the merchant.
+    pub connector_token_details: Option<ConnectorTokenDetails>,
+
+    /// The payment_method_id associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
+
+    /// The url to which user must be redirected to after completion of the purchase
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+
+    /// The authentication type that was requested for this order
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// The authentication type that was appliced for this order
+    /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    pub authentication_type_applied: Option<api_enums::AuthenticationType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

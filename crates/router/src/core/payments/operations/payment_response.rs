@@ -2563,7 +2563,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
             .payment_attempt
             .connector_token_details
             .as_ref()
-            .and_then(|token_details| token_details.get_connector_mandate_request_reference_id());
+            .and_then(|token_details| token_details.get_connector_token_request_reference_id());
 
         let connector_token =
             payments_response.get_updated_connector_token_details(connector_request_reference_id);
@@ -2600,7 +2600,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         connector_id,
                         status: common_enums::ConnectorTokenStatus::Active,
                         connector_token_request_reference_id: connector_token
-                            .and_then(|details| details.connector_mandate_request_reference_id),
+                            .and_then(|details| details.connector_token_request_reference_id),
                         original_payment_authorized_amount: Some(net_amount),
                         original_payment_authorized_currency: Some(currency),
                         metadata: None,

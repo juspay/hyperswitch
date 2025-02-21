@@ -226,7 +226,7 @@ impl ConnectorTransactionIdTrait for PaymentAttempt {
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct ConnectorTokenDetails {
     pub connector_mandate_id: Option<String>,
-    pub connector_mandate_request_reference_id: Option<String>,
+    pub connector_token_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -234,8 +234,8 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorTokenDetails);
 
 #[cfg(feature = "v2")]
 impl ConnectorTokenDetails {
-    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
-        self.connector_mandate_request_reference_id.clone()
+    pub fn get_connector_token_request_reference_id(&self) -> Option<String> {
+        self.connector_token_request_reference_id.clone()
     }
 }
 

@@ -272,7 +272,7 @@ pub struct PaymentMethodMigrate {
     pub network_transaction_id: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodMigrateResponse {
     //payment method response when payment method entry is created
     pub payment_method_response: PaymentMethodResponse,
@@ -576,7 +576,7 @@ pub enum CardType {
 
 // We cannot use the card struct that we have for payments for the following reason
 // The card struct used for payments has card_cvc as mandatory
-// but when vulting the card, we do not need cvc to be collected from the user
+// but when vaulting the card, we do not need cvc to be collected from the user
 // This is because, the vaulted payment method can be used for future transactions in the presence of the customer
 // when the customer is on_session again, the cvc can be collected from the customer
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -901,12 +901,12 @@ pub struct ConnectorTokenDetails {
     /// Metadata associated with the connector token
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// The value of the connector token
+    /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: String,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
+#[derive(Debug, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -2548,6 +2548,10 @@ pub struct PaymentMethodSessionRequest {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
+    /// The return url to which the customer should be redirected to after adding the payment method
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+
     /// The tokenization type to be applied
     #[schema(value_type = Option<PspTokenization>)]
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
@@ -2560,6 +2564,22 @@ pub struct PaymentMethodSessionRequest {
     /// If not provided, the session will expire in 15 minutes
     #[schema(example = 900, default = 900)]
     pub expires_in: Option<u32>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodsSessionUpdateRequest {
+    /// The billing address details of the customer. This will also be used for any new payment methods added during the session
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
 #[cfg(feature = "v2")]
@@ -2586,12 +2606,17 @@ pub struct PaymentMethodSessionConfirmRequest {
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment instrument data to be used for the payment
+    #[schema(value_type = PaymentMethodDataRequest)]
     pub payment_method_data: payments::PaymentMethodDataRequest,
+
+    /// The return url to which the customer should be redirected to after adding the payment method
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentMethodsSessionResponse {
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionResponse {
     #[schema(value_type = String, example = "12345_pms_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodSessionId,
 
@@ -2620,4 +2645,26 @@ pub struct PaymentMethodsSessionResponse {
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: masking::Secret<String>,
+
+    /// The return url to which the user should be redirected to
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+
+    /// The next action details for the payment method session
+    #[schema(value_type = Option<NextActionData>)]
+    pub next_action: Option<payments::NextActionData>,
+
+    /// The customer authenticaion details for the payment method
+    /// This refers to either the payment / external authentication details
+    pub customer_authentication_details: Option<CustomerAuthenticationDetails>,
+
+    /// The payment method that was created using this payment method session
+    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema, Clone)]
+pub struct CustomerAuthenticationDetails {
+    pub status: common_enums::IntentStatus,
+    pub error: Option<payments::ErrorDetails>,
 }

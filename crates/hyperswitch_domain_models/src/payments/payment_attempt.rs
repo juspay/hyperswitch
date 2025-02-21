@@ -538,7 +538,7 @@ impl PaymentAttempt {
             error: None,
             connector_token_details: Some(diesel_models::ConnectorTokenDetails {
                 connector_mandate_id: None,
-                connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+                connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
                     consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )),
             }),
