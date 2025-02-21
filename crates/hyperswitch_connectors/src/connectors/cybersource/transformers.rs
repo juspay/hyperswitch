@@ -1146,6 +1146,12 @@ impl
 //     })
 // }
 
+fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
+    let exposed = state.clone().expose();
+    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
+    Secret::new(truncated.to_string())
+}
+
 fn build_bill_to(
     address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
@@ -1167,11 +1173,12 @@ fn build_bill_to(
                 last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
-                administrative_area: addr
-                    .to_state_code_as_optional()
-                    .ok()
-                    .flatten()
-                    .remove_new_line(),
+                administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
+                    addr.state
+                        .remove_new_line()
+                        .as_ref()
+                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                }),
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
@@ -3860,7 +3867,20 @@ impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
             last_name: billing_address.get_last_name()?.to_owned(),
             address1: billing_address.get_line1()?.to_owned(),
             locality: billing_address.get_city()?.to_owned(),
-            administrative_area: billing_address.get_state()?.to_owned(),
+            administrative_area: {
+                billing_address
+                    .to_state_code_as_optional()
+                    .unwrap_or_else(|_| {
+                        billing_address
+                            .state
+                            .remove_new_line()
+                            .as_ref()
+                            .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_address.state",
+                    })?
+            },
             postal_code: billing_address.get_zip()?.to_owned(),
             country: billing_address.get_country()?.to_owned(),
             phone_number: phone_address.number.clone(),
