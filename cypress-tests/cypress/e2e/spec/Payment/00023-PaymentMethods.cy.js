@@ -233,6 +233,10 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create No 3DS off session save card payment with token", () => {
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
       it("create-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
