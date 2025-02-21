@@ -132,6 +132,7 @@ pub async fn form_payment_link_data(
                 payment_button_text: None,
                 custom_message_for_card_terms: None,
                 payment_button_colour: None,
+                display_status_screen: None,
             }
         };
 
@@ -280,6 +281,7 @@ pub async fn form_payment_link_data(
         payment_button_text: payment_link_config.payment_button_text.clone(),
         custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms.clone(),
         payment_button_colour: payment_link_config.payment_button_colour.clone(),
+        display_status_screen: payment_link_config.display_status_screen,
     };
 
     Ok((
@@ -333,6 +335,7 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_button_text: payment_link_config.payment_button_text,
                 custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms,
                 payment_button_colour: payment_link_config.payment_button_colour,
+                display_status_screen: payment_link_config.display_status_screen,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -638,6 +641,7 @@ pub fn get_payment_link_config_based_on_priority(
         payment_button_text,
         custom_message_for_card_terms,
         payment_button_colour,
+        display_status_screen,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -647,6 +651,7 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_button_text),
         (custom_message_for_card_terms),
         (payment_button_colour),
+        (display_status_screen)
     );
 
     let payment_link_config =
@@ -661,6 +666,7 @@ pub fn get_payment_link_config_based_on_priority(
             show_card_form_by_default,
             allowed_domains,
             branding_visibility,
+            display_status_screen,
             transaction_details: payment_create_link_config.as_ref().and_then(
                 |payment_link_config| payment_link_config.theme_config.transaction_details.clone(),
             ),
@@ -774,6 +780,7 @@ pub async fn get_payment_link_status(
             payment_button_text: None,
             custom_message_for_card_terms: None,
             payment_button_colour: None,
+            display_status_screen: None,
         }
     };
 

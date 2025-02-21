@@ -593,6 +593,7 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
     pub payment_button_colour: Option<String>,
+    pub display_status_screen: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

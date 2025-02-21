@@ -16440,6 +16440,11 @@
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
             "nullable": true
+          },
+          "display_status_screen": {
+            "type": "boolean",
+            "description": "Display the status screen after payment completion",
+            "nullable": true
           }
         }
       },
@@ -16539,6 +16544,11 @@
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "display_status_screen": {
+            "type": "boolean",
+            "description": "Display the status screen after payment completion",
             "nullable": true
           }
         }

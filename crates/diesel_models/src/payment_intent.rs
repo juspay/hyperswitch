@@ -177,6 +177,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Display the status screen after payment completion
+    pub display_status_screen: Option<bool>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Custom background colour for payment link's handle confirm button
