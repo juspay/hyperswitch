@@ -983,7 +983,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     card_number,
                     token,
                     business_profile,
-                    Some(acquirer_details),
+                    acquirer_details,
                     Some(payment_data.payment_attempt.payment_id.clone()),
                     payment_data.payment_attempt.organization_id.clone(),
                 )
@@ -1267,7 +1267,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     state,
                     pre_auth_response,
                     authentication.clone(),
-                    Some(acquirer_details),
+                    acquirer_details,
                 ).await?;
                 payment_data.authentication = Some(updated_authentication.clone());
 

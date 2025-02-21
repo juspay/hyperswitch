@@ -107,6 +107,7 @@ pub struct ApiModelMetaData {
     pub locale: Option<String>,
     pub card_brands: Option<Vec<String>>,
     pub merchant_category_code: Option<String>,
+    pub merchant_configuration_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
