@@ -531,7 +531,16 @@ export const connectorDetails = {
         },
       },
     },
-   MITWithoutBillingAddress: {
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnosticNTID"],
+          value: "connector_2",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
+    MITWithoutBillingAddress: {
       Request: {
         billing: null,
       },
@@ -541,15 +550,6 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    },
-    MITWithoutBillingAddress: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
-      ...commonConnectorDetails.card_pm.MITWithoutBillingAddress,
     },
     MITManualCapture: {
       Request: {},
