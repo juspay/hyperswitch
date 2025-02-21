@@ -133,6 +133,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
+        is_overall_delivery_successful: false,
     };
 
     let event_insert_result = state
@@ -822,7 +823,7 @@ async fn update_event_in_storage(
             .attach_printable("Failed to encrypt outgoing webhook response content")?,
         ),
     };
-    state
+    let current_event = state
         .store
         .update_event_by_merchant_id_event_id(
             key_manager_state,
@@ -832,7 +833,36 @@ async fn update_event_in_storage(
             &merchant_key_store,
         )
         .await
-        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
+
+    let parent_update = domain::EventUpdate::ParentUpdate {
+        is_overall_delivery_successful: status_code.is_success(),
+    };
+
+    let parent_event_id = current_event.initial_attempt_id.clone();
+    let delivery_attempt = current_event.delivery_attempt;
+
+    if let Some((
+        parent_event_id,
+        enums::WebhookDeliveryAttempt::InitialAttempt
+        | enums::WebhookDeliveryAttempt::AutomaticRetry,
+    )) = parent_event_id.zip(delivery_attempt)
+    {
+        state
+            .store
+            .update_event_by_merchant_id_event_id(
+                key_manager_state,
+                merchant_id,
+                parent_event_id.as_str(),
+                parent_update,
+                &merchant_key_store,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+            .attach_printable("Failed to update parent event")?;
+    }
+
+    Ok(current_event)
 }
 
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
