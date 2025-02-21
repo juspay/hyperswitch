@@ -2107,22 +2107,3 @@ impl pm_types::SavedPMLPaymentsInfo {
         Ok(())
     }
 }
-
-// #[cfg(feature = "v2")]
-// pub async fn payment_method_session_update_to_current_state(
-//     update_state: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdate,
-//     current_state: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-// ) -> hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
-//     hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
-//         id: current_state.id,
-//         customer_id: current_state.customer_id,
-//         billing: update_state.billing.or(current_state.billing),
-//         psp_tokenization: update_state
-//             .psp_tokenization
-//             .or(current_state.psp_tokenization),
-//         network_tokenization: update_state
-//             .network_tokenization
-//             .or(current_state.network_tokenization),
-//         expires_at: current_state.expires_at,
-//     }
-// }
