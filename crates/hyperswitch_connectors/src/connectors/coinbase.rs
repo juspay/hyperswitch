@@ -22,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundsRouterData,
@@ -39,6 +42,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::Mask;
 use transformers as coinbase;
 
@@ -445,4 +449,50 @@ impl webhooks::IncomingWebhook for Coinbase {
     }
 }
 
-impl ConnectorSpecifications for Coinbase {}
+lazy_static! {
+    static ref COINBASE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name:
+            "Coinbase is a place for people and businesses to buy, sell, and manage crypto.",
+        description:
+            "Square is the largest business technology platform serving all kinds of businesses.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+    static ref COINBASE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_catpure_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut coinbase_supported_payment_methods = SupportedPaymentMethods::new();
+
+        coinbase_supported_payment_methods.add(
+            enums::PaymentMethod::Crypto,
+            enums::PaymentMethodType::CryptoCurrency,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_catpure_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        coinbase_supported_payment_methods
+    };
+    static ref COINBASE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
+        vec![enums::EventClass::Payments, enums::EventClass::Refunds,];
+}
+
+impl ConnectorSpecifications for Coinbase {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*COINBASE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*COINBASE_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*COINBASE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
