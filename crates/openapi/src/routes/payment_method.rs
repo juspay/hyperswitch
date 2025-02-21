@@ -346,7 +346,7 @@ pub async fn tokenize_card_api() {}
 /// This API expects an existing payment method ID for a card.
 #[utoipa::path(
     post,
-    path = "/payment-methods/tokenize-card/{id}",
+    path = "/payment-methods/{id}/tokenize-card",
     request_body = CardNetworkTokenizeRequest,
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
