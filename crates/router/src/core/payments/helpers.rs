@@ -591,8 +591,9 @@ pub async fn get_token_pm_type_mandate_details(
                             mandate_generic_data.mandate_connector,
                             mandate_generic_data.payment_method_info,
                         )
-                    } else if should_check_for_customer_saved_payment_method_type(&request.payment_method_type)
-                    {
+                    } else if should_check_for_customer_saved_payment_method_type(
+                        &request.payment_method_type,
+                    ) {
                         let payment_request_customer_id = request.get_customer_id();
                         if let Some(customer_id) =
                             payment_request_customer_id.or(payment_intent_customer_id)
