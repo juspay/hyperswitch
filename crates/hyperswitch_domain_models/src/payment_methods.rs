@@ -719,7 +719,6 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
