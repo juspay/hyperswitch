@@ -305,6 +305,9 @@ fps = { country = "GB", currency = "GBP" }
 prompt_pay = { country = "TH", currency = "THB" }
 viet_qr = { country = "VN", currency = "VND" }
 
+[pm_filters.coinbase]
+crypto_currency = { country = "ZA,US,BR,CA,TR,SG,VN,GB,DE,FR,ES,PT,IT,NL,AU" }
+
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
