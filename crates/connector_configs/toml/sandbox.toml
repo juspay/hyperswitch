@@ -4527,6 +4527,8 @@ type="Text"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+[xendit.connector_webhook_details]
+webhook_verification_token="Source verification key"
 
 [inespay]
 [[inespay.bank_debit]]
