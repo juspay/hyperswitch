@@ -32,7 +32,7 @@ function initializeSDK() {
     redirectionFlags: {
       shouldRemoveBeforeUnloadEvents: true,
       shouldUseTopRedirection: true,
-    }
+    },
   });
   // @ts-ignore
   widgets = hyper.widgets({
@@ -64,6 +64,7 @@ function initializeSDK() {
     },
     showCardFormByDefault: paymentDetails.show_card_form_by_default,
     hideCardNicknameField: hideCardNicknameField,
+    customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
   };
   // @ts-ignore
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
@@ -86,9 +87,19 @@ function initializeSDK() {
 function redirectToStatus() {
   var paymentDetails = window.__PAYMENT_DETAILS;
   var arr = window.location.pathname.split("/");
-  arr.splice(0, 2);
-  arr.unshift("status");
-  arr.unshift("payment_link");
+
+  // NOTE - This code preserves '/api' in url for integ and sbx
+  // e.g. url for integ/sbx - https://integ.hyperswitch.io/api/payment_link/merchant_1234/pay_1234?locale=en
+  // e.g. url for others - https://abc.dev.com/payment_link/merchant_1234/pay_1234?locale=en
+  var hasApiInPath = arr.includes("api");
+  if (hasApiInPath) {
+    arr.splice(0, 3);
+    arr.unshift("api", "payment_link", "status");
+  } else {
+    arr.splice(0, 2);
+    arr.unshift("payment_link", "status");
+  }
+
   window.location.href =
     window.location.origin +
     "/" +

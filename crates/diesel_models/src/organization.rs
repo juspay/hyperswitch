@@ -100,7 +100,7 @@ impl Organization {
 pub struct OrganizationNew {
     org_id: id_type::OrganizationId,
     org_name: Option<String>,
-    id: Option<id_type::OrganizationId>,
+    id: id_type::OrganizationId,
     organization_name: Option<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -126,7 +126,7 @@ impl OrganizationNew {
         Self {
             org_id: id.clone(),
             org_name: organization_name.clone(),
-            id: Some(id),
+            id,
             organization_name,
             organization_details: None,
             metadata: None,

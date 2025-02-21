@@ -128,7 +128,7 @@ cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
-coingate.base_url = "https://api-sandbox.coingate.com/v2"
+coingate.base_url = "https://api-sandbox.coingate.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
@@ -145,6 +145,7 @@ fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
+getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
@@ -158,6 +159,7 @@ jpmorgan.secondary_base_url="https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
@@ -249,6 +251,7 @@ cards = [
     "fiservemea",
     "fiuu",
     "forte",
+    "getnet",
     "globalpay",
     "globepay",
     "gocardless",
@@ -259,6 +262,7 @@ cards = [
     "itaubank",
     "jpmorgan",
     "mollie",
+    "moneris",
     "multisafepay",
     "netcetera",
     "nexinets",
@@ -556,8 +560,8 @@ bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
 bank_debit.sepa = { connector_list = "gocardless,adyen" }
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }
-bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
-bank_redirect.giropay = { connector_list = "adyen,globalpay" }
+bank_redirect.sofort = { connector_list = "stripe,globalpay" }
+bank_redirect.giropay = { connector_list = "globalpay" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
@@ -664,7 +668,8 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = ""
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080" 
-schema = "public"     
+schema = "public"    
+accounts_schema = "public" 
 redis_key_prefix = ""
 clickhouse_database = "default"
 

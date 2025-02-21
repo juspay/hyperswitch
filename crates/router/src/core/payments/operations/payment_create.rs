@@ -1038,7 +1038,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if request.split_payments.is_some() {
             let amount = request.amount.get_required_value("amount")?;
-            helpers::validate_platform_fees_for_marketplace(
+            helpers::validate_platform_request_for_marketplace(
                 amount,
                 request.split_payments.clone(),
             )?;
@@ -1293,7 +1293,6 @@ impl PaymentCreate {
                 fingerprint_id: None,
                 authentication_connector: None,
                 authentication_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: customer_acceptance
@@ -1306,6 +1305,9 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
+                request_extended_authorization: None,
+                extended_authorization_applied: None,
+                capture_before: None,
                 card_discovery: None,
             },
             additional_pm_data,
@@ -1514,6 +1516,7 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details,
             skip_external_tax_calculation,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             platform_merchant_id: platform_merchant_account
                 .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),

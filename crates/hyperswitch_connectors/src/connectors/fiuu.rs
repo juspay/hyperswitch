@@ -866,7 +866,9 @@ impl webhooks::IncomingWebhook for Fiuu {
                     webhooks_payment_response.paydate,
                     webhooks_payment_response.domain.peek(),
                     md5_key0,
-                    webhooks_payment_response.appcode.peek(),
+                    webhooks_payment_response
+                        .appcode
+                        .map_or("".to_string(), |appcode| appcode.expose()),
                     String::from_utf8_lossy(&connector_webhook_secrets.secret)
                 );
                 key1
