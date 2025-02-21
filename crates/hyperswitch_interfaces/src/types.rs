@@ -14,13 +14,16 @@ use hyperswitch_domain_models::{
             Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
@@ -203,6 +206,13 @@ pub type UasPreAuthenticationType = dyn ConnectorIntegration<
 pub type UasPostAuthenticationType = dyn ConnectorIntegration<
     PostAuthenticate,
     UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<Confirmation, UasConfirmationRequestData, UasAuthenticationResponseData>`
+pub type UasAuthenticationConfirmationType = dyn ConnectorIntegration<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >;
 

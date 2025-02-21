@@ -538,6 +538,58 @@ pub fn get_split_refunds(
                 _ => Ok(None),
             }
         }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_)) => {
+            match (
+                &split_refund_input.payment_charges,
+                &split_refund_input.refund_request,
+            ) {
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                        xendit_split_payment_response,
+                    )),
+                    Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                        split_refund_request,
+                    )),
+                ) => {
+                    let user_id = super::refunds::validator::validate_xendit_charge_refund(
+                        xendit_split_payment_response,
+                        split_refund_request,
+                    )?;
+
+                    Ok(user_id.map(|for_user_id| {
+                        router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                            common_types::domain::XenditSplitSubMerchantData { for_user_id },
+                        )
+                    }))
+                }
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                        xendit_split_payment_response,
+                    )),
+                    None,
+                ) => {
+                    let option_for_user_id = match xendit_split_payment_response {
+                        common_types::payments::XenditChargeResponseData::MultipleSplits(
+                            common_types::payments::XenditMultipleSplitResponse {
+                                for_user_id, ..
+                            },
+                        ) => for_user_id.clone(),
+                        common_types::payments::XenditChargeResponseData::SingleSplit(
+                            common_types::domain::XenditSplitSubMerchantData { for_user_id },
+                        ) => Some(for_user_id.clone()),
+                    };
+
+                    if option_for_user_id.is_some() {
+                        Err(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "split_refunds.xendit_split_refund.for_user_id",
+                        })?
+                    } else {
+                        Ok(None)
+                    }
+                }
+                _ => Ok(None),
+            }
+        }
         _ => Ok(None),
     }
 }

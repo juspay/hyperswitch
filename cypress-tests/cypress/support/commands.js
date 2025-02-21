@@ -1275,6 +1275,7 @@ Cypress.Commands.add(
     createPaymentBody.profile_id = profile_id;
 
     globalState.set("paymentAmount", createPaymentBody.amount);
+    globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
 
     cy.request({
       method: "POST",
@@ -3106,6 +3107,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
 
 Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
   const clientSecret = globalState.get("clientSecret");
+  const setupFutureUsage = globalState.get("setupFutureUsage");
 
   cy.request({
     method: "GET",
@@ -3130,6 +3132,18 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
           response.body.customer_payment_methods[0].payment_method_id,
           "payment_method_id"
         ).to.not.be.null;
+
+        if (setupFutureUsage === "off_session") {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.be.false;
+        } else if (setupFutureUsage === "on_session") {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.be.true;
+        }
       } else {
         // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
         expect(response.body)
