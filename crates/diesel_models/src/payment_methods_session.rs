@@ -7,8 +7,49 @@ pub struct PaymentMethodsSession {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokeinzation: Option<common_types::payment_methods::NetworkTokenization>,
     pub return_url: Option<common_utils::types::Url>,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_at: time::PrimitiveDateTime,
     pub associated_payment_methods: Option<Vec<common_utils::id_type::GlobalPaymentMethodId>>,
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodsSession {
+    pub fn apply_changeset(
+        self,
+        update_session: PaymentMethodsSessionUpdateInternal,
+    ) -> PaymentMethodsSession {
+        let Self {
+            id,
+            customer_id,
+            billing,
+            psp_tokenization,
+            network_tokenization,
+            expires_at,
+            network_tokeinzation,
+            return_url,
+            associated_payment_methods,
+            associated_payment,
+        } = self;
+        PaymentMethodsSession {
+            id,
+            customer_id,
+            billing: update_session.billing.or(billing),
+            psp_tokenization: update_session.psp_tokenization.or(psp_tokenization),
+            network_tokenization: update_session.network_tokenization.or(network_tokenization),
+            expires_at,
+            network_tokeinzation,
+            return_url,
+            associated_payment_methods,
+            associated_payment,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodsSessionUpdateInternal {
+    pub billing: Option<common_utils::encryption::Encryption>,
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }

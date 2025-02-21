@@ -2025,6 +2025,56 @@ impl EncryptableData for payment_methods::PaymentMethodSessionRequest {
 }
 
 #[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
+    type Output = hyperswitch_domain_models::payment_methods::DecryptedPaymentMethodsSession;
+
+    async fn encrypt_data(
+        &self,
+        key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Self::Output> {
+        use common_utils::types::keymanager::ToEncryptable;
+
+        let encrypted_billing_address = self
+            .billing
+            .clone()
+            .map(|address| address.encode_to_value())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode billing address")?
+            .map(Secret::new);
+
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payment_methods::PaymentMethodsSession),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::to_encryptable(
+                    hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession {
+                       billing: encrypted_billing_address,
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
+            key_store.key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment methods session details".to_string())?;
+
+        let encrypted_data =
+        hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::from_encryptable(
+            batch_encrypted_data,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment methods session detailss")?;
+
+        Ok(encrypted_data)
+    }
+}
+
+#[cfg(feature = "v2")]
 pub async fn payment_methods_session_create(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -2117,6 +2167,68 @@ pub async fn payment_methods_session_create(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
+pub async fn payment_methods_session_update(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    request: payment_methods::PaymentMethodsSessionUpdateRequest,
+) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let existing_payment_method_session_state = db
+        .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    let encrypted_data = request
+        .encrypt_data(key_manager_state, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt payment methods session data")?;
+
+    let billing = encrypted_data
+        .billing
+        .as_ref()
+        .map(|data| {
+            data.clone()
+                .deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to decode billing address")?;
+
+    let payment_method_session_domain_model =
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::GeneralUpdate{
+            billing,
+            psp_tokenization: request.psp_tokenization,
+            network_tokenization: request.network_tokenization,
+        };
+
+    let update_state_change = db
+        .update_payment_method_session(
+            key_manager_state,
+            &key_store,
+            &payment_method_session_id,
+            payment_method_session_domain_model,
+            existing_payment_method_session_state.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment methods session in db")?;
+
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
+        update_state_change,
+        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+    ));
+
+    Ok(services::ApplicationResponse::Json(response))
+}
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_retrieve(
     state: SessionState,
