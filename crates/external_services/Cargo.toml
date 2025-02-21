@@ -42,9 +42,8 @@ tonic-reflection = { version = "0.12.2", optional = true }
 tonic-types = { version = "0.12.2", optional = true }
 hyper-util = { version = "0.1.9", optional = true }
 http-body-util = { version = "0.1.2", optional = true }
-azure_identity = { git = "https://github.com/Azure/azure-sdk-for-rust.git", branch = "main", optional = true}
-azure_security_keyvault_keys = { git = "https://github.com/Azure/azure-sdk-for-rust.git", branch = "main", optional = true}
-
+azure_identity = {version = "0.22.0", optional = true}
+azure_security_keyvault_keys = {version = "0.1.0", optional = true}
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }

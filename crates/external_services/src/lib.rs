@@ -23,7 +23,7 @@ pub mod grpc_client;
 pub mod managers;
 
 /// Crate specific constants
-#[cfg(feature = "aws_kms", feature = "azure_key_vault")]
+#[cfg(any(feature = "aws_kms", feature = "azure_key_vault"))]
 pub mod consts {
     /// General purpose base64 engine
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -31,7 +31,7 @@ pub mod consts {
 }
 
 /// Metrics for interactions with external systems.
-#[cfg(feature = "aws_kms", feature = "azure_key_vault")]
+#[cfg(any(feature = "aws_kms", feature = "azure_key_vault"))]
 pub mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
