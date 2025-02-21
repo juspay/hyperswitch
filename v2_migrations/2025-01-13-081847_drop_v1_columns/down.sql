@@ -1,9 +1,9 @@
 ALTER TABLE ORGANIZATION
-ADD COLUMN org_id VARCHAR(32),
+    ADD COLUMN org_id VARCHAR(32),
     ADD COLUMN org_name TEXT;
 
 ALTER TABLE merchant_account
-ADD COLUMN merchant_id VARCHAR(64),
+    ADD COLUMN merchant_id VARCHAR(64),
     ADD COLUMN return_url VARCHAR(255),
     ADD COLUMN enable_payment_response_hash BOOLEAN DEFAULT FALSE,
     ADD COLUMN payment_response_hash_key VARCHAR(255),
@@ -23,17 +23,17 @@ ADD COLUMN merchant_id VARCHAR(64),
 
 -- The default value is for temporary purpose only
 ALTER TABLE merchant_account
-ADD COLUMN primary_business_details JSON;
+    ADD COLUMN primary_business_details JSON;
 
 ALTER TABLE business_profile
-ADD COLUMN profile_id VARCHAR(64),
+    ADD COLUMN profile_id VARCHAR(64),
     ADD COLUMN routing_algorithm JSON DEFAULT NULL,
     ADD COLUMN intent_fulfillment_time BIGINT DEFAULT NULL,
     ADD COLUMN frm_routing_algorithm JSONB DEFAULT NULL,
     ADD COLUMN payout_routing_algorithm JSONB DEFAULT NULL;
 
 ALTER TABLE merchant_connector_account
-ADD COLUMN IF NOT EXISTS business_country "CountryAlpha2",
+    ADD COLUMN IF NOT EXISTS business_country "CountryAlpha2",
     ADD COLUMN IF NOT EXISTS business_label VARCHAR(255),
     ADD COLUMN IF NOT EXISTS business_sub_label VARCHAR(64),
     ADD COLUMN IF NOT EXISTS test_mode BOOLEAN,
@@ -41,11 +41,11 @@ ADD COLUMN IF NOT EXISTS business_country "CountryAlpha2",
     ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(32);
 
 ALTER TABLE customers
-ADD COLUMN customer_id VARCHAR(64),
+    ADD COLUMN customer_id VARCHAR(64),
     ADD COLUMN address_id VARCHAR(64);
 
 ALTER TABLE payment_intent
-ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64),
     ADD COLUMN connector_id VARCHAR(64),
     ADD COLUMN shipping_address_id VARCHAR(64),
     ADD COLUMN billing_address_id VARCHAR(64),
@@ -66,7 +66,7 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64),
     ADD COLUMN charges jsonb;
 
 ALTER TABLE payment_attempt
-ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64),
     ADD COLUMN amount bigint,
     ADD COLUMN currency "Currency",
     ADD COLUMN save_to_locker BOOLEAN,

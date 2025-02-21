@@ -1,8 +1,8 @@
 -- Your SQL goes here
 
 ALTER TABLE customers 
-ALTER COLUMN status SET NOT NULL,
-ALTER COLUMN status SET DEFAULT 'active';
+    ALTER COLUMN status SET NOT NULL,
+    ALTER COLUMN status SET DEFAULT 'active';
 
 ---------------------business_profile---------------------
 ALTER TABLE business_profile ALTER COLUMN should_collect_cvv_during_payment SET NOT NULL;

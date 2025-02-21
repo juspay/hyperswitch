@@ -1,14 +1,15 @@
 -- This file contains queries to update the primary key constraints suitable to the v2 application.
 -- This also has queries to update other constraints and indexes on tables where applicable.
+
 ------------------------ Organization -----------------------
+-- Update null id and organization_name fields
 UPDATE ORGANIZATION
 SET id = org_id
 WHERE id IS NULL;
 
 UPDATE ORGANIZATION
 SET organization_name = org_name
-WHERE organization_name IS NULL
-    AND org_name IS NOT NULL;
+WHERE organization_name IS NULL AND org_name IS NOT NULL;
 
 -- Alter queries for organization table
 ALTER TABLE ORGANIZATION
@@ -18,65 +19,60 @@ ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_organization_name_key UNIQUE (organization_name);
 
 ------------------------ Merchant Account -----------------------
--- The new primary key for v2 merchant account will be `id`
--- In order to make id as primary key, it should be unique and not null
--- We need to backfill the id, a simple strategy will be to copy the values of merchant_id to id
--- Query to update the id column with values of merchant_id
--- Note: This query will lock the table, so it should be run when there is no traffic
+-- Backfill id column with merchant_id values
 UPDATE merchant_account
 SET id = merchant_id
 WHERE id IS NULL;
 
--- Note: This command might not run successfully for the existing table
--- This is because there will be some rows ( which are created via v1 application ) which will have id as empty
--- A backfill might be required to run this query
--- However if this is being run on a fresh database, this should succeed
+-- Add primary key constraint
 ALTER TABLE merchant_account
 ADD PRIMARY KEY (id);
 
 ------------------------ Business Profile -----------------------
-
--- Backfill the id column with the profile_id to prevent null values
+-- Backfill id column with profile_id values
 UPDATE business_profile
 SET id = profile_id
 WHERE id IS NULL;
 
+-- Add primary key constraint
 ALTER TABLE business_profile
 ADD PRIMARY KEY (id);
 
 ------------------------ Merchant Connector Account -----------------------
--- Backfill the id column with the merchant_connector_id to prevent null values
+-- Backfill id column with merchant_connector_id values
 UPDATE merchant_connector_account
 SET id = merchant_connector_id
 WHERE id IS NULL;
 
-
+-- Add primary key constraint
 ALTER TABLE merchant_connector_account
 ADD PRIMARY KEY (id);
 
-CREATE INDEX IF NOT EXISTS merchant_connector_account_profile_id_index ON merchant_connector_account (profile_id);
+-- Create index on profile_id
+CREATE INDEX IF NOT EXISTS merchant_connector_account_profile_id_index 
+ON merchant_connector_account (profile_id);
 
 ------------------------ Customers -----------------------
--- Run this query only when V1 is deprecated
--- Back filling before making it primary key
--- This will fail when making `id` as primary key, if the `customer_id` column has duplicate values.
--- Another option is to use a randomly generated ID instead.
+-- Backfill id column with customer_id values
 UPDATE customers
 SET id = customer_id
 WHERE id IS NULL;
 
+-- Add primary key constraint
 ALTER TABLE customers
 ADD PRIMARY KEY (id);
 
 ------------------------ Payment Intent -----------------------
+-- Add primary key constraint
 ALTER TABLE payment_intent
 ADD PRIMARY KEY (id);
 
 ------------------------ Payment Attempt -----------------------
-ALTER TABLE payment_attempt ADD PRIMARY KEY (id);
-
+-- Add primary key constraint
+ALTER TABLE payment_attempt
+ADD PRIMARY KEY (id);
 
 ------------------------ Payment Methods -----------------------
-
+-- Add primary key constraint
 ALTER TABLE payment_methods 
 ADD PRIMARY KEY (id);
