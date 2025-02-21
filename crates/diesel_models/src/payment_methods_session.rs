@@ -41,11 +41,3 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodsSessionUpdate {
-    pub billing: Option<common_utils::encryption::Encryption>,
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-}
