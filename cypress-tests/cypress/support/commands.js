@@ -2091,6 +2091,10 @@ Cypress.Commands.add(
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
 
+    if (reqData.billing === null) {
+      saveCardConfirmBody.billing = null;
+    }
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
