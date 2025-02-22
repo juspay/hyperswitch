@@ -26144,6 +26144,13 @@
           "payout"
         ]
       },
+      "TriggeredBy": {
+        "type": "string",
+        "enum": [
+          "internal",
+          "external"
+        ]
+      },
       "UIWidgetFormLayout": {
         "type": "string",
         "enum": [
