@@ -2090,9 +2090,6 @@ Cypress.Commands.add(
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
-    for (const key in reqData) {
-      saveCardConfirmBody[key] = reqData[key];
-    }
 
     cy.request({
       method: "POST",

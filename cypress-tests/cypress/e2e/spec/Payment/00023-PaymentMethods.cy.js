@@ -121,29 +121,18 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create No 3DS off session save card payment", () => {
-      it("create-payment-call-test", () => {
+      it("create+confirm-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntentOffSession"];
+        ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("confirm-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -183,6 +172,13 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment with token", () => {
+      beforeEach(function () {
+        saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
       it("create-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -233,6 +229,12 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create No 3DS off session save card payment with token", () => {
+      beforeEach(function () {
+        saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
       afterEach("flush global state", () => {
         cy.task("setGlobalState", globalState.data);
       });
