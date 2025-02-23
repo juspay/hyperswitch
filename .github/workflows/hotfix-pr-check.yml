@@ -6,8 +6,6 @@ on:
       - opened
       - edited
       - synchronize
-    branches:
-      - "hotfix-*"
 
 jobs:
   hotfix_pr_check:
