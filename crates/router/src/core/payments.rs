@@ -321,7 +321,7 @@ where
         .attach_printable("Failed while fetching/creating customer")?;
 
     let authentication_type =
-        call_decision_manager(state, &merchant_account, &business_profile, &payment_data).await?;
+        call_decision_manager(state, &merchant_account, &business_profile, &payment_data).await?; // will this bee affected
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
