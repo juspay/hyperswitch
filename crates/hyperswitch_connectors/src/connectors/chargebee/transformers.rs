@@ -22,6 +22,10 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use hyperswitch_domain_models::revenue_recovery;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use std::str::FromStr;
 
 //TODO: Fill the struct with respective fields
 pub struct ChargebeeRouterData<T> {
@@ -240,9 +244,20 @@ pub struct ChargebeeWebhookBody {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceBody {
+    pub content: ChargebeeInvoiceContent,
+    pub event_type: ChargebeeEventType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceContent {
+    pub invoice: ChargebeeInvoiceData,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 
 pub struct ChargebeeWebhookContent {
-    pub transaction: Option<ChargebeeTransactionData>,
+    pub transaction: ChargebeeTransactionData,
     pub invoice: ChargebeeInvoiceData,
     pub customer: Option<ChargebeeCustomer>,
 }
@@ -265,28 +280,57 @@ pub struct ChargebeeInvoiceData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeTransactionData {
-    // gateway transaction id
-    id_at_gateway: String,
-    // transaction status
+    id_at_gateway: Option<String>,
     status: ChargebeeTranasactionStatus,
     error_code: Option<String>,
     error_text: Option<String>,
-    // The gateway account reference used for this transaction
     gateway_account_id: Option<String>,
     currency_code: enums::Currency,
     amount: MinorUnit,
-    #[serde(with = "common_utils::custom_serde::timestamp")]
-    date: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    date: Option<PrimitiveDateTime>,
+    payment_method: ChargebeeTransactionPaymentMethod,
+    payment_method_details: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeTransactionPaymentMethod {
+    Card,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeePaymentMethodDetails {
+    card : ChargebeeCardDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeCardDetails{
+    funding_type: ChargebeeFundingType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeFundingType {
+    Credit,
+    Debit,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeTranasactionStatus {
+    // Waiting for response from the payment gateway.
     InProgress,
+    // The transaction is successful.
     Success,
+    // Transaction failed.
     Failure,
+    // No response received while trying to charge the card.
     Timeout,
+    // Indicates that a successful payment transaction has failed now due to a late failure notification from the payment gateway,
+    // typically caused by issues like insufficient funds or a closed bank account.
     LateFailure,
+    // Connection with Gateway got terminated abruptly. So, status of this transaction needs to be resolved manually
     NeedsAttention,
 }
 
@@ -309,11 +353,20 @@ pub enum ChargebeeGateway {
 }
 
 impl ChargebeeWebhookBody {
-    pub fn get_webhook_object_from_body(
-        body: &[u8],
-    ) -> CustomResult<ChargebeeWebhookBody, errors::ConnectorError> {
+    pub fn get_webhook_object_from_body(body: &[u8]) -> CustomResult<Self, errors::ConnectorError> {
         let webhook_body = body
-            .parse_struct::<ChargebeeWebhookBody>("ChargebeeWebhookBody")
+            .parse_struct::<Self>("ChargebeeWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(webhook_body)
+    }
+}
+
+impl ChargebeeInvoiceBody {
+    pub fn get_invoice_webhook_data_from_body(
+        body: &[u8],
+    ) -> CustomResult<Self, errors::ConnectorError> {
+        let webhook_body = body
+            .parse_struct::<Self>("ChargebeeInvoiceBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(webhook_body)
     }
@@ -339,67 +392,108 @@ impl ChargebeeCustomer {
     }
 }
 
-impl TryFrom<ChargebeeWebhookBody> for hyperswitch_interfaces::recovery::RecoveryPayload {
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: ChargebeeWebhookBody) -> Result<Self, Self::Error> {
-        let amount = item
-            .content
-            .transaction
-            .as_ref()
-            .map_or(item.content.invoice.total.clone(), |trans| {
-                trans.amount.clone()
-            });
-        let currency = item
-            .content
-            .transaction
-            .as_ref()
-            .map_or(item.content.invoice.currency_code.clone(), |trans| {
-                trans.currency_code.clone()
-            });
-        let merchant_reference_id = item.content.invoice.id.clone();
+        let amount = item.content.transaction.amount;
+        let currency = item.content.transaction.currency_code.to_owned();
+        let merchant_reference_id =
+            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let connector_transaction_id = item
             .content
             .transaction
-            .as_ref()
-            .map(|trans| trans.id_at_gateway.clone());
-        let error_code = item
-            .content
-            .transaction
-            .as_ref()
-            .and_then(|trans| trans.error_code.clone());
-        let error_message = item
-            .content
-            .transaction
-            .as_ref()
-            .and_then(|trans| trans.error_text.clone());
-        let (connector_customer_id, connector_mandate_id) = match &item.content.customer {
+            .id_at_gateway
+            .map(common_utils::types::ConnectorTransactionId::TxnId);
+        let error_code = item.content.transaction.error_code.clone();
+        let error_message = item.content.transaction.error_text.clone();
+        let (connector_customer_id, processor_payment_method_token) = match &item.content.customer {
             Some(customer) => {
                 let (customer_id, mandate_id) = customer.find_connector_ids()?;
                 (Some(customer_id), Some(mandate_id))
             }
             None => (None, None),
         };
-        let connector_account_reference_id = item
-            .content
-            .transaction
-            .as_ref()
-            .and_then(|trans| trans.gateway_account_id.clone());
-        let created_at = item
-            .content
-            .transaction
-            .as_ref()
-            .map(|trans| trans.date.clone());
-        Ok(hyperswitch_interfaces::recovery::RecoveryPayload {
+        let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
+        let transaction_created_at = item.content.transaction.date;
+        let status = enums::AttemptStatus::from(item.content.transaction.status);
+        let payment_method_type =
+            enums::PaymentMethod::from(item.content.transaction.payment_method);
+        let payment_method_details: ChargebeePaymentMethodDetails =
+            serde_json::from_str(&item.content.transaction.payment_method_details)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let payment_method_sub_type =
+            enums::PaymentMethodType::from(payment_method_details.card.funding_type);
+        Ok(Self {
             amount,
             currency,
             merchant_reference_id,
+            connector_transaction_id,
             error_code,
             error_message,
+            processor_payment_method_token,
             connector_customer_id,
-            connector_mandate_id,
-            connector_transaction_id,
             connector_account_reference_id,
-            created_at,
+            transaction_created_at,
+            status,
+            payment_method_type,
+            payment_method_sub_type,
+        })
+    }
+}
+
+impl From<ChargebeeTranasactionStatus> for enums::AttemptStatus {
+    fn from(status: ChargebeeTranasactionStatus) -> Self {
+        match status {
+            ChargebeeTranasactionStatus::InProgress
+            | ChargebeeTranasactionStatus::NeedsAttention => Self::Pending,
+            ChargebeeTranasactionStatus::Success => Self::Charged,
+            ChargebeeTranasactionStatus::Failure
+            | ChargebeeTranasactionStatus::Timeout
+            | ChargebeeTranasactionStatus::LateFailure => Self::Pending,
+        }
+    }
+}
+
+impl From<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
+    fn from(payment_method: ChargebeeTransactionPaymentMethod) -> Self {
+        match payment_method {
+            ChargebeeTransactionPaymentMethod::Card => Self::Card,
+        }
+    }
+}
+
+impl From<ChargebeeFundingType> for enums::PaymentMethodType {
+    fn from(funding_type: ChargebeeFundingType) -> Self {
+        match funding_type {
+            ChargebeeFundingType::Credit => Self::Credit,
+            ChargebeeFundingType::Debit => Self::Debit,
+        }
+    }
+}
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+        }
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
+        let merchant_reference_id =
+            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Self {
+            amount: item.content.invoice.total,
+            currency: item.content.invoice.currency_code,
+            merchant_reference_id,
         })
     }
 }
