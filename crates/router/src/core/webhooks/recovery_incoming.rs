@@ -152,7 +152,6 @@ impl RevenueRecoveryInvoice {
             None,
         ))
         .await;
-        router_env::logger::info!(?payment_response);
         let response = match payment_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
                 let payment_id = payments_response.id.clone();
@@ -172,8 +171,13 @@ impl RevenueRecoveryInvoice {
             {
                 Ok(None)
             }
-            Ok(_) | Err(_) => Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
-                .attach_printable("failed to fetch payment intent recovery webhook flow"),
+            Ok(_) => Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+                .attach_printable("Unexpected response from payment intent core"),
+            error @ Err(_) => {
+                router_env::logger::error!(?error);
+                Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+                    .attach_printable("failed to fetch payment intent recovery webhook flow")
+            }
         }?;
         Ok(response)
     }
@@ -211,7 +215,6 @@ impl RevenueRecoveryInvoice {
         ))
         .await
         .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)?;
-        router_env::logger::info!(?create_intent_response);
         let response = payments::handle_payments_intent_response(create_intent_response)
             .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)?;
 
@@ -260,7 +263,6 @@ impl RevenueRecoveryAttempt {
             hyperswitch_domain_models::payments::HeaderPayload::default(),
         ))
         .await;
-        router_env::logger::info!(?attempt_response);
         let response = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
                 let final_attempt =
@@ -281,8 +283,13 @@ impl RevenueRecoveryAttempt {
                     });
                 Ok(payment_attempt)
             }
-            Ok(_) | Err(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
-                .attach_printable("Failed to fetch Payment attempt in recovery webhook flow"),
+            Ok(_) => Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+                .attach_printable("Unexpected response from payment intent core"),
+            error @ Err(_) => {
+                router_env::logger::error!(?error);
+                Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+                    .attach_printable("failed to fetch payment intent recovery webhook flow")
+            }
         }?;
         Ok(response)
     }
