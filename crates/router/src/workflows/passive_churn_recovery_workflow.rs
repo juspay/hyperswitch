@@ -47,7 +47,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
+            .parse_value::<pcr_storage_types::PcrWorkflowTrackingData>(
             "PCRWorkflowTrackingData",
         )?;
         let request = PaymentsGetIntentRequest {
@@ -70,13 +70,13 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             request,
             tracking_data.global_payment_id.clone(),
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            pcr_data.platform_merchant_account.clone(),
+            None,
         )
         .await?;
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                pcr::perform_execute_task(
+                pcr::perform_execute_payment(
                     state,
                     &process,
                     &tracking_data,
@@ -96,8 +96,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
-    tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
-) -> Result<pcr_storage_types::PCRPaymentData, errors::ProcessTrackerError> {
+    tracking_data: &pcr_storage_types::PcrWorkflowTrackingData,
+) -> Result<pcr_storage_types::PcrPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
     let key_manager_state = &state.into();
@@ -124,24 +124,10 @@ pub(crate) async fn extract_data_and_perform_action(
             &tracking_data.profile_id,
         )
         .await?;
-    let platform_merchant_account =
-        if let Some(platform_merchant_id) = &tracking_data.platform_merchant_id {
-            Some(
-                db.find_merchant_account_by_merchant_id(
-                    key_manager_state,
-                    platform_merchant_id,
-                    &key_store,
-                )
-                .await?,
-            )
-        } else {
-            None
-        };
 
-    let pcr_payment_data = pcr_storage_types::PCRPaymentData {
+    let pcr_payment_data = pcr_storage_types::PcrPaymentData {
         merchant_account,
         profile,
-        platform_merchant_account,
         key_store,
     };
     Ok(pcr_payment_data)

@@ -1,10 +1,10 @@
 use common_enums::AttemptStatus;
 
 use crate::{
-    core::passive_churn_recovery::types::PCRAttemptStatus, types::transformers::ForeignFrom,
+    core::passive_churn_recovery::types::PcrAttemptStatus, types::transformers::ForeignFrom,
 };
 
-impl ForeignFrom<AttemptStatus> for PCRAttemptStatus {
+impl ForeignFrom<AttemptStatus> for PcrAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
         match s {
             AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {

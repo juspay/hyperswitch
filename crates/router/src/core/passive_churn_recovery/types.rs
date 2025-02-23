@@ -4,8 +4,9 @@ use diesel_models::{enums, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_account,
-    payments::{payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent},
+    payments::{PaymentConfirmData, PaymentIntent},
 };
+use time::PrimitiveDateTime;
 
 use crate::{
     core::{
@@ -23,7 +24,7 @@ type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
 
 /// The status of Passive Churn Payments
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub enum PCRAttemptStatus {
+pub enum PcrAttemptStatus {
     Succeeded,
     Failed,
     Processing,
@@ -31,59 +32,14 @@ pub enum PCRAttemptStatus {
     //  Cancelled,
 }
 
-impl PCRAttemptStatus {
-    pub(crate) async fn update_pt_status_based_on_attempt_status(
+impl PcrAttemptStatus {
+    pub(crate) async fn update_pt_status_based_on_attempt_status_for_execute_payment(
         &self,
         db: &dyn StorageInterface,
-        merchant_id: &id_type::MerchantId,
-        pt_psync_process: storage::ProcessTracker,
         execute_task_process: &storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         match &self {
-            Self::Succeeded => {
-                // finish psync task as the payment was a success
-                db.finish_process_with_business_status(
-                    pt_psync_process,
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await?;
-                // TODO: send back the successful webhook
-
-                // finish the current execute task as the payment has been completed
-                db.finish_process_with_business_status(
-                    execute_task_process.clone(),
-                    business_status::EXECUTE_WORKFLOW_COMPLETE,
-                )
-                .await?;
-            }
-
-            Self::Failed => {
-                // finish psync task
-                db.finish_process_with_business_status(
-                    pt_psync_process.clone(),
-                    business_status::PSYNC_WORKFLOW_COMPLETE,
-                )
-                .await?;
-
-                // get a reschedule time
-                let schedule_time = get_schedule_time_to_retry_mit_payments(
-                    db,
-                    merchant_id,
-                    execute_task_process.retry_count + 1,
-                )
-                .await;
-
-                // check if retry is possible
-                if let Some(schedule_time) = schedule_time {
-                    // schedule a retry
-                    db.retry_process(execute_task_process.clone(), schedule_time)
-                        .await?;
-                } else {
-                    // TODO: Record a failure back to the billing connector
-                }
-            }
-
-            Self::Processing => {
+            Self::Succeeded | Self::Failed | Self::Processing => {
                 // finish the current execute task
                 db.finish_process_with_business_status(
                     execute_task_process.clone(),
@@ -113,9 +69,9 @@ impl PCRAttemptStatus {
 }
 #[derive(Debug, Clone)]
 pub enum Decision {
-    ExecuteTask,
-    PsyncTask(AttemptStatus),
-    InvalidTask,
+    Execute,
+    Psync(AttemptStatus, id_type::GlobalAttemptId),
+    Invalid,
 }
 
 impl Decision {
@@ -124,11 +80,11 @@ impl Decision {
         intent_status: IntentStatus,
         called_connector: bool,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
-        pcr_data: &storage::passive_churn_recovery::PCRPaymentData,
+        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         Ok(match (intent_status, called_connector, active_attempt_id) {
-            (IntentStatus::Failed, false, None) => Self::ExecuteTask,
+            (IntentStatus::Failed, false, None) => Self::Execute,
             (IntentStatus::Processing, true, Some(_)) => {
                 let psync_data = core_pcr::call_psync_api(state, payment_id, pcr_data)
                     .await
@@ -139,17 +95,17 @@ impl Decision {
                     .get_required_value("Payment Attempt")
                     .change_context(errors::RecoveryError::ValueNotFound)
                     .attach_printable("Error while executing the Psync call")?;
-                Self::PsyncTask(payment_attempt.status)
+                Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
             }
-            _ => Self::InvalidTask,
+            _ => Self::Invalid,
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    SyncPayment,
-    RetryPayment,
+    SyncPayment(id_type::GlobalAttemptId),
+    RetryPayment(PrimitiveDateTime),
     TerminalFailure,
     SuccessfulPayment,
     ReviewPayment,
@@ -167,22 +123,25 @@ impl Action {
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
-                PCRAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
-                PCRAttemptStatus::Failed => {
+                PcrAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
+                PcrAttemptStatus::Failed => {
                     Self::decide_retry_failure_action(db, merchant_id, process.clone()).await
                 }
 
-                PCRAttemptStatus::Processing => Ok(Self::SyncPayment),
-                PCRAttemptStatus::InvalidAction(action) => {
+                PcrAttemptStatus::Processing => {
+                    Ok(Self::SyncPayment(payment_data.payment_attempt.id))
+                }
+                PcrAttemptStatus::InvalidAction(action) => {
                     logger::info!(?action, "Invalid Payment Status For PCR Payment");
                     Ok(Self::ManualReviewAction)
                 }
             },
-            Err(_) =>
+            Err(err) =>
             // check for an active attempt being constructed or not
             {
+                logger::error!(execute_payment_res=?err);
                 match payment_intent.active_attempt_id.clone() {
-                    Some(_) => Ok(Self::SyncPayment),
+                    Some(attempt_id) => Ok(Self::SyncPayment(attempt_id)),
                     None => Ok(Self::ReviewPayment),
                 }
             }
@@ -198,13 +157,13 @@ impl Action {
         profile: &business_profile::Profile,
     ) -> Result<(), errors::ProcessTrackerError> {
         match self {
-            Self::SyncPayment => {
+            Self::SyncPayment(attempt_id) => {
                 core_pcr::insert_psync_pcr_task(
                     db,
                     merchant_account.get_id().to_owned(),
                     payment_intent.id.clone(),
                     profile.get_id().to_owned(),
-                    payment_intent.active_attempt_id.clone(),
+                    attempt_id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 )
                 .await
@@ -222,15 +181,10 @@ impl Action {
                 Ok(())
             }
 
-            Self::RetryPayment => {
+            Self::RetryPayment(schedule_time) => {
                 let mut pt = execute_task_process.clone();
                 // update the schedule time
-                pt.schedule_time = get_schedule_time_to_retry_mit_payments(
-                    db,
-                    merchant_account.get_id(),
-                    pt.retry_count + 1,
-                )
-                .await;
+                pt.schedule_time = Some(*schedule_time);
 
                 let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
                     status: storage::enums::ProcessTrackerStatus::Pending,
@@ -274,7 +228,7 @@ impl Action {
         let schedule_time =
             get_schedule_time_to_retry_mit_payments(db, merchant_id, pt.retry_count + 1).await;
         match schedule_time {
-            Some(_) => Ok(Self::RetryPayment),
+            Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
 
             None => Ok(Self::TerminalFailure),
         }

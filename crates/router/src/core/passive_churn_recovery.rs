@@ -26,16 +26,16 @@ use crate::{
     },
 };
 
-pub async fn perform_execute_task(
+pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
-    tracking_data: &pcr::PCRWorkflowTrackingData,
-    pcr_data: &pcr::PCRPaymentData,
+    tracking_data: &pcr::PcrWorkflowTrackingData,
+    pcr_data: &pcr::PcrPaymentData,
     _key_manager_state: &KeyManagerState,
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
-    let decision_task = pcr_types::Decision::get_decision_based_on_params(
+    let decision = pcr_types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
         false,
@@ -44,9 +44,9 @@ pub async fn perform_execute_task(
         &tracking_data.global_payment_id,
     )
     .await?;
-
-    match decision_task {
-        pcr_types::Decision::ExecuteTask => {
+    // TODO decide if its a global failure or is it requeueable error
+    match decision {
+        pcr_types::Decision::Execute => {
             let action = pcr_types::Action::execute_payment(
                 db,
                 pcr_data.merchant_account.get_id(),
@@ -65,25 +65,20 @@ pub async fn perform_execute_task(
                 .await?;
         }
 
-        pcr_types::Decision::PsyncTask(attempt_status) => {
+        pcr_types::Decision::Psync(attempt_status, attempt_id) => {
             // find if a psync task is already present
             let task = "PSYNC_WORKFLOW";
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-            let process_tracker_id = format!(
-                "{runner}_{task}_{}",
-                payment_intent.get_id().get_string_repr()
-            );
-            let psync_task_process = db.find_process_by_id(&process_tracker_id).await?;
+            let process_tracker_id = format!("{runner}_{task}_{}", attempt_id.get_string_repr());
+            let psync_process = db.find_process_by_id(&process_tracker_id).await?;
 
-            match psync_task_process {
-                Some(psync_process) => {
-                    let pcr_status: pcr_types::PCRAttemptStatus = attempt_status.foreign_into();
+            match psync_process {
+                Some(_) => {
+                    let pcr_status: pcr_types::PcrAttemptStatus = attempt_status.foreign_into();
 
                     pcr_status
-                        .update_pt_status_based_on_attempt_status(
+                        .update_pt_status_based_on_attempt_status_for_execute_payment(
                             db,
-                            pcr_data.merchant_account.get_id(),
-                            psync_process,
                             execute_task_process,
                         )
                         .await?;
@@ -96,7 +91,7 @@ pub async fn perform_execute_task(
                         pcr_data.merchant_account.get_id().clone(),
                         payment_intent.get_id().clone(),
                         pcr_data.profile.get_id().clone(),
-                        payment_intent.active_attempt_id.clone(),
+                        attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     )
                     .await?;
@@ -110,7 +105,7 @@ pub async fn perform_execute_task(
                 }
             };
         }
-        pcr_types::Decision::InvalidTask => {
+        pcr_types::Decision::Invalid => {
             db.finish_process_with_business_status(
                 execute_task_process.clone(),
                 business_status::EXECUTE_WORKFLOW_COMPLETE,
@@ -119,6 +114,7 @@ pub async fn perform_execute_task(
             logger::warn!("Abnormal State Identified")
         }
     }
+
     Ok(())
 }
 
@@ -127,17 +123,16 @@ async fn insert_psync_pcr_task(
     merchant_id: id_type::MerchantId,
     payment_id: id_type::GlobalPaymentId,
     profile_id: id_type::ProfileId,
-    payment_attempt_id: Option<id_type::GlobalAttemptId>,
+    payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "PSYNC_WORKFLOW";
-    let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
+    let process_tracker_id = format!("{runner}_{task}_{}", payment_attempt_id.get_string_repr());
     let schedule_time = common_utils::date_time::now();
-    let psync_workflow_tracking_data = pcr::PCRWorkflowTrackingData {
+    let psync_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
         global_payment_id: payment_id,
         merchant_id,
         profile_id,
-        platform_merchant_id: None,
         payment_attempt_id,
     };
     let tag = ["PCR"];
@@ -157,7 +152,7 @@ async fn insert_psync_pcr_task(
         .await
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct delete tokenized data process tracker task")?;
-    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "PsyncPCR")));
+    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "PsyncPcr")));
 
     Ok(response)
 }
@@ -165,7 +160,7 @@ async fn insert_psync_pcr_task(
 pub async fn call_psync_api(
     state: &SessionState,
     global_payment_id: &id_type::GlobalPaymentId,
-    pcr_data: &pcr::PCRPaymentData,
+    pcr_data: &pcr::PcrPaymentData,
 ) -> RouterResult<PaymentStatusData<api::PSync>> {
     let operation = payments::operations::PaymentGet;
     let req = PaymentsRetrieveRequest {
@@ -173,7 +168,7 @@ pub async fn call_psync_api(
         param: None,
         expand_attempts: true,
     };
-
+    // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
     let get_tracker_response = operation
         .to_get_tracker()?
