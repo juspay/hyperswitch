@@ -171,6 +171,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
         self.validate_status_for_operation(payment_intent.status)?;
         let client_secret = header_payload
             .client_secret
@@ -459,6 +461,25 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_attempt = updated_payment_attempt;
+
+        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
+            let customer_id = customer.get_id().clone();
+            let customer_merchant_id = customer.merchant_id.clone();
+
+            let _updated_customer = db
+                .update_customer_by_global_id(
+                    key_manager_state,
+                    &customer_id,
+                    customer,
+                    &customer_merchant_id,
+                    updated_customer,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer during `update_trackers`")?;
+        }
 
         Ok((Box::new(self), payment_data))
     }
