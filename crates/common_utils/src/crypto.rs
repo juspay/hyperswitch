@@ -1,13 +1,15 @@
 //! Utilities for cryptographic algorithms
 use std::ops::Deref;
 
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use md5;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
 };
+#[cfg(feature = "logs")]
+use router_env::logger;
 
 use crate::{
     errors::{self, CustomResult},
@@ -105,6 +107,29 @@ pub trait DecodeMessage {
         &self,
         _secret: &[u8],
         _msg: Secret<Vec<u8>, EncryptionStrategy>,
+        _iv: Option<&[u8]>,
+    ) -> CustomResult<Vec<u8>, errors::CryptoError>;
+}
+
+/// Trait for generating shared key using public and private keys
+pub trait GetSharedKey {
+    /// Takes in a public key and a private key and returns the shared key
+    fn get_shared_key(
+        &self,
+        _public_key: &[u8],
+        _private_key: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError>;
+}
+
+/// Trait for deriving key (Symmetric Key + MAC Key) from a secret
+pub trait DeriveKey {
+    /// Takes in a key, a shared secret and an optional salt and returns the derived key
+    fn derive_key(
+        &self,
+        _key: &[u8],
+        _shared_secret: &[u8],
+        _info: &[u8],
+        _salt: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
@@ -149,6 +174,7 @@ impl DecodeMessage for NoAlgorithm {
         &self,
         _secret: &[u8],
         msg: Secret<Vec<u8>, EncryptionStrategy>,
+        _iv: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         Ok(msg.expose())
     }
@@ -305,6 +331,7 @@ impl DecodeMessage for GcmAes256 {
         &self,
         secret: &[u8],
         msg: Secret<Vec<u8>, EncryptionStrategy>,
+        _iv: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let msg = msg.expose();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
@@ -413,6 +440,135 @@ impl VerifySignature for Sha256 {
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         let hashed_digest_into_bytes = hashed_digest.as_slice();
         Ok(hashed_digest_into_bytes == signature)
+    }
+}
+
+/// Advanceed Encrypption Standard 256 with Counter(CTR) mode
+#[derive(Debug)]
+pub struct CtrAes256;
+
+impl DecodeMessage for CtrAes256 {
+    fn decode_message(
+        &self,
+        secret: &[u8],
+        msg: Secret<Vec<u8>, EncryptionStrategy>,
+        iv: Option<&[u8]>,
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let encrypted_message = msg.expose();
+        // extract the tag from the end of the encrypted message
+        let tag = encrypted_message
+            .get(encrypted_message.len() - 16..)
+            .ok_or(errors::CryptoError::DecodingFailed)?;
+
+        let cipher = openssl::symm::Cipher::aes_256_ctr();
+        let decrypted_data =
+            openssl::symm::decrypt_aead(cipher, secret, iv, &[], &encrypted_message, tag)
+                .change_context(errors::CryptoError::DecodingFailed)?;
+
+        Ok(decrypted_data)
+    }
+}
+
+/// Elliptic Curve Digital Signature Algorithm
+#[derive(Debug)]
+pub struct ECDSA;
+
+impl VerifySignature for ECDSA {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        // parse the DER-encoded data as an EC public key
+        let ec_key = openssl::ec::EcKey::public_key_from_der(secret)
+            .change_context(errors::CryptoError::DerivingEcKeyFailed)?;
+
+        // parse the signature using ECDSA
+        let ecdsa_signature = openssl::ecdsa::EcdsaSig::from_der(signature)
+            .change_context(errors::CryptoError::EcdsaSignatureFailed)?;
+
+        // hash the signed data
+        let message_hash = openssl::sha::sha256(msg);
+
+        // verify the signature
+        ecdsa_signature
+            .verify(&message_hash, &ec_key)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+    }
+}
+
+impl GetSharedKey for ECDSA {
+    fn get_shared_key(
+        &self,
+        public_key: &[u8],
+        private_key: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let private_key = openssl::pkey::PKey::private_key_from_pkcs8(private_key)
+            .change_context(errors::CryptoError::DerivingPrivateKeyFailed)
+            .attach_printable("cannot convert private key from decode_key")?;
+
+        let group = openssl::ec::EcGroup::from_curve_name(openssl::nid::Nid::X9_62_PRIME256V1)
+            .change_context(errors::CryptoError::DerivingEcGroupFailed)?;
+
+        let mut big_num_context = openssl::bn::BigNumContext::new()
+            .change_context(errors::CryptoError::BigNumAllocationFailed)?;
+
+        let ec_key = openssl::ec::EcPoint::from_bytes(&group, public_key, &mut big_num_context)
+            .change_context(errors::CryptoError::DerivingEcKeyFailed)?;
+
+        // create an ephemeral public key from the given bytes
+        let ephemeral_public_key = openssl::ec::EcKey::from_public_key(&group, &ec_key)
+            .change_context(errors::CryptoError::DerivingPublicKeyFailed)?;
+
+        // wrap the public key in a PKey
+        let ephemeral_pkey = openssl::pkey::PKey::from_ec_key(ephemeral_public_key)
+            .change_context(errors::CryptoError::DerivingPublicKeyFailed)?;
+
+        // perform ECDH to derive the shared key
+        let mut deriver = openssl::derive::Deriver::new(&private_key)
+            .change_context(errors::CryptoError::DerivingSharedSecretKeyFailed)?;
+
+        deriver
+            .set_peer(&ephemeral_pkey)
+            .change_context(errors::CryptoError::DerivingSharedSecretKeyFailed)?;
+
+        let shared_key = deriver
+            .derive_to_vec()
+            .change_context(errors::CryptoError::DerivingSharedSecretKeyFailed)?;
+
+        Ok(shared_key)
+    }
+}
+
+/// HMAC-based Key Derivation Function with SHA-256
+#[derive(Debug)]
+pub struct HkdfSha256;
+
+impl DeriveKey for HkdfSha256 {
+    fn derive_key(
+        &self,
+        key: &[u8],
+        shared_secret: &[u8],
+        info: &[u8],
+        salt: Option<&[u8]>,
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        // concatenate key and shared secret
+        let input_key_material = [key, shared_secret].concat();
+
+        // initialize HKDF with salt and SHA-256 as the hash function
+        let hkdf: ::hkdf::Hkdf<sha2::Sha256> = ::hkdf::Hkdf::new(salt, &input_key_material);
+
+        // derive 64 bytes for the output key (symmetric encryption + MAC key)
+        let mut output_key = vec![0u8; 64];
+
+        hkdf.expand(info, &mut output_key).map_err(|_| {
+            #[cfg(feature = "logs")]
+            logger::error!("Failed to derive the shared secret");
+            report!(errors::CryptoError::DerivingSharedSecretFailed)
+        })?;
+
+        Ok(output_key)
     }
 }
 
@@ -666,7 +822,7 @@ mod crypto_tests {
 
         assert_eq!(
             algorithm
-                .decode_message(&secret, encoded_message.into())
+                .decode_message(&secret, encoded_message.into(), None)
                 .expect("Decode Failed"),
             message
         );
@@ -694,7 +850,7 @@ mod crypto_tests {
         let algorithm = super::GcmAes256;
 
         let decoded = algorithm
-            .decode_message(&right_secret, message.clone().into())
+            .decode_message(&right_secret, message.clone().into(), None)
             .expect("Decoded message");
 
         assert_eq!(
@@ -703,7 +859,7 @@ mod crypto_tests {
                 .expect("Decoded plaintext message")
         );
 
-        let err_decoded = algorithm.decode_message(&wrong_secret, message.into());
+        let err_decoded = algorithm.decode_message(&wrong_secret, message.into(), None);
 
         assert!(err_decoded.is_err());
     }

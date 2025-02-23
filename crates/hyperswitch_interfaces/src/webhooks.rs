@@ -90,7 +90,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         algorithm
-            .decode_message(&secret.secret, message.into())
+            .decode_message(&secret.secret, message.into(), None)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
