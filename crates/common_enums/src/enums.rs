@@ -1651,6 +1651,12 @@ pub enum PaymentMethodType {
     DirectCarrierBilling,
 }
 
+impl PaymentMethodType {
+    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
+        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+    }
+}
+
 impl masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -7584,4 +7590,29 @@ pub enum PaymentConnectorTransmission {
     ConnectorCallFailed,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TriggeredBy {
+    /// Denotes payment attempt is been created by internal system.
+    #[default]
+    Internal,
+    /// Denotes payment attempt is been created by external system.
+    External,
 }
