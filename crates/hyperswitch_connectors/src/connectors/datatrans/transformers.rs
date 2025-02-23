@@ -93,6 +93,8 @@ pub enum TransactionStatus {
     Canceled,
     Transmitted,
     Failed,
+    ChallengeOngoing,
+    ChallengeRequired,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -127,7 +129,7 @@ pub struct SyncResponse {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncCardDetails {
-    pub alias: String,
+    pub alias: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -499,6 +501,9 @@ impl From<SyncResponse> for enums::AttemptStatus {
             TransactionType::Payment => match item.status {
                 TransactionStatus::Authorized => Self::Authorized,
                 TransactionStatus::Settled | TransactionStatus::Transmitted => Self::Charged,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::AuthenticationPending
+                }
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
@@ -507,6 +512,9 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Settled
                 | TransactionStatus::Transmitted
                 | TransactionStatus::Authorized => Self::Charged,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::AuthenticationPending
+                }
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
@@ -521,6 +529,9 @@ impl From<SyncResponse> for enums::RefundStatus {
         match item.res_type {
             TransactionType::Credit => match item.status {
                 TransactionStatus::Settled | TransactionStatus::Transmitted => Self::Success,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::Pending
+                }
                 TransactionStatus::Initialized
                 | TransactionStatus::Authenticated
                 | TransactionStatus::Authorized
@@ -776,9 +787,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         connector_transaction_id: None,
                     })
                 } else {
-                    let mandate_reference =
-                        sync_response.card.as_ref().map(|card| MandateReference {
-                            connector_mandate_id: Some(card.alias.clone()),
+                    let mandate_reference = sync_response
+                        .card
+                        .as_ref()
+                        .and_then(|card| card.alias.as_ref())
+                        .map(|alias| MandateReference {
+                            connector_mandate_id: Some(alias.clone()),
                             payment_method_id: None,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,

@@ -575,6 +575,7 @@ impl Payments {
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
             )
+            .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )

@@ -816,7 +816,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Worldpay,
     connectors::Wellsfargo,
     connectors::Volt,
-    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard

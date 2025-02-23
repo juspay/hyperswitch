@@ -1520,15 +1520,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req.request.currency,
         )?;
         let request_body = match req.request.split_refunds.as_ref() {
-            Some(SplitRefundsRequest::AdyenSplitRefund(_)) | None => {
-                RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
-                    req,
-                    refund_amount,
-                ))?))
-            }
             Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
                 Box::new(stripe::ChargeRefundRequest::try_from(req)?),
             ),
+            _ => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
+                req,
+                refund_amount,
+            ))?)),
         };
         Ok(request_body)
     }

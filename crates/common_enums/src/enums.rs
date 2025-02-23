@@ -1653,6 +1653,12 @@ pub enum PaymentMethodType {
     DirectCarrierBilling,
 }
 
+impl PaymentMethodType {
+    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
+        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+    }
+}
+
 impl masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
