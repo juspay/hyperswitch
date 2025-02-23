@@ -1,3 +1,6 @@
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use std::str::FromStr;
+
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -5,6 +8,8 @@ use common_utils::{
     types::{MinorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -22,10 +27,6 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use hyperswitch_domain_models::revenue_recovery;
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use std::str::FromStr;
 
 //TODO: Fill the struct with respective fields
 pub struct ChargebeeRouterData<T> {
@@ -301,11 +302,11 @@ pub enum ChargebeeTransactionPaymentMethod {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeePaymentMethodDetails {
-    card : ChargebeeCardDetails,
+    card: ChargebeeCardDetails,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ChargebeeCardDetails{
+pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
 }
 

@@ -8,6 +8,8 @@ use common_utils::{
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -37,10 +39,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use hyperswitch_domain_models::revenue_recovery;
-
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use transformers::{self as chargebee, ChargebeeWebhookBody};
 
@@ -604,8 +602,9 @@ impl webhooks::IncomingWebhook for Chargebee {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook = chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let webhook =
+            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
             api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
         ))
@@ -615,7 +614,6 @@ impl webhooks::IncomingWebhook for Chargebee {
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -623,8 +621,9 @@ impl webhooks::IncomingWebhook for Chargebee {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let webhook = chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let webhook =
+            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
     }
@@ -640,18 +639,16 @@ impl webhooks::IncomingWebhook for Chargebee {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook = chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let webhook =
+            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(webhook))
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_attempt_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        revenue_recovery::RevenueRecoveryAttemptData,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
         let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
         revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)
     }
@@ -659,14 +656,11 @@ impl webhooks::IncomingWebhook for Chargebee {
     fn get_revenue_recovery_invoice_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        revenue_recovery::RevenueRecoveryInvoiceData,
-        errors::ConnectorError,
-    > {
-        let webhook = transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
+    ) -> CustomResult<revenue_recovery::RevenueRecoveryInvoiceData, errors::ConnectorError> {
+        let webhook =
+            transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
         revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
     }
-    
 }
 
 impl ConnectorSpecifications for Chargebee {}
