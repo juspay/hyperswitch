@@ -11,7 +11,7 @@ use super::{
 ))]
 use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(feature = "v1")]
-use crate::payments::{PaymentListResponse, PaymentListResponseV2};
+use crate::payments::{PaymentListFilterConstraints, PaymentListResponseV2};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
@@ -23,16 +23,15 @@ use crate::{
         PaymentMethodUpdate,
     },
     payments::{
-        self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
-        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsResponse,
-        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints, PaymentListFilters,
+        PaymentListFiltersV2, PaymentListResponse, PaymentsAggregateResponse,
+        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
+        PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
         RedirectionResponse,
     },
 };
@@ -160,7 +159,7 @@ impl ApiEventMetric for PaymentsRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentsResponse {
+impl ApiEventMetric for payments::PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
@@ -350,6 +349,7 @@ impl ApiEventMetric for PaymentMethodCollectLinkResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListFilterConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
@@ -373,7 +373,6 @@ impl ApiEventMetric for PaymentListConstraints {
     }
 }
 
-#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)

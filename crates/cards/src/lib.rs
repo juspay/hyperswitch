@@ -7,7 +7,7 @@ use masking::{PeekInterface, StrongSecret};
 use serde::{de, Deserialize, Serialize};
 use time::{util::days_in_year_month, Date, Duration, PrimitiveDateTime, Time};
 
-pub use crate::validate::{CardNumber, CardNumberStrategy, CardNumberValidationErr};
+pub use crate::validate::{CardNumber, CardNumberStrategy, CardNumberValidationErr, NetworkToken};
 
 #[derive(Serialize)]
 pub struct CardSecurityCode(StrongSecret<u16>);

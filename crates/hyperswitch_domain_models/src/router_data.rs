@@ -9,7 +9,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
-use crate::{payment_address::PaymentAddress, payment_method_data, payments};
+use crate::{
+    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
+    payments,
+};
 #[cfg(feature = "v2")]
 use crate::{
     payments::{
@@ -294,7 +297,7 @@ pub struct PazeDecryptedData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: NetworkTokenNumber,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
     pub payment_account_reference: Secret<String>,
@@ -515,7 +518,7 @@ impl
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
-                    charge_id,
+                    charges,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -734,7 +737,7 @@ impl
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
-                    charge_id,
+                    charges,
                 } => {
                     let attempt_status = self.status;
 
@@ -949,7 +952,7 @@ impl
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
-                    charge_id,
+                    charges,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -1168,7 +1171,7 @@ impl
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
-                    charge_id,
+                    charges,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 

@@ -111,12 +111,11 @@ where
             };
 
             let network_transaction_id =
-                if let Some(network_transaction_id) = network_transaction_id {
-                    if business_profile.is_connector_agnostic_mit_enabled == Some(true)
-                        && save_payment_method_data.request.get_setup_future_usage()
-                            == Some(storage_enums::FutureUsage::OffSession)
-                    {
-                        Some(network_transaction_id)
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    if network_transaction_id.is_some() {
+                        network_transaction_id
                     } else {
                         logger::info!("Skip storing network transaction id");
                         None
@@ -656,9 +655,11 @@ where
                     },
                     None => {
                         let customer_saved_pm_option = if payment_method_type
-                            == Some(api_models::enums::PaymentMethodType::ApplePay)
-                            || payment_method_type
-                                == Some(api_models::enums::PaymentMethodType::GooglePay)
+                            .map(|payment_method_type_value| {
+                                payment_method_type_value
+                                    .should_check_for_customer_saved_payment_method_type()
+                            })
+                            .unwrap_or(false)
                         {
                             match state
                                 .store
