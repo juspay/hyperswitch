@@ -1,15 +1,20 @@
+#[cfg(feature = "v1")]
 use std::str::FromStr;
 
+use api_models::enums as api_enums;
+#[cfg(feature = "v1")]
 use api_models::{
-    admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
-    refunds::MinorUnit,
+    admin as admin_api, payment_methods::RequestPaymentMethodTypes, refunds::MinorUnit,
 };
+use euclid::frontend::dir;
+#[cfg(feature = "v1")]
 use euclid::{
     dirval,
-    frontend::{ast, dir},
+    frontend::ast,
     types::{NumValue, NumValueRefinement},
 };
 use hyperswitch_constraint_graph as cgraph;
+#[cfg(feature = "v1")]
 use strum::IntoEnumIterator;
 
 use crate::{error::KgraphError, transformers::IntoDirValue, types as kgraph_types};
@@ -402,6 +407,7 @@ fn compile_payment_method_enabled(
     Ok(agg_id)
 }
 
+#[allow(unused_macros)]
 macro_rules! collect_global_variants {
     ($parent_enum:ident) => {
         &mut dir::enums::$parent_enum::iter()
@@ -452,6 +458,7 @@ fn global_vec_pmt(
         .collect::<Vec<_>>()
 }
 
+#[allow(dead_code)]
 fn compile_graph_for_countries_and_currencies(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CurrencyCountryFlowFilter,
