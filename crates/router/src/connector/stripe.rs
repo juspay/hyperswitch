@@ -477,8 +477,8 @@ impl
     > for Stripe
 {
     fn get_headers(
-        &self,TokenizationRouterData
-        req: &types::,
+        &self,
+        req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(

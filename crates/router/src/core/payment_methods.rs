@@ -64,6 +64,7 @@ use crate::{
     routes::{self, payment_methods as pm_routes},
     services::encryption,
     types::{
+        self,
         api::{self, payment_methods::PaymentMethodCreateExt},
         domain::types as domain_types,
         payment_methods as pm_types,
@@ -71,6 +72,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
+    consts::{IRRELEVANT_PAYMENT_ATTEMPT_ID, IRRELEVANT_PAYMENT_INTENT_ID},
 };
 use crate::{
     consts,
@@ -859,6 +861,7 @@ pub async fn create_payment_method_core(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     profile: &domain::Profile,
+    payment_method_session_id: &id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResult<api::PaymentMethodResponse> {
     use common_utils::ext_traits::ValueExt;
 
@@ -2461,6 +2464,7 @@ pub async fn payment_methods_session_confirm(
         &merchant_account,
         &key_store,
         &profile,
+        &payment_method_session_id
     )
     .await?;
 
@@ -2573,23 +2577,43 @@ async fn add_token_call_to_store(
     payment_method_create_request: &payment_methods::PaymentMethodCreate,
     payment_method: &domain::PaymentMethod,
 ) -> RouterResult<()>{
-    let customer_id = req.customer_id.to_owned();
+    let customer_id = payment_method_create_request.customer_id.to_owned();
+    let db = &state.store;
     // call merchant connector account via merchant_connector_id ( connector, connector_auth_type)
+    let merchant_connector_account_details = db
+        .find_merchant_connector_account_by_id(&state.into(), connector_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: connector_id.get_string_repr().to_owned(),
+        })
+        .attach_printable("error while fetching merchant_connector_account from connector_id")?;
+    let auth_type = merchant_connector_account_details
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+    let payment_method_data_request = types::PaymentMethodTokenizationData{
+        payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData::from(payment_method_create_request.payment_method_data.clone()),
+        browser_info: None,
+        currency: storage::Currency::default(),
+        amount: None
+    };
+
+    let payment_method_session
     // via payment_method_Session get address
     let router_data = types::RouterData {
         flow: std::marker::PhantomData,
         merchant_id: merchant_account.get_id().clone(),
-        customer_id,
+        customer_id: None,
         connector_customer: None,
-        connector: String::new(),
-        payment_id: String::new(),
-        attempt_id: String::new(),
+        connector: merchant_connector_account_details.connector_name.clone(),
+        payment_id: IRRELEVANT_PAYMENT_INTENT_ID.to_string(),//Static
+        attempt_id: IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(),//Static
         tenant_id: state.tenant.tenant_id.clone(),
         status: common_enums::enums::AttemptStatus::default(),
-        payment_method: common_enums::enums::PaymentMethod::default(),
-        connector_auth_type: ConnectorAuthType::default(),
+        payment_method: common_enums::enums::PaymentMethod::Card,
+        connector_auth_type: auth_type,
         description: None,
-        address: PaymentAddress::default(),
+        address: PaymentAddress::default(),// To be added
         auth_type: common_enums::enums::AuthenticationType::default(),
         connector_meta_data: None,
         connector_wallets_details: None,
@@ -2602,7 +2626,7 @@ async fn add_token_call_to_store(
         preprocessing_id: None,
         payment_method_balance: None,
         connector_api_version: None,
-        request: Request::default(),
+        request: payment_method_data_request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         connector_request_reference_id: String::new(), // payment_method_session_id
         #[cfg(feature = "payouts")]
@@ -2626,4 +2650,6 @@ async fn add_token_call_to_store(
         authentication_id: None,
         psd2_sca_exemption_type: None,
     };
+
+    Ok(router_data)
 }

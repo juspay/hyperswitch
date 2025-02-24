@@ -13,6 +13,7 @@ use common_utils::{
     },
     pii::{self, Email},
 };
+use diesel_models::schema::locker_mock_up::card_number;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
@@ -653,9 +654,31 @@ pub enum MobilePaymentData {
 impl From<api_models::payment_methods::PaymentMethodCreateData> for PaymentMethodData {
     fn from(value: api_model::payment_methods::PaymentMethodCreateData) -> Self{
         match value{
-            api_models::payment_methods::PaymentMethodCreateData::Card(card_data) => {
-                Self::Card(Card::from(card_data))
-            }
+            api_models::payment_methods::PaymentMethodCreateData::Card(CardDetail{
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc,
+                card_issuer,
+                card_network,
+                card_type,
+                card_issuing_country,
+                bank_code,
+                nick_name,
+                card_holder_name,
+            }) => Self::Card(Card{
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc,
+                card_issuer,
+                card_network,
+                card_type,
+                card_issuing_country,
+                bank_code,
+                nick_name,
+                card_holder_name,
+            }),
         }
     }
 }
