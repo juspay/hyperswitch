@@ -512,7 +512,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: updated_feature_metadata.map(Box::new),
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -521,7 +521,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: updated_feature_metadata.map(Box::new),
             },
         }
     }
@@ -1180,7 +1180,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: updated_feature_metadata.map(Box::new),
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -1189,7 +1189,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: updated_feature_metadata.map(Box::new),
             },
         }
     }

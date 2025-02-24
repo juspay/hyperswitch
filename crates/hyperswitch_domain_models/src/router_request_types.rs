@@ -117,7 +117,7 @@ pub struct PaymentsCaptureData {
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
     pub capture_method: Option<storage_enums::CaptureMethod>,
-
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
@@ -290,6 +290,7 @@ pub struct PaymentsPreProcessingData {
     pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub metadata: Option<Secret<serde_json::Value>>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
@@ -319,6 +320,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: data.related_transaction_id,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            split_payments: data.split_payments,
             metadata: data.metadata.map(Secret::new),
         })
     }
@@ -347,6 +349,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             mandate_id: data.mandate_id,
             related_transaction_id: None,
             redirect_response: data.redirect_response,
+            split_payments: None,
             enrolled_for_3ds: true,
             metadata: data.connector_meta.map(Secret::new),
         })
@@ -603,8 +606,8 @@ impl
 pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
-    pub threeds_server_transaction_id: String,
-    pub message_version: common_utils::types::SemanticVersion,
+    pub threeds_server_transaction_id: Option<String>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
 }
 
@@ -647,6 +650,7 @@ pub struct RefundIntegrityObject {
 pub enum SplitRefundsRequest {
     StripeSplitRefund(StripeSplitRefund),
     AdyenSplitRefund(common_types::domain::AdyenSplitData),
+    XenditSplitRefund(common_types::domain::XenditSplitSubMerchantData),
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

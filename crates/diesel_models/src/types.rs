@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use common_enums::{enums::PaymentConnectorTransmission, PaymentMethod, PaymentMethodType};
+use common_enums::enums::PaymentConnectorTransmission;
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -43,7 +43,7 @@ impl masking::SerializableSecret for OrderDetailsWithAmount {}
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow,AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -137,9 +137,9 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
-    pub payment_method_type: PaymentMethod,
+    pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: common_enums::enums::PaymentMethodType,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

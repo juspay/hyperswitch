@@ -1234,6 +1234,35 @@ pub async fn payments_list(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn payments_list(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::PaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn profile_payments_list(
     state: web::Data<app::AppState>,
@@ -2427,7 +2456,7 @@ pub async fn payment_confirm_intent(
 pub async fn proxy_confirm_intent(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<api_models::payments::ProxyPaymentsIntentRequest>,
+    json_payload: web::Json<api_models::payments::ProxyPaymentsRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
     use hyperswitch_domain_models::payments::PaymentConfirmData;
@@ -2488,7 +2517,7 @@ pub async fn proxy_confirm_intent(
                 header_payload.clone(),
             ))
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -2637,7 +2666,7 @@ pub async fn payments_finish_redirection(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -2659,7 +2688,7 @@ pub async fn payments_finish_redirection(
             profile_id: profile_id.clone(),
         },
         locking_action,
-    )
+    ))
     .await
 }
 

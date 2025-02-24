@@ -1,7 +1,7 @@
 use api_models::{
     enums::FrmSuggestion,
     payments::{
-        ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsIntentRequest,
+        ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsRequest,
     },
 };
 // use diesel_models::payment_attempt::ConnectorMandateReferenceId;
@@ -64,66 +64,66 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
     }
 }
 type BoxedConfirmOperation<'b, F> =
-    super::BoxedOperation<'b, F, ProxyPaymentsIntentRequest, PaymentConfirmData<F>>;
+    super::BoxedOperation<'b, F, ProxyPaymentsRequest, PaymentConfirmData<F>>;
 
-impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsIntentRequest> for &PaymentProxyIntent {
+impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for &PaymentProxyIntent {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, ProxyPaymentsIntentRequest, Self::Data> + Send + Sync)>
+    ) -> RouterResult<&(dyn ValidateRequest<F, ProxyPaymentsRequest, Self::Data> + Send + Sync)>
     {
         Ok(*self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsIntentRequest> + Send + Sync)>
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
     {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, ProxyPaymentsIntentRequest, Self::Data>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, ProxyPaymentsRequest, Self::Data>)> {
         Ok(*self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsIntentRequest> + Send + Sync)>
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
     {
         Ok(*self)
     }
 }
 
 #[automatically_derived]
-impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsIntentRequest> for PaymentProxyIntent {
+impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for PaymentProxyIntent {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, ProxyPaymentsIntentRequest, Self::Data> + Send + Sync)>
+    ) -> RouterResult<&(dyn ValidateRequest<F, ProxyPaymentsRequest, Self::Data> + Send + Sync)>
     {
         Ok(self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsIntentRequest> + Send + Sync)>
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
     {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&dyn Domain<F, ProxyPaymentsIntentRequest, Self::Data>> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, ProxyPaymentsRequest, Self::Data>> {
         Ok(self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsIntentRequest> + Send + Sync)>
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
     {
         Ok(self)
     }
 }
 
-impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsIntentRequest, PaymentConfirmData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentConfirmData<F>>
     for PaymentProxyIntent
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        _request: &ProxyPaymentsIntentRequest,
+        _request: &ProxyPaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
@@ -137,7 +137,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsIntentRequest, Paym
 }
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsIntentRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsRequest>
     for PaymentProxyIntent
 {
     #[instrument(skip_all)]
@@ -145,7 +145,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
         &'a self,
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
-        request: &ProxyPaymentsIntentRequest,
+        request: &ProxyPaymentsRequest,
         merchant_account: &domain::MerchantAccount,
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
@@ -260,7 +260,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfirmData<F>>
+impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<F>>
     for PaymentProxyIntent
 {
     async fn get_customer_details<'a>(
@@ -320,7 +320,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfir
     }
 }
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsRequest>
     for PaymentProxyIntent
 {
     #[instrument(skip_all)]

@@ -11,7 +11,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -108,6 +108,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
 }
@@ -244,7 +245,7 @@ impl AmountDetails {
 
     pub fn proxy_create_attempt_amount_details(
         &self,
-        confirm_intent_request: &api_models::payments::ProxyPaymentsIntentRequest,
+        _confirm_intent_request: &api_models::payments::ProxyPaymentsRequest,
     ) -> payment_attempt::AttemptAmountDetails {
         let net_amount = self.calculate_net_amount();
 
@@ -404,6 +405,8 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    /// Split Payment Data
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -546,6 +549,7 @@ impl PaymentIntent {
             routing_algorithm_id: request.routing_algorithm_id,
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
+            split_payments: None,
         })
     }
 }
