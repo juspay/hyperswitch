@@ -841,7 +841,10 @@ fn create_gpay_session_token(
             router_data.connector_wallets_details
         ))
         .map_err(|err| {
-            logger::warn!("Failed to parse connector_wallets_details: {:?}", err);
+            logger::debug!(
+                "Failed to parse connector_wallets_details for google_pay flow: {:?}",
+                err
+            );
         })
         .ok()
         .and_then(|connector_wallets_details| connector_wallets_details.google_pay);
