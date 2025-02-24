@@ -1,6 +1,6 @@
 use error_stack::ResultExt;
 
-use crate::{errors, generate_id_with_default_len, generate_time_ordered_id_without_prefix, types};
+use crate::{errors, generate_time_ordered_id_without_prefix, types};
 
 crate::global_id_type!(
     GlobalPaymentId,
@@ -37,7 +37,6 @@ impl GlobalPaymentId {
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalPaymentId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
-        use error_stack::ResultExt;
         let merchant_ref_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
                 field_name: "payment_id",
@@ -72,7 +71,6 @@ impl GlobalAttemptId {
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
-        use error_stack::ResultExt;
         let global_attempt_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
                 field_name: "payment_id",
