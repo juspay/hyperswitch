@@ -2,12 +2,38 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use api_models::payment_methods;
 
-use crate::payment_method_data::NetworkTokenDetails;
+use crate::payment_method_data;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
-    NetworkToken(NetworkTokenDetails),
+    NetworkToken(payment_method_data::NetworkTokenDetails),
+}
+
+impl PaymentMethodVaultingData{
+    pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
+        match self {
+            Self::Card(card) => Some(card),
+            _ => None,
+        }
+    }
+    pub fn get_payment_methods_data(&self) -> payment_method_data::PaymentMethodsData {
+        match self{
+            Self::Card(card) => {
+                payment_method_data::PaymentMethodsData::Card(
+                    payment_method_data::CardDetailsPaymentMethod::from(card.clone()),
+                )
+
+            }
+            Self::NetworkToken(network_token) => {
+                payment_method_data::PaymentMethodsData::NetworkToken(
+                    payment_method_data::NetworkTokenDetailsPaymentMethod::from(
+                        network_token.clone(),
+                    ),
+                )
+            }
+        }
+    }
 }
 
 pub trait VaultingDataInterface {

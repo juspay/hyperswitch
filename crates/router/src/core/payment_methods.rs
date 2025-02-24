@@ -910,10 +910,9 @@ pub async fn create_payment_method(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let payment_method_data = domain::PaymentMethodVaultingData::from(req.payment_method_data);
-
-    let payment_method_data =
-        populate_bin_details_for_payment_method(state, &payment_method_data).await;
+    let payment_method_data = domain::PaymentMethodVaultingData::from(req.payment_method_data)
+        .populate_bin_details_for_payment_method(state)
+        .await;
 
     let vaulting_result = vault_payment_method(
         state,
@@ -1007,12 +1006,14 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
 ) -> Option<NetworkTokenPaymentMethodDetails> {
-
-    let network_token_pm_details_result: RouterResult<NetworkTokenPaymentMethodDetails> = async {
+    let network_token_pm_details_result: errors::CustomResult<
+        NetworkTokenPaymentMethodDetails,
+        errors::NetworkTokenizationError,
+    > = async {
         when(!network_tokenization_enabled_for_profile, || {
-            Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Network Tokenization is not enabled for this payment method".to_string()
-            }))
+            Err(report!(
+                errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+            ))
         })?;
 
         let is_network_tokenization_enabled_for_pm = network_tokenization
@@ -1020,21 +1021,22 @@ pub async fn network_tokenize_and_vault_the_pmd(
             .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
             .unwrap_or(false);
 
-        let card_data = match payment_method_data {
-            domain::PaymentMethodVaultingData::Card(data)
-                if is_network_tokenization_enabled_for_pm =>
-            {
-                Ok(data)
-            }
-            _ => Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Network Tokenization is not supported for this payment method".to_string()
-            })),
-        }?;
+        let card_data = payment_method_data
+            .get_card()
+            .and_then(|card| is_network_tokenization_enabled_for_pm.then_some(card))
+            .ok_or_else(|| {
+                report!(errors::NetworkTokenizationError::NotSupported {
+                    message: "Payment method".to_string(),
+                })
+            })?;
 
         let (resp, network_token_req_ref_id) =
-            network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id)
-                .await.change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to generate network token")?;        
+            network_tokenization::make_card_network_tokenization_request(
+                state,
+                card_data,
+                customer_id,
+            )
+            .await?;
 
         let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
         let vaulting_resp = vault::add_payment_method_to_vault(
@@ -1043,35 +1045,22 @@ pub async fn network_tokenize_and_vault_the_pmd(
             &network_token_vaulting_data,
             None,
         )
-        .await.change_context(errors::ApiErrorResponse::InternalServerError)
+        .await.change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
         .attach_printable("Failed to vault network token")?;
 
         let key_manager_state = &(state).into();
-        let network_token = match network_token_vaulting_data {
-            domain::PaymentMethodVaultingData::Card(card) => {
-                payment_method_data::PaymentMethodsData::Card(
-                    payment_method_data::CardDetailsPaymentMethod::from(card.clone()),
-                )
-            }
-            domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
-                payment_method_data::PaymentMethodsData::NetworkToken(
-                    payment_method_data::NetworkTokenDetailsPaymentMethod::from(network_token.clone()),
-                )
-            }
-        };
-
         let network_token_pmd =
-            cards::create_encrypted_data(key_manager_state, key_store, network_token)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt Payment method data")?;
+            cards::create_encrypted_data(key_manager_state, key_store, network_token_vaulting_data.get_payment_methods_data()).await
+            .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
+            .attach_printable("Failed to encrypt PaymentMethodsData")?;
 
         Ok(NetworkTokenPaymentMethodDetails {
             network_token_requestor_reference_id: network_token_req_ref_id,
             network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
             network_token_pmd,
         })
-    }.await;
+    }
+    .await;
     network_token_pm_details_result.ok()
 }
 
@@ -1099,7 +1088,7 @@ pub async fn populate_bin_details_for_payment_method(
                     .ok()
                     .flatten();
 
-                    domain::PaymentMethodVaultingData::Card(payment_methods::CardDetail {
+                domain::PaymentMethodVaultingData::Card(payment_methods::CardDetail {
                     card_number: card.card_number.clone(),
                     card_exp_month: card.card_exp_month.clone(),
                     card_exp_year: card.card_exp_year.clone(),
@@ -1127,6 +1116,64 @@ pub async fn populate_bin_details_for_payment_method(
             }
         }
         _ => payment_method_data.clone(),
+    }
+}
+#[async_trait::async_trait]
+pub trait PaymentMethodExt {
+    async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self;
+}
+
+#[async_trait::async_trait]
+impl PaymentMethodExt for domain::PaymentMethodVaultingData {
+    async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self {
+        match self {
+            Self::Card(card) => {
+                let card_isin = card.card_number.get_card_isin();
+
+                if card.card_issuer.is_some()
+                    && card.card_network.is_some()
+                    && card.card_type.is_some()
+                    && card.card_issuing_country.is_some()
+                {
+                    Self::Card(card.clone())
+                } else {
+                    let card_info = state
+                        .store
+                        .get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::error!(card_info_error=?error))
+                        .ok()
+                        .flatten();
+
+                        Self::Card(payment_methods::CardDetail {
+                        card_number: card.card_number.clone(),
+                        card_exp_month: card.card_exp_month.clone(),
+                        card_exp_year: card.card_exp_year.clone(),
+                        card_holder_name: card.card_holder_name.clone(),
+                        nick_name: card.nick_name.clone(),
+                        card_issuing_country: card_info.as_ref().and_then(|val| {
+                            val.card_issuing_country
+                                .as_ref()
+                                .map(|c| api_enums::CountryAlpha2::from_str(c))
+                                .transpose()
+                                .ok()
+                                .flatten()
+                        }),
+                        card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
+                        card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
+                        card_type: card_info.as_ref().and_then(|val| {
+                            val.card_type
+                                .as_ref()
+                                .map(|c| payment_methods::CardType::from_str(c))
+                                .transpose()
+                                .ok()
+                                .flatten()
+                        }),
+                    })
+                }
+            }
+            _ => self.clone(),
+        }
     }
 }
 

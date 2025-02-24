@@ -444,4 +444,12 @@ pub enum NetworkTokenizationError {
     NetworkTokenizationServiceNotConfigured,
     #[error("Failed while calling Network Token Service API")]
     ApiError,
+    #[error("Network Tokenization is not enabled for profile")]
+    NetworkTokenizationNotEnabledForProfile,
+    #[error("Network Tokenization is not supported for {message}")]
+    NotSupported{
+        message: String,
+    },
+    #[error("Failed to encrypt the NetworkToken payment method details")]
+    NetworkTokenDetailsEncryptionFailed,
 }
