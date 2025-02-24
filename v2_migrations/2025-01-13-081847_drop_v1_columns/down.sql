@@ -117,6 +117,7 @@ ALTER TABLE payment_methods
     ADD COLUMN IF NOT EXISTS cardholder_name VARCHAR(255),
     ADD COLUMN IF NOT EXISTS issuer_name VARCHAR(64),
     ADD COLUMN IF NOT EXISTS issuer_country VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS payer_country TEXT [ ],
     ADD COLUMN IF NOT EXISTS is_stored BOOLEAN,
     ADD COLUMN IF NOT EXISTS direct_debit_token VARCHAR(128),
     ADD COLUMN IF NOT EXISTS swift_code VARCHAR(32),
