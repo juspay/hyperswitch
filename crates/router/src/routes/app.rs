@@ -1,3 +1,4 @@
+use ::payment_methods::client::{PaymentMethodsClient, PaymentMethodsStorageInterface};
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
@@ -8,6 +9,7 @@ use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::id_type;
+use common_utils::types::keymanager::KeyManagerState;
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -113,6 +115,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
+    pub payment_methods_client: PaymentMethodsClient,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -204,6 +207,7 @@ pub struct AppState {
     pub flow_name: String,
     pub global_store: Box<dyn GlobalStorageInterface>,
     pub stores: HashMap<id_type::TenantId, Box<dyn StorageInterface>>,
+    pub pm_stores: HashMap<id_type::TenantId, Box<dyn PaymentMethodsStorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
@@ -341,6 +345,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             let mut pools: HashMap<id_type::TenantId, AnalyticsProvider> = HashMap::new();
             let mut stores = HashMap::new();
+            let mut pm_stores = HashMap::new();
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
@@ -356,7 +361,7 @@ impl AppState {
             .await
             .get_global_storage_interface();
             for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
-                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+                let store = Self::get_store_interface(
                     &storage_impl,
                     &event_handler,
                     &conf,
@@ -364,9 +369,9 @@ impl AppState {
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await
-                .get_storage_interface();
-                stores.insert(tenant_name.clone(), store);
+                .await;
+                stores.insert(tenant_name.clone(), store.get_storage_interface());
+                pm_stores.insert(tenant_name.clone(), store.get_pm_interface());
                 #[cfg(feature = "olap")]
                 let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
                 #[cfg(feature = "olap")]
@@ -384,6 +389,7 @@ impl AppState {
             Self {
                 flow_name: String::from("default"),
                 stores,
+                pm_stores,
                 global_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
@@ -468,8 +474,10 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
+        let store = self.stores.get(tenant).ok_or_else(err)?.clone();
+        let pm_store = self.pm_stores.get(tenant).ok_or_else(err)?;
         Ok(SessionState {
-            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            store,
             global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
@@ -487,10 +495,42 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
+            payment_methods_client: PaymentMethodsClient {
+                state: pm_store.clone(),
+                key_store: None,
+                customer_id: None,
+                merchant_id: None,
+                limit: None,
+                key_manager_state: keymanager_conf(
+                    Arc::clone(&self.conf),
+                    self.request_id,
+                    tenant_conf.clone(),
+                ),
+            },
         })
     }
 }
 
+fn keymanager_conf(
+    conf: Arc<settings::Settings<RawSecret>>,
+    request_id: Option<RequestId>,
+    tenant: Tenant,
+) -> KeyManagerState {
+    let km_conf = conf.key_manager.get_inner();
+    KeyManagerState {
+        global_tenant_id: conf.multitenancy.global_tenant.tenant_id.clone(),
+        tenant_id: tenant.tenant_id.clone(),
+        enabled: km_conf.enabled,
+        url: km_conf.url.clone(),
+        client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
+        #[cfg(feature = "km_forward_x_request_id")]
+        request_id: request_id,
+        #[cfg(feature = "keymanager_mtls")]
+        cert: km_conf.cert.clone(),
+        #[cfg(feature = "keymanager_mtls")]
+        ca: km_conf.ca.clone(),
+    }
+}
 pub struct Health;
 
 impl Health {

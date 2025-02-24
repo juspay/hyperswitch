@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
+use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use diesel_models as store;
 use error_stack::ResultExt;
-use futures::lock::Mutex;
+use futures::lock::{Mutex, MutexGuard};
 use hyperswitch_domain_models::{
+    behaviour::{Conversion, ReverseConversion},
     errors::StorageError,
+    merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use redis_interface::RedisSettings;
@@ -108,6 +111,98 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
         })
+    }
+
+    pub async fn find_resource<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        let resource = resources.iter().find(filter_fn).cloned();
+        match resource {
+            Some(res) => Ok(res
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?),
+            None => {
+                Err(StorageError::ValueNotFound("cannot find payment method".to_string()).into())
+            }
+        }
+    }
+
+    pub async fn find_resources<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+    ) -> CustomResult<Vec<R>, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        let resources : Vec<_>= resources.iter().filter(filter_fn).cloned().collect();
+        if resources.is_empty() {
+            Err(StorageError::ValueNotFound("cannot find payment methods".to_string()).into())
+        } else {
+            let pm_futures = resources
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_resources = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_resources)
+        }
+    }
+
+    pub async fn update_resource<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        mut resources: MutexGuard<'_, Vec<D>>,
+        resource_updated: D,
+        filter_fn: impl Fn(&&mut D) -> bool,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        if let Some(pm) = resources.iter_mut().find(filter_fn) {
+            *pm = resource_updated.clone();
+            let result = resource_updated
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?;
+            Ok(result)
+        } else {
+            Err(
+                StorageError::ValueNotFound("cannot find payment method to update".to_string())
+                    .into(),
+            )
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use common_utils::{errors::CustomResult, id_type};
 use storage_impl::mock_db::MockDb;
 #[cfg(feature = "kv_store")]
-use storage_impl::KVRouterStore;
+use storage_impl::kv_router_store::KVRouterStore;
 #[cfg(not(feature = "kv_store"))]
 use storage_impl::RouterStore;
 use tokio::sync::mpsc;

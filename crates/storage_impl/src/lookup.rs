@@ -14,7 +14,7 @@ use crate::{
     errors::RedisErrorExt,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, KVRouterStore, RouterStore,
+    DatabaseStore, kv_router_store::KVRouterStore, RouterStore,
 };
 
 #[async_trait::async_trait]

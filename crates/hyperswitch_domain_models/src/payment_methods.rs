@@ -11,6 +11,8 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
+pub mod payment_methods;
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::type_encryption::OptionalEncryptableJsonType;
 use crate::{

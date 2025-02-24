@@ -29,7 +29,6 @@ pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
-pub mod payment_method;
 pub mod refund;
 pub mod relay;
 pub mod reverse_lookup;
@@ -46,12 +45,14 @@ use diesel_models::{
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+use ::payment_methods::client::PaymentMethodsStorageInterface;
+use hyperswitch_domain_models::{
+    payment_methods::payment_methods::PaymentMethodInterface,
+    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -107,7 +108,7 @@ pub trait StorageInterface:
     + merchant_connector_account::MerchantConnectorAccountInterface
     + PaymentAttemptInterface
     + PaymentIntentInterface
-    + payment_method::PaymentMethodInterface
+    + PaymentMethodInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + dynamic_routing_stats::DynamicRoutingStatsInterface
@@ -155,8 +156,9 @@ pub trait GlobalStorageInterface:
 {
 }
 
-pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
+pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface + PaymentMethodsStorageInterface {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
+    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface>;
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
 }
 
@@ -212,6 +214,9 @@ impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }
+    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface> {
+        Box::new(self.clone())
+    }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
@@ -219,6 +224,9 @@ impl CommonStorageInterface for MockDb {
 
 impl CommonStorageInterface for Store {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {

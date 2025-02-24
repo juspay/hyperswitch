@@ -8,7 +8,7 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{metrics, store::kv::TypedSql, KVRouterStore, UniqueConstraints};
+use crate::{metrics, store::kv::TypedSql, kv_router_store::KVRouterStore, UniqueConstraints};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {

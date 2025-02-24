@@ -32,7 +32,7 @@ use crate::{
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
-    DataModelExt, DatabaseStore, KVRouterStore,
+    DataModelExt, DatabaseStore, kv_router_store::KVRouterStore,
 };
 
 #[async_trait::async_trait]
