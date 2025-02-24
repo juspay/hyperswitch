@@ -1433,6 +1433,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 mollie::transformers::MollieAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Moneris => {
+                moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Multisafepay => {
                 multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -3710,6 +3714,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+            always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
         }))

@@ -118,6 +118,7 @@ pub struct ConfigMetadata {
     pub locale: Option<InputData>,
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
+    pub merchant_configuration_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -203,6 +204,7 @@ pub struct ConnectorConfig {
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
+    pub moneris: Option<ConnectorTomlConfig>,
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
@@ -367,6 +369,7 @@ impl ConnectorConfig {
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
+            Connector::Moneris => Ok(connector_data.moneris),
             Connector::Multisafepay => Ok(connector_data.multisafepay),
             Connector::Nexinets => Ok(connector_data.nexinets),
             Connector::Nexixpay => Ok(connector_data.nexixpay),

@@ -46,6 +46,8 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
+use super::recovery_webhooks::*;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -88,6 +90,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
+    routes::hypersense as hypersense_routes,
 };
 
 #[derive(Clone)]
@@ -572,6 +575,7 @@ impl Payments {
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
             )
+            .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
@@ -1334,6 +1338,27 @@ impl Recon {
     }
 }
 
+pub struct Hypersense;
+
+impl Hypersense {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hypersense")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/token")
+                    .route(web::get().to(hypersense_routes::get_hypersense_token)),
+            )
+            .service(
+                web::resource("/verify_token")
+                    .route(web::post().to(hypersense_routes::verify_hypersense_token)),
+            )
+            .service(
+                web::resource("/signout")
+                    .route(web::post().to(hypersense_routes::signout_hypersense_token)),
+            )
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Blocklist;
 
@@ -1622,6 +1647,16 @@ impl Webhooks {
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             );
+
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        {
+            route = route.service(
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
+                    web::post()
+                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                ),
+            );
+        }
 
         route
     }

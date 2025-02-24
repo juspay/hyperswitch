@@ -23,6 +23,7 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health;
+pub mod hypersense;
 pub mod lock_utils;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
@@ -59,6 +60,9 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod recovery_webhooks;
+
 pub mod relay;
 
 #[cfg(feature = "dummy_connector")]
@@ -69,9 +73,9 @@ pub use self::app::PaymentMethodSession;
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Mandates,
-    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
-    Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
+    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
+    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
+    Poll, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
