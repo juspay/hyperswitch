@@ -33,7 +33,7 @@ impl ForeignFrom<AttemptStatus> for PcrAttemptStatus {
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Unresolved => Self::InvalidAction(s.to_string()),
+            | AttemptStatus::Unresolved => Self::InvalidStatus(s.to_string()),
         }
     }
 }

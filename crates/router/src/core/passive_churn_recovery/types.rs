@@ -28,7 +28,7 @@ pub enum PcrAttemptStatus {
     Succeeded,
     Failed,
     Processing,
-    InvalidAction(String),
+    InvalidStatus(String),
     //  Cancelled,
 }
 
@@ -48,16 +48,14 @@ impl PcrAttemptStatus {
                 .await?;
             }
 
-            Self::InvalidAction(action) => {
+            Self::InvalidStatus(action) => {
                 logger::debug!(
                     "Invalid Attempt Status for the Recovery Payment : {}",
                     action
                 );
                 let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                     status: enums::ProcessTrackerStatus::Review,
-                    business_status: Some(String::from(
-                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
-                    )),
+                    business_status: Some(String::from(business_status::EXECUTE_WORKFLOW_COMPLETE)),
                 };
                 // update the process tracker status as Review
                 db.update_process(execute_task_process.clone(), pt_update)
@@ -71,7 +69,7 @@ impl PcrAttemptStatus {
 pub enum Decision {
     Execute,
     Psync(AttemptStatus, id_type::GlobalAttemptId),
-    Invalid,
+    InvalidDecision,
 }
 
 impl Decision {
@@ -97,7 +95,7 @@ impl Decision {
                     .attach_printable("Error while executing the Psync call")?;
                 Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
             }
-            _ => Self::Invalid,
+            _ => Self::InvalidDecision,
         })
     }
 }
@@ -131,7 +129,7 @@ impl Action {
                 PcrAttemptStatus::Processing => {
                     Ok(Self::SyncPayment(payment_data.payment_attempt.id))
                 }
-                PcrAttemptStatus::InvalidAction(action) => {
+                PcrAttemptStatus::InvalidStatus(action) => {
                     logger::info!(?action, "Invalid Payment Status For PCR Payment");
                     Ok(Self::ManualReviewAction)
                 }
@@ -207,9 +205,7 @@ impl Action {
                 logger::debug!("Invalid Payment Status For PCR Payment");
                 let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                     status: enums::ProcessTrackerStatus::Review,
-                    business_status: Some(String::from(
-                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
-                    )),
+                    business_status: Some(String::from(business_status::EXECUTE_WORKFLOW_COMPLETE)),
                 };
                 // update the process tracker status as Review
                 db.as_scheduler()
