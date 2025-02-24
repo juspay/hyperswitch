@@ -881,6 +881,7 @@ diesel::table! {
         connector_token_details -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

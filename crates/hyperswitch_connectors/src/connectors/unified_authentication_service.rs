@@ -13,19 +13,23 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        Authenticate, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{UasPostAuthenticationRouterData, UasPreAuthenticationRouterData},
+    types::{
+        UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
+        UasPreAuthenticationRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -71,6 +75,7 @@ impl api::PaymentToken for UnifiedAuthenticationService {}
 impl api::UnifiedAuthenticationService for UnifiedAuthenticationService {}
 impl api::UasPreAuthentication for UnifiedAuthenticationService {}
 impl api::UasPostAuthentication for UnifiedAuthenticationService {}
+impl api::UasAuthenticationConfirmation for UnifiedAuthenticationService {}
 impl api::UasAuthentication for UnifiedAuthenticationService {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -166,6 +171,105 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for UnifiedAuthenticationService
 {
+}
+
+impl
+    ConnectorIntegration<
+        AuthenticationConfirmation,
+        UasConfirmationRequestData,
+        UasAuthenticationResponseData,
+    > for UnifiedAuthenticationService
+{
+    fn get_headers(
+        &self,
+        req: &UasAuthenticationConfirmationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &UasAuthenticationConfirmationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}confirmation", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &UasAuthenticationConfirmationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.transaction_amount,
+            req.request.transaction_currency,
+        )?;
+
+        let connector_router_data =
+            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
+                amount, req,
+            ));
+        let connector_req =
+            unified_authentication_service::UnifiedAuthenticationServiceAuthenticateConfirmationRequest::try_from(
+                &connector_router_data,
+            )?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &UasAuthenticationConfirmationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::UasAuthenticationConfirmationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::UasAuthenticationConfirmationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::UasAuthenticationConfirmationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &UasAuthenticationConfirmationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<UasAuthenticationConfirmationRouterData, errors::ConnectorError> {
+        let response: unified_authentication_service::UnifiedAuthenticationServiceAuthenticateConfirmationResponse =
+            res.response
+                .parse_struct("UnifiedAuthenticationService UnifiedAuthenticationServiceAuthenticateConfirmationResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl

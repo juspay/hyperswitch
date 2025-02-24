@@ -59,6 +59,22 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        _merchant_id: &id_type::MerchantId,
+        _active_attempt_ids: &[String],
+        _connector: Option<api_models::enums::Connector>,
+        _payment_method_type: Option<common_enums::PaymentMethod>,
+        _payment_method_subtype: Option<common_enums::PaymentMethodType>,
+        _authentication_type: Option<common_enums::AuthenticationType>,
+        _merchanat_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        _card_network: Option<storage_enums::CardNetwork>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
