@@ -28,6 +28,24 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<
+        Vec<(
+            PaymentIntent,
+            Option<hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt>,
+        )>,
+        StorageError,
+    > {
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
@@ -41,7 +59,7 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -59,6 +77,17 @@ impl PaymentIntentInterface for MockDb {
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
