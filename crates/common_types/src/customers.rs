@@ -1,6 +1,6 @@
 //! Customer related types
 
-/// HashMap containing MerchantConnectorAccountId and corresponsing corresponsing customer id
+/// HashMap containing MerchantConnectorAccountId and corresponding customer id
 // #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
