@@ -2773,7 +2773,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
-            card_discovery: pa.card_discovery
+            card_discovery: pa.card_discovery,
             overcapture_status: pa.overcapture_status,
         }
     }
