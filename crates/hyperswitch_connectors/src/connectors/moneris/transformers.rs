@@ -78,7 +78,6 @@ pub struct PaymentMethodCard {
 pub struct PaymentMethodId {
     payment_method_source: PaymentMethodSource,
     payment_method_id: Secret<String>,
-    store_payment_method: StorePaymentMethod,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -179,13 +178,6 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                             field_name: "connector_mandate_id",
                         })?
                         .into(),
-                    store_payment_method: match item.router_data.request.setup_future_usage {
-                        Some(setup_future_usage) => match setup_future_usage {
-                            enums::FutureUsage::OffSession => StorePaymentMethod::MerchantInitiated,
-                            enums::FutureUsage::OnSession => StorePaymentMethod::DoNotStore,
-                        },
-                        None => StorePaymentMethod::DoNotStore,
-                    },
                 });
                 Ok(Self {
                     idempotency_key,
