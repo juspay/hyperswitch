@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use diesel_models as store;
 use error_stack::ResultExt;
@@ -9,7 +9,6 @@ use hyperswitch_domain_models::{
 };
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
-use std::fmt::Debug;
 mod address;
 pub mod callback_mapper;
 pub mod config;

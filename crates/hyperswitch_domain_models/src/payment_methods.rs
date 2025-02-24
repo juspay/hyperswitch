@@ -1,16 +1,5 @@
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
-use common_utils::{
-    crypto::OptionalEncryptableValue,
-    errors::{CustomResult, ParsingError, ValidationError},
-    pii, type_name,
-    types::keymanager,
-};
-use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v2")]
@@ -18,8 +7,17 @@ use common_utils::{
     crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
     types::keymanager::ToEncryptable,
 };
-use common_utils::{id_type, types::keymanager::KeyManagerState};
-use diesel_models::PaymentMethodUpdate;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
+use common_utils::{
+    crypto::OptionalEncryptableValue,
+    errors::{CustomResult, ParsingError, ValidationError},
+    id_type, pii, type_name,
+    types::{keymanager, keymanager::KeyManagerState},
+};
+use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v2")]
@@ -36,12 +34,12 @@ use crate::{
     consts, router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-use crate::{errors, merchant_key_store::MerchantKeyStore};
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
+    errors,
     mandates::{CommonMandateReference, PaymentsMandateReference},
+    merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
