@@ -446,7 +446,9 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
-                enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
+                enums::Connector::Helcim => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
