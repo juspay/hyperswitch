@@ -2656,7 +2656,7 @@ pub struct PaymentMethodSessionResponse {
 
     /// The customer authenticaion details for the payment method
     /// This refers to either the payment / external authentication details
-    pub customer_authentication_details: Option<CustomerAuthenticationDetails>,
+    pub authentication_details: Option<CustomerAuthenticationDetails>,
 
     /// The payment method that was created using this payment method session
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,

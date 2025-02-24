@@ -1012,7 +1012,7 @@ pub fn generate_payment_method_session_response(
         next_action,
         return_url: payment_method_session.return_url,
         associated_payment_methods: payment_method_session.associated_payment_methods,
-        customer_authentication_details,
+        authentication_details: customer_authentication_details,
     }
 }
 

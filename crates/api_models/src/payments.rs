@@ -5506,7 +5506,7 @@ pub struct PaymentsResponse {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentsRetrieveResponse {
+impl PaymentsResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
         self,
         connector_transaction_id: &common_utils::types::ConnectorTransactionId,
