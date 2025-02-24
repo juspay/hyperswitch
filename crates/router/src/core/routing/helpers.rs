@@ -1052,6 +1052,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                         vec![request_label_info],
                         "".to_string(),
                         vec![],
+                        1,
                         state.get_grpc_headers(),
                     )
                     .await
