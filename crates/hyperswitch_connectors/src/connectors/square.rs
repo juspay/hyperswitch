@@ -56,7 +56,7 @@ use transformers::{
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, get_header_key_value, RefundsRequestData},
+    utils::{get_header_key_value, RefundsRequestData},
 };
 
 #[derive(Debug, Clone)]
@@ -964,7 +964,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods,
+                supported_capture_methods,
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {

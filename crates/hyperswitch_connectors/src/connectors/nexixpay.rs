@@ -1035,7 +1035,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::Supported,
                 refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods,
+                supported_capture_methods,
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
