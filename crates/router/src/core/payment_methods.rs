@@ -1045,14 +1045,19 @@ pub async fn network_tokenize_and_vault_the_pmd(
             &network_token_vaulting_data,
             None,
         )
-        .await.change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
+        .await
+        .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
         .attach_printable("Failed to vault network token")?;
 
         let key_manager_state = &(state).into();
-        let network_token_pmd =
-            cards::create_encrypted_data(key_manager_state, key_store, network_token_vaulting_data.get_payment_methods_data()).await
-            .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
-            .attach_printable("Failed to encrypt PaymentMethodsData")?;
+        let network_token_pmd = cards::create_encrypted_data(
+            key_manager_state,
+            key_store,
+            network_token_vaulting_data.get_payment_methods_data(),
+        )
+        .await
+        .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
+        .attach_printable("Failed to encrypt PaymentMethodsData")?;
 
         Ok(NetworkTokenPaymentMethodDetails {
             network_token_requestor_reference_id: network_token_req_ref_id,
@@ -1145,7 +1150,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                         .ok()
                         .flatten();
 
-                        Self::Card(payment_methods::CardDetail {
+                    Self::Card(payment_methods::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
