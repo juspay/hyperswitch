@@ -540,17 +540,6 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
-    MITWithoutBillingAddress: {
-      Request: {
-        billing: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     MITManualCapture: {
       Request: {},
       Response: {
