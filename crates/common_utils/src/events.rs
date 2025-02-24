@@ -99,6 +99,7 @@ pub enum ApiEventsType {
     ApplePayCertificatesMigration,
     FraudCheck,
     Recon,
+    ExternalServiceAuth,
     Dispute {
         dispute_id: String,
     },

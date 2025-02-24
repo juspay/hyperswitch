@@ -33,12 +33,13 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
-        Authenticate, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
@@ -75,7 +76,8 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
-        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+        UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
+        UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };
@@ -823,7 +825,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Worldpay,
     connectors::Wellsfargo,
     connectors::Volt,
-    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3129,6 +3130,92 @@ default_imp_for_uas_authentication!(
     connectors::Wellsfargo,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_uas_authentication_confirmation {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasAuthenticationConfirmation for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            AuthenticationConfirmation,
+            UasConfirmationRequestData,
+            UasAuthenticationResponseData
+
+        > for $path::$connector
+        {}
+        )*
+    };
+}
+
+default_imp_for_uas_authentication_confirmation!(
+    connectors::Aci,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Klarna,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Placetopay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,

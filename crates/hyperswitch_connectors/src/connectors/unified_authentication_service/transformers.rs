@@ -6,7 +6,10 @@ use hyperswitch_domain_models::{
         DynamicData, PostAuthenticationDetails, PreAuthenticationDetails, TokenDetails,
         UasAuthenticationResponseData,
     },
-    types::{UasPostAuthenticationRouterData, UasPreAuthenticationRouterData},
+    types::{
+        UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
+        UasPreAuthenticationRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -44,6 +47,56 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub pmt_details: Option<PaymentDetails>,
     pub auth_creds: AuthType,
     pub transaction_details: Option<TransactionDetails>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct UnifiedAuthenticationServiceAuthenticateConfirmationRequest {
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
+    pub auth_creds: AuthType,
+    pub x_src_flow_id: Option<String>,
+    pub transaction_amount: Option<FloatMajorUnit>,
+    pub transaction_currency: Option<enums::Currency>,
+    pub checkout_event_type: Option<String>,
+    pub checkout_event_status: Option<String>,
+    pub confirmation_status: Option<String>,
+    pub confirmation_reason: Option<String>,
+    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub network_authorization_code: Option<String>,
+    pub network_transaction_identifier: Option<String>,
+    pub correlation_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Deserialize)]
+pub struct UnifiedAuthenticationServiceAuthenticateConfirmationResponse {
+    status: String,
+}
+
+impl<F, T>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            UnifiedAuthenticationServiceAuthenticateConfirmationResponse,
+            T,
+            UasAuthenticationResponseData,
+        >,
+    > for RouterData<F, T, UasAuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            UnifiedAuthenticationServiceAuthenticateConfirmationResponse,
+            T,
+            UasAuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(UasAuthenticationResponseData::Confirmation {}),
+            ..item.data
+        })
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -442,4 +495,44 @@ impl<F, T>
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct UnifiedAuthenticationServiceErrorResponse {
     pub error: String,
+}
+
+impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmationRouterData>>
+    for UnifiedAuthenticationServiceAuthenticateConfirmationRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth_type =
+            UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let authentication_id = item.router_data.authentication_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "authentication_id",
+            },
+        )?;
+        Ok(Self {
+            authenticate_by: item.router_data.connector.clone(),
+            auth_creds: AuthType::HeaderKey {
+                api_key: auth_type.api_key,
+            },
+            source_authentication_id: authentication_id,
+            x_src_flow_id: item.router_data.request.x_src_flow_id.clone(),
+            transaction_amount: Some(item.amount),
+            transaction_currency: Some(item.router_data.request.transaction_currency),
+            checkout_event_type: item.router_data.request.checkout_event_type.clone(),
+            checkout_event_status: item.router_data.request.checkout_event_status.clone(),
+            confirmation_status: item.router_data.request.confirmation_status.clone(),
+            confirmation_reason: item.router_data.request.confirmation_reason.clone(),
+            confirmation_timestamp: item.router_data.request.confirmation_timestamp,
+            network_authorization_code: item.router_data.request.network_authorization_code.clone(),
+            network_transaction_identifier: item
+                .router_data
+                .request
+                .network_transaction_identifier
+                .clone(),
+            correlation_id: item.router_data.request.correlation_id.clone(),
+            merchant_transaction_id: item.router_data.request.merchant_transaction_id.clone(),
+        })
+    }
 }
