@@ -46,6 +46,8 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
+use super::recovery_webhooks::*;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -1041,6 +1043,10 @@ impl Customers {
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
                 )
+                .service(
+                    web::resource("/{id}/saved-payment-methods")
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
+                )
         }
         route
     }
@@ -1646,6 +1652,16 @@ impl Webhooks {
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             );
+
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        {
+            route = route.service(
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
+                    web::post()
+                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                ),
+            );
+        }
 
         route
     }

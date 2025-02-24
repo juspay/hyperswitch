@@ -136,6 +136,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_delete_api,
+        routes::payment_method::list_customer_payment_method_api,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,
@@ -316,6 +317,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AddressDetails,
         api_models::payments::BankDebitData,
         api_models::payments::AliPayQr,
+        api_models::payments::PaymentAttemptFeatureMetadata,
+        api_models::payments::PaymentAttemptRevenueRecoveryData,
         api_models::payments::AliPayRedirection,
         api_models::payments::MomoRedirection,
         api_models::payments::TouchNGoRedirection,
@@ -477,6 +480,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentRevenueRecoveryMetadata,
         api_models::payments::BillingConnectorPaymentDetails,
         api_models::enums::PaymentConnectorTransmission,
+        api_models::enums::TriggeredBy,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::PaymentAttemptAmountDetails,
         api_models::payments::CaptureResponse,
