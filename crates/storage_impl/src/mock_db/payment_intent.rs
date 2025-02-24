@@ -28,6 +28,24 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<
+        Vec<(
+            PaymentIntent,
+            Option<hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt>,
+        )>,
+        StorageError,
+    > {
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
@@ -41,7 +59,7 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -59,6 +77,17 @@ impl PaymentIntentInterface for MockDb {
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
@@ -179,6 +208,28 @@ impl PaymentIntentInterface for MockDb {
         let payment_intent = payment_intents
             .iter()
             .find(|payment_intent| payment_intent.get_id() == id)
+            .ok_or(StorageError::ValueNotFound(
+                "PaymentIntent not found".to_string(),
+            ))?;
+
+        Ok(payment_intent.clone())
+    }
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_merchant_reference_id_profile_id(
+        &self,
+        _state: &KeyManagerState,
+        merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
+        profile_id: &common_utils::id_type::ProfileId,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: &common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let payment_intents = self.payment_intents.lock().await;
+        let payment_intent = payment_intents
+            .iter()
+            .find(|payment_intent| {
+                payment_intent.merchant_reference_id.as_ref() == Some(merchant_reference_id)
+                    && payment_intent.profile_id.eq(profile_id)
+            })
             .ok_or(StorageError::ValueNotFound(
                 "PaymentIntent not found".to_string(),
             ))?;

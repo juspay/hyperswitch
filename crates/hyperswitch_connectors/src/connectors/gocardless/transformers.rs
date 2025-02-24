@@ -437,7 +437,9 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
             PaymentMethodToken::Token(token) => Ok(token),
-            PaymentMethodToken::ApplePayDecrypt(_) | PaymentMethodToken::PazeDecrypt(_) => {
+            PaymentMethodToken::ApplePayDecrypt(_)
+            | PaymentMethodToken::PazeDecrypt(_)
+            | PaymentMethodToken::GooglePayDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -530,7 +532,7 @@ impl<F>
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 network_txn_id: None,
-                charge_id: None,
+                charges: None,
             }),
             status: enums::AttemptStatus::Charged,
             ..item.data
@@ -685,7 +687,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -716,7 +718,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
