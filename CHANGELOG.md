@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix4
+
+### Bug Fixes
+
+- **routing:** Fixed 5xx error logs in dynamic routing metrics ([#7332](https://github.com/juspay/hyperswitch/pull/7332)) ([`caa3996`](https://github.com/juspay/hyperswitch/commit/caa3996232af1af8d2e8e9ae91a8bb3efd65e821))
+
+- - -
+
 ## 2025.02.10.0-hotfix3
 
 ### Features
