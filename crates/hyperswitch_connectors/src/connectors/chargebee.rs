@@ -649,7 +649,8 @@ impl webhooks::IncomingWebhook for Chargebee {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
-        let webhook = transformers::ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
+        let webhook =
+            transformers::ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
         revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
