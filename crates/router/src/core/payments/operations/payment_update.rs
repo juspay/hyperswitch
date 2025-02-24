@@ -452,7 +452,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.request_overcapture = helpers::validate_and_get_overcapture_request(
             &payment_attempt.capture_method,
-            &payment_attempt.request_overcapture.or(request.request_overcapture),
+            &payment_attempt
+                .request_overcapture
+                .or(request.request_overcapture),
             &business_profile,
             request.confirm.unwrap_or_default(),
         )?;

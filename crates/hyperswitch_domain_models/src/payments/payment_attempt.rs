@@ -1142,7 +1142,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                request_overcapture
+                request_overcapture,
             },
             Self::UpdateTrackers {
                 payment_token,

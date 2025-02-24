@@ -4933,9 +4933,9 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
 
-     /// Whether the payment is overcaptureable or not
-     #[schema(value_type = Option<OverCaptureStatus>)]
-     pub overcapture_status: Option<common_enums::OverCaptureStatus>,
+    /// Whether the payment is overcaptureable or not
+    #[schema(value_type = Option<OverCaptureStatus>)]
+    pub overcapture_status: Option<common_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v2")]
