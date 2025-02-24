@@ -130,6 +130,7 @@ impl IntoDirValue for api_enums::FutureUsage {
 impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self.0 {
+            api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
             api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
@@ -142,7 +143,6 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AfterpayClearpay => {
                 Ok(dirval!(PayLaterType = AfterpayClearpay))
             }
-            api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
             api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),

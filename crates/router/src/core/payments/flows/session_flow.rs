@@ -1260,7 +1260,7 @@ fn create_paypal_sdk_session_token(
 
 fn create_amazon_pay_delivery_options(
     value: &serde_json::Value,
-) -> Result<AmazonPayDeliveryOptions, errors::ApiErrorResponse> {
+) -> Result<payment_types::AmazonPayDeliveryOptions, errors::ApiErrorResponse> {
     let id = value
         .get("id")
         .and_then(|v| v.as_str())
@@ -1334,13 +1334,13 @@ fn create_amazon_pay_delivery_options(
         },
     )?;
 
-    Ok(AmazonPayDeliveryOptions {
+    Ok(payment_types::AmazonPayDeliveryOptions {
         id,
-        price: AmazonPayDeliveryPrice {
+        price: payment_types::AmazonPayDeliveryPrice {
             amount,
             currency_code,
         },
-        shipping_method: AmazonPayShippingMethod {
+        shipping_method: payment_types::AmazonPayShippingMethod {
             shipping_method_name,
             shipping_method_code,
         },
@@ -1366,7 +1366,7 @@ fn create_amazon_pay_session_token(
     // currently supports only the US region hence USD is the only supported currency
     let ledger_currency = common_enums::Currency::USD;
     // currently supports only the 'automatic' capture_method
-    let payment_intent = AmazonPayPaymentIntent::AuthorizeWithCapture;
+    let payment_intent = payment_types::AmazonPayPaymentIntent::AuthorizeWithCapture;
     let required_amount_type = StringMajorUnitForConnector;
     let total_tax_amount = required_amount_type
         .convert(
@@ -1413,7 +1413,7 @@ fn create_amazon_pay_session_token(
                                 e
                             })
                         })
-                        .collect::<Result<Vec<AmazonPayDeliveryOptions>, errors::ApiErrorResponse>>(
+                        .collect::<Result<Vec<payment_types::AmazonPayDeliveryOptions>, errors::ApiErrorResponse>>(
                         )
                 })
         })

@@ -21,6 +21,7 @@ fn get_dir_value_payment_method(
     from: api_enums::PaymentMethodType,
 ) -> Result<dir::DirValue, KgraphError> {
     match from {
+        api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
         api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
@@ -33,7 +34,6 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::AfterpayClearpay => {
             Ok(dirval!(PayLaterType = AfterpayClearpay))
         }
-        api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
         api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
         api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
         api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
