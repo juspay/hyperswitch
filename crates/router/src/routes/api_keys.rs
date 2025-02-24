@@ -294,7 +294,7 @@ pub async fn api_key_list(
     let offset = list_api_key_constraints.skip;
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -311,7 +311,7 @@ pub async fn api_key_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[cfg(feature = "v2")]

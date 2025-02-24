@@ -1,9 +1,11 @@
-use storage_impl::{DatabaseStore, kv_router_store::KVRouterStore, MockDb, RouterStore};
+use storage_impl::{kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
 use hyperswitch_domain_models::{
-    errors, merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore,
-    payment_methods::payment_methods::PaymentMethodInterface, payment_methods::PaymentMethod,
+    errors,
+    merchant_account::MerchantAccount,
+    merchant_key_store::MerchantKeyStore,
+    payment_methods::{PaymentMethod, PaymentMethodInterface},
 };
 
 #[async_trait::async_trait]

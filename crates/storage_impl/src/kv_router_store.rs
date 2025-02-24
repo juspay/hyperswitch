@@ -7,6 +7,7 @@ use crate::redis::kv_store::kv_wrapper;
 use crate::redis::kv_store::KvOperation;
 use crate::redis::kv_store::Op;
 use crate::redis::kv_store::{KvStorePartition, PartitionKey, RedisConnInterface};
+use crate::utils::find_all_combined_kv_database;
 use crate::utils::try_redis_get_else_try_database_get;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::fallback_reverse_lookup_not_found;
@@ -14,7 +15,6 @@ use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{self, StorageResult};
 use masking::StrongSecret;
-use crate::utils::find_all_combined_kv_database;
 use serde::de;
 use std::fmt::Debug;
 
@@ -40,6 +40,14 @@ pub struct KVRouterStore<T: DatabaseStore> {
     pub ttl_for_kv: u32,
     pub request_id: Option<String>,
     pub soft_kill_mode: bool,
+}
+
+pub struct InsertResourceParams<'a> {
+    pub insertable: kv::Insertable,
+    pub reverse_lookups: Vec<String>,
+    pub key: PartitionKey<'a>,
+    pub field: String,
+    pub resource_type: &'static str,
 }
 
 #[async_trait::async_trait]
@@ -69,6 +77,14 @@ where
     }
     fn get_replica_pool(&self) -> &PgPool {
         self.router_store.get_replica_pool()
+    }
+
+    fn get_accounts_master_pool(&self) -> &PgPool {
+        self.router_store.get_accounts_master_pool()
+    }
+
+    fn get_accounts_replica_pool(&self) -> &PgPool {
+        self.router_store.get_accounts_replica_pool()
     }
 }
 
@@ -197,11 +213,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
         create_resource_fn: R,
         resource_new: D,
-        insertable: kv::Insertable,
-        reverse_lookups: Vec<String>,
-        key: PartitionKey<'_>,
-        field: String,
-        entity: &'static str,
+        resource_params: InsertResourceParams<'_>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: de::DeserializeOwned
@@ -225,15 +237,17 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 error.change_context(new_err)
             }),
             MerchantStorageScheme::RedisKv => {
+                let key = resource_params.key;
                 let key_str = key.to_string();
                 let reverse_lookup_entry = |v: String| diesel_models::ReverseLookupNew {
-                    sk_id: field.clone(),
+                    sk_id: resource_params.field.clone(),
                     pk_id: key_str.clone(),
                     lookup_id: v,
-                    source: entity.to_string(),
+                    source: resource_params.resource_type.to_string(),
                     updated_by: storage_scheme.to_string(),
                 };
-                let results = reverse_lookups
+                let results = resource_params
+                    .reverse_lookups
                     .into_iter()
                     .map(|v| self.insert_reverse_lookup(reverse_lookup_entry(v), storage_scheme));
 
@@ -241,12 +255,12 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: Box::new(insertable),
+                        insertable: Box::new(resource_params.insertable),
                     },
                 };
                 match Box::pin(kv_wrapper::<D, _, _>(
                     self,
-                    KvOperation::<D>::HSetNx(&field, &resource_new, redis_entry),
+                    KvOperation::<D>::HSetNx(&resource_params.field, &resource_new, redis_entry),
                     key.clone(),
                 ))
                 .await
@@ -254,7 +268,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
-                        entity,
+                        entity: resource_params.resource_type,
                         key: Some(key_str),
                     }
                     .into()),
@@ -310,7 +324,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                         };
                         Box::pin(kv_wrapper::<(), _, _>(
                             self,
-                            KvOperation::<D>::Hset((&field, redis_value), redis_entry),
+                            KvOperation::<D>::Hset((field, redis_value), redis_entry),
                             key,
                         ))
                         .await
@@ -330,7 +344,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         filter_resources_fn: R,
         key: PartitionKey<'_>,
         pattern: &str,
-        filter_fn : impl Fn(&D) -> bool,
+        filter_fn: impl Fn(&D) -> bool,
         limit: Option<i64>,
     ) -> error_stack::Result<Vec<D>, errors::StorageError>
     where
@@ -360,20 +374,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                     ))
                     .await?
                     .try_into_scan();
-                    kv_result.map(|payment_methods| {
-                        payment_methods
-                            .into_iter()
-                            .filter(filter_fn)
-                            .collect()
-                    })
+                    kv_result.map(|records| records.into_iter().filter(filter_fn).collect())
                 };
 
-                Box::pin(find_all_combined_kv_database(
-                    redis_fut,
-                    db_call,
-                    limit,
-                ))
-                .await
+                Box::pin(find_all_combined_kv_database(redis_fut, db_call, limit)).await
             }
         }
     }

@@ -19,13 +19,11 @@ use crate::{
     redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
 };
-use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
+use crate::{kv_router_store::{KVRouterStore, InsertResourceParams}, DatabaseStore, RouterStore};
 use hyperswitch_domain_models::{
     errors,
     merchant_key_store::MerchantKeyStore,
-    payment_methods::{
-        payment_methods::PaymentMethodInterface, PaymentMethod as DomainPaymentMethod,
-    },
+    payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
 use router_env::{instrument, tracing};
 
@@ -181,11 +179,13 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             storage_scheme,
             || async { payment_method_new.clone().insert(&conn).await },
             payment_method,
-            kv::Insertable::PaymentMethod(payment_method_new.clone()),
-            reverse_lookups,
-            key,
-            field,
-            "payment_method",
+            InsertResourceParams {
+                insertable: kv::Insertable::PaymentMethod(payment_method_new.clone()),
+                reverse_lookups,
+                key,
+                field,
+                resource_type: "payment_method",
+            },
         )
         .await?
         .convert(
@@ -791,9 +791,13 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(state, key_store, payment_methods, |pm| {
-            pm.get_id() == payment_method_id
-        })
+        self.find_resource::<PaymentMethod, _>(
+            state,
+            key_store,
+            payment_methods,
+            |pm| pm.get_id() == payment_method_id,
+            "cannot find payment method".to_string(),
+        )
         .await
     }
 
@@ -806,9 +810,13 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(state, key_store, payment_methods, |pm| {
-            pm.get_id() == payment_method_id
-        })
+        self.find_resource::<PaymentMethod, _>(
+            state,
+            key_store,
+            payment_methods,
+            |pm| pm.get_id() == payment_method_id,
+            "cannot find payment method".to_string(),
+        )
         .await
     }
 
@@ -824,9 +832,13 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(state, key_store, payment_methods, |pm| {
-            pm.locker_id == Some(locker_id.to_string())
-        })
+        self.find_resource::<PaymentMethod, _>(
+            state,
+            key_store,
+            payment_methods,
+            |pm| pm.locker_id == Some(locker_id.to_string()),
+            "cannot find payment method".to_string(),
+        )
         .await
     }
 
@@ -882,9 +894,13 @@ impl PaymentMethodInterface for MockDb {
         _limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resources(state, key_store, payment_methods, |pm| {
-            pm.customer_id == *customer_id && pm.merchant_id == *merchant_id
-        })
+        self.find_resources(
+            state,
+            key_store,
+            payment_methods,
+            |pm| pm.customer_id == *customer_id && pm.merchant_id == *merchant_id,
+            "cannot find payment method".to_string(),
+        )
         .await
     }
 
@@ -915,9 +931,17 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resources(state, key_store, payment_methods, |pm| {
-            pm.customer_id == *customer_id && pm.merchant_id == *merchant_id && pm.status == status
-        })
+        self.find_resources(
+            state,
+            key_store,
+            payment_methods,
+            |pm| {
+                pm.customer_id == *customer_id
+                    && pm.merchant_id == *merchant_id
+                    && pm.status == status
+            },
+            "cannot find payment method".to_string(),
+        )
         .await
     }
 
@@ -993,6 +1017,7 @@ impl PaymentMethodInterface for MockDb {
             self.payment_methods.lock().await,
             payment_method_updated,
             |pm| pm.get_id() == payment_method.get_id(),
+            "cannot find payment method".to_string(),
         )
         .await
     }

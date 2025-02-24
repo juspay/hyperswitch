@@ -119,6 +119,7 @@ impl MockDb {
         key_store: &MerchantKeyStore,
         resources: MutexGuard<'_, Vec<D>>,
         filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
     ) -> CustomResult<R, StorageError>
     where
         D: Sync + ReverseConversion<R> + Clone,
@@ -134,9 +135,7 @@ impl MockDb {
                 )
                 .await
                 .change_context(StorageError::DecryptionError)?),
-            None => {
-                Err(StorageError::ValueNotFound("cannot find payment method".to_string()).into())
-            }
+            None => Err(StorageError::ValueNotFound(error_message).into()),
         }
     }
 
@@ -146,14 +145,15 @@ impl MockDb {
         key_store: &MerchantKeyStore,
         resources: MutexGuard<'_, Vec<D>>,
         filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
     ) -> CustomResult<Vec<R>, StorageError>
     where
         D: Sync + ReverseConversion<R> + Clone,
         R: Conversion,
     {
-        let resources : Vec<_>= resources.iter().filter(filter_fn).cloned().collect();
+        let resources: Vec<_> = resources.iter().filter(filter_fn).cloned().collect();
         if resources.is_empty() {
-            Err(StorageError::ValueNotFound("cannot find payment methods".to_string()).into())
+            Err(StorageError::ValueNotFound(error_message).into())
         } else {
             let pm_futures = resources
                 .into_iter()
@@ -181,6 +181,7 @@ impl MockDb {
         mut resources: MutexGuard<'_, Vec<D>>,
         resource_updated: D,
         filter_fn: impl Fn(&&mut D) -> bool,
+        error_message: String,
     ) -> CustomResult<R, StorageError>
     where
         D: Sync + ReverseConversion<R> + Clone,
@@ -198,10 +199,7 @@ impl MockDb {
                 .change_context(StorageError::DecryptionError)?;
             Ok(result)
         } else {
-            Err(
-                StorageError::ValueNotFound("cannot find payment method to update".to_string())
-                    .into(),
-            )
+            Err(StorageError::ValueNotFound(error_message).into())
         }
     }
 }

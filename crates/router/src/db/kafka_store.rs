@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ::payment_methods::client::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
@@ -19,11 +20,10 @@ use diesel_models::{
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
-use ::payment_methods::client::PaymentMethodsStorageInterface;
 use hyperswitch_domain_models::{
     disputes,
+    payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
-    payment_methods::payment_methods::PaymentMethodInterface,
     refunds,
 };
 #[cfg(not(feature = "payouts"))]
