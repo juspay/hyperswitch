@@ -21,7 +21,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
@@ -35,6 +38,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, Response},
     webhooks::{self, IncomingWebhookFlowError},
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface, Secret};
 use transformers as cashtocode;
 
@@ -150,24 +154,7 @@ impl ConnectorCommon for Cashtocode {
     }
 }
 
-impl ConnectorValidation for Cashtocode {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Cashtocode {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Cashtocode {
     //TODO: implement sessions flow
@@ -457,4 +444,63 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cashtocod
     // default implementation of build_request method will be executed
 }
 
-impl ConnectorSpecifications for Cashtocode {}
+lazy_static! {
+    static ref CASHTOCODE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut cashtocode_supported_payment_methods = SupportedPaymentMethods::new();
+
+
+        cashtocode_supported_payment_methods.add(
+            enums::PaymentMethod::Reward,
+            enums::PaymentMethodType::ClassicReward,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        cashtocode_supported_payment_methods.add(
+            enums::PaymentMethod::Reward,
+            enums::PaymentMethodType::Evoucher,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        cashtocode_supported_payment_methods
+    };
+
+    static ref CASHTOCODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "CashToCode",
+        description:
+            "CashToCode is a payment solution that enables users to convert cash into digital vouchers for online transactions",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments];
+
+}
+
+impl ConnectorSpecifications for Cashtocode {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*CASHTOCODE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*CASHTOCODE_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
