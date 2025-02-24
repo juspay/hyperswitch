@@ -1,15 +1,12 @@
 use std::collections::HashMap;
 
 use common_utils::pii::Email;
+use hyperswitch_connectors::utils::AddressDetailsData;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use unidecode::unidecode;
 
-use crate::{
-    connector::utils::{AddressDetailsData, PhoneDetailsData},
-    errors,
-    types::api::MessageCategory,
-};
+use crate::{connector::utils::PhoneDetailsData, errors, types::api::MessageCategory};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]

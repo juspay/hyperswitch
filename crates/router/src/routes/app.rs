@@ -88,6 +88,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
+    routes::hypersense as hypersense_routes,
 };
 
 #[derive(Clone)]
@@ -572,6 +573,7 @@ impl Payments {
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
             )
+            .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
@@ -1330,6 +1332,27 @@ impl Recon {
             .service(
                 web::resource("/verify_token")
                     .route(web::get().to(recon_routes::verify_recon_token)),
+            )
+    }
+}
+
+pub struct Hypersense;
+
+impl Hypersense {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hypersense")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/token")
+                    .route(web::get().to(hypersense_routes::get_hypersense_token)),
+            )
+            .service(
+                web::resource("/verify_token")
+                    .route(web::post().to(hypersense_routes::verify_hypersense_token)),
+            )
+            .service(
+                web::resource("/signout")
+                    .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             )
     }
 }

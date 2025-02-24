@@ -3613,6 +3613,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -3684,6 +3685,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -3753,6 +3755,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -4286,6 +4289,9 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            request_extended_authorization: None,
+            extended_authorization_applied: None,
+            capture_before: None,
             card_discovery: None,
         }
     }
@@ -6540,6 +6546,7 @@ pub enum UnifiedAuthenticationServiceFlow {
     ExternalAuthenticationPostAuthenticate {
         authentication_id: String,
     },
+    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6550,6 +6557,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
+    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6580,7 +6588,9 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if *do_authorisation_confirmation {
+                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
@@ -6590,6 +6600,11 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     None
                 }
             } else {
+                logger::info!(
+                    payment_method=?payment_data.payment_attempt.payment_method,
+                    click_to_pay_enabled=?business_profile.is_click_to_pay_enabled,
+                    "skipping unified authentication service call since payment conditions are not satisfied"
+                );
                 None
             }
         }
@@ -6978,6 +6993,70 @@ pub fn validate_platform_request_for_marketplace(
                     Ok(())
                 })?;
         }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+            xendit_split_payment,
+        )) => match xendit_split_payment {
+            common_types::payments::XenditSplitRequest::MultipleSplits(
+                xendit_multiple_split_payment,
+            ) => {
+                match amount {
+                    api::Amount::Zero => {
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                            .routes
+                            .iter()
+                            .map(|route| {
+                                route
+                                    .flat_amount
+                                    .unwrap_or(MinorUnit::new(0))
+                                    .get_amount_as_i64()
+                            })
+                            .sum();
+
+                        if total_split_amount != 0 {
+                            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name:
+                                    "Sum of split amounts should be equal to the total amount",
+                            });
+                        }
+                    }
+                    api::Amount::Value(amount) => {
+                        let total_payment_amount: i64 = amount.into();
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                    .routes
+                    .into_iter()
+                    .map(|route| {
+                        if route.flat_amount.is_none() && route.percent_amount.is_none() {
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount to be provided".to_string(),
+                            })
+                        } else if route.flat_amount.is_some() && route.percent_amount.is_some(){
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount, but not both".to_string(),
+                            })
+                        } else {
+                            Ok(route
+                                .flat_amount
+                                .map(|amount| amount.get_amount_as_i64())
+                                .or(route.percent_amount.map(|percentage| (percentage * total_payment_amount) / 100))
+                                .unwrap_or(0))
+                            }
+                            })
+                            .collect::<Result<Vec<i64>, _>>()?
+                            .into_iter()
+                            .sum();
+
+                        if total_payment_amount < total_split_amount {
+                            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                                message:
+                                    "The sum of split amounts should not exceed the total amount"
+                                        .to_string(),
+                            });
+                        }
+                    }
+                };
+            }
+            common_types::payments::XenditSplitRequest::SingleSplit(_) => (),
+        },
         None => (),
     }
     Ok(())

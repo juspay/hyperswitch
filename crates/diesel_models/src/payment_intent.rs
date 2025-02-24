@@ -1,5 +1,9 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_utils::{encryption::Encryption, pii, types::MinorUnit};
+use common_utils::{
+    encryption::Encryption,
+    pii,
+    types::{MinorUnit, RequestExtendedAuthorizationBool},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -72,6 +76,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
@@ -139,6 +144,7 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
@@ -171,6 +177,10 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Text for customizing message for card terms
+    pub custom_message_for_card_terms: Option<String>,
+    /// Custom background colour for payment link's handle confirm button
+    pub payment_button_colour: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -368,6 +378,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
