@@ -1,8 +1,6 @@
 use api_models::webhooks;
 use time::PrimitiveDateTime;
 
-use crate::errors;
-
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
@@ -173,9 +171,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
             description: None,
             return_url: None,
-            // Payments in the revenue recovery flow are always recurring transactions,
-            // so customer will not be not be present in this scenario.
-            setup_future_usage: Some(common_enums::FutureUsage::OffSession),
+            setup_future_usage: None,
             apply_mit_exemption: None,
             statement_descriptor: None,
             order_details: None,
