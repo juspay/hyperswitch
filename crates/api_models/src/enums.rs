@@ -145,12 +145,7 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    serde::Serialize,
-    strum::EnumString,
-)]
+#[derive(Clone, Debug, serde::Serialize, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 pub enum BillingConnectors {
     Chargebee,
