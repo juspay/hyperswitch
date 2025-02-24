@@ -921,6 +921,7 @@ pub async fn create_payment_method(
         merchant_account,
         key_store,
         None,
+        &customer_id,
     )
     .await;
 
@@ -1263,6 +1264,23 @@ pub async fn list_payment_methods_for_session(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn list_saved_payment_methods_for_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    customer_id: id_type::GlobalCustomerId,
+) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let customer_payment_methods =
+        list_customer_payment_method_core(&state, &merchant_account, &key_store, &customer_id)
+            .await?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        customer_payment_methods,
+    ))
+}
+
 #[cfg(feature = "v2")]
 /// Container for the inputs required for the required fields
 struct RequiredFieldsInput {
@@ -1513,14 +1531,16 @@ pub async fn vault_payment_method(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<(pm_types::AddVaultResponse, String)> {
     let db = &*state.store;
 
     // get fingerprint_id from vault
-    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault")?;
+    let fingerprint_id_from_vault =
+        vault::get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get fingerprint_id from vault")?;
 
     // throw back error if payment method is duplicated
     when(
@@ -1638,11 +1658,7 @@ fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn list_customer_payment_method_core(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1796,6 +1812,7 @@ pub async fn update_payment_method_core(
         &merchant_account,
         &key_store,
         current_vault_id, // using current vault_id for now, will have to refactor this
+        &payment_method.customer_id,
     ) // to generate new one on each vaulting later on
     .await
     .attach_printable("Failed to add payment method in vault")?;
