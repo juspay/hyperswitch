@@ -368,7 +368,7 @@ impl ConnectorRedirectResponse for ConnectorEnum {
 
 impl ConnectorValidation for ConnectorEnum {
     fn validate_connector_against_payment_request(
-        // &self,
+        &self,
         capture_method: Option<common_enums::CaptureMethod>,
         payment_method: common_enums::PaymentMethod,
         pmt: Option<common_enums::PaymentMethodType>,
