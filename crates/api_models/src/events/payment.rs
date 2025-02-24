@@ -10,21 +10,23 @@ use super::{
     not(feature = "payment_methods_v2")
 ))]
 use crate::payment_methods::CustomerPaymentMethodsListResponse;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(feature = "v1")]
 use crate::{
     payment_methods::{self},
     payments::{
-        ExtendedCardInfoResponse, PaymentListFilterConstraints, PaymentListResponseV2, PaymentIdType,
-        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
-        PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
-    }
+        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
+        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsStartRequest,
+    },
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::payment_methods::CustomerPaymentMethodsListResponse;
 use crate::{
     payment_methods::{
         ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
@@ -34,9 +36,8 @@ use crate::{
         PaymentMethodUpdate,
     },
     payments::{
-        self, PaymentListConstraints, PaymentListFilters,
-        PaymentListFiltersV2, PaymentListResponse, PaymentsAggregateResponse,
-        PaymentsResponse, PaymentsSessionResponse,
+        self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentsAggregateResponse, PaymentsResponse, PaymentsSessionResponse,
         RedirectionResponse,
     },
 };

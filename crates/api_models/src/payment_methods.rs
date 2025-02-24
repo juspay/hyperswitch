@@ -3,6 +3,8 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use cards::CardNumber;
+#[cfg(feature = "v1")]
+use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     errors,
@@ -10,8 +12,6 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-#[cfg(feature = "v1")]
-use common_utils::crypto::OptionalEncryptableName;
 use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};

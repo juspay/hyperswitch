@@ -6,8 +6,7 @@ use crate::refunds::{
 };
 #[cfg(feature = "v1")]
 use crate::refunds::{
-    RefundManualUpdateRequest, RefundRequest,
-    RefundUpdateRequest, RefundsRetrieveRequest,
+    RefundManualUpdateRequest, RefundRequest, RefundUpdateRequest, RefundsRetrieveRequest,
 };
 
 #[cfg(feature = "v1")]

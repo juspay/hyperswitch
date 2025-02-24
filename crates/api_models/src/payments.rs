@@ -1,9 +1,9 @@
+#[cfg(feature = "v1")]
+use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
     num::NonZeroI64,
 };
-#[cfg(feature = "v1")]
-use std::fmt;
 pub mod additional_info;
 pub mod trait_impls;
 use cards::CardNumber;
@@ -11,9 +11,7 @@ use cards::CardNumber;
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
 #[cfg(feature = "v1")]
-use common_utils::types::{
-    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
-};
+use common_utils::types::{ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -35,11 +33,6 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
-#[cfg(feature = "v1")]
-use crate::{
-    ephemeral_key::EphemeralKeyCreateResponse,
-    ValidateFieldAndGet,
-};
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
@@ -48,9 +41,7 @@ use crate::{
     mandates::RecurringDetails,
 };
 #[cfg(feature = "v1")]
-use crate::{
-    disputes, refunds,
-};
+use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
