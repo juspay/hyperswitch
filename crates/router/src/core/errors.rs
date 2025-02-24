@@ -465,3 +465,20 @@ pub enum BulkNetworkTokenizationError {
     #[error("Failed to update the payment method")]
     PaymentMethodUpdationFailed,
 }
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Debug, thiserror::Error)]
+pub enum RevenueRecoveryError {
+    #[error("Failed to fetch payment intent")]
+    PaymentIntentFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptFetchFailed,
+    #[error("Failed to get revenue recovery invoice webhook")]
+    InvoiceWebhookProcessingFailed,
+    #[error("Failed to get revenue recovery invoice transaction")]
+    TransactionWebhookProcessingFailed,
+    #[error("Failed to create payment intent")]
+    PaymentIntentCreateFailed,
+    #[error("Source verification failed for billing connector")]
+    WebhookAuthenticationFailed,
+}

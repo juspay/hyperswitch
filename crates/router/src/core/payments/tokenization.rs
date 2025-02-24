@@ -655,9 +655,11 @@ where
                     },
                     None => {
                         let customer_saved_pm_option = if payment_method_type
-                            == Some(api_models::enums::PaymentMethodType::ApplePay)
-                            || payment_method_type
-                                == Some(api_models::enums::PaymentMethodType::GooglePay)
+                            .map(|payment_method_type_value| {
+                                payment_method_type_value
+                                    .should_check_for_customer_saved_payment_method_type()
+                            })
+                            .unwrap_or(false)
                         {
                             match state
                                 .store
