@@ -281,6 +281,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentType,
         api_models::enums::ScaExemptionType,
         api_models::enums::PaymentMethod,
+        api_models::enums::TriggeredBy,
         api_models::enums::PaymentMethodType,
         api_models::enums::ConnectorType,
         api_models::enums::PayoutConnectors,

@@ -95,6 +95,10 @@ where
     fn peek(&self) -> &SecretValue {
         &self.inner_secret
     }
+
+    fn peek_mut(&mut self) -> &mut SecretValue {
+        &mut self.inner_secret
+    }
 }
 
 impl<SecretValue, MaskingStrategy> From<SecretValue> for Secret<SecretValue, MaskingStrategy>
