@@ -3534,13 +3534,13 @@ pub struct GooglePayWalletData {
     pub tokenization_data: GpayTokenizationData,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmazonPaySessionTokenData {
     #[serde(rename = "amazon_pay")]
     pub data: AmazonPayMerchantCredentials,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmazonPayMerchantCredentials {
     /// Amazon Pay merchant account identifier
     pub merchant_id: String,
