@@ -1245,8 +1245,6 @@ impl PaymentCreate {
             request.confirm.unwrap_or_default(),
         )?;
 
-        logger::debug!("sssssssssssssss {:?}", request_overcapture);
-
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),
