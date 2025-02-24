@@ -1,5 +1,7 @@
 use api_models::payments::DeviceChannel;
+use common_utils::types::MinorUnit;
 use masking::Secret;
+use time::PrimitiveDateTime;
 
 use crate::{address::Address, payment_method_data::PaymentMethodData};
 
@@ -53,7 +55,7 @@ pub struct ServiceSessionIds {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct TransactionDetails {
-    pub amount: Option<common_utils::types::MinorUnit>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub device_channel: Option<DeviceChannel>,
     pub message_category: Option<super::authentication::MessageCategory>,
@@ -75,6 +77,7 @@ pub enum UasAuthenticationResponseData {
     PostAuthentication {
         authentication_details: PostAuthenticationDetails,
     },
+    Confirmation {},
 }
 
 #[derive(Debug, Clone)]
@@ -119,4 +122,23 @@ pub struct DynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
     pub dynamic_data_type: Option<String>,
     pub ds_trans_id: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct UasConfirmationRequestData {
+    pub x_src_flow_id: Option<String>,
+    pub transaction_amount: MinorUnit,
+    pub transaction_currency: common_enums::Currency,
+    // Type of event associated with the checkout. Valid values are: - 01 - Authorise - 02 - Capture - 03 - Refund - 04 - Cancel - 05 - Fraud - 06 - Chargeback - 07 - Other
+    pub checkout_event_type: Option<String>,
+    pub checkout_event_status: Option<String>,
+    pub confirmation_status: Option<String>,
+    pub confirmation_reason: Option<String>,
+    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    // Authorisation code associated with an approved transaction.
+    pub network_authorization_code: Option<String>,
+    // The unique authorisation related tracing value assigned by a Payment Network and provided in an authorisation response. Required only when checkoutEventType=01. If checkoutEventType=01 and the value of networkTransactionIdentifier is unknown, please pass UNAVLB
+    pub network_transaction_identifier: Option<String>,
+    pub correlation_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
 }
