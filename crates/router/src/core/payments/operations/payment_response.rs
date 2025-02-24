@@ -24,6 +24,8 @@ use tracing_futures::Instrument;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::ValueExt;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
