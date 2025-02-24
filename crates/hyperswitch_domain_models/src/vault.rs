@@ -1,6 +1,7 @@
 use std::fmt::Debug;
-use serde::{Deserialize, Serialize};
+
 use api_models::payment_methods;
+use serde::{Deserialize, Serialize};
 
 use crate::payment_method_data;
 

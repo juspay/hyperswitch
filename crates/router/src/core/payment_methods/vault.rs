@@ -1252,9 +1252,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_vault<
-    D: domain::VaultingDataInterface + serde::Serialize,
->(
+pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
 ) -> CustomResult<String, errors::VaultError> {

@@ -45,7 +45,10 @@ pub async fn mk_tokenization_req(
     customer_id: id_type::CustomerId,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<
-    (payment_method_types::CardNetworkTokenResponsePayload, Option<String>),
+    (
+        payment_method_types::CardNetworkTokenResponsePayload,
+        Option<String>,
+    ),
     errors::NetworkTokenizationError,
 > {
     let enc_key = tokenization_service.public_key.peek().clone();
@@ -156,7 +159,10 @@ pub async fn generate_network_token(
     customer_id: id_type::GlobalCustomerId,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<
-    (payment_method_types::GenerateNetworkTokenResponsePayload, String),
+    (
+        payment_method_types::GenerateNetworkTokenResponsePayload,
+        String,
+    ),
     errors::NetworkTokenizationError,
 > {
     let enc_key = tokenization_service.public_key.peek().clone();
@@ -270,7 +276,10 @@ pub async fn make_card_network_tokenization_request(
     card: &domain::Card,
     customer_id: &id_type::CustomerId,
 ) -> CustomResult<
-    (payment_method_types::CardNetworkTokenResponsePayload, Option<String>),
+    (
+        payment_method_types::CardNetworkTokenResponsePayload,
+        Option<String>,
+    ),
     errors::NetworkTokenizationError,
 > {
     let card_data = payment_method_types::CardData {
