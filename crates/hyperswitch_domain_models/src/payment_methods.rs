@@ -679,8 +679,8 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
                 psp_tokenization,
                 network_tokenization,
             } => Self {
-                billing: billing.map(|val| val.into()),
-                psp_tokenization: psp_tokenization,
+                billing,
+                psp_tokenization,
                 network_tokenization,
             },
         }
