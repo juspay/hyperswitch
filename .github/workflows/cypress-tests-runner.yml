@@ -50,7 +50,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         run: |
@@ -128,7 +128,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "5b3ebdad-1067-421b-83e5-3ceb73c3eeeb.json.gpg"
+          S3_SOURCE_FILE_NAME: "57a07166-894a-4f43-b4b5-ee1155138ec9.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -189,8 +189,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -377,8 +376,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}

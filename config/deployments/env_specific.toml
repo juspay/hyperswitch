@@ -34,6 +34,9 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" # Private key
 paze_private_key = "PAZE_PRIVATE_KEY"                       # Base 64 Encoded Private Key File cakey.pem generated for Paze -> Command to create private key: openssl req -newkey rsa:2048 -x509 -keyout cakey.pem -out cacert.pem -days 365
 paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE" # PEM Passphrase used for generating Private Key File cakey.pem
 
+[google_pay_decrypt_keys]
+google_pay_root_signing_keys = "GOOGLE_PAY_ROOT_SIGNING_KEYS" # Base 64 Encoded Root Signing Keys provided by Google Pay (https://developers.google.com/pay/api/web/guides/resources/payment-data-cryptography)
+
 [applepay_merchant_configs]
 common_merchant_identifier = "APPLE_PAY_COMMON_MERCHANT_IDENTIFIER"                        # Refer to config.example.toml to learn how you can generate this value
 merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"                                           # Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
@@ -101,13 +104,10 @@ bucket_name = "bucket"   # The AWS S3 bucket name for file storage
 
 # This section provides configs for currency conversion api
 [forex_api]
-call_delay = 21600                # Api calls are made after every 6 hrs
-local_fetch_retry_count = 5       # Fetch from Local cache has retry count as 5
-local_fetch_retry_delay = 1000    # Retry delay for checking write condition
-api_timeout = 20000               # Api timeouts once it crosses 20000 ms
-api_key = "YOUR API KEY HERE"     # Api key for making request to foreign exchange Api
-fallback_api_key = "YOUR API KEY" # Api key for the fallback service
-redis_lock_timeout = 26000        # Redis remains write locked for 26000 ms once the acquire_redis_lock is called
+call_delay = 21600                # Expiration time for data in cache as well as redis in seconds
+api_key = ""                      # Api key for making request to foreign exchange Api
+fallback_api_key = ""             # Api key for the fallback service
+redis_lock_timeout = 100          # Redis remains write locked for 100 s once the acquire_redis_lock is called
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
@@ -308,6 +308,7 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = ""
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"
 schema = "public"
+accounts_schema = "public"
 redis_key_prefix = ""
 clickhouse_database = "default"
 

@@ -47,6 +47,9 @@ pub mod routing_algorithm;
 pub mod types;
 pub mod unified_translations;
 
+#[cfg(feature = "v2")]
+pub mod payment_methods_session;
+
 #[allow(unused_qualifications)]
 pub mod schema;
 #[allow(unused_qualifications)]

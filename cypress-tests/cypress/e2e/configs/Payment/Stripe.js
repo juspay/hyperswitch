@@ -5,7 +5,7 @@ import {
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "378282246310005",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
@@ -23,7 +23,7 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -82,12 +82,12 @@ const payment_method_data_3ds = {
 
 const payment_method_data_no3ds = {
   card: {
-    last4: "4242",
+    last4: "0005",
     card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
+    card_network: "AmericanExpress",
+    card_issuer: "AmericanExpress",
+    card_issuing_country: "INDIA",
+    card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
@@ -123,7 +123,7 @@ const requiredFields = {
 
 export const connectorDetails = {
   multi_credential_config: {
-    specName: ["connectorAgnostic"],
+    specName: ["connectorAgnosticNTID"],
     value: "connector_2",
   },
   card_pm: {
@@ -144,14 +144,14 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
       Request: {
         currency: "USD",
         customer_acceptance: null,
-        amount: 6500,
+        amount: 6000,
         authentication_type: "no_three_ds",
         setup_future_usage: "off_session",
       },
@@ -190,7 +190,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 50,
-          amount: 6500,
+          amount: 6000,
         },
       },
     },
@@ -208,9 +208,9 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
-          amount_received: 6550,
-          amount: 6500,
-          net_amount: 6550,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
         },
       },
     },
@@ -316,32 +316,29 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 6500,
+          amount_received: 6000,
         },
       },
     },
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 100,
+          amount_received: 2000,
         },
       },
     },
@@ -356,12 +353,7 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -372,11 +364,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -387,12 +375,7 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -403,12 +386,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -418,14 +396,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {
@@ -564,7 +534,7 @@ export const connectorDetails = {
     MITAutoCapture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -701,7 +671,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -754,7 +724,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },

@@ -325,7 +325,11 @@ impl SurchargeMetadata {
                 .get_order_fulfillment_time()
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
             redis_conn
-                .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
+                .set_hash_fields(
+                    &redis_key.as_str().into(),
+                    value_list,
+                    Some(intent_fulfillment_time),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to write to redis")?;
@@ -347,7 +351,11 @@ impl SurchargeMetadata {
         let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
         let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
         let result = redis_conn
-            .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
+            .get_hash_field_and_deserialize(
+                &redis_key.as_str().into(),
+                &value_key,
+                "SurchargeDetails",
+            )
             .await;
         logger::debug!(
             "Surcharge result fetched from redis with key = {} and {}",
@@ -362,20 +370,9 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
-            let threeds_server_transaction_id = authentication
-                .threeds_server_transaction_id
-                .clone()
-                .get_required_value("threeds_server_transaction_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("threeds_server_transaction_id must not be null when authentication_status is success")?;
-            let message_version = authentication
-                .message_version
-                .clone()
-                .get_required_value("message_version")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "message_version must not be null when authentication_status is success",
-                )?;
+            let threeds_server_transaction_id =
+                authentication.threeds_server_transaction_id.clone();
+            let message_version = authentication.message_version.clone();
             let cavv = authentication
                 .cavv
                 .clone()
