@@ -77,7 +77,7 @@ pub struct PaymentMethodCard {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentMethodId {
     payment_method_source: PaymentMethodSource,
-    payment_method_id: String,
+    payment_method_id: Secret<String>,
     store_payment_method: StorePaymentMethod,
 }
 
@@ -171,16 +171,17 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                 let automatic_capture = item.router_data.request.is_auto_capture()?;
                 let payment_method = PaymentMethod::PaymentMethodId(PaymentMethodId {
                     payment_method_source: PaymentMethodSource::PaymentMethodId,
-                    payment_method_id: item.router_data.request.connector_mandate_id().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
+                    payment_method_id: item
+                        .router_data
+                        .request
+                        .connector_mandate_id()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "connector_mandate_id",
-                        },
-                    )?,
+                        })?
+                        .into(),
                     store_payment_method: match item.router_data.request.setup_future_usage {
                         Some(setup_future_usage) => match setup_future_usage {
-                            enums::FutureUsage::OffSession => {
-                                StorePaymentMethod::CardholderInitiated
-                            }
+                            enums::FutureUsage::OffSession => StorePaymentMethod::MerchantInitiated,
                             enums::FutureUsage::OnSession => StorePaymentMethod::DoNotStore,
                         },
                         None => StorePaymentMethod::DoNotStore,
@@ -304,7 +305,7 @@ pub struct MonerisPaymentsResponse {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentMethodData {
-    payment_method_id: String,
+    payment_method_id: Secret<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsResponseData>>
@@ -320,7 +321,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(Some(MandateReference {
-                    connector_mandate_id: Some(item.response.payment_method.payment_method_id),
+                    connector_mandate_id: Some(
+                        item.response
+                            .payment_method
+                            .payment_method_id
+                            .peek()
+                            .to_string(),
+                    ),
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
