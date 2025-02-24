@@ -95,12 +95,7 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .await
             .map_err(|err| match err.code() {
                 Code::NotFound => DynamicRoutingError::ContractNotFound,
-                _ => {
-                    logger::error!(contract_routing_error_status=?err);
-                    DynamicRoutingError::ContractBasedRoutingFailure(
-                        "Failed to fetch the contract score".to_string(),
-                    )
-                }
+                _ => DynamicRoutingError::ContractBasedRoutingFailure(err.to_string()),
             })?
             .into_inner();
 

@@ -1615,18 +1615,16 @@ pub async fn perform_contract_based_routing(
 
         let contract_based_connectors = match contract_based_connectors_result {
             Ok(resp) => resp,
-            Err(err) => {
-                logger::error!(contract_based_routing_error=?err);
-                match err.current_context() {
-                    DynamicRoutingError::ContractNotFound => {
-                        let label_info = contract_based_routing_configs
-                            .label_info
-                            .ok_or(errors::RoutingError::ContractBasedRoutingConfigError)
-                            .attach_printable(
-                                "Label information not found in contract routing configs",
-                            )?;
+            Err(err) => match err.current_context() {
+                DynamicRoutingError::ContractNotFound => {
+                    let label_info = contract_based_routing_configs
+                        .label_info
+                        .ok_or(errors::RoutingError::ContractBasedRoutingConfigError)
+                        .attach_printable(
+                            "Label information not found in contract routing configs",
+                        )?;
 
-                        client
+                    client
                             .update_contracts(
                                 profile_id.get_string_repr().into(),
                                 label_info,
@@ -1640,11 +1638,18 @@ pub async fn perform_contract_based_routing(
                             .attach_printable(
                                 "unable to update contract based routing window in dynamic routing service",
                             )?;
-                        return Err((errors::RoutingError::ContractScoreCalculationError).into());
-                    }
-                    _ => return Err((errors::RoutingError::ContractScoreCalculationError).into()),
+                    return Err((errors::RoutingError::ContractScoreCalculationError {
+                        err: err.to_string(),
+                    })
+                    .into());
                 }
-            }
+                _ => {
+                    return Err((errors::RoutingError::ContractScoreCalculationError {
+                        err: err.to_string(),
+                    })
+                    .into())
+                }
+            },
         };
 
         let mut connectors = Vec::with_capacity(contract_based_connectors.labels_with_score.len());
