@@ -454,7 +454,7 @@ lazy_static! {
             enums::PaymentMethodType::CryptoCurrency,
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::NotSupported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
             },
