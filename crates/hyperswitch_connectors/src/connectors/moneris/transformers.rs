@@ -142,14 +142,14 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                         ),
                         card_security_code: req_card.card_cvc.clone(),
                     },
-                    store_payment_method: match item.router_data.request.setup_future_usage {
-                        Some(setup_future_usage) => match setup_future_usage {
-                            enums::FutureUsage::OffSession => {
-                                StorePaymentMethod::CardholderInitiated
-                            }
-                            enums::FutureUsage::OnSession => StorePaymentMethod::DoNotStore,
-                        },
-                        None => StorePaymentMethod::DoNotStore,
+                    store_payment_method: if item
+                        .router_data
+                        .request
+                        .is_customer_initiated_mandate_payment()
+                    {
+                        StorePaymentMethod::CardholderInitiated
+                    } else {
+                        StorePaymentMethod::DoNotStore
                     },
                 });
                 let automatic_capture = item.router_data.request.is_auto_capture()?;
