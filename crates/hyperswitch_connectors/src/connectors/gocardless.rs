@@ -862,7 +862,10 @@ impl IncomingWebhook for Gocardless {
 
 lazy_static! {
     static ref GOCARDLESS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
 
         let mut gocardless_supported_payment_methods = SupportedPaymentMethods::new();
 

@@ -848,6 +848,7 @@ lazy_static! {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
         ];
 
         let supported_card_network = vec![
