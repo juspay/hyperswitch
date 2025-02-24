@@ -25,7 +25,7 @@ use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
-#[cfg(feature = "keymanager_create")]
+#[cfg(feature = "keymanager")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
 use crate::{
@@ -1050,7 +1050,7 @@ impl UserFromStorage {
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Unable to generate aes 256 key")?;
 
-            #[cfg(feature = "keymanager_create")]
+            #[cfg(feature = "keymanager")]
             {
                 common_utils::keymanager::transfer_key_to_key_manager(
                     key_manager_state,

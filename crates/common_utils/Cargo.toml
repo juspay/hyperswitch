@@ -9,14 +9,11 @@ license.workspace = true
 
 [features]
 default = []
-keymanager = ["dep:router_env"]
-keymanager_mtls = ["reqwest/rustls-tls"]
-encryption_service = ["dep:router_env"]
-km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
-signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
+keymanager = []
+signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:futures"]
 async_ext = ["dep:async-trait", "dep:futures"]
-logs = ["dep:router_env"]
-metrics = ["dep:router_env", "dep:futures"]
+logs = []
+metrics = ["dep:futures"]
 payouts = ["common_enums/payouts"]
 v1 = []
 v2 = []
@@ -63,7 +60,7 @@ uuid = { version = "1.8.0", features = ["v7"] }
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
+router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra", "actix_web"],  default-features = false }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }

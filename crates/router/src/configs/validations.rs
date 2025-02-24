@@ -276,9 +276,21 @@ impl super::settings::KeyManagerConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(feature = "keymanager_mtls")]
         when(
-            self.enabled && (self.ca.is_default_or_empty() || self.cert.is_default_or_empty()),
+            self.enabled
+                && self.mtls_enabled
+                && (self.ca.is_none()
+                    || self
+                        .ca
+                        .as_ref()
+                        .map(|ca| ca.is_default_or_empty())
+                        .unwrap_or_default()
+                    || self.cert.is_none()
+                    || self
+                        .cert
+                        .as_ref()
+                        .map(|cert| cert.is_default_or_empty())
+                        .unwrap_or_default()),
             || {
                 Err(ApplicationError::InvalidConfigurationValueError(
                     "Invalid CA or Certificate for Keymanager.".into(),

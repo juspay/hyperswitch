@@ -247,33 +247,34 @@ impl SecretsHandler for settings::PaymentMethodAuth {
 impl SecretsHandler for settings::KeyManagerConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        _secret_management_client: &dyn SecretManagementInterface,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        #[cfg(feature = "keymanager_mtls")]
         let keyconfig = value.get_inner();
 
-        #[cfg(feature = "keymanager_mtls")]
         let ca = if keyconfig.enabled {
-            _secret_management_client
-                .get_secret(keyconfig.ca.clone())
-                .await?
+            keyconfig
+                .ca
+                .clone()
+                .async_map(|ca| secret_management_client.get_secret(ca))
+                .await
+                .transpose()?
         } else {
             keyconfig.ca.clone()
         };
 
-        #[cfg(feature = "keymanager_mtls")]
         let cert = if keyconfig.enabled {
-            _secret_management_client
-                .get_secret(keyconfig.cert.clone())
-                .await?
+            keyconfig
+                .cert
+                .clone()
+                .async_map(|cert| secret_management_client.get_secret(cert))
+                .await
+                .transpose()?
         } else {
-            keyconfig.ca.clone()
+            keyconfig.cert.clone()
         };
 
         Ok(value.transition_state(|keyconfig| Self {
-            #[cfg(feature = "keymanager_mtls")]
             ca,
-            #[cfg(feature = "keymanager_mtls")]
             cert,
             ..keyconfig
         }))
