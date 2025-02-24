@@ -606,19 +606,17 @@ impl PaymentAttempt {
             )),
         });
         let payment_method_type_data = payment_intent
-                                    .feature_metadata
-                                    .as_ref()
-                                    .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-                                    .map(|rrm| {
-                                        rrm.payment_method_type
-        });
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rrm| rrm.payment_method_type);
 
         let payment_method_subtype_data = payment_intent
-                                    .feature_metadata
-                                    .as_ref()
-                                    .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-                                    .map(|rrm| rrm.payment_method_subtype);
-                                
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rrm| rrm.payment_method_subtype);
+
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -654,10 +652,12 @@ impl PaymentAttempt {
             customer_acceptance: None,
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
-            payment_method_type: payment_method_type_data.unwrap_or(common_enums::PaymentMethod::Card),
+            payment_method_type: payment_method_type_data
+                .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: None,
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data.unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data
+                .unwrap_or(common_enums::PaymentMethodType::Credit),
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,

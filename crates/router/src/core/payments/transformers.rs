@@ -1719,10 +1719,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant connector id is none when constructing response")?;
 
-        let error = payment_attempt
-            .error
-            .clone()
-            .map(|from: hyperswitch_domain_models::payments::payment_attempt::ErrorDetails| api_models::payments::ErrorDetails::foreign_from(&from));
+        let error = payment_attempt.error.clone().map(
+            |from: hyperswitch_domain_models::payments::payment_attempt::ErrorDetails| {
+                api_models::payments::ErrorDetails::foreign_from(&from)
+            },
+        );
         let payment_address = self.payment_address;
 
         let payment_method_data =
