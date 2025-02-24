@@ -3,10 +3,8 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
-    // transformers::ForeignTryFrom,
     types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-// use std::convert::TryFrom;
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
@@ -1364,7 +1362,15 @@ fn create_amazon_pay_session_token(
     let merchant_id = amazon_pay_metadata.merchant_id;
     let store_id = amazon_pay_metadata.store_id;
     // currently supports only the US region hence USD is the only supported currency
-    let ledger_currency = common_enums::Currency::USD;
+    let ledger_currency = match router_data.request.currency {
+        common_enums::Currency::USD => router_data.request.currency,
+        _ => {
+            return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "ledger_currency".to_string(),
+                expected_format: "USD".to_string(),
+            }.into())
+        }
+    };
     // currently supports only the 'automatic' capture_method
     let payment_intent = payment_types::AmazonPayPaymentIntent::AuthorizeWithCapture;
     let required_amount_type = StringMajorUnitForConnector;
