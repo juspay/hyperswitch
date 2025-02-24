@@ -461,5 +461,3 @@ connector_list = "cybersource"
 
 [platform]
 enabled = false
-
-
