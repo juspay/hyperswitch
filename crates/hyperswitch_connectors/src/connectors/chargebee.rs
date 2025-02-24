@@ -609,7 +609,7 @@ impl webhooks::IncomingWebhook for Chargebee {
             api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
         ))
     }
-    #[cfg(feature = "v1")]
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -627,7 +627,7 @@ impl webhooks::IncomingWebhook for Chargebee {
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
     }
-    #[cfg(feature = "v1")]
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
