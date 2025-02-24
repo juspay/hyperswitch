@@ -649,6 +649,17 @@ pub enum MobilePaymentData {
     },
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<api_models::payment_methods::PaymentMethodCreateData> for PaymentMethodData {
+    fn from(value: api_model::payment_methods::PaymentMethodCreateData) -> Self{
+        match value{
+            api_models::payment_methods::PaymentMethodCreateData::Card(card_data) => {
+                Self::Card(Card::from(card_data))
+            }
+        }
+    }
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {

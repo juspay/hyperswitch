@@ -2573,5 +2573,57 @@ async fn add_token_call_to_store(
     payment_method_create_request: &payment_methods::PaymentMethodCreate,
     payment_method: &domain::PaymentMethod,
 ) -> RouterResult<()>{
-    let router_data_creation 
+    let customer_id = req.customer_id.to_owned();
+    // call merchant connector account via merchant_connector_id ( connector, connector_auth_type)
+    // via payment_method_Session get address
+    let router_data = types::RouterData {
+        flow: std::marker::PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id,
+        connector_customer: None,
+        connector: String::new(),
+        payment_id: String::new(),
+        attempt_id: String::new(),
+        tenant_id: state.tenant.tenant_id.clone(),
+        status: common_enums::enums::AttemptStatus::default(),
+        payment_method: common_enums::enums::PaymentMethod::default(),
+        connector_auth_type: ConnectorAuthType::default(),
+        description: None,
+        address: PaymentAddress::default(),
+        auth_type: common_enums::enums::AuthenticationType::default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request: Request::default(),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        connector_request_reference_id: String::new(), // payment_method_session_id
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        connector_response: None,
+        payment_method_status: None,
+        minor_amount_captured: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+    };
 }
