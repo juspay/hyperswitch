@@ -1042,6 +1042,10 @@ impl Customers {
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
                 )
+                .service(
+                    web::resource("/{id}/saved-payment-methods")
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
+                )
         }
         route
     }
