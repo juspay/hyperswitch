@@ -118,6 +118,7 @@ pub struct ConfigMetadata {
     pub locale: Option<InputData>,
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
+    pub merchant_configuration_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -173,6 +174,7 @@ pub struct ConnectorConfig {
     pub cashtocode: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
+    pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -191,6 +193,7 @@ pub struct ConnectorConfig {
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
+    // pub getnet: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
@@ -201,6 +204,7 @@ pub struct ConnectorConfig {
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
+    pub moneris: Option<ConnectorTomlConfig>,
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
@@ -337,6 +341,7 @@ impl ConnectorConfig {
             Connector::Cashtocode => Ok(connector_data.cashtocode),
             Connector::Checkout => Ok(connector_data.checkout),
             Connector::Coinbase => Ok(connector_data.coinbase),
+            Connector::Coingate => Ok(connector_data.coingate),
             Connector::Cryptopay => Ok(connector_data.cryptopay),
             Connector::Cybersource => Ok(connector_data.cybersource),
             Connector::Iatapay => Ok(connector_data.iatapay),
@@ -353,6 +358,7 @@ impl ConnectorConfig {
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
             Connector::Forte => Ok(connector_data.forte),
+            // Connector::Getnet => Ok(connector_data.getnet),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
@@ -363,6 +369,7 @@ impl ConnectorConfig {
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
+            Connector::Moneris => Ok(connector_data.moneris),
             Connector::Multisafepay => Ok(connector_data.multisafepay),
             Connector::Nexinets => Ok(connector_data.nexinets),
             Connector::Nexixpay => Ok(connector_data.nexixpay),

@@ -120,10 +120,6 @@ merchant_secret="Source verification key"
 [[adyen.bank_redirect]]
   payment_method_type = "ideal"
 [[adyen.bank_redirect]]
-  payment_method_type = "giropay"
-[[adyen.bank_redirect]]
-  payment_method_type = "sofort"
-[[adyen.bank_redirect]]
   payment_method_type = "eps"
 [[adyen.bank_redirect]]
   payment_method_type = "blik"
@@ -1161,6 +1157,12 @@ api_key="API Key"
 [coinbase.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[coingate]
+[[coingate.crypto]]
+  payment_method_type = "crypto_currency"
+[coingate.connector_auth.HeaderKey]
+api_key="API Key"
+
 [cryptopay]
 [[cryptopay.crypto]]
   payment_method_type = "crypto_currency"
@@ -1213,6 +1215,8 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[cybersource.wallet]]
   payment_method_type = "paze"
+[[cybersource.wallet]]
+  payment_method_type = "samsung_pay"
 [cybersource.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
@@ -1823,6 +1827,48 @@ api_key="API Key"
 key1="Profile Token"
 [mollie.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[moneris]
+[[moneris.credit]]
+  payment_method_type = "Mastercard"
+[[moneris.credit]]
+  payment_method_type = "Visa"
+[[moneris.credit]]
+  payment_method_type = "Interac"
+[[moneris.credit]]
+  payment_method_type = "AmericanExpress"
+[[moneris.credit]]
+  payment_method_type = "JCB"
+[[moneris.credit]]
+  payment_method_type = "DinersClub"
+[[moneris.credit]]
+  payment_method_type = "Discover"
+[[moneris.credit]]
+  payment_method_type = "CartesBancaires"
+[[moneris.credit]]
+  payment_method_type = "UnionPay"
+[[moneris.debit]]
+  payment_method_type = "Mastercard"
+[[moneris.debit]]
+  payment_method_type = "Visa"
+[[moneris.debit]]
+  payment_method_type = "Interac"
+[[moneris.debit]]
+  payment_method_type = "AmericanExpress"
+[[moneris.debit]]
+  payment_method_type = "JCB"
+[[moneris.debit]]
+  payment_method_type = "DinersClub"
+[[moneris.debit]]
+  payment_method_type = "Discover"
+[[moneris.debit]]
+  payment_method_type = "CartesBancaires"
+[[moneris.debit]]
+  payment_method_type = "UnionPay"
+[moneris.connector_auth.SignatureKey]
+api_key="Client Secret"
+key1="Client Id"
+api_secret="Merchant Id"
 
 [multisafepay]
 [[multisafepay.credit]]
@@ -4001,31 +4047,37 @@ type="Text"
 name="mcc"
 label="MCC"
 placeholder="Enter MCC"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_country_code]
 name="merchant_country_code"
 label="3 digit numeric country code"
 placeholder="Enter 3 digit numeric country code"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_name]
 name="merchant_name"
 label="Name of the merchant"
 placeholder="Enter Name of the merchant"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_name]
 name="three_ds_requestor_name"
 label="ThreeDS requestor name"
 placeholder="Enter ThreeDS requestor name"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_id]
 name="three_ds_requestor_id"
 label="ThreeDS request id"
 placeholder="Enter ThreeDS request id"
-required=true
+required=false
+type="Text"
+[netcetera.metadata.merchant_configuration_id]
+name="merchant_configuration_id"
+label="Merchant Configuration ID"
+placeholder="Enter Merchant Configuration ID"
+required=false
 type="Text"
 
 
@@ -4483,3 +4535,12 @@ type="Text"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+
+[inespay]
+[[inespay.bank_debit]]
+  payment_method_type = "sepa"
+[inespay.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Token"
+[inespay.connector_webhook_details]
+merchant_secret="API Key"

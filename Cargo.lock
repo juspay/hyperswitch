@@ -4005,6 +4005,7 @@ dependencies = [
  "bytes 1.7.1",
  "cards",
  "common_enums",
+ "common_types",
  "common_utils",
  "encoding_rs",
  "error-stack",

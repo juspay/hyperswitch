@@ -6,6 +6,9 @@ pub mod authentication;
 /// Enum for Theme Lineage
 pub mod theme;
 
+/// types that are wrappers around primitive types
+pub mod primitive_wrappers;
+
 use std::{
     borrow::Cow,
     fmt::Display,
@@ -26,6 +29,10 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+pub use primitive_wrappers::bool_wrappers::{
+    AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
+    RequestExtendedAuthorizationBool,
+};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -1420,7 +1427,7 @@ crate::impl_to_sql_from_sql_json!(BrowserInformation);
 /// In case connector's use an identifier whose length exceeds 128 characters,
 /// the hash value of such identifiers will be stored as connector_transaction_id.
 /// The actual connector's identifier will be stored in a separate column -
-/// connector_transaction_data or something with a similar name.
+/// processor_transaction_data or something with a similar name.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub enum ConnectorTransactionId {
@@ -1438,7 +1445,7 @@ impl ConnectorTransactionId {
         }
     }
 
-    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and connector_transaction_data
+    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and processor_transaction_data
     pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
         let txn_id = Self::from(src.clone());
         match txn_id {
@@ -1456,10 +1463,10 @@ impl ConnectorTransactionId {
             (Self::TxnId(id), _) => Ok(id),
             (Self::HashedData(_), Some(id)) => Ok(id),
             (Self::HashedData(id), None) => Err(report!(ValidationError::InvalidValue {
-                message: "connector_transaction_data is empty for HashedData variant".to_string(),
+                message: "processor_transaction_data is empty for HashedData variant".to_string(),
             })
             .attach_printable(format!(
-                "connector_transaction_data is empty for connector_transaction_id {}",
+                "processor_transaction_data is empty for connector_transaction_id {}",
                 id
             ))),
         }

@@ -216,6 +216,7 @@ diesel::table! {
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
+        always_request_extended_authorization -> Nullable<Bool>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
     }
@@ -271,6 +272,7 @@ diesel::table! {
         connector_response_reference_id -> Nullable<Varchar>,
         #[max_length = 512]
         connector_capture_data -> Nullable<Varchar>,
+        processor_capture_data -> Nullable<Text>,
     }
 }
 
@@ -909,6 +911,10 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         connector_mandate_detail -> Nullable<Jsonb>,
+        request_extended_authorization -> Nullable<Bool>,
+        extended_authorization_applied -> Nullable<Bool>,
+        capture_before -> Nullable<Timestamp>,
+        processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
     }
@@ -991,6 +997,7 @@ diesel::table! {
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
+        request_extended_authorization -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -1261,6 +1268,8 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        processor_refund_data -> Nullable<Text>,
+        processor_transaction_data -> Nullable<Text>,
     }
 }
 

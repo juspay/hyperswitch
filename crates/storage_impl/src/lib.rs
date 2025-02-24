@@ -91,6 +91,14 @@ where
     fn get_replica_pool(&self) -> &PgPool {
         self.db_store.get_replica_pool()
     }
+
+    fn get_accounts_master_pool(&self) -> &PgPool {
+        self.db_store.get_accounts_master_pool()
+    }
+
+    fn get_accounts_replica_pool(&self) -> &PgPool {
+        self.db_store.get_accounts_replica_pool()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {

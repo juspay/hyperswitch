@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
 #[cfg(feature = "v2")]
-use api_models::ephemeral_key::EphemeralKeyResponse;
+use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
@@ -47,8 +47,8 @@ use openssl::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use ring::hmac;
 use router_env::{instrument, logger, tracing};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -591,10 +591,13 @@ pub async fn get_token_pm_type_mandate_details(
                             mandate_generic_data.mandate_connector,
                             mandate_generic_data.payment_method_info,
                         )
-                    } else if request.payment_method_type
-                        == Some(api_models::enums::PaymentMethodType::ApplePay)
-                        || request.payment_method_type
-                            == Some(api_models::enums::PaymentMethodType::GooglePay)
+                    } else if request
+                        .payment_method_type
+                        .map(|payment_method_type_value| {
+                            payment_method_type_value
+                                .should_check_for_customer_saved_payment_method_type()
+                        })
+                        .unwrap_or(false)
                     {
                         let payment_request_customer_id = request.get_customer_id();
                         if let Some(customer_id) =
@@ -3055,76 +3058,70 @@ pub async fn make_ephemeral_key(
 }
 
 #[cfg(feature = "v2")]
-pub async fn make_ephemeral_key(
+pub async fn make_client_secret(
     state: SessionState,
-    customer_id: id_type::GlobalCustomerId,
+    resource_id: api_models::ephemeral_key::ResourceId,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     headers: &actix_web::http::header::HeaderMap,
-) -> errors::RouterResponse<EphemeralKeyResponse> {
+) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
     let key_manager_state = &((&state).into());
-    db.find_customer_by_global_id(
-        key_manager_state,
-        &customer_id,
-        merchant_account.get_id(),
-        &key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let resource_type = services::authentication::get_header_value_by_key(
-        headers::X_RESOURCE_TYPE.to_string(),
-        headers,
-    )?
-    .map(ephemeral_key::ResourceType::from_str)
-    .transpose()
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
-    })?
-    .get_required_value("ResourceType")
-    .attach_printable("Failed to convert ResourceType from string")?;
+    match &resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            db.find_customer_by_global_id(
+                key_manager_state,
+                global_customer_id,
+                merchant_account.get_id(),
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        }
+    }
 
-    let ephemeral_key = create_ephemeral_key(
-        &state,
-        &customer_id,
-        merchant_account.get_id(),
-        resource_type,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to create ephemeral key")?;
+    let resource_id = match resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            common_utils::types::authentication::ResourceId::Customer(global_customer_id)
+        }
+    };
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let client_secret = create_client_secret(&state, merchant_account.get_id(), resource_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create client secret")?;
+
+    let response = ClientSecretResponse::foreign_try_from(client_secret)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
-pub async fn create_ephemeral_key(
+pub async fn create_client_secret(
     state: &SessionState,
-    customer_id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
-    resource_type: ephemeral_key::ResourceType,
-) -> RouterResult<ephemeral_key::EphemeralKeyType> {
+    resource_id: common_utils::types::authentication::ResourceId,
+) -> RouterResult<ephemeral_key::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
 
     let store = &state.store;
-    let id = id_type::EphemeralKeyId::generate();
-    let secret = masking::Secret::new(generate_time_ordered_id("epk"));
-    let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
+    let id = id_type::ClientSecretId::generate();
+    let secret = masking::Secret::new(generate_time_ordered_id("cs"));
+
+    let client_secret = ephemeral_key::ClientSecretTypeNew {
         id,
-        customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
         secret,
-        resource_type,
+        resource_id,
     };
-    let ephemeral_key = store
-        .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
+    let client_secret = store
+        .create_client_secret(client_secret, state.conf.eph_key.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create ephemeral key")?;
-    Ok(ephemeral_key)
+        .attach_printable("Unable to create client secret")?;
+    Ok(client_secret)
 }
 
 #[cfg(feature = "v1")]
@@ -3142,13 +3139,13 @@ pub async fn delete_ephemeral_key(
 }
 
 #[cfg(feature = "v2")]
-pub async fn delete_ephemeral_key(
+pub async fn delete_client_secret(
     state: SessionState,
     ephemeral_key_id: String,
-) -> errors::RouterResponse<EphemeralKeyResponse> {
+) -> errors::RouterResponse<ClientSecretResponse> {
     let db = state.store.as_ref();
     let ephemeral_key = db
-        .delete_ephemeral_key(&ephemeral_key_id)
+        .delete_client_secret(&ephemeral_key_id)
         .await
         .map_err(|err| match err.current_context() {
             errors::StorageError::ValueNotFound(_) => {
@@ -3160,7 +3157,8 @@ pub async fn delete_ephemeral_key(
         })
         .attach_printable("Unable to delete ephemeral key")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let response = ClientSecretResponse::foreign_try_from(ephemeral_key)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -3618,6 +3616,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -3689,6 +3688,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -3758,6 +3758,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
@@ -4291,6 +4292,9 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            request_extended_authorization: None,
+            extended_authorization_applied: None,
+            capture_before: None,
             card_discovery: None,
         }
     }
@@ -5272,7 +5276,7 @@ where
     Ok(connector_data_list)
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApplePayData {
     version: masking::Secret<String>,
     data: masking::Secret<String>,
@@ -5280,7 +5284,7 @@ pub struct ApplePayData {
     header: ApplePayHeader,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayHeader {
     ephemeral_public_key: masking::Secret<String>,
@@ -5435,13 +5439,10 @@ impl ApplePayData {
     }
 }
 
-pub(crate) const SENDER_ID: &[u8] = b"Google";
-pub(crate) const PROTOCOL: &str = "ECv2";
-
 // Structs for keys and the main decryptor
 pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
-    recipient_id: Option<masking::Secret<String>>,
+    recipient_id: masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
 }
 
@@ -5548,12 +5549,16 @@ fn filter_root_signing_keys(
 impl GooglePayTokenDecryptor {
     pub fn new(
         root_keys: masking::Secret<String>,
-        recipient_id: Option<masking::Secret<String>>,
+        recipient_id: masking::Secret<String>,
         private_key: masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
             .decode(private_key.expose())
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+        // base64 decode the root signing keys
+        let decoded_root_signing_keys = BASE64_ENGINE
+            .decode(root_keys.expose())
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
@@ -5561,8 +5566,7 @@ impl GooglePayTokenDecryptor {
             .attach_printable("cannot convert private key from decode_key")?;
 
         // parse the root signing keys
-        let root_keys_vector: Vec<GooglePayRootSigningKey> = root_keys
-            .expose()
+        let root_keys_vector: Vec<GooglePayRootSigningKey> = decoded_root_signing_keys
             .parse_struct("GooglePayRootSigningKey")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
@@ -5668,13 +5672,13 @@ impl GooglePayTokenDecryptor {
         }
 
         // get the sender id i.e. Google
-        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+        let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // construct the signed data
         let signed_data = self.construct_signed_data_for_intermediate_signing_key_verification(
             &sender_id,
-            PROTOCOL,
+            consts::PROTOCOL,
             encrypted_data.intermediate_signing_key.signed_key.peek(),
         )?;
 
@@ -5775,7 +5779,7 @@ impl GooglePayTokenDecryptor {
             .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
         // get the sender id i.e. Google
-        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+        let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // serialize the signed message to string
@@ -5785,7 +5789,7 @@ impl GooglePayTokenDecryptor {
         // construct the signed data
         let signed_data = self.construct_signed_data_for_signature_verification(
             &sender_id,
-            PROTOCOL,
+            consts::PROTOCOL,
             &signed_message,
         )?;
 
@@ -5832,11 +5836,7 @@ impl GooglePayTokenDecryptor {
         protocol_version: &str,
         signed_key: &str,
     ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
-        let recipient_id = self
-            .recipient_id
-            .clone()
-            .ok_or(errors::GooglePayDecryptionError::RecipientIdNotFound)?
-            .expose();
+        let recipient_id = self.recipient_id.clone().expose();
         let length_of_sender_id = u32::try_from(sender_id.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
         let length_of_recipient_id = u32::try_from(recipient_id.len())
@@ -5916,13 +5916,14 @@ impl GooglePayTokenDecryptor {
 
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
-        hkdf.expand(SENDER_ID, &mut output_key).map_err(|err| {
-            logger::error!(
+        hkdf.expand(consts::SENDER_ID, &mut output_key)
+            .map_err(|err| {
+                logger::error!(
                 "Failed to derive the shared ephemeral key for Google Pay decryption flow: {:?}",
                 err
             );
-            report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
-        })?;
+                report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
+            })?;
 
         Ok(output_key)
     }
@@ -5935,8 +5936,8 @@ impl GooglePayTokenDecryptor {
         tag: &[u8],
         encrypted_message: &[u8],
     ) -> CustomResult<(), errors::GooglePayDecryptionError> {
-        let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, mac_key);
-        hmac::verify(&hmac_key, encrypted_message, tag)
+        let hmac_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, mac_key);
+        ring::hmac::verify(&hmac_key, encrypted_message, tag)
             .change_context(errors::GooglePayDecryptionError::HmacVerificationFailed)
     }
 
@@ -6029,7 +6030,7 @@ pub fn decrypt_paze_token(
     Ok(parsed_decrypted)
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JwsBody {
     pub payload_id: String,
@@ -6541,13 +6542,14 @@ pub fn validate_mandate_data_and_future_usage(
 pub enum UnifiedAuthenticationServiceFlow {
     ClickToPayInitiate,
     ExternalAuthenticationInitiate {
-        acquirer_details: authentication::types::AcquirerDetails,
+        acquirer_details: Option<authentication::types::AcquirerDetails>,
         card_number: ::cards::CardNumber,
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
         authentication_id: String,
     },
+    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6558,6 +6560,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
+    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6588,7 +6591,9 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if *do_authorisation_confirmation {
+                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
@@ -6598,6 +6603,11 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     None
                 }
             } else {
+                logger::info!(
+                    payment_method=?payment_data.payment_attempt.payment_method,
+                    click_to_pay_enabled=?business_profile.is_click_to_pay_enabled,
+                    "skipping unified authentication service call since payment conditions are not satisfied"
+                );
                 None
             }
         }
@@ -6606,7 +6616,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
 
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
-        acquirer_details: authentication::types::AcquirerDetails,
+        acquirer_details: Option<authentication::types::AcquirerDetails>,
         card_number: ::cards::CardNumber,
         token: String,
     },
@@ -6683,17 +6693,27 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
-            let acquirer_details: authentication::types::AcquirerDetails = payment_connector_mca
+            let acquirer_details = payment_connector_mca
                 .get_metadata()
-                .get_required_value("merchant_connector_account.metadata")?
-                .peek()
                 .clone()
-                .parse_value("AcquirerDetails")
-                .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                            .to_string(),
-                })?;
+                .and_then(|metadata| {
+                    metadata
+                    .peek()
+                    .clone()
+                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                .to_string(),
+                    })
+                    .inspect_err(|err| {
+                        logger::error!(
+                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+                });
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card_number,
                 token,
@@ -6986,6 +7006,70 @@ pub fn validate_platform_request_for_marketplace(
                     Ok(())
                 })?;
         }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+            xendit_split_payment,
+        )) => match xendit_split_payment {
+            common_types::payments::XenditSplitRequest::MultipleSplits(
+                xendit_multiple_split_payment,
+            ) => {
+                match amount {
+                    api::Amount::Zero => {
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                            .routes
+                            .iter()
+                            .map(|route| {
+                                route
+                                    .flat_amount
+                                    .unwrap_or(MinorUnit::new(0))
+                                    .get_amount_as_i64()
+                            })
+                            .sum();
+
+                        if total_split_amount != 0 {
+                            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name:
+                                    "Sum of split amounts should be equal to the total amount",
+                            });
+                        }
+                    }
+                    api::Amount::Value(amount) => {
+                        let total_payment_amount: i64 = amount.into();
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                    .routes
+                    .into_iter()
+                    .map(|route| {
+                        if route.flat_amount.is_none() && route.percent_amount.is_none() {
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount to be provided".to_string(),
+                            })
+                        } else if route.flat_amount.is_some() && route.percent_amount.is_some(){
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount, but not both".to_string(),
+                            })
+                        } else {
+                            Ok(route
+                                .flat_amount
+                                .map(|amount| amount.get_amount_as_i64())
+                                .or(route.percent_amount.map(|percentage| (percentage * total_payment_amount) / 100))
+                                .unwrap_or(0))
+                            }
+                            })
+                            .collect::<Result<Vec<i64>, _>>()?
+                            .into_iter()
+                            .sum();
+
+                        if total_payment_amount < total_split_amount {
+                            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                                message:
+                                    "The sum of split amounts should not exceed the total amount"
+                                        .to_string(),
+                            });
+                        }
+                    }
+                };
+            }
+            common_types::payments::XenditSplitRequest::SingleSplit(_) => (),
+        },
         None => (),
     }
     Ok(())

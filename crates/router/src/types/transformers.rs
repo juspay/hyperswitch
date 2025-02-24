@@ -228,7 +228,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             // api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
-            // api_enums::Connector::Coingate => Self::Coingate,
+            api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::CtpMastercard => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -246,6 +246,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Forte => Self::Forte,
+            // api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
@@ -262,6 +263,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
+            api_enums::Connector::Moneris => Self::Moneris,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -2103,6 +2105,8 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
         }
     }
 }
@@ -2126,6 +2130,8 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
         }
     }
 }

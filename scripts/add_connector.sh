@@ -6,7 +6,7 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen adyenplatform airwallex amazonpay applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode chargebee checkout coinbase coingate cryptopay cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector ebanx elavon fiserv fiservemea fiuu forte globalpay globepay gocardless gpayments helcim iatapay inespay itaubank jpmorgan klarna mifinity mollie multisafepay netcetera nexinets nexixpay nomupay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal payu placetopay plaid powertranz prophetpay rapyd razorpay redsys shift4 square stax stripe taxjar threedsecureio thunes trustpay tsys unified_authentication_service volt wellsfargo wellsfargopayout wise worldline worldpay xendit zsl "$1")
+    connectors=(aci adyen adyenplatform airwallex amazonpay applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode chargebee checkout coinbase cryptopay cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector ebanx elavon fiserv fiservemea fiuu forte getnet globalpay globepay gocardless gpayments helcim iatapay inespay itaubank jpmorgan klarna mifinity mollie moneris multisafepay netcetera nexinets nexixpay nomupay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal payu placetopay plaid powertranz prophetpay rapyd razorpay redsys shift4 square stax stripe taxjar threedsecureio thunes trustpay tsys unified_authentication_service volt wellsfargo wellsfargopayout wise worldline worldpay xendit zsl "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res="$(echo ${sorted[@]})"
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
@@ -52,12 +52,12 @@ previous_connector=''
 find_prev_connector $payment_gateway previous_connector
 previous_connector_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${previous_connector:0:1})${previous_connector:1}"
 sed -i'' -e "s|pub mod $previous_connector;|pub mod $previous_connector;\npub mod ${payment_gateway};|" $conn.rs
-sed -i'' -e "s/};/, ${payment_gateway}::${payment_gateway_camelcase},\n};/" $conn.rs
-sed -i'' -e "0,/};/s/};/, ${payment_gateway}, ${payment_gateway}::${payment_gateway_camelcase},\n};/" $src/connector.rs
+sed -i'' -e "s/};/ ${payment_gateway}::${payment_gateway_camelcase},\n};/" $conn.rs
+sed -i'' -e "/pub use hyperswitch_connectors::connectors::{/ s/{/{\n    ${payment_gateway}, ${payment_gateway}::${payment_gateway_camelcase},/" $src/connector.rs
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tenums::Connector::${payment_gateway_camelcase} => Ok(ConnectorEnum::Old(\Box::new(\connector::${payment_gateway_camelcase}))),|" $src/types/api.rs
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tRoutableConnectors::${payment_gateway_camelcase} => euclid_enums::Connector::${payment_gateway_camelcase},|" crates/api_models/src/routing.rs
 sed -i'' -e "s/pub $previous_connector: \(.*\)/pub $previous_connector: \1\n\tpub ${payment_gateway}: ConnectorParams,/" crates/hyperswitch_interfaces/src/configs.rs
-sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url \1\n${payment_gateway}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
+sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url \1\n${payment_gateway}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml config/deployments/integration_test.toml config/deployments/production.toml config/deployments/sandbox.toml
 sed  -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${payment_gateway}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/connector_enums.rs
 sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n\t\t\t| Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/connector_enums.rs
@@ -67,9 +67,27 @@ sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" c
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tapi_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/types/transformers.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payment_gateway_camelcase},/" crates/hyperswitch_connectors/src/default_implementations.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payment_gateway_camelcase},/" crates/hyperswitch_connectors/src/default_implementations_v2.rs
+sed -i'' -e "s/^default_imp_for_connector_request_id!(/default_imp_for_connector_request_id!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
+sed -i'' -e "s/^default_imp_for_fraud_check!(/default_imp_for_fraud_check!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
+sed -i'' -e "s/^default_imp_for_connector_authentication!(/default_imp_for_connector_authentication!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
+sed -i'' -e "/pub struct ConnectorConfig {/ s/{/{\n    pub ${payment_gateway}: Option<ConnectorTomlConfig>,/" crates/connector_configs/src/connector.rs
+sed -i'' -e "/mod utils;/ s/mod utils;/mod ${payment_gateway};\nmod utils;/" crates/router/tests/connectors/main.rs
+sed -i'' -e "s/^default_imp_for_new_connector_integration_payouts!(/default_imp_for_new_connector_integration_payouts!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
+sed -i'' -e "s/^default_imp_for_new_connector_integration_frm!(/default_imp_for_new_connector_integration_frm!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
+sed -i'' -e "s/^default_imp_for_new_connector_integration_connector_authentication!(/default_imp_for_new_connector_integration_connector_authentication!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
+sed -i'' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/connector_enums.rs
+sed -i'' -e "/match self {/ s/match self {/match self {\n            | Self::${payment_gateway_camelcase}/" crates/common_enums/src/connector_enums.rs
+sed -i'' -e "/match routable_connector {/ s/match routable_connector {/match routable_connector {\n            RoutableConnectors::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},/" crates/common_enums/src/connector_enums.rs
+sed -i'' -e "/match self.connector_name {/a\\
+            api_enums::Connector::${payment_gateway_camelcase} => {\\
+                ${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(self.auth_type)?;\\
+                Ok(())\\
+            },\\
+" crates/router/src/core/admin.rs
+
 
 # Remove temporary files created in above step
-rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/connector_enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/connector_enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e crates/hyperswitch_connectors/src/default_implementations.rs-e crates/hyperswitch_connectors/src/default_implementations_v2.rs-e crates/hyperswitch_interfaces/src/configs.rs-e $src/connector.rs-e
+rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/connector_enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/connector_enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e crates/hyperswitch_connectors/src/default_implementations.rs-e crates/hyperswitch_connectors/src/default_implementations_v2.rs-e crates/hyperswitch_interfaces/src/configs.rs-e $src/connector.rs-e config/deployments/integration_test.toml-e config/deployments/production.toml-e config/deployments/sandbox.toml-e temp crates/connector_configs/src/connector.rs-e crates/router/tests/connectors/main.rs-e crates/router/src/core/payments/connector_integration_v2_impls.rs-e
 cd $conn/
 
 # Generate template files for the connector

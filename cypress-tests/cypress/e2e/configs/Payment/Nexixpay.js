@@ -75,7 +75,7 @@ export const connectorDetails = {
     PaymentIntent: {
       Request: {
         currency: "EUR",
-        amount: 6500,
+        amount: 6000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: billingAddress,
@@ -90,7 +90,7 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Request: {
         currency: "EUR",
-        amount: 6500,
+        amount: 6000,
         authentication_type: "no_three_ds",
         customer_acceptance: null,
         setup_future_usage: "off_session",
@@ -180,18 +180,14 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
+          amount: 6000,
+          amount_capturable: 6000,
           amount_received: null,
         },
       },
@@ -200,14 +196,16 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "processing",
-          amount: 6500,
-          amount_capturable: 6500,
-          amount_received: 100,
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: 2000,
         },
       },
     },
@@ -225,11 +223,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -243,11 +237,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -257,13 +247,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {
@@ -410,12 +393,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "EUR",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -453,7 +431,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "EUR",
-        amount: 6500,
+        amount: 6000,
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -474,7 +452,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "EUR",
-        amount: 6500,
+        amount: 6000,
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -495,7 +473,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "EUR",
-        amount: 6500,
+        amount: 6000,
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -517,7 +495,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "EUR",
-        amount: 6500,
+        amount: 6000,
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
