@@ -87,6 +87,7 @@ jobs:
   check-msrv:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
+    if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
       # Use `sccache` for caching compilation artifacts
@@ -284,10 +285,16 @@ jobs:
           fi
 
       - name: Run cargo check
+        if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: just ci_hack
+
+      - name: Cargo build release
+        if: ${{ startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
+        shell: bash
+        run: cargo check --features release
 
   typos:
     name: Spell check
