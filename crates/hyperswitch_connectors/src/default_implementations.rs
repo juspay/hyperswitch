@@ -3210,6 +3210,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Shift4,
     connectors::Stax,
     connectors::Square,
+    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
