@@ -40,7 +40,7 @@ pub enum ApiIdentifier {
     Relay,
     Documentation,
     Hypersense,
-    PaymentMethodsSession,
+    PaymentMethodSession,
 }
 
 impl From<Flow> for ApiIdentifier {
