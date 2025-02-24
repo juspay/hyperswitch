@@ -689,10 +689,7 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
 
 #[cfg(feature = "v2")]
 impl PaymentMethodsSession {
-    pub fn apply_changeset(
-        self,
-        update_session: PaymentMethodsSessionUpdateInternal,
-    ) -> Self {
+    pub fn apply_changeset(self, update_session: PaymentMethodsSessionUpdateInternal) -> Self {
         let Self {
             id,
             customer_id,
