@@ -274,10 +274,11 @@ pub async fn generate_sample_data(
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
         };
-        let (connector_transaction_id, connector_transaction_data) =
+        let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -359,14 +360,17 @@ pub async fn generate_sample_data(
             organization_id: org_id.clone(),
             shipping_cost: None,
             order_tax_amount: None,
-            connector_transaction_data,
+            processor_transaction_data,
             connector_mandate_detail: None,
+            request_extended_authorization: None,
+            extended_authorization_applied: None,
+            capture_before: None,
             card_discovery: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
             refunds_count += 1;
-            let (connector_transaction_id, connector_transaction_data) =
+            let (connector_transaction_id, processor_transaction_data) =
                 ConnectorTransactionId::form_id_and_data(attempt_id.clone());
             Some(RefundNew {
                 refund_id: common_utils::generate_id_with_default_len("test"),
@@ -401,8 +405,8 @@ pub async fn generate_sample_data(
                 charges: None,
                 split_refunds: None,
                 organization_id: org_id.clone(),
-                connector_refund_data: None,
-                connector_transaction_data,
+                processor_refund_data: None,
+                processor_transaction_data,
             })
         } else {
             None

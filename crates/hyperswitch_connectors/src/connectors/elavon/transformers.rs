@@ -244,7 +244,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 }
             }
@@ -391,7 +391,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ElavonSyncResponse>> for PaymentsSyn
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -450,7 +450,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 }
             }

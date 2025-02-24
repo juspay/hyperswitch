@@ -1004,7 +1004,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                                 payment_response.data.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         })
                     },
                     ..item.data

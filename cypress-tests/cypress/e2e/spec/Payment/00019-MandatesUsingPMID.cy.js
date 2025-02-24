@@ -51,7 +51,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           "new_mandate",
@@ -70,7 +70,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -115,7 +115,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           "new_mandate",
@@ -131,7 +131,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -145,7 +145,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -173,7 +173,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           "new_mandate",
@@ -192,7 +192,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -206,7 +206,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -234,7 +234,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           "new_mandate",
@@ -250,7 +250,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -264,7 +264,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -276,7 +276,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -290,7 +290,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -302,7 +302,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -329,7 +329,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           "new_mandate",
@@ -353,7 +353,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -367,7 +367,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -395,7 +395,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           "new_mandate",
@@ -416,7 +416,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -430,7 +430,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState

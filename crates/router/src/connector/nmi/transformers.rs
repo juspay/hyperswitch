@@ -212,7 +212,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -366,7 +366,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -620,8 +620,14 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
             cardholder_auth: None,
-            three_ds_version: Some(auth_data.message_version.to_string()),
-            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
+            three_ds_version: auth_data
+                .message_version
+                .clone()
+                .map(|version| version.to_string()),
+            directory_server_id: auth_data
+                .threeds_server_transaction_id
+                .clone()
+                .map(Secret::new),
         };
 
         Ok(Self::CardThreeDs(Box::new(card_3ds_details)))
@@ -751,7 +757,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -870,7 +876,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -927,14 +933,14 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
                     enums::AttemptStatus::CaptureInitiated
                 } else {
-                    enums::AttemptStatus::Authorizing
+                    enums::AttemptStatus::Authorized
                 },
             ),
             Response::Declined | Response::Error => (
@@ -978,7 +984,7 @@ impl<T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -1029,7 +1035,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
