@@ -448,9 +448,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .request_overcapture
             .or(payment_intent.request_overcapture);
 
-        helpers::validate_overcapture_request(
-            payment_attempt.capture_method,
-            payment_intent.request_overcapture,
+        payment_attempt.request_overcapture = helpers::validate_and_get_overcapture_request(
+            &payment_attempt.capture_method,
+            &payment_attempt.request_overcapture.or(request.request_overcapture),
+            &business_profile,
+            request.confirm.unwrap_or_default(),
         )?;
 
         let payment_data = PaymentData {
@@ -783,7 +785,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .attach_printable("Failed to encode additional pm data")?;
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
-
+        let request_overcapture = payment_data.payment_intent.request_overcapture;
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
@@ -828,6 +830,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
+                    request_overcapture,
                 },
                 storage_scheme,
             )

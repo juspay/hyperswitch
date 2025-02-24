@@ -379,6 +379,7 @@ pub struct PaymentAttemptNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -402,6 +403,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
+        request_overcapture: Option<storage_enums::OverCaptureRequest>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -2129,6 +2131,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 fingerprint_id,
                 updated_by,
                 payment_method_billing_address_id,
+                request_overcapture,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2183,7 +2186,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
-                request_overcapture: None,
+                request_overcapture,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {

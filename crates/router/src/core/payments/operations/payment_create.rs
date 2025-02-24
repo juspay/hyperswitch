@@ -335,6 +335,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             merchant_key_store,
             profile_id,
             &customer_acceptance,
+            &business_profile,
         )
         .await?;
 
@@ -1118,6 +1119,7 @@ impl PaymentCreate {
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1236,6 +1238,15 @@ impl PaymentCreate {
             additional_pm_data.as_ref(),
         ));
 
+        let request_overcapture = helpers::validate_and_get_overcapture_request(
+            &request.capture_method,
+            &request.request_overcapture,
+            &business_profile,
+            request.confirm.unwrap_or_default(),
+        )?;
+
+        logger::debug!("sssssssssssssss {:?}", request_overcapture);
+
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),
@@ -1309,6 +1320,7 @@ impl PaymentCreate {
                 profile_id,
                 connector_mandate_detail: None,
                 card_discovery: None,
+                request_overcapture,
             },
             additional_pm_data,
 

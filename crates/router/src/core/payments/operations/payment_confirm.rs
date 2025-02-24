@@ -782,10 +782,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )),
         );
 
-        payment_attempt.request_overcapture = helpers::get_overcapture_request_for_payments_update(
-            &payment_attempt,
-            &payment_intent,
+        payment_attempt.request_overcapture = helpers::validate_and_get_overcapture_request(
+            &payment_attempt.capture_method,
+            &request.request_overcapture.or(payment_attempt.request_overcapture),
             &business_profile,
+            request.confirm.unwrap_or_default(),
         )?;
 
         let payment_data = PaymentData {

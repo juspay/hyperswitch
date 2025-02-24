@@ -1680,6 +1680,7 @@ impl DataModelExt for PaymentAttemptNew {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
             card_discovery: self.card_discovery,
+            request_overcapture: self.request_overcapture,
         }
     }
 
@@ -1753,6 +1754,7 @@ impl DataModelExt for PaymentAttemptNew {
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
             card_discovery: storage_model.card_discovery,
+            request_overcapture: storage_model.request_overcapture,
         }
     }
 }

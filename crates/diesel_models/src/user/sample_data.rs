@@ -285,6 +285,7 @@ impl PaymentAttemptBatchNew {
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
             card_discovery: self.card_discovery,
+            request_overcapture: self.request_overcapture,
         }
     }
 }
