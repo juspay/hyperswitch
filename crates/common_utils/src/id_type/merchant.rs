@@ -5,6 +5,8 @@
 
 use std::fmt::Display;
 
+#[cfg(feature = "keymanager")]
+use crate::types::keymanager;
 use crate::{
     date_time,
     errors::{CustomResult, ValidationError},
@@ -12,9 +14,6 @@ use crate::{
     id_type::{AlphaNumericId, LengthId},
     new_type::MerchantName,
 };
-
-#[cfg(feature = "keymanager")]
-use crate::types::keymanager;
 
 crate::id_type!(
     MerchantId,
