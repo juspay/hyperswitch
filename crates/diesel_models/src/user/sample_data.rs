@@ -204,11 +204,12 @@ pub struct PaymentAttemptBatchNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_transaction_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -279,7 +280,6 @@ impl PaymentAttemptBatchNew {
             mandate_data: self.mandate_data,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -291,6 +291,7 @@ impl PaymentAttemptBatchNew {
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
+            card_discovery: self.card_discovery,
         }
     }
 }

@@ -70,7 +70,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -124,7 +124,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -197,7 +197,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+          cy.captureCallTest(fixtures.captureBody, data, globalState);
 
           if (shouldContinue)
             shouldContinue = utils.should_continue_further(data);
@@ -251,7 +251,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+          cy.captureCallTest(fixtures.captureBody, data, globalState);
 
           if (shouldContinue)
             shouldContinue = utils.should_continue_further(data);

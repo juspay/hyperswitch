@@ -4,10 +4,11 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::ValueExt};
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -1022,7 +1023,7 @@ async fn refunds_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
             updated_by: merchant_account.storage_scheme.to_string(),
-            connector_refund_data: None,
+            processor_refund_data: None,
         };
         db.update_refund(
             refund.to_owned(),
@@ -1357,7 +1358,7 @@ async fn external_authentication_incoming_webhook_flow(
                             .attach_printable("Failed to get redis connection")?;
                         redis_conn
                             .set_key_without_modifying_ttl(
-                                &poll_id,
+                                &poll_id.into(),
                                 api_models::poll::PollStatus::Completed.to_string(),
                             )
                             .await
@@ -2019,14 +2020,7 @@ async fn update_connector_mandate_details(
             let updated_connector_mandate_details =
                 if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
                     let mandate_details = payment_method_info
-                        .connector_mandate_details
-                        .clone()
-                        .map(|val| {
-                            val.parse_value::<diesel_models::PaymentsMandateReference>(
-                                "PaymentsMandateReference",
-                            )
-                        })
-                        .transpose()
+                        .get_common_mandate_reference()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
@@ -2035,13 +2029,9 @@ async fn update_connector_mandate_details(
                         .clone()
                         .get_required_value("merchant_connector_id")?;
 
-                    if mandate_details
-                        .as_ref()
-                        .map(|details: &diesel_models::PaymentsMandateReference| {
-                            !details.0.contains_key(&merchant_connector_account_id)
-                        })
-                        .unwrap_or(true)
-                    {
+                    if mandate_details.payments.as_ref().map_or(true, |payments| {
+                        !payments.0.contains_key(&merchant_connector_account_id)
+                    }) {
                         // Update the payment attempt to maintain consistency across tables.
                         let (mandate_metadata, connector_mandate_request_reference_id) =
                             payment_attempt
@@ -2086,7 +2076,7 @@ async fn update_connector_mandate_details(
                         insert_mandate_details(
                             &payment_attempt,
                             &webhook_mandate_details,
-                            mandate_details,
+                            Some(mandate_details),
                         )?
                     } else {
                         logger::info!(
@@ -2098,8 +2088,20 @@ async fn update_connector_mandate_details(
                     None
                 };
 
+            let connector_mandate_details_value = updated_connector_mandate_details
+                .map(|common_mandate| {
+                    common_mandate.get_mandate_details_value().map_err(|err| {
+                        router_env::logger::error!(
+                            "Failed to get get_mandate_details_value : {:?}",
+                            err
+                        );
+                        errors::ApiErrorResponse::MandateUpdateFailed
+                    })
+                })
+                .transpose()?;
+
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-                connector_mandate_details: updated_connector_mandate_details.map(masking::Secret::new),
+                connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
             };
@@ -2124,8 +2126,8 @@ async fn update_connector_mandate_details(
 fn insert_mandate_details(
     payment_attempt: &PaymentAttempt,
     webhook_mandate_details: &hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails,
-    payment_method_mandate_details: Option<diesel_models::PaymentsMandateReference>,
-) -> CustomResult<Option<serde_json::Value>, errors::ApiErrorResponse> {
+    payment_method_mandate_details: Option<CommonMandateReference>,
+) -> CustomResult<Option<CommonMandateReference>, errors::ApiErrorResponse> {
     let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
         .connector_mandate_detail
         .clone()

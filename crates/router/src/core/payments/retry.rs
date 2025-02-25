@@ -420,7 +420,7 @@ where
             resource_id,
             connector_metadata,
             redirection_data,
-            charge_id,
+            charges,
             ..
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
@@ -467,8 +467,8 @@ where
                 capture_before: None,
                 extended_authorization_applied: None,
                 payment_method_data: additional_payment_method_data,
-                charge_id,
                 connector_mandate_detail: None,
+                charges,
             };
 
             #[cfg(feature = "v1")]
@@ -653,12 +653,12 @@ pub fn make_new_payment_attempt(
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
-        charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
+        card_discovery: old_payment_attempt.card_discovery,
     }
 }
 

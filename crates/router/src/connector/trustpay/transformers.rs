@@ -401,6 +401,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             os_type: None,
             os_version: None,
             device_model: None,
+            accept_language: Some(browser_info.accept_language.unwrap_or("en".to_string())),
         };
         let params = get_mandatory_fields(item.router_data)?;
         let amount = item.amount.to_owned();
@@ -737,7 +738,7 @@ fn handle_cards_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -767,7 +768,7 @@ fn handle_bank_redirects_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -801,7 +802,7 @@ fn handle_bank_redirects_error_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -862,7 +863,7 @@ fn handle_bank_redirects_sync_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -910,7 +911,7 @@ pub fn handle_webhook_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -1363,10 +1364,12 @@ impl From<GpayTokenizationSpecification> for api_models::payments::GpayTokenizat
 impl From<GpayTokenParameters> for api_models::payments::GpayTokenParameters {
     fn from(value: GpayTokenParameters) -> Self {
         Self {
-            gateway: value.gateway,
+            gateway: Some(value.gateway),
             gateway_merchant_id: Some(value.gateway_merchant_id.expose()),
             stripe_version: None,
             stripe_publishable_key: None,
+            public_key: None,
+            protocol_version: None,
         }
     }
 }

@@ -393,7 +393,7 @@ pub struct PaymentIntent {
     /// Capture method for the payment
     pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.
-    pub authentication_type: common_enums::AuthenticationType,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
     pub prerouting_algorithm: Option<Value>,
     /// The organization id for the payment. This is derived from the merchant account
@@ -410,6 +410,8 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    /// Split Payment Data
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -540,7 +542,7 @@ impl PaymentIntent {
                 .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to decode shipping address")?,
             capture_method: request.capture_method.unwrap_or_default(),
-            authentication_type: request.authentication_type.unwrap_or_default(),
+            authentication_type: request.authentication_type,
             prerouting_algorithm: None,
             organization_id: merchant_account.organization_id.clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
@@ -552,6 +554,7 @@ impl PaymentIntent {
             routing_algorithm_id: request.routing_algorithm_id,
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
+            split_payments: None,
         })
     }
 }
@@ -645,6 +648,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: Option<PaymentAttempt>,
     pub payment_address: payment_address::PaymentAddress,
+    pub attempts: Option<Vec<PaymentAttempt>>,
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,

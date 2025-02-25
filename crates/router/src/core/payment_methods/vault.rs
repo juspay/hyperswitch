@@ -1043,7 +1043,7 @@ pub async fn create_tokenize(
 
         redis_conn
             .set_key_if_not_exists_with_expiry(
-                redis_key.as_str(),
+                &redis_key.as_str().into(),
                 bytes::Bytes::from(encrypted_payload),
                 Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
             )
@@ -1089,7 +1089,9 @@ pub async fn get_tokenized_data(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        let response = redis_conn.get_key::<bytes::Bytes>(redis_key.as_str()).await;
+        let response = redis_conn
+            .get_key::<bytes::Bytes>(&redis_key.as_str().into())
+            .await;
 
         match response {
             Ok(resp) => {
@@ -1150,7 +1152,7 @@ pub async fn delete_tokenized_data(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        let response = redis_conn.delete_key(redis_key.as_str()).await;
+        let response = redis_conn.delete_key(&redis_key.as_str().into()).await;
 
         match response {
             Ok(redis_interface::DelReply::KeyDeleted) => Ok(()),
@@ -1255,8 +1257,8 @@ pub async fn get_fingerprint_id_from_vault<
 >(
     state: &routes::SessionState,
     data: &D,
+    key: String,
 ) -> CustomResult<String, errors::VaultError> {
-    let key = data.get_vaulting_data_key();
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
