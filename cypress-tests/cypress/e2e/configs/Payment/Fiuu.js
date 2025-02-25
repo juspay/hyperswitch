@@ -135,7 +135,7 @@ export const connectorDetails = {
         amount_to_capture: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
           status: "succeeded",
           amount: 6000,
@@ -350,7 +350,7 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {},
       Response: {
-        status: 400,
+        status: 200,
         body: {
           status: "failed",
           error_code: "The currency not allow for the RecordType",
@@ -359,6 +359,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
@@ -577,7 +580,7 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
           status: "failed",
           error_message: "The currency not allow for the RecordType",
