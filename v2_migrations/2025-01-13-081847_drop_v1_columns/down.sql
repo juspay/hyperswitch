@@ -38,7 +38,7 @@ ALTER TABLE merchant_connector_account
     ADD COLUMN IF NOT EXISTS business_sub_label VARCHAR(64),
     ADD COLUMN IF NOT EXISTS test_mode BOOLEAN,
     ADD COLUMN IF NOT EXISTS frm_configs jsonb,
-    ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(32);
+    ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(128);
 
 ALTER TABLE customers
     ADD COLUMN customer_id VARCHAR(64),
@@ -49,8 +49,8 @@ ALTER TABLE payment_intent
     ADD COLUMN connector_id VARCHAR(64),
     ADD COLUMN shipping_address_id VARCHAR(64),
     ADD COLUMN billing_address_id VARCHAR(64),
-    ADD COLUMN shipping_details VARCHAR(64),
-    ADD COLUMN billing_details VARCHAR(64),
+    ADD COLUMN shipping_details BYTEA,
+    ADD COLUMN billing_details BYTEA,
     ADD COLUMN statement_descriptor_suffix VARCHAR(255),
     ADD COLUMN business_country "CountryAlpha2",
     ADD COLUMN business_label VARCHAR(64),
@@ -72,9 +72,9 @@ ALTER TABLE payment_attempt
     ADD COLUMN save_to_locker BOOLEAN,
     ADD COLUMN offer_amount bigint,
     ADD COLUMN payment_method VARCHAR,
-    ADD COLUMN connector_transaction_id VARCHAR(64),
-    ADD COLUMN connector_transaction_data TEXT,
-    ADD COLUMN processor_transaction_data JSONB,
+    ADD COLUMN connector_transaction_id VARCHAR(128),
+    ADD COLUMN connector_transaction_data VARCHAR(512),
+    ADD COLUMN processor_transaction_data text,
     ADD COLUMN capture_method "CaptureMethod",
     ADD COLUMN capture_on TIMESTAMP,
     ADD COLUMN mandate_id VARCHAR(64),
@@ -85,7 +85,7 @@ ALTER TABLE payment_attempt
     ADD COLUMN tax_amount bigint,
     ADD COLUMN straight_through_algorithm JSONB,
     ADD COLUMN confirm BOOLEAN,
-    ADD COLUMN authentication_data JSONB,
+    ADD COLUMN authentication_data JSON,
     ADD COLUMN payment_method_billing_address_id VARCHAR(64),
     ADD COLUMN connector_mandate_detail JSONB,
     ADD COLUMN charge_id VARCHAR(64);
@@ -126,3 +126,8 @@ ALTER TABLE payment_methods
     ADD COLUMN IF NOT EXISTS payment_method VARCHAR,
     ADD COLUMN IF NOT EXISTS payment_method_type VARCHAR(64),
     ADD COLUMN IF NOT EXISTS payment_method_issuer_code "PaymentMethodIssuerCode";
+
+ALTER TABLE refund ADD COLUMN connector_refund_data VARCHAR(512),
+    ADD COLUMN connector_transaction_data VARCHAR(512);
+
+ALTER TABLE captures ADD COLUMN connector_capture_data VARCHAR(512);
