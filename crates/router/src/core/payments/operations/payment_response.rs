@@ -5,6 +5,8 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, SessionUpdateStatus};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
@@ -24,8 +26,6 @@ use tracing_futures::Instrument;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::ValueExt;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -578,7 +578,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::Profile,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -619,7 +619,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
-            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
@@ -1203,7 +1202,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::Profile,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1243,7 +1242,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
-            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
@@ -1544,7 +1542,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_metadata,
                             connector_response_reference_id,
                             incremental_authorization_allowed,
-                            charge_id,
+                            charges,
                             ..
                         } => {
                             payment_data
@@ -1673,7 +1671,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .multiple_capture_data
                             {
                                 Some(multiple_capture_data) => {
-                                    let (connector_capture_id, connector_capture_data) =
+                                    let (connector_capture_id, processor_capture_data) =
                                         match resource_id {
                                             types::ResponseId::NoResponseId => (None, None),
                                             types::ResponseId::ConnectorTransactionId(id)
@@ -1689,7 +1687,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         )?,
                                         connector_capture_id: connector_capture_id.clone(),
                                         connector_response_reference_id,
-                                        connector_capture_data: connector_capture_data.clone(),
+                                        processor_capture_data: processor_capture_data.clone(),
                                     };
                                     let capture_update_list = vec![(
                                         multiple_capture_data.get_latest_capture().clone(),
@@ -1730,11 +1728,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
-                                        charge_id,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail
                                             .clone(),
+                                        charges,
                                     }),
                                 ),
                             };
@@ -1983,85 +1981,77 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
-            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-                .parse_value("DynamicRoutingAlgorithmRef")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-            if payment_intent.status.is_in_terminal_state()
-                && business_profile.dynamic_routing_algorithm.is_some()
-            {
-                let state = state.clone();
-                let business_profile = business_profile.clone();
-                let payment_attempt = payment_attempt.clone();
-                let dynamic_routing_config_params_interpolator =
-                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
-                        payment_attempt.payment_method,
-                        payment_attempt.payment_method_type,
-                        payment_attempt.authentication_type,
-                        payment_attempt.currency,
-                        payment_data
-                            .address
-                            .get_payment_billing()
-                            .and_then(|address| address.clone().address)
-                            .and_then(|address| address.country),
-                        payment_attempt
-                            .payment_method_data
-                            .as_ref()
-                            .and_then(|data| data.as_object())
-                            .and_then(|card| card.get("card"))
-                            .and_then(|data| data.as_object())
-                            .and_then(|card| card.get("card_network"))
-                            .and_then(|network| network.as_str())
-                            .map(|network| network.to_string()),
-                        payment_attempt
-                            .payment_method_data
-                            .as_ref()
-                            .and_then(|data| data.as_object())
-                            .and_then(|card| card.get("card"))
-                            .and_then(|data| data.as_object())
-                            .and_then(|card| card.get("card_isin"))
-                            .and_then(|card_isin| card_isin.as_str())
-                            .map(|card_isin| card_isin.to_string()),
-                    );
-                tokio::spawn(
+        if payment_intent.status.is_in_terminal_state()
+            && business_profile.dynamic_routing_algorithm.is_some()
+        {
+            let dynamic_routing_algo_ref: api_models::routing::DynamicRoutingAlgorithmRef =
+                business_profile
+                    .dynamic_routing_algorithm
+                    .clone()
+                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("DynamicRoutingAlgorithmRef not found in profile")?;
+
+            let state = state.clone();
+            let profile_id = business_profile.get_id().to_owned();
+            let payment_attempt = payment_attempt.clone();
+            let dynamic_routing_config_params_interpolator =
+                routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
+                    payment_attempt.payment_method,
+                    payment_attempt.payment_method_type,
+                    payment_attempt.authentication_type,
+                    payment_attempt.currency,
+                    payment_data
+                        .address
+                        .get_payment_billing()
+                        .and_then(|address| address.clone().address)
+                        .and_then(|address| address.country),
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_network"))
+                        .and_then(|network| network.as_str())
+                        .map(|network| network.to_string()),
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|card_isin| card_isin.as_str())
+                        .map(|card_isin| card_isin.to_string()),
+                );
+            tokio::spawn(
                 async move {
-                    if dynamic_routing_config.success_based_algorithm.is_some_and(
-                        |success_based_algo| {
-                            success_based_algo
-                                .algorithm_id_with_timestamp
-                                .algorithm_id
-                                .is_some()
-                        },
-                    ) {
-                        routing_helpers::push_metrics_with_update_window_for_success_based_routing(
-                            &state,
-                            &payment_attempt,
-                            routable_connectors.clone(),
-                            &business_profile,
-                            dynamic_routing_config_params_interpolator.clone(),
-                        )
-                        .await
-                        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-                        .ok();
-                    };
+                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
+                        &state,
+                        &payment_attempt,
+                        routable_connectors.clone(),
+                        &profile_id,
+                        dynamic_routing_algo_ref.clone(),
+                        dynamic_routing_config_params_interpolator.clone(),
+                    )
+                    .await
+                    .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
+                    .ok();
+
                     if let Some(gsm_error_category) = gsm_error_category {
-                        if dynamic_routing_config
-                            .elimination_routing_algorithm
-                            .is_some_and(|elimination_algo| {
-                                elimination_algo
-                                    .algorithm_id_with_timestamp
-                                    .algorithm_id
-                                    .is_some()
-                            })
-                            && gsm_error_category.should_perform_elimination_routing()
+                            if gsm_error_category.should_perform_elimination_routing()
                         {
                             logger::info!("Performing update window for elimination routing");
                             routing_helpers::update_window_for_elimination_routing(
                                 &state,
                                 &payment_attempt,
-                                &business_profile,
-                                dynamic_routing_config_params_interpolator,
+                                &profile_id,
+                                dynamic_routing_algo_ref.clone(),
+                                dynamic_routing_config_params_interpolator.clone(),
                                 gsm_error_category,
                             )
                             .await
@@ -2069,12 +2059,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .ok();
                         };
                     };
+
+                    routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
+                        &state,
+                        &payment_attempt,
+                        routable_connectors,
+                        &profile_id,
+                        dynamic_routing_algo_ref,
+                        dynamic_routing_config_params_interpolator,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(contract_based_routing_metrics_error=?e))
+                    .ok();
                 }
                 .in_current_span(),
             );
             }
         }
-    }
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
@@ -2130,7 +2131,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
-    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -2146,7 +2146,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
-    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
@@ -2181,20 +2180,18 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     })
     .ok()
     .flatten();
-        let network_transaction_id =
-            if let Some(network_transaction_id) = pm_resp_network_transaction_id {
-                if is_connector_agnostic_mit_enabled == Some(true)
-                    && payment_data.payment_intent.setup_future_usage
-                        == Some(diesel_models::enums::FutureUsage::OffSession)
-                {
-                    Some(network_transaction_id)
-                } else {
-                    logger::info!("Skip storing network transaction id");
-                    None
-                }
+        let network_transaction_id = if payment_data.payment_intent.setup_future_usage
+            == Some(diesel_models::enums::FutureUsage::OffSession)
+        {
+            if pm_resp_network_transaction_id.is_some() {
+                pm_resp_network_transaction_id
             } else {
+                logger::info!("Skip storing network transaction id");
                 None
-            };
+            }
+        } else {
+            None
+        };
 
         let pm_update = if payment_method.status != common_enums::PaymentMethodStatus::Active
             && payment_method.status != attempt_status.into()

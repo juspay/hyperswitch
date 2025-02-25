@@ -68,6 +68,7 @@ pub enum RoutableConnectors {
     // Chargebee,
     Checkout,
     Coinbase,
+    Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
@@ -80,6 +81,7 @@ pub enum RoutableConnectors {
     Fiservemea,
     Fiuu,
     Forte,
+    // Getnet,
     Globalpay,
     Globepay,
     Gocardless,
@@ -91,6 +93,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Nexinets,
     Nexixpay,
@@ -203,6 +206,7 @@ pub enum Connector {
     // Chargebee,
     Checkout,
     Coinbase,
+    Coingate,
     Cryptopay,
     CtpMastercard,
     Cybersource,
@@ -216,6 +220,7 @@ pub enum Connector {
     Fiservemea,
     Fiuu,
     Forte,
+    // Getnet,
     Globalpay,
     Globepay,
     Gocardless,
@@ -228,6 +233,7 @@ pub enum Connector {
     Klarna,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -312,6 +318,7 @@ impl Connector {
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
+                | (Self::Moneris, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
@@ -354,6 +361,7 @@ impl Connector {
             | Self::Cashtocode
             // | Self::Chargebee
             | Self::Coinbase
+            |Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -364,6 +372,7 @@ impl Connector {
             | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
+            // | Self::Getnet
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -376,6 +385,7 @@ impl Connector {
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
+            | Self::Moneris
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
@@ -415,12 +425,11 @@ impl Connector {
             | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            | Self::Datatrans
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi | Self::Cybersource => true,
+            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
         }
     }
 
@@ -505,6 +514,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Klarna => Self::Klarna,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
+            RoutableConnectors::Moneris => Self::Moneris,
             RoutableConnectors::Multisafepay => Self::Multisafepay,
             RoutableConnectors::Nexinets => Self::Nexinets,
             RoutableConnectors::Nexixpay => Self::Nexixpay,
@@ -541,6 +551,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Zsl => Self::Zsl,
             RoutableConnectors::Xendit => Self::Xendit,
             RoutableConnectors::Inespay => Self::Inespay,
+            RoutableConnectors::Coingate => Self::Coingate,
         }
     }
 }
