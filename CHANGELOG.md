@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.19.0-hotfix1
+
+### Features
+
+- **router:** Add `merchant_configuration_id` in netcetera metadata and make other merchant configurations optional ([#7372](https://github.com/juspay/hyperswitch/pull/7372)) ([`7f68e83`](https://github.com/juspay/hyperswitch/commit/7f68e8397595f750415c6b88f39c4aa0cbcd2407))
+
+### Bug Fixes
+
+- **core:** Make parsing optional for connector_wallet_details in session token flow ([#7370](https://github.com/juspay/hyperswitch/pull/7370)) ([`afba0a0`](https://github.com/juspay/hyperswitch/commit/afba0a006ec6f92b5dc43da7e4e13f864fe5b344))
+- **routing:** Fixed 5xx error logs in dynamic routing metrics ([#7356](https://github.com/juspay/hyperswitch/pull/7356)) ([`770a08c`](https://github.com/juspay/hyperswitch/commit/770a08ca51b369716621c17cb62ef630fe6ff0a6))
+
+### Refactors
+
+- **utils:** Match string for state with SDK's naming convention ([#7377](https://github.com/juspay/hyperswitch/pull/7377)) ([`0e4b18a`](https://github.com/juspay/hyperswitch/commit/0e4b18ad0dc81d821a56262f5355b31c6ccc2024))
+
+- - -
+
 ## 2025.02.19.0
 
 ### Features
