@@ -252,3 +252,32 @@ pub fn validate_adyen_charge_refund(
     }
     Ok(())
 }
+pub fn validate_xendit_charge_refund(
+    xendit_split_payment_response: &common_types::payments::XenditChargeResponseData,
+    xendit_split_refund_request: &common_types::domain::XenditSplitSubMerchantData,
+) -> RouterResult<Option<String>> {
+    match xendit_split_payment_response {
+        common_types::payments::XenditChargeResponseData::MultipleSplits(
+            payment_sub_merchant_data,
+        ) => {
+            if payment_sub_merchant_data.for_user_id
+                != Some(xendit_split_refund_request.for_user_id.clone())
+            {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id",
+                }.into());
+            }
+            Ok(Some(xendit_split_refund_request.for_user_id.clone()))
+        }
+        common_types::payments::XenditChargeResponseData::SingleSplit(
+            payment_sub_merchant_data,
+        ) => {
+            if payment_sub_merchant_data.for_user_id != xendit_split_refund_request.for_user_id {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id",
+                }.into());
+            }
+            Ok(Some(xendit_split_refund_request.for_user_id.clone()))
+        }
+    }
+}

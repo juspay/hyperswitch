@@ -3,6 +3,7 @@ pub mod api;
 pub mod behaviour;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod card_testing_guard_data;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -20,6 +21,8 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod relay;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod revenue_recovery;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;
