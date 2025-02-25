@@ -2043,8 +2043,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .ok();
 
                     if let Some(gsm_error_category) = gsm_error_category {
-                            if gsm_error_category.should_perform_elimination_routing()
-                        {
+                        if gsm_error_category.should_perform_elimination_routing() {
                             logger::info!("Performing update window for elimination routing");
                             routing_helpers::update_window_for_elimination_routing(
                                 &state,
@@ -2074,8 +2073,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 }
                 .in_current_span(),
             );
-            }
         }
+    }
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;

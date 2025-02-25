@@ -20,9 +20,9 @@ use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use external_services::grpc_client::dynamic_routing::{
+    contract_routing_client::ContractBasedDynamicRouting,
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
-    contract_routing_client::ContractBasedDynamicRouting,
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
@@ -1064,7 +1064,9 @@ pub async fn update_window_for_elimination_routing(
                                 payment_connector.as_str(),
                             )
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("unable to infer routable_connector from connector")?,
+                            .attach_printable(
+                                "unable to infer routable_connector from connector",
+                            )?,
                             merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                         },
                         gsm_error_category.to_string(),

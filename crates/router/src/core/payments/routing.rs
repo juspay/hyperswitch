@@ -26,8 +26,8 @@ use euclid::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
-    elimination_based_client::{EliminationBasedRouting, EliminationResponse},
     contract_routing_client::{CalContractScoreResponse, ContractBasedDynamicRouting},
+    elimination_based_client::{EliminationBasedRouting, EliminationResponse},
     success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
 };
 use hyperswitch_domain_models::address::Address;
@@ -1416,7 +1416,7 @@ pub async fn perform_dynamic_routing(
         profile.get_id().get_string_repr()
     );
 
-    let connector_list = match dynamic_routing_algo_ref
+    let mut connector_list = match dynamic_routing_algo_ref
         .success_based_algorithm
         .as_ref()
         .async_map(|algorithm| {
@@ -1445,7 +1445,7 @@ pub async fn perform_dynamic_routing(
                         state,
                         routable_connectors.clone(),
                         profile.get_id(),
-                        dynamic_routing_config_params_interpolator,
+                        dynamic_routing_config_params_interpolator.clone(),
                         algorithm.clone(),
                     )
                 })
@@ -1454,9 +1454,28 @@ pub async fn perform_dynamic_routing(
                 .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
                 .ok()
                 .flatten()
-                .unwrap_or(routable_connectors)
+                .unwrap_or(routable_connectors.clone())
         }
     };
+
+    connector_list = dynamic_routing_algo_ref
+        .elimination_routing_algorithm
+        .as_ref()
+        .async_map(|algorithm| {
+            perform_elimination_routing(
+                state,
+                routable_connectors.clone(),
+                profile.get_id(),
+                dynamic_routing_config_params_interpolator.clone(),
+                algorithm.clone(),
+            )
+        })
+        .await
+        .transpose()
+        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
+        .ok()
+        .flatten()
+        .unwrap_or(connector_list);
 
     Ok(connector_list)
 }
@@ -1585,8 +1604,8 @@ pub async fn perform_elimination_routing(
             .attach_printable("elimination routing's gRPC client not found")?;
 
         let elimination_routing_config = routing::helpers::fetch_dynamic_routing_configs::<
-            api_routing::EliminationRoutingConfig
-            >(
+            api_routing::EliminationRoutingConfig,
+        >(
             state,
             profile_id,
             elimination_algo_ref
