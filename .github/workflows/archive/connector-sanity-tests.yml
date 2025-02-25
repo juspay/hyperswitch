@@ -36,8 +36,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
   test_connectors:
@@ -87,7 +85,7 @@ jobs:
           toolchain: stable 2 weeks ago
 
       - uses: Swatinem/rust-cache@v2.7.7
-        with: 
+        with:
           save-if: false
 
       - name: Decrypt connector auth file

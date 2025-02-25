@@ -941,13 +941,13 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: Some(authn_data.threeds_server_transaction_id.clone()),
+                    xid: authn_data.threeds_server_transaction_id.clone(),
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
                     specification_version: None,
-                    pa_specification_version: Some(authn_data.message_version.clone()),
+                    pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                 }
             });
@@ -1744,7 +1744,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed,
-                charge_id: None,
+                charges: None,
             })
         }
     }
@@ -1949,7 +1949,7 @@ impl
                     incremental_authorization_allowed: Some(
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
-                    charge_id: None,
+                    charges: None,
                 }),
             },
             connector_response,
@@ -2066,7 +2066,7 @@ impl<F>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     })
@@ -2082,7 +2082,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),

@@ -253,12 +253,13 @@ pub struct NetceteraErrorDetails {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NetceteraMetaData {
-    pub mcc: String,
-    pub merchant_country_code: String,
-    pub merchant_name: String,
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
     pub endpoint_prefix: String,
-    pub three_ds_requestor_name: String,
-    pub three_ds_requestor_id: String,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub merchant_configuration_id: Option<String>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData {
@@ -515,13 +516,13 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             .parse_value("NetceteraMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_data = netcetera_types::MerchantData {
-            merchant_configuration_id: None,
-            mcc: Some(connector_meta_data.mcc),
-            merchant_country_code: Some(connector_meta_data.merchant_country_code),
-            merchant_name: Some(connector_meta_data.merchant_name),
+            merchant_configuration_id: connector_meta_data.merchant_configuration_id,
+            mcc: connector_meta_data.mcc,
+            merchant_country_code: connector_meta_data.merchant_country_code,
+            merchant_name: connector_meta_data.merchant_name,
             notification_url: request.return_url.clone(),
-            three_ds_requestor_id: Some(connector_meta_data.three_ds_requestor_id),
-            three_ds_requestor_name: Some(connector_meta_data.three_ds_requestor_name),
+            three_ds_requestor_id: connector_meta_data.three_ds_requestor_id,
+            three_ds_requestor_name: connector_meta_data.three_ds_requestor_name,
             white_list_status: None,
             trust_list_status: None,
             seller_info: None,

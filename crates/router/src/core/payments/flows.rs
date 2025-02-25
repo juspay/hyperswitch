@@ -14,12 +14,14 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
-    router_flow_types::{Authenticate, PostAuthenticate, PreAuthenticate},
+    router_flow_types::{
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    },
     router_request_types::PaymentsCaptureData,
 };
 use hyperswitch_interfaces::api::{
-    payouts::Payouts, UasAuthentication, UasPostAuthentication, UasPreAuthentication,
-    UnifiedAuthenticationService,
+    payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
+    UasPreAuthentication, UnifiedAuthenticationService,
 };
 
 #[cfg(feature = "frm")]
@@ -422,6 +424,7 @@ default_imp_for_connector_request_id!(
     connector::Fiservemea,
     connector::Fiuu,
     connector::Forte,
+    connector::Getnet,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
@@ -433,6 +436,7 @@ default_imp_for_connector_request_id!(
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
+    connector::Moneris,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexixpay,
@@ -1379,6 +1383,7 @@ default_imp_for_fraud_check!(
     connector::Fiservemea,
     connector::Fiuu,
     connector::Forte,
+    connector::Getnet,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
@@ -1391,6 +1396,7 @@ default_imp_for_fraud_check!(
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
+    connector::Moneris,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1914,6 +1920,7 @@ default_imp_for_connector_authentication!(
     connector::Fiservemea,
     connector::Fiuu,
     connector::Forte,
+    connector::Getnet,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
@@ -1925,6 +1932,7 @@ default_imp_for_connector_authentication!(
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
+    connector::Moneris,
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nexixpay,
@@ -2270,6 +2278,57 @@ default_imp_for_uas_post_authentication!(
     connector::Wise
 );
 
+macro_rules! default_imp_for_uas_authentication_confirmation {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasAuthenticationConfirmation for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            AuthenticationConfirmation,
+            types::UasConfirmationRequestData,
+            types::UasAuthenticationResponseData
+            > for $path::$connector
+            {}
+        )*
+    };
+}
+
+default_imp_for_uas_authentication_confirmation!(
+    connector::Adyenplatform,
+    connector::Adyen,
+    connector::Authorizedotnet,
+    connector::Checkout,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthenticationConfirmation for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        AuthenticationConfirmation,
+        types::UasConfirmationRequestData,
+        types::UasAuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
 macro_rules! default_imp_for_uas_authentication {
     ($($path:ident::$connector:ident),*) => {
         $( impl UasAuthentication for $path::$connector {}
@@ -2283,6 +2342,7 @@ macro_rules! default_imp_for_uas_authentication {
     )*
     };
 }
+
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> UasAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -2319,6 +2379,7 @@ default_imp_for_uas_authentication!(
     connector::Wellsfargopayout,
     connector::Wise
 );
+
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call
 /// based on various payment parameters. It's primarily used in two-step (auth + capture) payment flows for CaptureMethod SequentialAutomatic

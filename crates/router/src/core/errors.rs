@@ -246,8 +246,6 @@ pub enum PazeDecryptionError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GooglePayDecryptionError {
-    #[error("Recipient ID not found")]
-    RecipientIdNotFound,
     #[error("Invalid expiration time")]
     InvalidExpirationTime,
     #[error("Failed to base64 decode input data")]
@@ -444,4 +442,23 @@ pub enum NetworkTokenizationError {
     DeleteNetworkTokenFailed,
     #[error("Network token service not configured")]
     NetworkTokenizationServiceNotConfigured,
+    #[error("Failed while calling Network Token Service API")]
+    ApiError,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Debug, thiserror::Error)]
+pub enum RevenueRecoveryError {
+    #[error("Failed to fetch payment intent")]
+    PaymentIntentFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptFetchFailed,
+    #[error("Failed to get revenue recovery invoice webhook")]
+    InvoiceWebhookProcessingFailed,
+    #[error("Failed to get revenue recovery invoice transaction")]
+    TransactionWebhookProcessingFailed,
+    #[error("Failed to create payment intent")]
+    PaymentIntentCreateFailed,
+    #[error("Source verification failed for billing connector")]
+    WebhookAuthenticationFailed,
 }

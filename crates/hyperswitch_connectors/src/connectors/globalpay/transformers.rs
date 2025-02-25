@@ -296,7 +296,7 @@ fn get_payment_response(
             network_txn_id: None,
             connector_response_reference_id: response.reference,
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         }),
     }
 }

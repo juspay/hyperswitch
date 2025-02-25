@@ -206,6 +206,16 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<GetTrackerResponse<D>>;
+
+    async fn validate_request_with_state(
+        &self,
+        _state: &SessionState,
+        _request: &R,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -230,6 +240,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
+
+    #[cfg(feature = "v2")]
+    /// This will run the decision manager for the payment
+    async fn run_decision_manager<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
 
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
@@ -307,9 +328,10 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_data: &mut D,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        _merchant_account: &domain::Profile,
+        _business_profile: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _do_authorization_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
