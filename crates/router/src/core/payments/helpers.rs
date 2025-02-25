@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
@@ -1475,6 +1475,84 @@ pub fn validate_customer_information(
         })?
     } else {
         Ok(())
+    }
+}
+
+pub async fn validate_card_ip_blocking_for_business_profile(
+    state: &SessionState,
+    ip: IpAddr,
+    fingerprnt: masking::Secret<String>,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek(),
+        ip
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.card_ip_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
+pub async fn validate_guest_user_card_blocking_for_business_profile(
+    state: &SessionState,
+    fingerprnt: masking::Secret<String>,
+    customer_id: Option<id_type::CustomerId>,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}",
+        consts::GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek()
+    );
+
+    let unsuccessful_payment_threshold =
+        card_testing_guard_config.guest_user_card_blocking_threshold;
+
+    if customer_id.is_none() {
+        Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+    } else {
+        Ok(cache_key)
+    }
+}
+
+pub async fn validate_customer_id_blocking_for_business_profile(
+    state: &SessionState,
+    customer_id: id_type::CustomerId,
+    profile_id: &id_type::ProfileId,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CUSTOMER_ID_BLOCKING_PREFIX,
+        profile_id.get_string_repr(),
+        customer_id.get_string_repr(),
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.customer_id_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
+pub async fn validate_blocking_threshold(
+    state: &SessionState,
+    unsuccessful_payment_threshold: i32,
+    cache_key: String,
+) -> RouterResult<String> {
+    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+        Ok(Some(unsuccessful_payment_count)) => {
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Blocked due to suspicious activity".to_string(),
+                })?
+            } else {
+                Ok(cache_key)
+            }
+        }
+        Ok(None) => Ok(cache_key),
+        Err(error) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(error)?,
     }
 }
 

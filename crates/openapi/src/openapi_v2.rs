@@ -286,6 +286,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::UIWidgetFormLayout,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
+        api_models::admin::CardTestingGuardConfig,
+        api_models::admin::CardTestingGuardStatus,
         api_models::admin::ConnectorWalletDetails,
         api_models::admin::MerchantRecipientData,
         api_models::admin::MerchantAccountData,
