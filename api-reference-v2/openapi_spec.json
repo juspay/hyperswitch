@@ -16663,17 +16663,6 @@
             ],
             "nullable": true
           },
-          "extended_authorization_applied": {
-            "type": "boolean",
-            "description": "flag that indicates if extended authorization is applied on this payment or not",
-            "nullable": true
-          },
-          "capture_before": {
-            "type": "string",
-            "format": "date-time",
-            "description": "date and time after which this payment cannot be captured",
-            "nullable": true
-          },
           "merchant_connector_id": {
             "type": "string",
             "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment"
