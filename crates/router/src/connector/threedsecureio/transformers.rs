@@ -694,7 +694,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         Ok(Self {
-            acct_number: router_data.request.card_holder_account_number.clone(),
+            acct_number: router_data.request.card.card_number.clone(),
             ds: None,
         })
     }
