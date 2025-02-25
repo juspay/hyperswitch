@@ -1,6 +1,7 @@
+#[cfg(feature = "v1")]
+use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
     num::NonZeroI64,
 };
 pub mod additional_info;
@@ -9,6 +10,8 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+#[cfg(feature = "v1")]
+use common_utils::types::{ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -17,30 +20,28 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{
-        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
-        StringMajorUnit,
-    },
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
+#[cfg(feature = "v1")]
+use serde::{de, Deserializer};
+use serde::{ser::Serializer, Deserialize, Serialize};
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
-#[cfg(feature = "v1")]
-use crate::ephemeral_key::EphemeralKeyCreateResponse;
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
-    disputes, enums as api_enums,
+    enums as api_enums,
     mandates::RecurringDetails,
-    refunds, ValidateFieldAndGet,
 };
+#[cfg(feature = "v1")]
+use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -7626,6 +7627,7 @@ mod payment_id_type {
         deserializer.deserialize_any(PaymentIdVisitor)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn deserialize_option<'a, D>(
         deserializer: D,
     ) -> Result<Option<PaymentIdType>, D::Error>
