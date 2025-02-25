@@ -132,7 +132,9 @@ pub async fn form_payment_link_data(
                 payment_button_text: None,
                 custom_message_for_card_terms: None,
                 payment_button_colour: None,
-                display_status_screen: None,
+                skip_status_screen: None,
+                background_colour: None,
+                payment_button_text_colour: None,
             }
         };
 
@@ -281,7 +283,9 @@ pub async fn form_payment_link_data(
         payment_button_text: payment_link_config.payment_button_text.clone(),
         custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms.clone(),
         payment_button_colour: payment_link_config.payment_button_colour.clone(),
-        display_status_screen: payment_link_config.display_status_screen,
+        skip_status_screen: payment_link_config.skip_status_screen,
+        background_colour: payment_link_config.background_colour.clone(),
+        payment_button_text_colour: payment_link_config.payment_button_text_colour.clone(),
     };
 
     Ok((
@@ -335,7 +339,9 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_button_text: payment_link_config.payment_button_text,
                 custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms,
                 payment_button_colour: payment_link_config.payment_button_colour,
-                display_status_screen: payment_link_config.display_status_screen,
+                skip_status_screen: payment_link_config.skip_status_screen,
+                background_colour: payment_link_config.background_colour,
+                payment_button_text_colour: payment_link_config.payment_button_text_colour,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -447,7 +453,10 @@ fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
 }
 
 fn get_color_scheme_css(payment_link_config: &PaymentLinkConfig) -> String {
-    let background_primary_color = payment_link_config.theme.clone();
+    let background_primary_color = payment_link_config
+        .background_colour
+        .clone()
+        .unwrap_or(payment_link_config.theme.clone());
     format!(
         ":root {{
       --primary-color: {background_primary_color};
@@ -641,7 +650,9 @@ pub fn get_payment_link_config_based_on_priority(
         payment_button_text,
         custom_message_for_card_terms,
         payment_button_colour,
-        display_status_screen,
+        skip_status_screen,
+        background_colour,
+        payment_button_text_colour,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -651,7 +662,9 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_button_text),
         (custom_message_for_card_terms),
         (payment_button_colour),
-        (display_status_screen)
+        (skip_status_screen),
+        (background_colour),
+        (payment_button_text_colour)
     );
 
     let payment_link_config =
@@ -666,7 +679,7 @@ pub fn get_payment_link_config_based_on_priority(
             show_card_form_by_default,
             allowed_domains,
             branding_visibility,
-            display_status_screen,
+            skip_status_screen,
             transaction_details: payment_create_link_config.as_ref().and_then(
                 |payment_link_config| payment_link_config.theme_config.transaction_details.clone(),
             ),
@@ -675,6 +688,8 @@ pub fn get_payment_link_config_based_on_priority(
             payment_button_text,
             custom_message_for_card_terms,
             payment_button_colour,
+            background_colour,
+            payment_button_text_colour,
         };
 
     Ok((payment_link_config, domain_name))
@@ -780,7 +795,9 @@ pub async fn get_payment_link_status(
             payment_button_text: None,
             custom_message_for_card_terms: None,
             payment_button_colour: None,
-            display_status_screen: None,
+            skip_status_screen: None,
+            background_colour: None,
+            payment_button_text_colour: None,
         }
     };
 

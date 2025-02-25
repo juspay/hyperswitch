@@ -13385,9 +13385,19 @@
             "description": "Custom background colour for payment link's handle confirm button",
             "nullable": true
           },
-          "display_status_screen": {
+          "skip_status_screen": {
             "type": "boolean",
-            "description": "Display the status screen after payment completion",
+            "description": "Skip the status screen after payment completion",
+            "nullable": true
+          },
+          "payment_button_text_colour": {
+            "type": "string",
+            "description": "Custom text colour for payment link's handle confirm button ",
+            "nullable": true
+          },
+          "background_colour": {
+            "type": "string",
+            "description": "Custom background colour for the payment link",
             "nullable": true
           }
         }
@@ -13490,9 +13500,19 @@
             "description": "Custom background colour for payment link's handle confirm button",
             "nullable": true
           },
-          "display_status_screen": {
+          "skip_status_screen": {
             "type": "boolean",
-            "description": "Display the status screen after payment completion",
+            "description": "Skip the status screen after payment completion",
+            "nullable": true
+          },
+          "payment_button_text_colour": {
+            "type": "string",
+            "description": "Custom text colour for payment link's handle confirm button ",
+            "nullable": true
+          },
+          "background_colour": {
+            "type": "string",
+            "description": "Custom background colour for the payment link",
             "nullable": true
           }
         }
