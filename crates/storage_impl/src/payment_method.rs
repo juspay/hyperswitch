@@ -22,7 +22,9 @@ use router_env::{instrument, tracing};
 use super::MockDb;
 use crate::{
     diesel_error_to_data_error,
-    kv_router_store::{InsertResourceParams, FilterResourceParams, KVRouterStore, UpdateResourceParams},
+    kv_router_store::{
+        FilterResourceParams, InsertResourceParams, KVRouterStore, UpdateResourceParams,
+    },
     redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,

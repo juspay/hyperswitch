@@ -9,7 +9,6 @@ use hyperswitch_domain_models::{
     errors::{self, StorageResult},
     merchant_key_store::MerchantKeyStore,
 };
-
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::StrongSecret;
