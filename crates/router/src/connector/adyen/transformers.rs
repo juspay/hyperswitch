@@ -591,7 +591,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "walley")]
     Walley,
     #[serde(rename = "wechatpayWeb")]
-    WeChatPayWeb,
+    WeChatPayWeb(Box<WeChatPayWebData>),
     AchDirectDebit(Box<AchDirectDebitData>),
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
@@ -684,6 +684,13 @@ pub struct AchDirectDebitData {
     bank_account_number: Secret<String>,
     bank_location_id: Secret<String>,
     owner_name: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WeChatPayWebData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2208,7 +2215,12 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
                 };
                 Ok(AdyenPaymentMethod::MobilePay(Box::new(data)))
             }
-            domain::WalletData::WeChatPayRedirect(_) => Ok(AdyenPaymentMethod::WeChatPayWeb),
+            domain::WalletData::WeChatPayRedirect(_) => {
+                let data = WeChatPayWebData {
+                    payment_type: PaymentType::WeChatPayWeb,
+                };
+                Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
+            },
             domain::WalletData::SamsungPay(samsung_data) => {
                 let data = SamsungPayPmData {
                     payment_type: PaymentType::Samsungpay,
