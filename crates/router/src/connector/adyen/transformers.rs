@@ -2220,7 +2220,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
                     payment_type: PaymentType::WeChatPayWeb,
                 };
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
-            },
+            }
             domain::WalletData::SamsungPay(samsung_data) => {
                 let data = SamsungPayPmData {
                     payment_type: PaymentType::Samsungpay,
