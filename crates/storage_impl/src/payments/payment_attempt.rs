@@ -1,7 +1,8 @@
+use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::types::keymanager::KeyManagerState;
+#[cfg(feature = "v1")]
 use common_utils::{
-    errors::CustomResult,
     fallback_reverse_lookup_not_found,
     types::{ConnectorTransactionId, ConnectorTransactionIdTrait},
 };
@@ -10,12 +11,11 @@ use diesel_models::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
         MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
-    kv,
-    payment_attempt::{
-        PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
-    },
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
+#[cfg(feature = "v1")]
+use diesel_models::{kv, PaymentAttemptNew as DieselPaymentAttemptNew};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
@@ -29,20 +29,25 @@ use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
+#[cfg(feature = "v1")]
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    errors::RedisErrorExt,
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+    utils::try_redis_get_else_try_database_get,
 };
 
 #[async_trait::async_trait]
