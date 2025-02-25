@@ -197,7 +197,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
-        let address_details = address.map(api_models::payments::AddressDetails::from);
+        let address_details = address;
 
         Ok(services::ApplicationResponse::Json(
             customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
@@ -1265,7 +1265,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
-        let address_details = address.map(api_models::payments::AddressDetails::from);
+        let address_details = address;
 
         Ok(services::ApplicationResponse::Json(
             customers::CustomerResponse::foreign_from((customer.clone(), address_details)),

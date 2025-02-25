@@ -182,7 +182,6 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             item.connector.and_then(|v| {
                 v.into_iter()
                     .next()
-                    .map(api_enums::RoutableConnectors::from)
             });
 
         let routing = routable_connector

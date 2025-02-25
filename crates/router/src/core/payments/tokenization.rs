@@ -393,21 +393,20 @@ where
                                             merchant_id,
                                             pm_metadata,
                                             customer_acceptance,
-                                            pm_data_encrypted.map(Into::into),
+                                            pm_data_encrypted,
                                             key_store,
                                             None,
                                             pm_status,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
-                                            encrypted_payment_method_billing_address
-                                                .map(Into::into),
+                                            encrypted_payment_method_billing_address,
                                             resp.card.and_then(|card| {
                                                 card.card_network
                                                     .map(|card_network| card_network.to_string())
                                             }),
                                             network_token_requestor_ref_id,
                                             network_token_locker_id,
-                                            pm_network_token_data_encrypted.map(Into::into),
+                                            pm_network_token_data_encrypted,
                                         )
                                         .await
                                     } else {
@@ -512,14 +511,13 @@ where
                                                 merchant_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
-                                                pm_data_encrypted.map(Into::into),
+                                                pm_data_encrypted,
                                                 key_store,
                                                 None,
                                                 pm_status,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
-                                                encrypted_payment_method_billing_address
-                                                    .map(Into::into),
+                                                encrypted_payment_method_billing_address,
                                                 resp.card.and_then(|card| {
                                                     card.card_network.map(|card_network| {
                                                         card_network.to_string()
@@ -527,7 +525,7 @@ where
                                                 }),
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
-                                                pm_network_token_data_encrypted.map(Into::into),
+                                                pm_network_token_data_encrypted,
                                             )
                                             .await
                                         } else {
@@ -732,20 +730,20 @@ where
                                 merchant_id,
                                 pm_metadata,
                                 customer_acceptance,
-                                pm_data_encrypted.map(Into::into),
+                                pm_data_encrypted,
                                 key_store,
                                 None,
                                 pm_status,
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
-                                encrypted_payment_method_billing_address.map(Into::into),
+                                encrypted_payment_method_billing_address,
                                 resp.card.and_then(|card| {
                                     card.card_network
                                         .map(|card_network| card_network.to_string())
                                 }),
                                 network_token_requestor_ref_id,
                                 network_token_locker_id,
-                                pm_network_token_data_encrypted.map(Into::into),
+                                pm_network_token_data_encrypted,
                             )
                             .await?;
                         };
