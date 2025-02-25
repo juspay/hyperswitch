@@ -9,7 +9,7 @@ license.workspace = true
 
 [features]
 default = []
-keymanager = ["dep:router_env", "router_env/actix_web"]
+keymanager = ["dep:router_env", "router_env/actix_web", "reqwest/rustls-tls"]
 signals = ["dep:router_env","dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:futures"]
 async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
