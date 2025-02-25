@@ -1,6 +1,6 @@
-use ::payment_methods::client::{PaymentMethodsClient, PaymentMethodsStorageInterface};
 use std::{collections::HashMap, sync::Arc};
 
+use ::payment_methods::client::{PaymentMethodsClient, PaymentMethodsStorageInterface};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
@@ -8,8 +8,7 @@ use api_models::routing::RoutingRetrieveQuery;
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::id_type;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,

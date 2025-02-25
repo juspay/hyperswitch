@@ -11,26 +11,22 @@ use diesel_models::{
     payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
-
-use super::MockDb;
-use crate::{
-    diesel_error_to_data_error,
-    redis::kv_store::{Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write},
-};
-use crate::{
-    kv_router_store::{
-        FilterResourceParams, InsertResourceParams, KVRouterStore, UpdateResourceParams,
-    },
-    DatabaseStore, RouterStore,
-};
 use hyperswitch_domain_models::{
+    behaviour::{Conversion, ReverseConversion},
     errors,
     merchant_key_store::MerchantKeyStore,
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
 use router_env::{instrument, tracing};
+
+use super::MockDb;
+use crate::{
+    diesel_error_to_data_error,
+    kv_router_store::{InsertResourceParams, FilterResourceParams, KVRouterStore, UpdateResourceParams},
+    redis::kv_store::{Op, PartitionKey},
+    utils::{pg_connection_read, pg_connection_write},
+    DatabaseStore, RouterStore,
+};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {

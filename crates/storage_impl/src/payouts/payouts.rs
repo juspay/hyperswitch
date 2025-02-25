@@ -69,9 +69,10 @@ use crate::store::schema::{
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
+    kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
-    DataModelExt, DatabaseStore, kv_router_store::KVRouterStore,
+    DataModelExt, DatabaseStore,
 };
 
 #[async_trait::async_trait]

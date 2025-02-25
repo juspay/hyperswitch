@@ -25,13 +25,13 @@ use hyperswitch_interfaces::secrets_interface::secret_state::{
     RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
 use masking::Secret;
+use payment_methods::client::PaymentMethodsStorageInterface;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
-use payment_methods::client::PaymentMethodsStorageInterface;
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
@@ -243,7 +243,7 @@ impl TenantConfig {
         .into_iter()
         .collect()
     }
-    
+
     /// # Panics
     ///
     /// Panics if Failed to create event handler

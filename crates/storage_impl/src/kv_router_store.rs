@@ -1,14 +1,5 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
-use crate::config::TenantConfig;
-use crate::errors::RedisErrorExt;
-use crate::redis::kv_store::decide_storage_scheme;
-use crate::redis::kv_store::kv_wrapper;
-use crate::redis::kv_store::KvOperation;
-use crate::redis::kv_store::Op;
-use crate::redis::kv_store::{KvStorePartition, PartitionKey, RedisConnInterface};
-use crate::utils::find_all_combined_kv_database;
-use crate::utils::try_redis_get_else_try_database_get;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{fallback_reverse_lookup_not_found, types::keymanager::KeyManagerState};
 use diesel_models::{errors::DatabaseError, kv};
@@ -18,23 +9,31 @@ use hyperswitch_domain_models::{
     errors::{self, StorageResult},
     merchant_key_store::MerchantKeyStore,
 };
-use masking::StrongSecret;
-use serde::de;
-use std::fmt::Debug;
 
-pub use crate::mock_db::MockDb;
-use crate::{database::store::PgPool, RouterStore};
-use crate::{
-    diesel_error_to_data_error, lookup::ReverseLookupInterface, metrics, UniqueConstraints,
-};
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
+use masking::StrongSecret;
 use redis_interface::{errors::RedisError, types::HsetnxReply, RedisConnectionPool};
+use router_env::logger;
+use serde::de;
 
-pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
-use router_env::logger;
+use crate::{
+    config::TenantConfig,
+    database::store::PgPool,
+    diesel_error_to_data_error,
+    errors::RedisErrorExt,
+    lookup::ReverseLookupInterface,
+    metrics,
+    redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, KvStorePartition, Op, PartitionKey,
+        RedisConnInterface,
+    },
+    utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
+    RouterStore, UniqueConstraints,
+};
+pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {

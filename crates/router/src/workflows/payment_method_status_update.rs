@@ -1,4 +1,5 @@
 use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
@@ -9,7 +10,6 @@ use crate::{
     routes::SessionState,
     types::storage::{self, PaymentMethodStatusTrackingData},
 };
-use error_stack::ResultExt;
 pub struct PaymentMethodStatusUpdateWorkflow;
 
 #[async_trait::async_trait]
@@ -55,7 +55,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
                 &pm_id,
                 merchant_account.storage_scheme,
             )
-            .await.change_context(errors::ApiErrorResponse::InternalServerError)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
 
         if payment_method.status != prev_pm_status {
