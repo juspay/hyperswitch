@@ -1,0 +1,104 @@
+syntax = "proto3";
+package success_rate;
+
+service SuccessRateCalculator {
+    rpc FetchSuccessRate (CalSuccessRateRequest) returns (CalSuccessRateResponse);
+
+    rpc UpdateSuccessRateWindow (UpdateSuccessRateWindowRequest) returns (UpdateSuccessRateWindowResponse);
+
+    rpc InvalidateWindows (InvalidateWindowsRequest) returns (InvalidateWindowsResponse);
+
+    rpc FetchEntityAndGlobalSuccessRate (CalGlobalSuccessRateRequest) returns (CalGlobalSuccessRateResponse);
+}
+
+// API-1 types
+message CalSuccessRateRequest {
+    string id = 1;
+    string params = 2;
+    repeated string labels = 3;
+    CalSuccessRateConfig config = 4;
+}
+
+message CalSuccessRateConfig {
+    uint32 min_aggregates_size = 1;
+    double default_success_rate = 2;
+    optional SuccessRateSpecificityLevel specificity_level = 3;
+}
+
+enum SuccessRateSpecificityLevel {
+    ENTITY = 0;
+    GLOBAL = 1;
+}
+
+message CalSuccessRateResponse {
+    repeated LabelWithScore labels_with_score = 1;
+}
+
+message LabelWithScore {
+    double score = 1;
+    string label = 2;
+}
+
+// API-2 types
+message UpdateSuccessRateWindowRequest {
+    string id = 1;
+    string params = 2;
+    repeated LabelWithStatus labels_with_status = 3;
+    UpdateSuccessRateWindowConfig config = 4;
+    repeated LabelWithStatus global_labels_with_status = 5;
+}
+
+message LabelWithStatus {
+    string label = 1;
+    bool status = 2;
+}
+
+message UpdateSuccessRateWindowConfig {
+    uint32 max_aggregates_size = 1;
+    CurrentBlockThreshold current_block_threshold = 2;
+}
+
+message CurrentBlockThreshold {
+    optional uint64 duration_in_mins = 1;
+    uint64 max_total_count = 2;
+}
+
+message UpdateSuccessRateWindowResponse {
+   enum UpdationStatus {
+      WINDOW_UPDATION_SUCCEEDED = 0;
+      WINDOW_UPDATION_FAILED = 1;
+   }
+   UpdationStatus status = 1;
+}
+
+ // API-3 types
+message InvalidateWindowsRequest {
+    string id = 1;
+}
+
+message InvalidateWindowsResponse {
+    enum InvalidationStatus {
+      WINDOW_INVALIDATION_SUCCEEDED = 0;
+      WINDOW_INVALIDATION_FAILED = 1;
+   }
+   InvalidationStatus status = 1;
+}
+
+// API-4 types
+message CalGlobalSuccessRateRequest {
+    string entity_id = 1;
+    string entity_params = 2;
+    repeated string entity_labels = 3;
+    repeated string global_labels = 4;
+    CalGlobalSuccessRateConfig config = 5;
+}
+
+message CalGlobalSuccessRateConfig {
+    uint32 entity_min_aggregates_size = 1;
+    double entity_default_success_rate = 2;
+}
+
+message CalGlobalSuccessRateResponse {
+    repeated LabelWithScore entity_scores_with_labels = 1;
+    repeated LabelWithScore global_scores_with_labels = 2;
+}

@@ -7,7 +7,7 @@ payout_link:
   status:
     title: "Payout Status"
     info:
-      ref_id: "Ref Id"
+      ref_id: "Reference Id"
       error_code: "Error Code"
       error_message: "Error Message"
     message:

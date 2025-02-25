@@ -22,7 +22,7 @@
                 )
             ),
             (
-                "Create a merchant connector account under a specific business profile" = (
+                "Create a merchant connector account under a specific profile" = (
                     value = json!({
                         "connector_type": "payment_processor",
                         "connector_name": "adyen",
@@ -61,10 +61,13 @@
 )]
 pub async fn connector_create() {}
 
+/// Connector Account - Create
+///
+/// Creates a new Connector Account for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/connector_accounts",
+    path = "/v2/connector-accounts",
     request_body(
         content = MerchantConnectorCreate,
         examples(
@@ -82,7 +85,7 @@ pub async fn connector_create() {}
                 )
             ),
             (
-                "Create a merchant connector account under a specific business profile" = (
+                "Create a merchant connector account under a specific profile" = (
                     value = json!({
                         "connector_type": "payment_processor",
                         "connector_name": "adyen",
@@ -143,10 +146,13 @@ pub async fn connector_create() {}
 )]
 pub async fn connector_retrieve() {}
 
+/// Connector Account - Retrieve
+///
+/// Retrieves details of a Connector account
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/connector_accounts/{id}",
+    path = "/v2/connector-accounts/{id}",
     params(
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
@@ -179,7 +185,7 @@ pub async fn connector_retrieve() {}
     operation_id = "List all Merchant Connectors",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_list() {}
+pub async fn connector_list() {}
 
 /// Merchant Connector - Update
 ///
@@ -229,10 +235,13 @@ pub async fn payment_connector_list() {}
 )]
 pub async fn connector_update() {}
 
+/// Connector Account - Update
+///
+/// To update an existing Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    post,
-    path = "/connector_accounts/{id}",
+    put,
+    path = "/v2/connector-accounts/{id}",
     request_body(
         content = MerchantConnectorUpdate,
         examples(
@@ -295,10 +304,13 @@ pub async fn connector_update() {}
 )]
 pub async fn connector_delete() {}
 
+/// Merchant Connector - Delete
+///
+/// Delete or Detach a Merchant Connector from Merchant Account
 #[cfg(feature = "v2")]
 #[utoipa::path(
     delete,
-    path = "/connector_accounts/{id}",
+    path = "/v2/connector-accounts/{id}",
     params(
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),

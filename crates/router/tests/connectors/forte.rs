@@ -2,6 +2,7 @@ use std::{str::FromStr, time::Duration};
 
 use cards::CardNumber;
 use common_utils::types::MinorUnit;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 
@@ -17,7 +18,7 @@ impl utils::Connector for ForteTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Forte;
         utils::construct_connector_data_old(
-            Box::new(&Forte),
+            Box::new(Forte::new()),
             types::Connector::Forte,
             api::GetToken::Connector,
             None,
@@ -54,8 +55,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
                     line1: Some(Secret::new("line1".to_string())),
@@ -65,7 +66,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     country: Some(api_models::enums::CountryAlpha2::IN),
                     ..Default::default()
                 }),
-                phone: Some(api::PhoneDetails {
+                phone: Some(PhoneDetails {
                     number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
@@ -163,6 +164,7 @@ async fn should_sync_authorized_payment() {
                 payment_experience: None,
                 integrity_object: None,
                 amount: MinorUnit::new(100),
+                ..Default::default()
             }),
             get_default_payment_info(),
         )

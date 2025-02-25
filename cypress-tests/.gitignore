@@ -1,3 +1,10 @@
+# Mac OS files
+.DS_Store
+
+# Output files
+reports/
+screenshots/
+videos/
+
 creds.json
-screenshots
 run_all.sh

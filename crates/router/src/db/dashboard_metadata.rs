@@ -99,7 +99,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::DashboardMetadata::find_user_scoped_dashboard_metadata(
             &conn,
             user_id.to_owned(),
@@ -118,7 +118,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::DashboardMetadata::find_merchant_scoped_dashboard_metadata(
             &conn,
             merchant_id.to_owned(),
@@ -332,10 +332,7 @@ impl DashboardMetadataInterface for MockDb {
         let index_to_remove = dashboard_metadata
             .iter()
             .position(|metadata_inner| {
-                metadata_inner
-                    .user_id
-                    .as_deref()
-                    .map_or(false, |user_id_inner| user_id_inner == user_id)
+                metadata_inner.user_id.as_deref() == Some(user_id)
                     && metadata_inner.merchant_id == *merchant_id
                     && metadata_inner.data_key == data_key
             })

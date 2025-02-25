@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use api_models::enums as api_enums;
 use serde::Deserialize;
-#[derive(Debug, Deserialize, Clone, Default)]
 
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CountryCurrencyFilter {
     pub connector_configs: HashMap<api_enums::RoutableConnectors, PaymentMethodFilters>,
     pub default_configs: Option<PaymentMethodFilters>,

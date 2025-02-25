@@ -21,7 +21,7 @@ services:
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 5s
       retries: 3
       start_period: 5s
@@ -51,6 +51,14 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
+  
+  mailhog:
+    image: mailhog/mailhog
+    networks:
+      - router_net
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   ### Application services
   hyperswitch-server:
@@ -162,6 +170,7 @@ services:
       - SELF_SERVER_URL=http://localhost:5252
       - SDK_ENV=local
       - ENV_LOGGING_URL=http://localhost:3103
+      - ENV_BACKEND_URL=http://localhost:8080
     labels:
       logs: "promtail"
 

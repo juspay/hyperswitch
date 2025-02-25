@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
@@ -6,6 +8,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -143,10 +146,25 @@ struct TransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    user_fields: Option<UserFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserFields {
+    user_field: Vec<UserField>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserField {
+    name: String,
+    value: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -299,6 +317,25 @@ pub enum ValidationMode {
     LiveMode,
 }
 
+impl ForeignTryFrom<Value> for Vec<UserField> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
+        let hashmap: BTreeMap<String, Value> = serde_json::from_str(&metadata.to_string())
+            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to serialize request metadata".to_owned(),
+            ))
+            .attach_printable("")?;
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            vector.push(UserField {
+                name: key,
+                value: value.to_string(),
+            });
+        }
+        Ok(vector)
+    }
+}
+
 impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
@@ -314,7 +351,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            //The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                            // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                             description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
@@ -339,12 +376,14 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -387,24 +426,25 @@ impl<F, T>
                 status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: item.response.customer_profile_id.map(
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(item.response.customer_profile_id.map(
                         |customer_profile_id| types::MandateReference {
-                            connector_mandate_id: item
-                                .response
-                                .customer_payment_profile_id_list
-                                .first()
-                                .map(|payment_profile_id| {
-                                    format!("{customer_profile_id}-{payment_profile_id}")
-                                }),
+                            connector_mandate_id:
+                                item.response.customer_payment_profile_id_list.first().map(
+                                    |payment_profile_id| {
+                                        format!("{customer_profile_id}-{payment_profile_id}")
+                                    },
+                                ),
                             payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
                         },
-                    ),
+                    )),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -465,7 +505,9 @@ impl TryFrom<enums::CaptureMethod> for AuthorizationType {
     fn try_from(capture_method: enums::CaptureMethod) -> Result<Self, Self::Error> {
         match capture_method {
             enums::CaptureMethod::Manual => Ok(Self::Pre),
-            enums::CaptureMethod::Automatic => Ok(Self::Final),
+            enums::CaptureMethod::SequentialAutomatic | enums::CaptureMethod::Automatic => {
+                Ok(Self::Final)
+            }
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_supported_error_report(capture_method, "authorizedotnet"),
             )?,
@@ -502,6 +544,11 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?
+            }
             None => {
                 match &item.router_data.request.payment_method_data {
                     domain::PaymentMethodData::Card(ccard) => {
@@ -519,12 +566,14 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::MandatePayment
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -579,12 +628,14 @@ impl
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::MobilePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_) => {
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -608,6 +659,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -639,7 +696,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let mandate_id = connector_mandate_id
-            .connector_mandate_id
+            .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
@@ -661,6 +718,12 @@ impl
             },
             customer: None,
             bill_to: None,
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -688,39 +751,41 @@ impl
             &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if item
-            .router_data
-            .request
-            .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, common_enums::FutureUsage::OffSession)
-            })
-            && (item.router_data.request.customer_acceptance.is_some()
-                || item
-                    .router_data
-                    .request
-                    .setup_mandate_details
-                    .clone()
-                    .map_or(false, |mandate_details| {
-                        mandate_details.customer_acceptance.is_some()
-                    })) {
-            (
-                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                    create_profile: true,
-                })),
-                Some(CustomerDetails {
-                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                    id: if item.router_data.payment_id.len() <= 20 {
-                        item.router_data.payment_id.clone()
-                    } else {
-                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
-                    },
-                }),
-            )
-        } else {
-            (None, None)
-        };
+        let (profile, customer) =
+            if item
+                .router_data
+                .request
+                .setup_future_usage
+                .is_some_and(|future_usage| {
+                    matches!(future_usage, common_enums::FutureUsage::OffSession)
+                })
+                && (item.router_data.request.customer_acceptance.is_some()
+                    || item
+                        .router_data
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .is_some_and(|mandate_details| {
+                            mandate_details.customer_acceptance.is_some()
+                        }))
+            {
+                (
+                    Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                        create_profile: true,
+                    })),
+                    Some(CustomerDetails {
+                        //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                        //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                        id: if item.router_data.payment_id.len() <= 20 {
+                            item.router_data.payment_id.clone()
+                        } else {
+                            Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                        },
+                    }),
+                )
+            } else {
+                (None, None)
+            };
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -748,6 +813,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -799,6 +870,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -1104,6 +1181,8 @@ impl<F, T>
                             },
                         ),
                         payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }
                 });
 
@@ -1115,8 +1194,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1126,7 +1205,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                     },
                     ..item.data
@@ -1188,8 +1267,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1199,7 +1278,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                     },
                     ..item.data
@@ -1282,11 +1361,12 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>> for Cr
 impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
-            AuthorizedotnetRefundStatus::Approved => Self::Success,
             AuthorizedotnetRefundStatus::Declined | AuthorizedotnetRefundStatus::Error => {
                 Self::Failure
             }
-            AuthorizedotnetRefundStatus::HeldForReview => Self::Pending,
+            AuthorizedotnetRefundStatus::Approved | AuthorizedotnetRefundStatus::HeldForReview => {
+                Self::Pending
+            }
         }
     }
 }
@@ -1518,13 +1598,13 @@ impl<F, Req>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             transaction.transaction_id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     status: payment_status,
                     ..item.data
@@ -1565,7 +1645,9 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
     fn try_from(capture_method: Option<enums::CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(Self::Authorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(Self::Payment),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(Self::Payment),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(utils::construct_not_supported_error_report(
                     enums::CaptureMethod::ManualMultiple,
@@ -1728,6 +1810,7 @@ fn get_wallet_data(
         domain::WalletData::AliPayQr(_)
         | domain::WalletData::AliPayRedirect(_)
         | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::AmazonPayRedirect(_)
         | domain::WalletData::MomoRedirect(_)
         | domain::WalletData::KakaoPayRedirect(_)
         | domain::WalletData::GoPayRedirect(_)
@@ -1740,6 +1823,7 @@ fn get_wallet_data(
         | domain::WalletData::MbWayRedirect(_)
         | domain::WalletData::MobilePayRedirect(_)
         | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::Paze(_)
         | domain::WalletData::SamsungPay(_)
         | domain::WalletData::TwintRedirect {}
         | domain::WalletData::VippsRedirect {}
@@ -1790,13 +1874,13 @@ pub struct PaypalPaymentConfirm {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Paypal {
     #[serde(rename = "payerID")]
-    payer_id: Secret<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalQueryParams {
     #[serde(rename = "PayerID")]
-    payer_id: Secret<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -1813,13 +1897,18 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let payer_id: Secret<String> =
-            serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-                .payer_id;
+
+        let query_params: PaypalQueryParams = serde_urlencoded::from_str(params.peek())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse connector response")?;
+
+        let payer_id = query_params.payer_id;
+
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(TransactionType::ContinueCapture),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(TransactionType::ContinueCapture),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),

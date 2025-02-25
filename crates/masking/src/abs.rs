@@ -1,6 +1,4 @@
-//!
 //! Abstract data types.
-//!
 
 use crate::Secret;
 
@@ -8,6 +6,9 @@ use crate::Secret;
 pub trait PeekInterface<S> {
     /// Only method providing access to the secret value.
     fn peek(&self) -> &S;
+
+    /// Provide a mutable reference to the inner value.
+    fn peek_mut(&mut self) -> &mut S;
 }
 
 /// Interface that consumes a option secret and returns the value.

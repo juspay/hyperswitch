@@ -13,20 +13,17 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use api_models::payments::AddressDetailsWithPhone;
 use api_models::{
     enums,
     payments::{self},
     webhooks,
 };
-use base64::Engine;
 use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
-    crypto,
+    crypto::{self, Encryptable},
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
-    id_type,
+    id_type, pii,
     validation::validate_email,
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -35,19 +32,20 @@ use common_utils::{
     types::keymanager::{Identifier, ToEncryptable},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use image::Luma;
+use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
-use qrcode;
-use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::core::webhooks as webhooks_core;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::types::storage;
 use crate::{
@@ -55,12 +53,16 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        webhooks as webhooks_core,
+        payments as payments_core,
     },
+    headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
-    services,
-    types::{self, domain, transformers::ForeignFrom},
+    services::{self, authentication::get_header_value_by_key},
+    types::{
+        self, domain,
+        transformers::{ForeignFrom, ForeignInto},
+    },
 };
 
 pub mod error_parser {
@@ -82,7 +84,11 @@ pub mod error_parser {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str(
                 serde_json::to_string(&serde_json::json!({
-                    "error": self.err.to_string()
+                    "error": {
+                        "error_type": "invalid_request",
+                        "message": self.err.to_string(),
+                        "code": "IR_06",
+                    }
                 }))
                 .as_deref()
                 .unwrap_or("Invalid Json Error"),
@@ -163,41 +169,11 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
-    format!("{payment_id}_{attempt_count}")
-}
-#[derive(Debug)]
-pub struct QrImage {
-    pub data: String,
+pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
+    format!("{payout_id}_{attempt_count}")
 }
 
-impl QrImage {
-    pub fn new_from_data(
-        data: String,
-    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
-        let qr_code = qrcode::QrCode::new(data.as_bytes())
-            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
-
-        // Renders the QR code into an image.
-        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
-        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
-
-        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
-
-        // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
-
-        let image_data_source = format!(
-            "{},{}",
-            consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.buffer())
-        );
-        Ok(Self {
-            data: image_data_source,
-        })
-    }
-}
-
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_payment_id_type(
     state: &SessionState,
     payment_id_type: payments::PaymentIdType,
@@ -261,6 +237,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_refund_id_type(
     state: &SessionState,
     refund_id_type: webhooks::RefundIdType,
@@ -307,6 +284,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_mandate_id_type(
     state: &SessionState,
     mandate_id_type: webhooks::MandateIdType,
@@ -346,6 +324,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_mca_from_authentication_id_type(
     state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
@@ -370,10 +349,7 @@ pub async fn find_mca_from_authentication_id_type(
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     {
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &state.into(),
@@ -384,11 +360,14 @@ pub async fn find_mca_from_authentication_id_type(
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: authentication.merchant_connector_id.to_string(),
+                id: authentication
+                    .merchant_connector_id
+                    .get_string_repr()
+                    .to_string(),
             },
         )
     }
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     //get mca using id
     {
         let _ = key_store;
@@ -397,6 +376,7 @@ pub async fn find_mca_from_authentication_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_payment_intent(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -405,6 +385,9 @@ pub async fn get_mca_from_payment_intent(
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(feature = "v1")]
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
@@ -413,13 +396,22 @@ pub async fn get_mca_from_payment_intent(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(feature = "v2")]
+    let payment_attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            key_manager_state,
+            key_store,
+            &payment_intent.active_attempt.get_id(),
+            merchant_account.get_id(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -430,11 +422,11 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _id = merchant_connector_id;
@@ -453,10 +445,7 @@ pub async fn get_mca_from_payment_intent(
                 .attach_printable("profile_id is not set in payment_intent")?
                 .clone();
 
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -467,11 +456,14 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                        id: format!(
+                            "profile_id {} and connector_name {connector_name}",
+                            profile_id.get_string_repr()
+                        ),
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _ = profile_id;
@@ -511,10 +503,7 @@ pub async fn get_mca_from_payout_attempt(
     let key_manager_state: &KeyManagerState = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -525,11 +514,11 @@ pub async fn get_mca_from_payout_attempt(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _id = merchant_connector_id;
@@ -540,10 +529,7 @@ pub async fn get_mca_from_payout_attempt(
             }
         }
         None => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -556,12 +542,13 @@ pub async fn get_mca_from_payout_attempt(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: format!(
                             "profile_id {} and connector_name {}",
-                            payout.profile_id, connector_name
+                            payout.profile_id.get_string_repr(),
+                            connector_name
                         ),
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 todo!()
             }
@@ -569,6 +556,7 @@ pub async fn get_mca_from_payout_attempt(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -578,21 +566,15 @@ pub async fn get_mca_from_object_reference_id(
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let default_profile_id = merchant_account.default_profile.as_ref();
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let default_profile_id = Option::<&String>::None;
 
     match default_profile_id {
         Some(profile_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -603,11 +585,14 @@ pub async fn get_mca_from_object_reference_id(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                        id: format!(
+                            "profile_id {} and connector_name {connector_name}",
+                            profile_id.get_string_repr()
+                        ),
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 let _db = db;
                 let _profile_id = profile_id;
@@ -693,11 +678,8 @@ pub fn handle_json_response_deserialization_failure(
     res: types::Response,
     connector: &'static str,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", connector)]),
-    );
+    metrics::RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", connector)));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -741,21 +723,11 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     if let Some(status_code) = option_status_code {
         let status_code_type = get_http_status_code_type(status_code).ok();
         match status_code_type.as_deref() {
-            Some("1xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("2xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("3xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("4xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("5xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
+            Some("1xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(1, &[]),
+            Some("2xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(1, &[]),
+            Some("3xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(1, &[]),
+            Some("4xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(1, &[]),
+            Some("5xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(1, &[]),
             _ => logger::info!("Skip metrics as invalid http status code received from connector"),
         };
     } else {
@@ -800,20 +772,32 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         let encrypted_data = crypto_operation(
             &state.into(),
             type_name!(storage::Address),
-            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: Some(address_details.clone()),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
-                    email: self.email.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
                 },
             )),
-            Identifier::Merchant(merchant_id),
+            Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
         Ok(storage::AddressUpdate::Update {
             city: address_details.city,
             country: address_details.country,
@@ -827,7 +811,14 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             phone_number: encryptable_address.phone_number,
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         })
     }
 
@@ -843,11 +834,20 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         let encrypted_data = crypto_operation(
             &state.into(),
             type_name!(storage::Address),
-            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: Some(address_details.clone()),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
-                    email: self.email.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -855,8 +855,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
         let address = domain::Address {
             city: address_details.city,
             country: address_details.country,
@@ -874,7 +877,148 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
+        };
+
+        Ok(domain::CustomerAddress {
+            address,
+            customer_id: customer_id.to_owned(),
+        })
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[async_trait::async_trait]
+impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
+    async fn get_address_update(
+        &self,
+        state: &SessionState,
+        address_details: payments::AddressDetails,
+        key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
+        merchant_id: id_type::MerchantId,
+    ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
+        let encrypted_data = crypto_operation(
+            &state.into(),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
+                    phone_number: self.phone.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
+                },
+            )),
+            Identifier::Merchant(merchant_id.to_owned()),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+        Ok(storage::AddressUpdate::Update {
+            city: address_details.city,
+            country: address_details.country,
+            line1: encryptable_address.line1,
+            line2: encryptable_address.line2,
+            line3: encryptable_address.line3,
+            zip: encryptable_address.zip,
+            state: encryptable_address.state,
+            first_name: encryptable_address.first_name,
+            last_name: encryptable_address.last_name,
+            phone_number: encryptable_address.phone_number,
+            country_code: self.phone_country_code.clone(),
+            updated_by: storage_scheme.to_string(),
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
+        })
+    }
+
+    async fn get_domain_address(
+        &self,
+        state: &SessionState,
+        address_details: payments::AddressDetails,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
+        let encrypted_data = crypto_operation(
+            &state.into(),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
+                    phone_number: self.phone.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
+                },
+            )),
+            Identifier::Merchant(merchant_id.to_owned()),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+        let address = domain::Address {
+            city: address_details.city,
+            country: address_details.country,
+            line1: encryptable_address.line1,
+            line2: encryptable_address.line2,
+            line3: encryptable_address.line3,
+            zip: encryptable_address.zip,
+            state: encryptable_address.state,
+            first_name: encryptable_address.first_name,
+            last_name: encryptable_address.last_name,
+            phone_number: encryptable_address.phone_number,
+            country_code: self.phone_country_code.clone(),
+            merchant_id: merchant_id.to_owned(),
+            address_id: generate_id(consts::ID_LENGTH, "add"),
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            updated_by: storage_scheme.to_string(),
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         };
 
         Ok(domain::CustomerAddress {
@@ -892,26 +1036,24 @@ pub fn add_apple_pay_flow_metrics(
     if let Some(flow) = apple_pay_flow {
         match flow {
             domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                ]),
+                    ("merchant_id", merchant_id.clone()),
+                ),
             ),
             domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                ]),
+                    ("merchant_id", merchant_id.clone()),
+                ),
             ),
         }
     }
@@ -928,28 +1070,26 @@ pub fn add_apple_pay_payment_status_metrics(
             match flow {
                 domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     ),
             }
         }
@@ -958,27 +1098,25 @@ pub fn add_apple_pay_payment_status_metrics(
             match flow {
                 domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         (
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                    ]),
+                        ("merchant_id", merchant_id.clone()),
+                    ),
                 ),
             }
         }
@@ -997,12 +1135,13 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
         .unwrap_or(true)
 }
 
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op>(
+pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: crate::core::payments::PaymentData<F>,
+    payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
@@ -1010,12 +1149,32 @@ pub async fn trigger_payments_webhook<F, Op>(
 where
     F: Send + Clone + Sync,
     Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
 {
-    let status = payment_data.payment_intent.status;
-    let payment_id = payment_data.payment_intent.payment_id.clone();
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn trigger_payments_webhook<F, Op, D>(
+    merchant_account: domain::MerchantAccount,
+    business_profile: domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: D,
+    customer: Option<domain::Customer>,
+    state: &SessionState,
+    operation: Op,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
+{
+    let status = payment_data.get_payment_intent().status;
+    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+
     let captures = payment_data
-        .multiple_capture_data
-        .clone()
+        .get_multiple_capture_data()
         .map(|multiple_capture_data| {
             multiple_capture_data
                 .get_all_captures()
@@ -1066,11 +1225,11 @@ where
                             &cloned_key_store,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
-                            payment_id,
+                            payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                                 payments_response_json,
-                            ),
+                            )),
                             primary_object_created_at,
                         ))
                         .await
@@ -1100,12 +1259,77 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
+#[cfg(feature = "v1")]
+pub async fn trigger_refund_outgoing_webhook(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    refund: &diesel_models::Refund,
+    profile_id: id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    let refund_status = refund.refund_status;
+    if matches!(
+        refund_status,
+        enums::RefundStatus::Success
+            | enums::RefundStatus::Failure
+            | enums::RefundStatus::TransactionFailure
+    ) {
+        let event_type = ForeignFrom::foreign_from(refund_status);
+        let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
+        let key_manager_state = &(state).into();
+        let refund_id = refund_response.refund_id.clone();
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(key_manager_state, key_store, &profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+        let cloned_state = state.clone();
+        let cloned_key_store = key_store.clone();
+        let cloned_merchant_account = merchant_account.clone();
+        let primary_object_created_at = refund_response.created_at;
+        if let Some(outgoing_event_type) = event_type {
+            tokio::spawn(
+                async move {
+                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                        cloned_state,
+                        cloned_merchant_account,
+                        business_profile,
+                        &cloned_key_store,
+                        outgoing_event_type,
+                        diesel_models::enums::EventClass::Refunds,
+                        refund_id.to_string(),
+                        diesel_models::enums::EventObjectType::RefundDetails,
+                        webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
+                        primary_object_created_at,
+                    ))
+                    .await
+                }
+                .in_current_span(),
+            );
+        } else {
+            logger::warn!("Outgoing webhook not sent because of missing event type status mapping");
+        };
     }
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn trigger_refund_outgoing_webhook(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    refund: &diesel_models::Refund,
+    profile_id: id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    todo!()
+}
+
+pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {
+    get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
+        .ok()
+        .flatten()
+        .map(|val| val.to_string())
+        .unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string())
 }

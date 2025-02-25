@@ -167,10 +167,12 @@ function renderStatusDetails(paymentDetails) {
     case "failed":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
       statusDetails.status = translations.paymentFailed;
-      var errorCodeNode = createItem(translations.errorCode, paymentDetails.error_code);
+      var unifiedErrorCode = paymentDetails.unified_code || paymentDetails.error_code;
+      var unifiedErrorMessage = paymentDetails.unified_message || paymentDetails.error_message;
+      var errorCodeNode = createItem(translations.errorCode, unifiedErrorCode);
       var errorMessageNode = createItem(
         translations.errorMessage,
-        paymentDetails.error_message
+        unifiedErrorMessage
       );
       // @ts-ignore
       statusDetails.items.push(errorMessageNode, errorCodeNode);

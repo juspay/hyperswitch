@@ -11,11 +11,11 @@ use once_cell::sync::OnceCell;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, TENANT_HEADER},
     errors,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
-        EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
+        EncryptionCreateRequest, EncryptionTransferRequest, GetKeymanagerTenant, KeyManagerState,
         TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
     },
 };
@@ -23,6 +23,8 @@ use crate::{
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
+#[cfg(feature = "km_forward_x_request_id")]
+const X_REQUEST_ID: &str = "X-Request-Id";
 
 /// Get keymanager client constructed from the url and state
 #[instrument(skip_all)]
@@ -98,24 +100,40 @@ pub async fn call_encryption_service<T, R>(
     request_body: T,
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
 where
-    T: ConvertRaw + Send + Sync + 'static + Debug,
+    T: GetKeymanagerTenant + ConvertRaw + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
     let url = format!("{}/{endpoint}", &state.url);
 
     logger::info!(key_manager_request=?request_body);
+    let mut header = vec![];
+    header.push((
+        HeaderName::from_str(CONTENT_TYPE)
+            .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+        HeaderValue::from_str("application/json")
+            .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+    ));
+    #[cfg(feature = "km_forward_x_request_id")]
+    if let Some(request_id) = state.request_id {
+        header.push((
+            HeaderName::from_str(X_REQUEST_ID)
+                .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+            HeaderValue::from_str(request_id.as_hyphenated().to_string().as_str())
+                .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+        ))
+    }
+
+    //Add Tenant ID
+    header.push((
+        HeaderName::from_str(TENANT_HEADER)
+            .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+        HeaderValue::from_str(request_body.get_tenant_id(state).get_string_repr())
+            .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+    ));
 
     let response = send_encryption_request(
         state,
-        HeaderMap::from_iter(
-            vec![(
-                HeaderName::from_str(CONTENT_TYPE)
-                    .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-                HeaderValue::from_str("application/json")
-                    .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-            )]
-            .into_iter(),
-        ),
+        HeaderMap::from_iter(header.into_iter()),
         url,
         method,
         request_body,

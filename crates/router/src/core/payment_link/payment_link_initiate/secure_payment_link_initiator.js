@@ -48,6 +48,12 @@ if (!isFramed) {
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
+      // TODO: Remove in next deployment
+      shouldUseTopRedirection: true,
+      redirectionFlags: {
+        shouldRemoveBeforeUnloadEvents: true,
+        shouldUseTopRedirection: true,
+      },
     });
     // @ts-ignore
     widgets = hyper.widgets({
@@ -62,6 +68,7 @@ if (!isFramed) {
         : paymentDetails.sdk_layout;
 
     var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
+    var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
     var unifiedCheckoutOptions = {
       displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
       displaySavedPaymentMethods: enableSavedPaymentMethod,
@@ -78,6 +85,9 @@ if (!isFramed) {
           height: 55,
         },
       },
+      hideCardNicknameField: hideCardNicknameField,
+      showCardFormByDefault: paymentDetails.show_card_form_by_default,
+      customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
     };
     // @ts-ignore
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
@@ -100,9 +110,49 @@ if (!isFramed) {
   function redirectToStatus() {
     var paymentDetails = window.__PAYMENT_DETAILS;
     var arr = window.location.pathname.split("/");
-    arr.splice(0, 3);
-    arr.unshift("status");
-    arr.unshift("payment_link");
-    window.location.href = window.location.origin + "/" + arr.join("/")+ "?locale=" + paymentDetails.locale;
+
+    // NOTE - This code preserves '/api' in url for integ and sbx envs
+    // e.g. url for integ/sbx - https://integ.hyperswitch.io/api/payment_link/s/merchant_1234/pay_1234?locale=en
+    // e.g. url for others - https://abc.dev.com/payment_link/s/merchant_1234/pay_1234?locale=en
+    var hasApiInPath = arr.includes("api");
+    if (hasApiInPath) {
+      arr.splice(0, 4);
+      arr.unshift("api", "payment_link", "status");
+    } else {
+      arr.splice(0, 3);
+      arr.unshift("payment_link", "status");
+    }
+
+    let returnUrl =
+      window.location.origin +
+      "/" +
+      arr.join("/") +
+      "?locale=" +
+      paymentDetails.locale;
+    try {
+      window.top.location.href = returnUrl;
+
+      // Push logs to logs endpoint
+    } catch (error) {
+      var url = window.location.href;
+      var { paymentId, merchantId, attemptId, connector } = parseRoute(url);
+      var urlToPost = getEnvRoute(url);
+      var message = {
+        message:
+          "CRITICAL ERROR - Failed to redirect top document. Falling back to redirecting using window.location",
+        reason: error.message,
+      };
+      var log = {
+        message,
+        url,
+        paymentId,
+        merchantId,
+        attemptId,
+        connector,
+      };
+      postLog(log, urlToPost);
+
+      window.location.href = returnUrl;
+    }
   }
 }

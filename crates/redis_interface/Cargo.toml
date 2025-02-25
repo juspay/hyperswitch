@@ -7,6 +7,9 @@ rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
 
+[features]
+multitenancy_fallback = []
+
 [dependencies]
 error-stack = "0.4.1"
 fred = { version = "7.1.2", features = ["metrics", "partial-tracing", "subscriber-client", "check-unresponsive"] }
@@ -22,3 +25,6 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = ["async
 
 [dev-dependencies]
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

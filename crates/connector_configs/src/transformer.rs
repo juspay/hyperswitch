@@ -45,10 +45,11 @@ impl DashboardRequestPayload {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
                 (Connector::Paypal, Paypal) => payment_experience,
+                (Connector::Klarna, Klarna) => payment_experience,
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
-                (Connector::Braintree, Paypal) | (Connector::Klarna, Klarna) => {
+                (Connector::Braintree, Paypal) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (Connector::Globepay, AliPay)
@@ -56,8 +57,14 @@ impl DashboardRequestPayload {
                 | (Connector::Stripe, WeChatPay) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
-                (_, GooglePay) | (_, ApplePay) => {
+                (_, GooglePay)
+                | (_, ApplePay)
+                | (_, PaymentMethodType::SamsungPay)
+                | (_, PaymentMethodType::Paze) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                }
+                (_, PaymentMethodType::DirectCarrierBilling) => {
+                    Some(api_models::enums::PaymentExperience::CollectOtp)
                 }
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
@@ -139,7 +146,8 @@ impl DashboardRequestPayload {
                     | PaymentMethod::Voucher
                     | PaymentMethod::GiftCard
                     | PaymentMethod::OpenBanking
-                    | PaymentMethod::CardRedirect => {
+                    | PaymentMethod::CardRedirect
+                    | PaymentMethod::MobilePayment => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,

@@ -1,10 +1,10 @@
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// use crate::enums::SoftDeleteStatus;
 use common_enums::ApiVersion;
 use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use crate::enums::DeleteStatus;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::schema::customers;
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -30,20 +30,6 @@ pub struct CustomerNew {
     pub address_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl Customer {
-    pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
-        self.customer_id.clone()
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl Customer {
-    pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
-        todo!()
-    }
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -76,17 +62,9 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-// V2 customer
-
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Insertable,
-    router_derive::DebugAsDisplay,
-    serde::Deserialize,
-    serde::Serialize,
+    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
@@ -98,16 +76,16 @@ pub struct CustomerNew {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    // pub status: Option<SoftDeleteStatus>,
-    pub id: String,
+    pub status: DeleteStatus,
+    pub id: common_utils::id_type::GlobalCustomerId,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -137,8 +115,8 @@ impl From<CustomerNew> for Customer {
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
             id: customer_new.id,
-            // status: customer_new.status,
             version: customer_new.version,
+            status: customer_new.status,
         }
     }
 }
@@ -180,16 +158,16 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    // pub status: Option<SoftDeleteStatus>,
-    pub id: String,
+    pub status: DeleteStatus,
+    pub id: common_utils::id_type::GlobalCustomerId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -258,9 +236,12 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
-    pub default_payment_method_id: Option<Option<String>>,
+    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub default_payment_method_id: Option<Option<common_utils::id_type::GlobalPaymentMethodId>>,
     pub updated_by: Option<String>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
+    pub status: Option<DeleteStatus>,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -274,8 +255,10 @@ impl CustomerUpdateInternal {
             phone_country_code,
             metadata,
             connector_customer,
-            // address_id,
             default_payment_method_id,
+            default_billing_address,
+            default_shipping_address,
+            status,
             ..
         } = self;
 
@@ -288,11 +271,43 @@ impl CustomerUpdateInternal {
             metadata: metadata.map_or(source.metadata, Some),
             modified_at: common_utils::date_time::now(),
             connector_customer: connector_customer.map_or(source.connector_customer, Some),
-            // address_id: address_id.map_or(source.address_id, Some),
             default_payment_method_id: default_payment_method_id
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
+            default_billing_address: default_billing_address
+                .map_or(source.default_billing_address, Some),
+            default_shipping_address: default_shipping_address
+                .map_or(source.default_shipping_address, Some),
+            status: status.unwrap_or(source.status),
             ..source
         }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[serde(transparent)]
+pub struct ConnectorCustomerMap(
+    std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
+);
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+common_utils::impl_to_sql_from_sql_json!(ConnectorCustomerMap);
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl std::ops::Deref for ConnectorCustomerMap {
+    type Target =
+        std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl std::ops::DerefMut for ConnectorCustomerMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

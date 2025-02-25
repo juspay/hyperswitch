@@ -292,3 +292,9 @@ pub enum HealthCheckLockerError {
     #[error("Failed to establish Locker connection")]
     FailedToCallLocker,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckGRPCServiceError {
+    #[error("Failed to establish connection with gRPC service")]
+    FailedToCallService,
+}

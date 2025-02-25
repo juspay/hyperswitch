@@ -6,12 +6,14 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
+pub mod callback_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
@@ -28,14 +30,18 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
+pub mod payment_method_session;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+
 use common_utils::id_type;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
@@ -93,6 +99,7 @@ pub trait StorageInterface:
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
+    + ephemeral_key::ClientSecretInterface
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface
@@ -106,6 +113,7 @@ pub trait StorageInterface:
     + payment_method::PaymentMethodInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface
     + PayoutsInterface
@@ -117,18 +125,19 @@ pub trait StorageInterface:
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + RequestIdStore
-    + business_profile::BusinessProfileInterface
-    + OrganizationInterface
+    + business_profile::ProfileInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
-    + user_role::UserRoleInterface
+    + unified_translations::UnifiedTranslationsInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
-    + role::RoleInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
+    + relay::RelayInterface
+    + user::theme::ThemeInterface
+    + payment_method_session::PaymentMethodsSessionInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -142,14 +151,25 @@ pub trait GlobalStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + user::UserInterface
+    + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
+    + role::RoleInterface
     + 'static
 {
 }
 
-pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send + Sync + dyn_clone::DynClone + OrganizationInterface + 'static
+{
+}
+
+pub trait CommonStorageInterface:
+    StorageInterface + GlobalStorageInterface + AccountsStorageInterface
+{
     fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -186,6 +206,8 @@ impl StorageInterface for Store {
 #[async_trait::async_trait]
 impl GlobalStorageInterface for Store {}
 
+impl AccountsStorageInterface for Store {}
+
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
@@ -200,11 +222,17 @@ impl StorageInterface for MockDb {
 #[async_trait::async_trait]
 impl GlobalStorageInterface for MockDb {}
 
+impl AccountsStorageInterface for MockDb {}
+
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -214,6 +242,9 @@ impl CommonStorageInterface for Store {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -255,6 +286,7 @@ where
 
 dyn_clone::clone_trait_object!(StorageInterface);
 dyn_clone::clone_trait_object!(GlobalStorageInterface);
+dyn_clone::clone_trait_object!(AccountsStorageInterface);
 
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
@@ -298,7 +330,7 @@ impl FraudCheckInterface for KafkaStore {
     }
     async fn find_fraud_check_by_payment_id(
         &self,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
         merchant_id: id_type::MerchantId,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
@@ -316,7 +348,7 @@ impl FraudCheckInterface for KafkaStore {
     }
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
         merchant_id: id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, StorageError> {
         let frm = self

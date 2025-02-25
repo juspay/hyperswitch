@@ -1,50 +1,27 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
-#[cfg(feature = "recon")]
-use masking::PeekInterface;
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
-#[cfg(feature = "recon")]
-use crate::user::VerifyTokenResponse;
+#[cfg(feature = "control_center_theme")]
+use crate::user::theme::{
+    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+};
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
     ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    CreateUserAuthenticationMethodRequest, DashboardEntryResponse, ForgotPasswordRequest,
+    CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
-    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
     ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
-    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
+    SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
+    SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
+    TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
     UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
-
-impl ApiEventMetric for DashboardEntryResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::User {
-            user_id: self.user_id.clone(),
-        })
-    }
-}
-
-#[cfg(feature = "recon")]
-impl ApiEventMetric for VerifyTokenResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::User {
-            user_id: self.user_email.peek().to_string(),
-        })
-    }
-}
-
-impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
 
 common_utils::impl_api_event_type!(
     Miscellaneous,
@@ -56,10 +33,13 @@ common_utils::impl_api_event_type!(
         GetMetaDataResponse,
         GetMetaDataRequest,
         SetMetaDataRequest,
-        SwitchMerchantIdRequest,
+        SwitchOrganizationRequest,
+        SwitchMerchantRequest,
+        SwitchProfileRequest,
         CreateInternalUserRequest,
+        CreateTenantUserRequest,
+        UserOrgMerchantCreateRequest,
         UserMerchantCreate,
-        ListUsersResponse,
         AuthorizeResponse,
         ConnectAccountRequest,
         ForgotPasswordRequest,
@@ -70,13 +50,13 @@ common_utils::impl_api_event_type!(
         VerifyEmailRequest,
         SendVerifyEmailRequest,
         AcceptInviteFromEmailRequest,
-        SignInResponse,
         UpdateUserAccountDetailsRequest,
         GetUserDetailsResponse,
         GetUserRoleDetailsRequest,
-        GetUserRoleDetailsResponse,
+        GetUserRoleDetailsResponseV2,
         TokenResponse,
         TwoFactorAuthStatusResponse,
+        TwoFactorStatus,
         UserFromEmailRequest,
         BeginTotpResponse,
         VerifyRecoveryCodeRequest,
@@ -88,6 +68,17 @@ common_utils::impl_api_event_type!(
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
         AuthSelectRequest
+    )
+);
+
+#[cfg(feature = "control_center_theme")]
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
+        GetThemeResponse,
+        UploadFileRequest,
+        CreateThemeRequest,
+        UpdateThemeRequest
     )
 );
 

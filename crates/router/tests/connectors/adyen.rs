@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, storage::enums, PaymentAddress};
 
@@ -153,6 +153,7 @@ impl AdyenTest {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

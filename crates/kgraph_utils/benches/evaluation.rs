@@ -16,6 +16,7 @@ use euclid::{
 use hyperswitch_constraint_graph::{CycleCheck, Memoization};
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, types::CountryCurrencyFilter};
 
+#[cfg(feature = "v1")]
 fn build_test_data(
     total_enabled: usize,
     total_pm_types: usize,
@@ -52,33 +53,34 @@ fn build_test_data(
         });
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    let stripe_account = MerchantConnectorResponse {
-        connector_type: api_enums::ConnectorType::FizOperations,
-        connector_name: "stripe".to_string(),
-        id: "something".to_string(),
-        connector_account_details: masking::Secret::new(serde_json::json!({})),
-        disabled: None,
-        metadata: None,
-        payment_methods_enabled: Some(pms_enabled),
-        connector_label: Some("something".to_string()),
-        frm_configs: None,
-        connector_webhook_details: None,
-        profile_id: None,
-        applepay_verified_domains: None,
-        pm_auth_config: None,
-        status: api_enums::ConnectorStatus::Inactive,
-        additional_merchant_data: None,
-    };
+    let profile_id = common_utils::generate_profile_id_of_default_length();
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    // #[cfg(feature = "v2")]
+    // let stripe_account = MerchantConnectorResponse {
+    //     connector_type: api_enums::ConnectorType::FizOperations,
+    //     connector_name: "stripe".to_string(),
+    //     id: common_utils::generate_merchant_connector_account_id_of_default_length(),
+    //     connector_account_details: masking::Secret::new(serde_json::json!({})),
+    //     disabled: None,
+    //     metadata: None,
+    //     payment_methods_enabled: Some(pms_enabled),
+    //     connector_label: Some("something".to_string()),
+    //     frm_configs: None,
+    //     connector_webhook_details: None,
+    //     profile_id,
+    //     applepay_verified_domains: None,
+    //     pm_auth_config: None,
+    //     status: api_enums::ConnectorStatus::Inactive,
+    //     additional_merchant_data: None,
+    //     connector_wallets_details: None,
+    // };
+
+    #[cfg(feature = "v1")]
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
         connector_name: "stripe".to_string(),
-        merchant_connector_id: "something".to_string(),
+        merchant_connector_id:
+            common_utils::generate_merchant_connector_account_id_of_default_length(),
         connector_account_details: masking::Secret::new(serde_json::json!({})),
         test_mode: None,
         disabled: None,
@@ -90,20 +92,24 @@ fn build_test_data(
         business_sub_label: Some("something".to_string()),
         frm_configs: None,
         connector_webhook_details: None,
-        profile_id: None,
+        profile_id,
         applepay_verified_domains: None,
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
+        connector_wallets_details: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),
         default_configs: None,
     };
+
+    #[cfg(feature = "v1")]
     kgraph_utils::mca::make_mca_graph(vec![stripe_account], &config)
         .expect("Failed graph construction")
 }
 
+#[cfg(feature = "v1")]
 fn evaluation(c: &mut Criterion) {
     let small_graph = build_test_data(3, 8);
     let big_graph = build_test_data(20, 20);
@@ -147,5 +153,10 @@ fn evaluation(c: &mut Criterion) {
     });
 }
 
+#[cfg(feature = "v1")]
 criterion_group!(benches, evaluation);
+#[cfg(feature = "v1")]
 criterion_main!(benches);
+
+#[cfg(feature = "v2")]
+fn main() {}

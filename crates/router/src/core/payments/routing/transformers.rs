@@ -22,6 +22,9 @@ impl ForeignFrom<storage_enums::CaptureMethod> for Option<dsl_enums::CaptureMeth
     fn foreign_from(value: storage_enums::CaptureMethod) -> Self {
         match value {
             storage_enums::CaptureMethod::Automatic => Some(dsl_enums::CaptureMethod::Automatic),
+            storage_enums::CaptureMethod::SequentialAutomatic => {
+                Some(dsl_enums::CaptureMethod::SequentialAutomatic)
+            }
             storage_enums::CaptureMethod::Manual => Some(dsl_enums::CaptureMethod::Manual),
             _ => None,
         }

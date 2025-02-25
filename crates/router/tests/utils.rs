@@ -146,7 +146,7 @@ impl AppClient<User> {
     pub async fn create_refund<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         amount: usize,
     ) -> T
     where
@@ -337,7 +337,7 @@ fn _mk_payment_confirm() -> Value {
     })
 }
 
-fn mk_refund(payment_id: &str, amount: usize) -> Value {
+fn mk_refund(payment_id: &common_utils::id_type::PaymentId, amount: usize) -> Value {
     let timestamp = common_utils::date_time::now().to_string();
 
     json!({
@@ -407,7 +407,7 @@ pub struct Message {
 
 #[derive(Deserialize, Deref)]
 pub struct PaymentId {
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Deserialize, Deref)]

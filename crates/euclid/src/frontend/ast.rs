@@ -135,7 +135,6 @@ pub struct IfStatement {
 ///     }
 /// }
 /// ```
-
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]
@@ -164,7 +163,7 @@ pub struct RoutableConnectorChoice {
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]

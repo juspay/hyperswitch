@@ -1,6 +1,5 @@
 use common_utils::{errors::CustomResult, request::RequestContent};
 use masking::{ErasedMaskSerialize, Secret};
-use router_env::opentelemetry::KeyValue;
 use serde::Serialize;
 use storage_impl::errors::ApiClientError;
 
@@ -67,7 +66,7 @@ pub enum Identifiers {
     /// [`ApiKey`] is an authentication method that uses an API key. This is used with [`ApiKey`]
     ApiKey {
         merchant_id: common_utils::id_type::MerchantId,
-        key_id: String,
+        key_id: common_utils::id_type::ApiKeyId,
     },
     /// [`PublishableKey`] is an authentication method that uses a publishable key. This is used with [`PublishableKey`]
     PublishableKey { merchant_id: String },
@@ -80,7 +79,7 @@ pub async fn add_api_key(
     state: &SessionState,
     api_key: Secret<String>,
     merchant_id: common_utils::id_type::MerchantId,
-    key_id: String,
+    key_id: common_utils::id_type::ApiKeyId,
     expiry: Option<u64>,
 ) -> CustomResult<(), ApiClientError> {
     let decision_config = if let Some(config) = &state.conf.decision {
@@ -179,10 +178,7 @@ pub async fn revoke_api_key(
     call_decision_service(state, decision_config, rule, RULE_DELETE_METHOD).await
 }
 
-///
-///
 /// Safety: i64::MAX < u64::MAX
-///
 #[allow(clippy::as_conversions)]
 pub fn convert_expiry(expiry: time::PrimitiveDateTime) -> u64 {
     let now = common_utils::date_time::now();
@@ -200,19 +196,13 @@ where
     E: std::fmt::Debug,
     F: futures::Future<Output = Result<(), E>> + Send + 'static,
 {
-    metrics::API_KEY_REQUEST_INITIATED.add(
-        &metrics::CONTEXT,
-        1,
-        &[KeyValue::new("type", request_type)],
-    );
+    metrics::API_KEY_REQUEST_INITIATED
+        .add(1, router_env::metric_attributes!(("type", request_type)));
     tokio::spawn(async move {
         match future.await {
             Ok(_) => {
-                metrics::API_KEY_REQUEST_COMPLETED.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[KeyValue::new("type", request_type)],
-                );
+                metrics::API_KEY_REQUEST_COMPLETED
+                    .add(1, router_env::metric_attributes!(("type", request_type)));
             }
             Err(e) => {
                 router_env::error!("Error in tracked job: {:?}", e);

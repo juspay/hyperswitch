@@ -35,12 +35,13 @@ pub struct KafkaAuthentication<'a> {
     pub acs_reference_number: Option<&'a String>,
     pub acs_trans_id: Option<&'a String>,
     pub acs_signed_content: Option<&'a String>,
-    pub profile_id: &'a String,
-    pub payment_id: Option<&'a String>,
-    pub merchant_connector_id: &'a String,
+    pub profile_id: &'a common_utils::id_type::ProfileId,
+    pub payment_id: Option<&'a common_utils::id_type::PaymentId>,
+    pub merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
     pub ds_trans_id: Option<&'a String>,
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
+    pub organization_id: &'a common_utils::id_type::OrganizationId,
 }
 
 impl<'a> KafkaAuthentication<'a> {
@@ -82,11 +83,12 @@ impl<'a> KafkaAuthentication<'a> {
             ds_trans_id: authentication.ds_trans_id.as_ref(),
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
+            organization_id: &authentication.organization_id,
         }
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaAuthentication<'a> {
+impl super::KafkaMessage for KafkaAuthentication<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}",

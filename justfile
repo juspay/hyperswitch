@@ -9,6 +9,7 @@ fmt *FLAGS:
     cargo +nightly fmt {{ fmt_flags }} {{ FLAGS }}
 
 check_flags := '--all-targets'
+v2_lints:= '-D warnings -Aunused -Aclippy::todo -Aclippy::diverging_sub_expression'
 
 alias c := check
 
@@ -19,7 +20,7 @@ clippy *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
@@ -35,39 +36,70 @@ clippy_v2 *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }} {{ FLAGS }}
     set +x
 
 check_v2 *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ FLAGS }}
+    set +x
+
+build_v2 *FLAGS:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
+        jq -r '
+            [ .packages[] | select(.name == "router") | .features | keys[] # Obtain features of `router` package
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
+    set +x
+
+
+run_v2:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
+        jq -r '
+            [ .packages[] | select(.name == "router") | .features | keys[] # Obtain features of `router` package
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo run --package router --no-default-features --features "${FEATURES}"
     set +x
 
 check *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
@@ -76,7 +108,7 @@ check *FLAGS:
     ')"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 alias cl := clippy
@@ -99,7 +131,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
+doc_flags := '--all-features --all-targets --exclude-features "v2"'
 
 # Generate documentation
 doc *FLAGS:
@@ -118,10 +150,6 @@ euclid-wasm features='dummy_connector':
 
 # Run pre-commit checks
 precommit: fmt clippy
-
-# Check compilation of v2 feature on base dependencies
-hack_v2:
-    scripts/ci-checks-v2.sh
 
 # Use the env variables if present, or fallback to default values
 

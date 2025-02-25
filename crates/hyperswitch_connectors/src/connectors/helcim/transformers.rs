@@ -178,12 +178,16 @@ impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
-            ))?,
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
+                ))?
+            }
         }
     }
 }
@@ -271,13 +275,17 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
-            ))?,
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
+                ))?
+            }
         }
     }
 }
@@ -373,13 +381,13 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -424,13 +432,13 @@ impl<F>
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -473,13 +481,13 @@ impl<F>
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.transaction_id.to_string(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -553,13 +561,13 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -610,13 +618,13 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data

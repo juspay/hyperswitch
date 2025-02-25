@@ -1,0 +1,32 @@
+{
+  "mca_create": {
+    "connector_type": "payment_processor",
+    "connector_name": "connector",
+    "connector_account_details": {
+      "auth_type": "auth_type",
+      "api_key": "",
+      "api_secret": "",
+      "key1": "",
+      "key2": ""
+    },
+    "metadata": {
+      "status_url": "https://webhook.site",
+      "account_name": "transaction_processing",
+      "pricing_type": "fixed_price",
+      "acquirer_bin": "438309",
+      "acquirer_merchant_id": "00002000000"
+    },
+    "frm_configs": null,
+    "connector_webhook_details": {
+      "merchant_secret": ""
+    },
+    "profile_id": ""
+  },
+  "mca_update": {
+    "connector_type": "payment_processor",
+    "connector_webhook_details": {
+      "merchant_secret": "m3rch4n7_se(rE7"
+    },
+    "merchant_id": ""
+  }
+}

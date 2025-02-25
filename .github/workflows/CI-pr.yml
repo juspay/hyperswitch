@@ -2,12 +2,6 @@ name: CI-pr
 
 on:
   pull_request:
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -87,10 +81,12 @@ jobs:
   check-msrv:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
+    if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
       # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -120,20 +116,30 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
         with:
-          tool: sccache
-          checksum: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: false
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -141,10 +147,6 @@ jobs:
       - name: Install jq
         shell: bash
         run: .github/scripts/install-jq.sh
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Cargo hack
         shell: bash
@@ -179,7 +181,8 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -221,20 +224,30 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
         with:
-          tool: sccache
-          checksum: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: false
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -244,20 +257,10 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
-
-      # - name: Setup Embark Studios lint rules
-      #   shell: bash
-      #   run: |
-      #     mkdir -p .cargo
-      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Run clippy
         shell: bash
@@ -276,10 +279,16 @@ jobs:
           fi
 
       - name: Run cargo check
+        if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: just ci_hack
+
+      - name: Cargo build release
+        if: ${{ startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
+        shell: bash
+        run: cargo check --features release
 
   typos:
     name: Spell check
@@ -291,10 +300,10 @@ jobs:
       - name: Spell check
         uses: crate-ci/typos@master
 
-
   check-v2:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -311,30 +320,28 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.0
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
         with:
-          tool: cargo-hack
-          checksum: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: false
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
-      - name: Deny warnings
+      - name: Run cargo clippy with v2 features enabled
         shell: bash
-        run: |
-          sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-          # Allow the `clippy::todo` lint for v2 checks
-          sed -i --null-data 's/    "-Wclippy::todo",\n//' .cargo/config.toml
+        run: just clippy_v2
 
-      - name: Cargo hack_v2
+      - name: Run cargo check enabling only the release and v2 features
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: just hack_v2
+          RUSTFLAGS: "-A warnings"
+        run: cargo check --no-default-features --features "release,v2"

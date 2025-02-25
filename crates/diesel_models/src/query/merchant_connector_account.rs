@@ -1,12 +1,9 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::merchant_connector_account::dsl;
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::merchant_connector_account::dsl;
 use crate::{
     errors,
@@ -23,10 +20,7 @@ impl MerchantConnectorAccountNew {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorAccount {
     pub async fn update(
         self,
@@ -51,7 +45,7 @@ impl MerchantConnectorAccount {
     pub async fn delete_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -78,7 +72,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_profile_id_connector_name(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -115,7 +109,7 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -160,7 +154,7 @@ impl MerchantConnectorAccount {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
     pub async fn update(
         self,
@@ -182,12 +176,18 @@ impl MerchantConnectorAccount {
         }
     }
 
-    pub async fn delete_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<bool> {
+    pub async fn delete_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+    ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id.to_owned()))
             .await
     }
 
-    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),
@@ -226,5 +226,37 @@ impl MerchantConnectorAccount {
             )
             .await
         }
+    }
+
+    pub async fn list_by_profile_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::profile_id.eq(profile_id.to_owned()),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
+    }
+
+    pub async fn list_enabled_by_profile_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_type: common_enums::ConnectorType,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::profile_id
+                .eq(profile_id.to_owned())
+                .and(dsl::disabled.eq(false))
+                .and(dsl::connector_type.eq(connector_type)),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
     }
 }

@@ -10,7 +10,7 @@ license.workspace = true
 [features]
 release = ["vergen", "external_services/aws_kms"]
 vergen = ["router_env/vergen"]
-v1 = ["diesel_models/v1", "hyperswitch_interfaces/v1"]
+v1 = ["diesel_models/v1", "hyperswitch_interfaces/v1", "common_utils/v1"]
 
 [dependencies]
 actix-web = "4.5.1"
@@ -19,7 +19,7 @@ async-trait = "0.1.79"
 bb8 = "0.8"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.0", features = ["toml"] }
-diesel = { version = "2.1.5", features = ["postgres"] }
+diesel = { version = "2.2.3", features = ["postgres"] }
 error-stack = "0.4.1"
 mime = "0.3.17"
 once_cell = "1.19.0"
@@ -41,3 +41,6 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
+
+[lints]
+workspace = true

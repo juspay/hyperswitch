@@ -14,6 +14,10 @@ pub struct PaymentMethodStatusUpdateWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -45,7 +49,12 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
             .await?;
 
         let payment_method = db
-            .find_payment_method(&pm_id, merchant_account.storage_scheme)
+            .find_payment_method(
+                &(state.into()),
+                &key_store,
+                &pm_id,
+                merchant_account.storage_scheme,
+            )
             .await?;
 
         if payment_method.status != prev_pm_status {
@@ -61,7 +70,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         };
 
         let res = db
-            .update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
+            .update_payment_method(
+                &(state.into()),
+                &key_store,
+                payment_method,
+                pm_update,
+                merchant_account.storage_scheme,
+            )
             .await
             .map_err(errors::ProcessTrackerError::EStorageError);
 

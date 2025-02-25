@@ -185,7 +185,7 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(services::RedirectForm::Nmi {
+                    redirection_data: Box::new(Some(services::RedirectForm::Nmi {
                         amount: utils::to_currency_base_unit_asf64(
                             amount_data,
                             currency_data.to_owned(),
@@ -206,13 +206,13 @@ impl
                             },
                         )?,
                         order_id: item.data.connector_request_reference_id.clone(),
-                    }),
-                    mandate_reference: None,
+                    })),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -360,13 +360,13 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -545,6 +545,7 @@ impl
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -558,6 +559,7 @@ impl
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -581,12 +583,14 @@ impl
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nmi"),
                 )
@@ -616,8 +620,14 @@ impl TryFrom<(&domain::payments::Card, &types::PaymentsAuthorizeData)> for Payme
             cavv: Some(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
             cardholder_auth: None,
-            three_ds_version: Some(auth_data.message_version.to_string()),
-            directory_server_id: Some(auth_data.threeds_server_transaction_id.clone().into()),
+            three_ds_version: auth_data
+                .message_version
+                .clone()
+                .map(|version| version.to_string()),
+            directory_server_id: auth_data
+                .threeds_server_transaction_id
+                .clone()
+                .map(Secret::new),
         };
 
         Ok(Self::CardThreeDs(Box::new(card_3ds_details)))
@@ -741,13 +751,13 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.to_owned(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -773,19 +783,43 @@ pub struct NmiCancelRequest {
     pub transaction_type: TransactionType,
     pub security_key: Secret<String>,
     pub transactionid: String,
-    pub void_reason: Option<String>,
+    pub void_reason: NmiVoidReason,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum NmiVoidReason {
+    Fraud,
+    UserCancel,
+    IccRejected,
+    IccCardRemoved,
+    IccNoConfirmation,
+    PosTimeout,
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
-        Ok(Self {
-            transaction_type: TransactionType::Void,
-            security_key: auth.api_key,
-            transactionid: item.request.connector_transaction_id.clone(),
-            void_reason: item.request.cancellation_reason.clone(),
-        })
+        match &item.request.cancellation_reason {
+            Some(cancellation_reason) => {
+                let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{}\"", cancellation_reason))
+                    .map_err(|_| errors::ConnectorError::NotSupported {
+                        message: format!("Json deserialise error: unknown variant `{}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason", cancellation_reason), 
+                        connector: "nmi" 
+                    })?;
+                Ok(Self {
+                    transaction_type: TransactionType::Void,
+                    security_key: auth.api_key,
+                    transactionid: item.request.connector_transaction_id.clone(),
+                    void_reason,
+                })
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "cancellation_reason",
+            }
+            .into()),
+        }
     }
 }
 
@@ -836,13 +870,13 @@ impl<T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -893,20 +927,20 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
                     enums::AttemptStatus::CaptureInitiated
                 } else {
-                    enums::AttemptStatus::Authorizing
+                    enums::AttemptStatus::Authorized
                 },
             ),
             Response::Declined | Response::Error => (
@@ -944,13 +978,13 @@ impl<T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -995,13 +1029,13 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                 status: enums::AttemptStatus::from(NmiStatus::from(trn.condition)),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(trn.transaction_id),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),

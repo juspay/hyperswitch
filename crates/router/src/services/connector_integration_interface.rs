@@ -1,10 +1,15 @@
 use common_utils::{crypto, errors::CustomResult, request::Request};
-use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
+use hyperswitch_domain_models::{
+    router_data::RouterData,
+    router_data_v2::RouterDataV2,
+    router_response_types::{ConnectorInfo, SupportedPaymentMethods},
+};
 use hyperswitch_interfaces::{
-    authentication::ExternalAuthenticationPayload, connector_integration_v2::ConnectorIntegrationV2,
+    authentication::ExternalAuthenticationPayload,
+    connector_integration_v2::ConnectorIntegrationV2, webhooks::IncomingWebhookFlowError,
 };
 
-use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
+use super::{BoxedConnectorIntegrationV2, ConnectorSpecifications, ConnectorValidation};
 use crate::{
     core::payments,
     errors,
@@ -279,11 +284,12 @@ impl api::IncomingWebhook for ConnectorEnum {
     fn get_webhook_api_response(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services_api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         match self {
-            Self::Old(connector) => connector.get_webhook_api_response(request),
-            Self::New(connector) => connector.get_webhook_api_response(request),
+            Self::Old(connector) => connector.get_webhook_api_response(request, error_kind),
+            Self::New(connector) => connector.get_webhook_api_response(request, error_kind),
         }
     }
 
@@ -304,6 +310,60 @@ impl api::IncomingWebhook for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_external_authentication_details(request),
             Self::New(connector) => connector.get_external_authentication_details(request),
+        }
+    }
+
+    fn get_mandate_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_mandate_details(request),
+            Self::New(connector) => connector.get_mandate_details(request),
+        }
+    }
+
+    fn get_network_txn_id(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_network_txn_id(request),
+            Self::New(connector) => connector.get_network_txn_id(request),
+        }
+    }
+
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_revenue_recovery_attempt_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_revenue_recovery_attempt_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
+        }
+    }
+
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_revenue_recovery_invoice_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_revenue_recovery_invoice_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_invoice_details(request),
         }
     }
 }
@@ -335,14 +395,23 @@ impl ConnectorRedirectResponse for ConnectorEnum {
 }
 
 impl ConnectorValidation for ConnectorEnum {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
+        payment_method: common_enums::PaymentMethod,
         pmt: Option<common_enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.validate_capture_method(capture_method, pmt),
-            Self::New(connector) => connector.validate_capture_method(capture_method, pmt),
+            Self::Old(connector) => connector.validate_connector_against_payment_request(
+                capture_method,
+                payment_method,
+                pmt,
+            ),
+            Self::New(connector) => connector.validate_connector_against_payment_request(
+                capture_method,
+                payment_method,
+                pmt,
+            ),
         }
     }
 
@@ -384,6 +453,31 @@ impl ConnectorValidation for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.is_webhook_source_verification_mandatory(),
             Self::New(connector) => connector.is_webhook_source_verification_mandatory(),
+        }
+    }
+}
+
+impl ConnectorSpecifications for ConnectorEnum {
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        match self {
+            Self::Old(connector) => connector.get_supported_payment_methods(),
+            Self::New(connector) => connector.get_supported_payment_methods(),
+        }
+    }
+
+    /// Supported webhooks flows
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        match self {
+            Self::Old(connector) => connector.get_supported_webhook_flows(),
+            Self::New(connector) => connector.get_supported_webhook_flows(),
+        }
+    }
+
+    /// Details related to connector
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        match self {
+            Self::Old(connector) => connector.get_connector_about(),
+            Self::New(connector) => connector.get_connector_about(),
         }
     }
 }
@@ -435,71 +529,6 @@ impl api::ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.build_error_response(res, event_builder),
             Self::New(connector) => connector.build_error_response(res, event_builder),
-        }
-    }
-}
-
-impl<T, ResourceCommonData, Req, Resp> api::ConnectorCommon
-    for ConnectorIntegrationEnum<'_, T, ResourceCommonData, Req, Resp>
-{
-    fn id(&self) -> &'static str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.id(),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.id(),
-        }
-    }
-
-    fn get_currency_unit(&self) -> CurrencyUnit {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.get_currency_unit(),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.get_currency_unit(),
-        }
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.get_auth_header(auth_type)
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.get_auth_header(auth_type)
-            }
-        }
-    }
-
-    fn common_get_content_type(&self) -> &'static str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.common_get_content_type()
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.common_get_content_type()
-            }
-        }
-    }
-
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.base_url(connectors),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.base_url(connectors),
-        }
-    }
-
-    fn build_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.build_error_response(res, event_builder)
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.build_error_response(res, event_builder)
-            }
         }
     }
 }
@@ -570,7 +599,7 @@ where
             }
             ConnectorIntegrationEnum::New(new_integration) => {
                 let new_router_data = ResourceCommonData::from_old_router_data(req)?;
-                new_integration.build_request_v2(&new_router_data, connectors)
+                new_integration.build_request_v2(&new_router_data)
             }
         }
     }

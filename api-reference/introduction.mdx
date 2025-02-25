@@ -49,3 +49,16 @@ Hyperswitch handles the complex functionality of a comprehensive payments flow t
 | failed                   | The payments object transitions to a failed state when the payment processor confirms the processing failure.                                                                                               |
 | expired                  | You can expire the payments object while it is in any state except when it is under ‘processing’ or ‘succeeded’ state.                                                                                      |
   <img src="assets/images/image.png" />
+
+## Redirect URL
+This is what a url looks like after redirection
+
+  ```https://app.hyperswitch.io?status=succeeded&payment_intent_client_secret=pay_NCv9vc19f8aa75OpFxH8_secret_V4zAc7V0C8WAw6FECMKM&amount=10000&manual_retry_allowed=false&signature=4fae0cfa775e4551db9356563d4b98b55662fe3c1c945fe215d90ccf3541282c535909ae901d82174d6b1e46ba1684aa0aa4c8861be0e2a9ef6f950a975d5014&signature_algorithm=HMAC-SHA512```
+
+The available parameters are as follows:
+
+- **status** - can have values of `succeeded`, `processing`and `failed`.
+- **payment_intent_client_secret** - This is the client secret associated with the payment. This can be used to retrieve the payment status from hyperswitch.
+- **manual_retry_allowed** - whether this payment can be retried or not.
+- **signature** - A HMAC signature of the payload, this can be verified using the `payment_response_hash_key`.
+- **signature_algorithm** - The HMAC algorithm used to calculate the signature.

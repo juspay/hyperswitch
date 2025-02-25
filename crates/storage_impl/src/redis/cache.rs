@@ -2,7 +2,7 @@ use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use common_utils::{
     errors::{self, CustomResult},
-    ext_traits::{AsyncExt, ByteSliceExt},
+    ext_traits::ByteSliceExt,
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
@@ -10,7 +10,7 @@ use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
 use router_env::{
-    metrics::add_attributes,
+    logger,
     tracing::{self, instrument},
 };
 
@@ -72,6 +72,36 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
     )
 });
 
+/// Success based Dynamic Algorithm Cache
+pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
+/// Elimination based Dynamic Algorithm Cache
+pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
+/// Contract Routing based Dynamic Algorithm Cache
+pub static CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -83,7 +113,7 @@ pub struct CacheRedact<'a> {
     pub kind: CacheKind<'a>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
@@ -91,8 +121,29 @@ pub enum CacheKind<'a> {
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
+    SuccessBasedDynamicRoutingCache(Cow<'a, str>),
+    EliminationBasedDynamicRoutingCache(Cow<'a, str>),
+    ContractBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
+}
+
+impl CacheKind<'_> {
+    pub(crate) fn get_key_without_prefix(&self) -> &str {
+        match self {
+            CacheKind::Config(key)
+            | CacheKind::Accounts(key)
+            | CacheKind::Routing(key)
+            | CacheKind::DecisionManager(key)
+            | CacheKind::Surcharge(key)
+            | CacheKind::CGraph(key)
+            | CacheKind::SuccessBasedDynamicRoutingCache(key)
+            | CacheKind::EliminationBasedDynamicRoutingCache(key)
+            | CacheKind::ContractBasedDynamicRoutingCache(key)
+            | CacheKind::PmFiltersCGraph(key)
+            | CacheKind::All(key) => key,
+        }
+    }
 }
 
 impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
@@ -106,7 +157,7 @@ impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
     }
 }
 
-impl<'a> TryFrom<RedisValue> for CacheRedact<'a> {
+impl TryFrom<RedisValue> for CacheRedact<'_> {
     type Error = Report<errors::ValidationError>;
 
     fn try_from(v: RedisValue) -> Result<Self, Self::Error> {
@@ -171,12 +222,11 @@ impl Cache {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
             metrics::IN_MEMORY_CACHE_EVICTION_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     ("cache_type", name.to_owned()),
                     ("removal_cause", format!("{:?}", cause)),
-                ]),
+                ),
             );
         };
         let mut cache_builder = MokaCache::builder()
@@ -203,17 +253,11 @@ impl Cache {
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
-            metrics::IN_MEMORY_CACHE_HIT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("cache_type", self.name)]),
-            );
+            metrics::IN_MEMORY_CACHE_HIT
+                .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         } else {
-            metrics::IN_MEMORY_CACHE_MISS.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("cache_type", self.name)]),
-            );
+            metrics::IN_MEMORY_CACHE_MISS
+                .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         }
 
         let val = (*val?).as_any().downcast_ref::<T>().cloned();
@@ -247,10 +291,9 @@ impl Cache {
     pub async fn record_entry_count_metric(&self) {
         self.run_pending_tasks().await;
 
-        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.observe(
-            &metrics::CONTEXT,
+        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(
             self.get_entry_count(),
-            &add_attributes([("cache_type", self.name)]),
+            router_env::metric_attributes!(("cache_type", self.name)),
         );
     }
 }
@@ -268,11 +311,13 @@ where
 {
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
-    let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
+    let redis_val = redis
+        .get_and_deserialize_key::<T>(&key.into(), type_name)
+        .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
         redis
-            .serialize_and_set_key(key, &data)
+            .serialize_and_set_key(&key.into(), &data)
             .await
             .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
@@ -332,39 +377,10 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn redact_cache<T, F, Fut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
-    key: &'static str,
-    fun: F,
-    in_memory: Option<&Cache>,
-) -> CustomResult<T, StorageError>
-where
-    F: FnOnce() -> Fut + Send,
-    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-{
-    let data = fun().await?;
-
-    let redis_conn = store
-        .get_redis_conn()
-        .change_context(StorageError::RedisError(
-            RedisError::RedisConnectionError.into(),
-        ))
-        .attach_printable("Failed to get redis connection")?;
-    let tenant_key = CacheKey {
-        key: key.to_string(),
-        prefix: redis_conn.key_prefix.clone(),
-    };
-    in_memory.async_map(|cache| cache.remove(tenant_key)).await;
-
-    redis_conn
-        .delete_key(key)
-        .await
-        .change_context(StorageError::KVError)?;
-    Ok(data)
-}
-
-#[instrument(skip_all)]
-pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
+pub async fn redact_from_redis_and_publish<
+    'a,
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
+>(
     store: &(dyn RedisConnInterface + Send + Sync),
     keys: K,
 ) -> CustomResult<usize, StorageError> {
@@ -374,6 +390,24 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
+
+    let redis_keys_to_be_deleted = keys
+        .clone()
+        .into_iter()
+        .map(|val| val.get_key_without_prefix().to_owned().into())
+        .collect::<Vec<_>>();
+
+    let del_replies = redis_conn
+        .delete_multiple_keys(&redis_keys_to_be_deleted)
+        .await
+        .map_err(StorageError::RedisError)?;
+
+    let deletion_result = redis_keys_to_be_deleted
+        .into_iter()
+        .zip(del_replies)
+        .collect::<Vec<_>>();
+
+    logger::debug!(redis_deletion_result=?deletion_result);
 
     let futures = keys.into_iter().map(|key| async {
         redis_conn
@@ -400,7 +434,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let data = fun().await?;
-    publish_into_redact_channel(store, [key]).await?;
+    redact_from_redis_and_publish(store, [key]).await?;
     Ok(data)
 }
 
@@ -413,10 +447,10 @@ pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
 where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-    K: IntoIterator<Item = CacheKind<'a>> + Send,
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
 {
     let data = fun().await?;
-    publish_into_redact_channel(store, keys).await?;
+    redact_from_redis_and_publish(store, keys).await?;
     Ok(data)
 }
 

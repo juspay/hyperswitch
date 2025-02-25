@@ -93,6 +93,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -106,6 +107,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -128,13 +130,15 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -301,6 +305,12 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                         )?,
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        }
                     },
                 })),
                 domain::WalletData::ApplePay(_) => {
@@ -327,11 +337,18 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                 },
                             )))
                         }
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        }
                     }
                 }
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -345,6 +362,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -366,13 +384,15 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 ))
@@ -387,8 +407,13 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 force_3ds: true,
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
                 cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
-                xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.map(|auth| auth.message_version.to_string()),
+                xid: authentication_data
+                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.and_then(|auth| {
+                    auth.message_version
+                        .clone()
+                        .map(|version| version.to_string())
+                }),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
@@ -626,9 +651,11 @@ fn get_connector_meta(
     capture_method: enums::CaptureMethod,
 ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
     match capture_method {
-        enums::CaptureMethod::Automatic => Ok(serde_json::json!(CheckoutMeta {
-            psync_flow: CheckoutPaymentIntent::Capture,
-        })),
+        enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+            Ok(serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Capture,
+            }))
+        }
         enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
             Ok(serde_json::json!(CheckoutMeta {
                 psync_flow: CheckoutPaymentIntent::Authorize,
@@ -678,15 +705,15 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         };
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status,
@@ -731,15 +758,15 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         };
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status,
@@ -809,13 +836,13 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status: response.into(),
             ..item.data
@@ -910,13 +937,13 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             status,
             amount_captured,
@@ -1240,7 +1267,7 @@ pub struct CheckoutDisputeWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub amount: i32,
-    pub currency: String,
+    pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,

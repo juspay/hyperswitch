@@ -24,8 +24,8 @@ pub async fn perform_authentication(
     authentication_connector: String,
     payment_method_data: domain::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
-    billing_address: payments::Address,
-    shipping_address: Option<payments::Address>,
+    billing_address: hyperswitch_domain_models::address::Address,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
     browser_details: Option<core_types::BrowserInformation>,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<common_utils::types::MinorUnit>,
@@ -39,8 +39,10 @@ pub async fn perform_authentication(
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
     three_ds_requestor_url: String,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
+        state,
         merchant_id,
         authentication_connector.clone(),
         payment_method_data,
@@ -60,9 +62,14 @@ pub async fn perform_authentication(
         email,
         webhook_url,
         three_ds_requestor_url,
+        psd2_sca_exemption_type,
     )?;
-    let response =
-        utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
+    let response = Box::pin(utils::do_auth_connector_call(
+        state,
+        authentication_connector.clone(),
+        router_data,
+    ))
+    .await?;
     let authentication =
         utils::update_trackers(state, response.clone(), authentication_data, None).await?;
     response
@@ -80,7 +87,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     authentication_id: String,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -102,6 +109,7 @@ pub async fn perform_post_authentication(
         .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
     if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
         let router_data = transformers::construct_post_authentication_router_data(
+            state,
             authentication_connector.to_string(),
             business_profile,
             three_ds_connector_account,
@@ -116,14 +124,16 @@ pub async fn perform_post_authentication(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_pre_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     acquirer_details: Option<types::AcquirerDetails>,
-    payment_id: Option<String>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+    organization_id: common_utils::id_type::OrganizationId,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, business_profile).await?;
@@ -133,18 +143,20 @@ pub async fn perform_pre_authentication(
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
         token,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         payment_id,
         three_ds_connector_account
             .get_mca_id()
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while finding mca_id from merchant_connector_account")?,
+        organization_id,
     )
     .await?;
 
     let authentication = if authentication_connector.is_separate_version_call_required() {
         let router_data: core_types::authentication::PreAuthNVersionCallRouterData =
             transformers::construct_pre_authentication_router_data(
+                state,
                 authentication_connector_name.clone(),
                 card_number.clone(),
                 &three_ds_connector_account,
@@ -172,6 +184,7 @@ pub async fn perform_pre_authentication(
 
     let router_data: core_types::authentication::PreAuthNRouterData =
         transformers::construct_pre_authentication_router_data(
+            state,
             authentication_connector_name.clone(),
             card_number,
             &three_ds_connector_account,

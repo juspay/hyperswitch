@@ -9,7 +9,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
-RUST_MSRV=1.70.0
+RUST_MSRV="1.80.0"
 _DB_NAME="hyperswitch_db"
 _DB_USER="db_user"
 _DB_PASS="db_password"
@@ -37,7 +37,7 @@ set -o nounset
 
 # utilities
 # convert semver to comparable integer
-if [[ `id -u` -ne 0 ]]; then
+if [[ "$(id -u)" -ne 0 ]]; then
     print_info "requires sudo"
     SUDO=sudo
 else
@@ -45,10 +45,10 @@ else
 fi
 
 ver () {
-    printf "%03d%03d%03d%03d" `echo "$1" | tr '.' ' '`;
+    printf "%03d%03d%03d%03d" "$(echo "$1" | tr '.' ' ')";
 }
 
-PROGNAME=`basename $0`
+PROGNAME="$(basename $0)"
 print_info () {
     echo -e "$PROGNAME: $*"
 }
@@ -125,10 +125,10 @@ if command -v cargo > /dev/null; then
 
     need_cmd rustc
 
-    RUST_VERSION=`rustc -V | cut -d " " -f 2`
+    RUST_VERSION="$(rustc -V | cut -d " " -f 2)"
 
-    _HAVE_VERSION=`ver ${RUST_VERSION}`
-    _NEED_VERSION=`ver ${RUST_MSRV}`
+    _HAVE_VERSION="$(ver ${RUST_VERSION})"
+    _NEED_VERSION="$(ver ${RUST_MSRV})"
 
     print_info "Found rust version \"${RUST_VERSION}\". MSRV is \"${RUST_MSRV}\""
 
@@ -166,7 +166,7 @@ install_dep () {
     $INSTALL_CMD $*
 }
 
-if [[ ! -x "`command -v psql`" ]] || [[ ! -x "`command -v redis-server`" ]] ; then
+if [[ ! -x "$(command -v psql)" ]] || [[ ! -x "$(command -v redis-server)" ]] ; then
     print_info "Missing dependencies. Trying to install"
 
     # java has an apt which seems to mess up when we look for apt

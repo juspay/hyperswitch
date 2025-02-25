@@ -1,10 +1,11 @@
 #![allow(clippy::unwrap_used)]
 
 mod test_module;
+
 use ::config::ConfigError;
 use router_env::TelemetryGuard;
 
-use self::test_module::some_module::*;
+use self::test_module::fn_with_colon;
 
 fn logger() -> error_stack::Result<&'static TelemetryGuard, ConfigError> {
     use once_cell::sync::OnceCell;

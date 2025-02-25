@@ -8,18 +8,16 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["olap", "frm", "v1"]
+default = ["olap", "frm"]
 encryption_service = []
 olap = []
 payouts = ["api_models/payouts"]
 frm = ["api_models/frm"]
-v2 = ["api_models/v2", "diesel_models/v2"]
-v1 = ["api_models/v1", "diesel_models/v1"]
-business_profile_v2 = ["api_models/business_profile_v2", "diesel_models/business_profile_v2"]
+v2 = ["api_models/v2", "diesel_models/v2", "common_utils/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "common_utils/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2"]
-merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2"]
-merchant_connector_account_v2 = ["api_models/merchant_connector_account_v2", "diesel_models/merchant_connector_account_v2"]
-payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2"]
+payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2"]
+revenue_recovery= []
 
 [dependencies]
 # First party deps
@@ -27,6 +25,7 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "encryption_service", "keymanager"] }
+common_types = { version = "0.1.0", path = "../common_types" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
@@ -47,3 +46,6 @@ thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
+
+[lints]
+workspace = true

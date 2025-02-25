@@ -10,7 +10,7 @@ pub struct KafkaPayout<'a> {
     pub merchant_id: &'a id_type::MerchantId,
     pub customer_id: Option<&'a id_type::CustomerId>,
     pub address_id: Option<&'a String>,
-    pub profile_id: &'a String,
+    pub profile_id: &'a id_type::ProfileId,
     pub payout_method_id: Option<&'a String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub amount: MinorUnit,
@@ -37,7 +37,7 @@ pub struct KafkaPayout<'a> {
     pub error_code: Option<&'a String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
-    pub merchant_connector_id: Option<&'a String>,
+    pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
 }
 
 impl<'a> KafkaPayout<'a> {
@@ -77,7 +77,7 @@ impl<'a> KafkaPayout<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPayout<'a> {
+impl super::KafkaMessage for KafkaPayout<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}",

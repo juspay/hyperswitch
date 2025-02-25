@@ -1,11 +1,13 @@
 use common_enums::TokenPurpose;
+use common_utils::id_type;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::report;
+use error_stack::ResultExt;
 use masking::Secret;
 
 use super::UserFromStorage;
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
+    core::errors::{UserErrors, UserResult},
+    db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authentication as auth,
     utils,
@@ -23,9 +25,10 @@ impl UserFlow {
         user: &UserFromStorage,
         path: &[TokenPurpose],
         state: &SessionState,
+        user_tenant_id: &id_type::TenantId,
     ) -> UserResult<bool> {
         match self {
-            Self::SPTFlow(flow) => flow.is_required(user, path, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, path, state, user_tenant_id).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
@@ -49,6 +52,7 @@ impl SPTFlow {
         user: &UserFromStorage,
         path: &[TokenPurpose],
         state: &SessionState,
+        user_tenant_id: &id_type::TenantId,
     ) -> UserResult<bool> {
         match self {
             // Auth
@@ -63,10 +67,22 @@ impl SPTFlow {
             Self::ForceSetPassword => user
                 .is_password_rotate_required(state)
                 .map(|rotate_required| rotate_required && !path.contains(&TokenPurpose::SSO)),
-            Self::MerchantSelect => user
-                .get_roles_from_db(state)
+            Self::MerchantSelect => Ok(state
+                .global_store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: user.get_user_id(),
+                    tenant_id: user_tenant_id,
+                    org_id: None,
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: Some(1),
+                })
                 .await
-                .map(|roles| !roles.iter().any(|role| role.status == UserStatus::Active)),
+                .change_context(UserErrors::InternalServerError)?
+                .is_empty()),
         }
     }
 
@@ -81,6 +97,7 @@ impl SPTFlow {
             next_flow.origin.clone(),
             &state.conf,
             next_flow.path.to_vec(),
+            Some(state.tenant.tenant_id.clone()),
         )
         .await
         .map(|token| token.into())
@@ -101,25 +118,26 @@ impl JWTFlow {
         Ok(true)
     }
 
-    pub async fn generate_jwt_without_profile(
+    pub async fn generate_jwt(
         self,
         state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
+        let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
+        let merchant_id =
+            utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
+        let profile_id =
+            utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
+
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            user_role
-                .merchant_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))?,
+            merchant_id,
             user_role.role_id.clone(),
             &state.conf,
-            user_role
-                .org_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))?,
-            None,
+            org_id,
+            profile_id,
+            Some(user_role.tenant_id.clone()),
         )
         .await
         .map(|token| token.into())
@@ -206,6 +224,7 @@ pub struct CurrentFlow {
     origin: Origin,
     current_flow_index: usize,
     path: Vec<TokenPurpose>,
+    tenant_id: Option<id_type::TenantId>,
 }
 
 impl CurrentFlow {
@@ -225,6 +244,7 @@ impl CurrentFlow {
             origin: token.origin,
             current_flow_index: index,
             path,
+            tenant_id: token.tenant_id,
         })
     }
 
@@ -233,12 +253,21 @@ impl CurrentFlow {
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
 
         for flow in remaining_flows {
-            if flow.is_required(&user, &self.path, state).await? {
+            if flow
+                .is_required(
+                    &user,
+                    &self.path,
+                    state,
+                    self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                )
+                .await?
+            {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
                     path: self.path,
+                    tenant_id: self.tenant_id,
                 });
             }
         }
@@ -251,6 +280,7 @@ pub struct NextFlow {
     next_flow: UserFlow,
     user: UserFromStorage,
     path: Vec<TokenPurpose>,
+    tenant_id: Option<id_type::TenantId>,
 }
 
 impl NextFlow {
@@ -262,12 +292,16 @@ impl NextFlow {
         let flows = origin.get_flows();
         let path = vec![];
         for flow in flows {
-            if flow.is_required(&user, &path, state).await? {
+            if flow
+                .is_required(&user, &path, state, &state.tenant.tenant_id)
+                .await?
+            {
                 return Ok(Self {
                     origin,
                     next_flow: *flow,
                     user,
                     path,
+                    tenant_id: Some(state.tenant.tenant_id.clone()),
                 });
             }
         }
@@ -286,17 +320,26 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                let user_role = self
-                    .user
-                    .get_preferred_or_active_user_role_from_db(state)
+                let user_role = state
+                    .global_store
+                    .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                        user_id: self.user.get_user_id(),
+                        tenant_id: self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                        org_id: None,
+                        merchant_id: None,
+                        profile_id: None,
+                        entity_id: None,
+                        version: None,
+                        status: Some(UserStatus::Active),
+                        limit: Some(1),
+                    })
                     .await
-                    .to_not_found_response(UserErrors::InternalServerError)?;
-                utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
-                    .await;
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?;
+                utils::user_role::set_role_info_in_cache_by_user_role(state, &user_role).await;
 
-                jwt_flow
-                    .generate_jwt_without_profile(state, self, &user_role)
-                    .await
+                jwt_flow.generate_jwt(state, self, &user_role).await
             }
         }
     }
@@ -313,12 +356,9 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
-                    .await;
+                utils::user_role::set_role_info_in_cache_by_user_role(state, user_role).await;
 
-                jwt_flow
-                    .generate_jwt_without_profile(state, self, user_role)
-                    .await
+                jwt_flow.generate_jwt(state, self, user_role).await
             }
         }
     }
@@ -331,12 +371,16 @@ impl NextFlow {
             .ok_or(UserErrors::InternalServerError)?;
         let remaining_flows = flows.iter().skip(index + 1);
         for flow in remaining_flows {
-            if flow.is_required(&user, &self.path, state).await? {
+            if flow
+                .is_required(&user, &self.path, state, &state.tenant.tenant_id)
+                .await?
+            {
                 return Ok(Self {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
                     path: self.path,
+                    tenant_id: Some(state.tenant.tenant_id.clone()),
                 });
             }
         }

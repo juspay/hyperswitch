@@ -41,6 +41,8 @@ pub enum ConnectorError {
     FailedToObtainCertificate,
     #[error("Connector meta data not found")]
     NoConnectorMetaData,
+    #[error("Connector wallet details not found")]
+    NoConnectorWalletDetails,
     #[error("Failed to obtain certificate key")]
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
@@ -56,6 +58,8 @@ pub enum ConnectorError {
     CaptureMethodNotSupported,
     #[error("Missing connector mandate ID")]
     MissingConnectorMandateID,
+    #[error("Missing connector mandate metadata")]
+    MissingConnectorMandateMetadata,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -115,6 +119,11 @@ pub enum ConnectorError {
     InvalidConnectorConfig { config: &'static str },
     #[error("Failed to convert amount to required type")]
     AmountConversionFailed,
+    #[error("Generic Error")]
+    GenericError {
+        error_message: String,
+        error_object: serde_json::Value,
+    },
 }
 
 impl ConnectorError {

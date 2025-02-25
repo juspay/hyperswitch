@@ -1,8 +1,12 @@
 [default]
 check-filename = true
+extend-ignore-identifiers-re = [
+    "UE_[0-9]{3,4}", # Unified error codes
+]
 
 [default.extend-identifiers]
-"ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ACTIVITE = "ACTIVITE" # French translation of activity
 AER = "AER" # An alias to Api Error Response
 ANG = "ANG" # Netherlands Antillean guilder currency code
 BA = "BA"  # Bosnia and Herzegovina country code
@@ -15,6 +19,7 @@ HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
 IOT = "IOT" # British Indian Ocean Territory country code
 klick = "klick" # Swedish word for clicks
+FPR = "FPR" # Fraud Prevention Rules
 LSO = "LSO" # Lesotho country code
 NAM = "NAM"  # Namibia country code
 ND = "ND"  # North Dakota state code
@@ -37,7 +42,37 @@ ws2ipdef = "ws2ipdef" # WinSock Extension
 ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
 JOD = "JOD" # Jordan currency code
-
+Payed = "Payed" # Paid status for digital virgo
+Alo = "Alo" # Is iso representation of a state in France
+alo = "alo" # Is iso representation of a state in France
+BRE = "BRE" # Is iso representation of Brittany
+VasCounty = "VasCounty" # Is a state in Hungary
+StipMunicipality = "StipMunicipality" # Is a municipality in North Macedonia
+HAV = "HAV" # Is iso representation of a state in UK
+LEW = "LEW" # Is iso representation of a state in UK
+THR = "THR" # Is iso representation of a state in UK
+WLL = "WLL" # Is iso representation of a state in UK
+WIL = "WIL" # Is iso representation of a state in UK
+YOR = "YOR" # Is iso representation of a state in UK
+OT = "OT" # Is iso representation of a state in Romania
+OltCounty = "OltCounty" # Is a state in Romania
+Olt = "Olt" # Is iso representation of a state in Romania
+Vas = "Vas" # Is iso representation of a state in Hungary
+vas = "vas" # Is iso representation of a state in Hungary
+WHT = "WHT" # Is iso representation of a state in Belgium
+CantonOfEschSurAlzette = "CantonOfEschSurAlzette" # Is a state in Luxembourg
+GorenjaVasPoljane = "GorenjaVasPoljane" # Is a state in Slovenia
+sur = "sur" # Is iso representation of a state in Luxembourg
+Corse = "Corse" # Is a state in France
+CorseDuSud = "CorseDuSud" # Is a state in France
+Gard = "Gard" # Is a state in France
+HauteCorse = "HauteCorse" # Is a state in France
+Somme = "Somme" # Is a state in France
+RaceFram = "RaceFram" # Is a state in France
+TrnovskaVas = "TrnovskaVas" # Is a state in Slovenia
+Corse-du-Sud = "Corse-du-Sud" # Is a state in France
+Haute-Corse = "Haute-Corse" # Is a state in France
+Fram = "Fram" # Is a state in Slovenia
 
 [default.extend-words]
 aci = "aci" # Name of a connector
@@ -62,20 +97,6 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
-    "crates/router/locales/ar.yml", # locales
-    "crates/router/locales/ca.yml", # locales
-    "crates/router/locales/de.yml", # locales
-    "crates/router/locales/es.yml", # locales
-    "crates/router/locales/fr-BE.yml", # locales
-    "crates/router/locales/fr.yml", # locales
-    "crates/router/locales/he.yml", # locales
-    "crates/router/locales/it.yml", # locales
-    "crates/router/locales/ja.yml", # locales
-    "crates/router/locales/nl.yml", # locales
-    "crates/router/locales/pl.yml", # locales
-    "crates/router/locales/pt.yml", # locales
-    "crates/router/locales/ru.yml", # locales
-    "crates/router/locales/sv.yml", # locales
-    "crates/router/locales/zh.yml", # locales
-    "crates/router/src/core/payment_link/locale.js" # this file contains converision of static strings in various languages 
+    "crates/router/locales/*.yml", # locales
+    "crates/router/src/core/payment_link/locale.js", # this file contains conversion of static strings in various languages
 ]

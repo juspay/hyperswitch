@@ -69,8 +69,15 @@ impl PayoutsInterface for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<(Payouts, PayoutAttempt, Option<diesel_models::Customer>)>, StorageError>
-    {
+    ) -> CustomResult<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<diesel_models::Customer>,
+            Option<diesel_models::Address>,
+        )>,
+        StorageError,
+    > {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
@@ -79,9 +86,33 @@ impl PayoutsInterface for MockDb {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _time_range: &api_models::payments::TimeRange,
+        _time_range: &common_utils::types::TimeRange,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _active_payout_ids: &[String],
+        _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
+        _currency: Option<Vec<storage_enums::Currency>>,
+        _status: Option<Vec<storage_enums::PayoutStatus>>,
+        _payout_method: Option<Vec<storage_enums::PayoutType>>,
+    ) -> CustomResult<i64, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _constraints: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+    ) -> CustomResult<Vec<String>, StorageError> {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

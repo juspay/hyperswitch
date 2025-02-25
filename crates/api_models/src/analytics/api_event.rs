@@ -20,14 +20,14 @@ pub enum FilterType {
 #[serde(tag = "type")]
 pub enum QueryType {
     Payment {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
     },
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
     },
     Dispute {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         dispute_id: String,
     },
 }

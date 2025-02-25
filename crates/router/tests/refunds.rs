@@ -1,4 +1,4 @@
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::print_stdout)]
 
 use utils::{mk_service, AppClient};
 
@@ -16,7 +16,7 @@ async fn refund_create_fail_stripe() {
 
     let user_client = client.user("321");
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
     let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
     assert_eq!(refund.get("error").unwrap().get("message").unwrap(), "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");
@@ -30,7 +30,7 @@ async fn refund_create_fail_adyen() {
 
     let user_client = client.user("321");
 
-    let payment_id = format!("test_{}", uuid::Uuid::new_v4());
+    let payment_id = common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
     let refund: serde_json::Value = user_client.create_refund(&app, &payment_id, 10).await;
 
     assert_eq!(refund.get("error").unwrap().get("message").unwrap(), "Access forbidden, invalid API key was used. Please create your new API key from the Dashboard Settings section.");

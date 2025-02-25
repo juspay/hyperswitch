@@ -20,6 +20,7 @@ CREATE TABLE dispute_queue (
     `evidence` Nullable(String),
     `profile_id` Nullable(String),
     `merchant_connector_id` Nullable(String),
+    `organization_id` String,
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-dispute-events',
@@ -50,6 +51,7 @@ CREATE TABLE dispute (
     `profile_id` Nullable(String),
     `merchant_connector_id` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `organization_id` String,
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX disputeStatusIndex dispute_status TYPE bloom_filter GRANULARITY 1,
@@ -80,6 +82,7 @@ CREATE MATERIALIZED VIEW dispute_mv TO dispute (
     `evidence` Nullable(String),
     `profile_id` Nullable(String),
     `merchant_connector_id` Nullable(String),
+    `organization_id` String,
     `inserted_at` DateTime64(3),
     `sign_flag` Int8
 ) AS
@@ -105,6 +108,7 @@ SELECT
     evidence,
     profile_id,
     merchant_connector_id,
+    organization_id,
     now() AS inserted_at,
     sign_flag
 FROM

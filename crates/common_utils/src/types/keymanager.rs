@@ -6,6 +6,8 @@ use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
+#[cfg(feature = "km_forward_x_request_id")]
+use router_env::tracing_actix_web::RequestId;
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -21,16 +23,38 @@ use crate::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 
+macro_rules! impl_get_tenant_for_request {
+    ($ty:ident) => {
+        impl GetKeymanagerTenant for $ty {
+            fn get_tenant_id(&self, state: &KeyManagerState) -> id_type::TenantId {
+                match self.identifier {
+                    Identifier::User(_) | Identifier::UserAuth(_) => state.global_tenant_id.clone(),
+                    Identifier::Merchant(_) => state.tenant_id.clone(),
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone)]
 pub struct KeyManagerState {
-    pub enabled: Option<bool>,
+    pub tenant_id: id_type::TenantId,
+    pub global_tenant_id: id_type::TenantId,
+    pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
+    #[cfg(feature = "km_forward_x_request_id")]
+    pub request_id: Option<RequestId>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
 }
+
+pub trait GetKeymanagerTenant {
+    fn get_tenant_id(&self, state: &KeyManagerState) -> id_type::TenantId;
+}
+
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 #[serde(tag = "data_identifier", content = "key_identifier")]
 pub enum Identifier {
@@ -65,6 +89,10 @@ pub struct BatchEncryptDataRequest {
     pub identifier: Identifier,
     pub data: DecryptedDataGroup,
 }
+
+impl_get_tenant_for_request!(EncryptionCreateRequest);
+impl_get_tenant_for_request!(EncryptionTransferRequest);
+impl_get_tenant_for_request!(BatchEncryptDataRequest);
 
 impl<S> From<(Secret<Vec<u8>, S>, Identifier)> for EncryptDataRequest
 where
@@ -214,6 +242,12 @@ pub struct DecryptDataRequest {
     pub identifier: Identifier,
     pub data: StrongSecret<String>,
 }
+
+impl_get_tenant_for_request!(EncryptDataRequest);
+impl_get_tenant_for_request!(TransientBatchDecryptDataRequest);
+impl_get_tenant_for_request!(TransientDecryptDataRequest);
+impl_get_tenant_for_request!(BatchDecryptDataRequest);
+impl_get_tenant_for_request!(DecryptDataRequest);
 
 impl<T, S> ForeignFrom<(FxHashMap<String, Secret<T, S>>, BatchEncryptDataResponse)>
     for FxHashMap<String, Encryptable<Secret<T, S>>>
@@ -389,7 +423,7 @@ impl<'de> Deserialize<'de> for DecryptedData {
     {
         struct DecryptedDataVisitor;
 
-        impl<'de> Visitor<'de> for DecryptedDataVisitor {
+        impl Visitor<'_> for DecryptedDataVisitor {
             type Value = DecryptedData;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -445,7 +479,7 @@ impl<'de> Deserialize<'de> for EncryptedData {
     {
         struct EncryptedDataVisitor;
 
-        impl<'de> Visitor<'de> for EncryptedDataVisitor {
+        impl Visitor<'_> for EncryptedDataVisitor {
             type Value = EncryptedData;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -4,11 +4,11 @@ pub mod diesel_exports {
         DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
         DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
         DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
-        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
-        DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
-        DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbCardDiscovery as CardDiscovery, DbConnectorStatus as ConnectorStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDashboardMetadata as DashboardMetadata, DbDeleteStatus as DeleteStatus,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
+        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
@@ -17,9 +17,12 @@ pub mod diesel_exports {
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
-        DbRefundStatus as RefundStatus, DbRefundType as RefundType,
+        DbRefundStatus as RefundStatus, DbRefundType as RefundType, DbRelayStatus as RelayStatus,
+        DbRelayType as RelayType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
+        DbScaExemptionType as ScaExemptionType,
+        DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
@@ -50,6 +53,7 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+    Dynamic,
 }
 
 #[derive(
@@ -171,7 +175,7 @@ common_utils::impl_to_sql_from_sql_json!(MandateDataType);
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: common_utils::types::MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,

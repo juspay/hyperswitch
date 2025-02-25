@@ -16,10 +16,7 @@ use router_env::logger;
 
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     merchant_id: common_utils::id_type::MerchantId,
@@ -45,17 +42,15 @@ pub struct MerchantAccount {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
+    pub default_profile: Option<common_utils::id_type::ProfileId>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 /// Set the private fields of merchant account
 pub struct MerchantAccountSetter {
@@ -82,17 +77,15 @@ pub struct MerchantAccountSetter {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
+    pub default_profile: Option<common_utils::id_type::ProfileId>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
@@ -124,11 +117,12 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
+            is_platform_account: item.is_platform_account,
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone)]
 /// Set the private fields of merchant account
 pub struct MerchantAccountSetter {
@@ -142,9 +136,10 @@ pub struct MerchantAccountSetter {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
+    pub is_platform_account: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         let MerchantAccountSetter {
@@ -158,6 +153,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             modified_at,
             organization_id,
             recon_status,
+            is_platform_account,
         } = item;
         Self {
             id,
@@ -170,11 +166,12 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             modified_at,
             organization_id,
             recon_status,
+            is_platform_account,
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     id: common_utils::id_type::MerchantId,
@@ -187,31 +184,31 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
+    pub is_platform_account: bool,
 }
 
 impl MerchantAccount {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.merchant_id
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.id
     }
+
+    /// Get the organization_id from MerchantAccount
+    pub fn get_org_id(&self) -> &common_utils::id_type::OrganizationId {
+        &self.organization_id
+    }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: OptionalEncryptableName,
@@ -231,7 +228,7 @@ pub enum MerchantAccountUpdate {
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
-        default_profile: Option<Option<String>>,
+        default_profile: Option<Option<common_utils::id_type::ProfileId>>,
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
     },
@@ -243,11 +240,12 @@ pub enum MerchantAccountUpdate {
     },
     UnsetDefaultProfile,
     ModifiedAtUpdate,
+    ToPlatformAccount,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: OptionalEncryptableName,
@@ -262,13 +260,10 @@ pub enum MerchantAccountUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
     ModifiedAtUpdate,
+    ToPlatformAccount,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
-
+#[cfg(feature = "v1")]
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         let now = date_time::now();
@@ -321,6 +316,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
                 is_recon_enabled: None,
                 recon_status: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -348,6 +344,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -375,6 +372,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 default_profile: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -402,6 +400,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -429,12 +428,41 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
+            },
+            MerchantAccountUpdate::ToPlatformAccount => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                return_url: None,
+                webhook_details: None,
+                sub_merchants_enabled: None,
+                parent_merchant_id: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                publishable_key: None,
+                storage_scheme: None,
+                locker_id: None,
+                metadata: None,
+                routing_algorithm: None,
+                primary_business_details: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                organization_id: None,
+                is_recon_enabled: None,
+                default_profile: None,
+                recon_status: None,
+                payment_link_config: None,
+                pm_collect_link_config: None,
+                is_platform_account: Some(true),
             },
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         let now = date_time::now();
@@ -454,6 +482,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 storage_scheme: None,
                 organization_id: None,
                 recon_status: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -464,6 +493,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata: None,
                 organization_id: None,
                 recon_status: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -474,6 +504,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 storage_scheme: None,
                 metadata: None,
                 organization_id: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -484,12 +515,24 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata: None,
                 organization_id: None,
                 recon_status: None,
+                is_platform_account: None,
+            },
+            MerchantAccountUpdate::ToPlatformAccount => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: Some(true),
             },
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
@@ -509,6 +552,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             recon_status: self.recon_status,
             version: crate::consts::API_VERSION,
+            is_platform_account: self.is_platform_account,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -568,6 +612,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 modified_at: item.modified_at,
                 organization_id: item.organization_id,
                 recon_status: item.recon_status,
+                is_platform_account: item.is_platform_account,
             })
         }
         .await
@@ -589,14 +634,12 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             recon_status: self.recon_status,
             version: crate::consts::API_VERSION,
+            is_platform_account: self.is_platform_account,
         })
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
@@ -631,6 +674,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
             version: self.version,
+            is_platform_account: self.is_platform_account,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -708,6 +752,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
                 version: item.version,
+                is_platform_account: item.is_platform_account,
             })
         }
         .await
@@ -746,6 +791,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
             version: crate::consts::API_VERSION,
+            is_platform_account: self.is_platform_account,
         })
     }
 }

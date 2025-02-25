@@ -1,4 +1,5 @@
 //! Types interface
+
 use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_flow_types::{
@@ -7,26 +8,36 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
+            Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostProcessing, PreProcessing, Session, SetupMandate, Void,
+            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
+            Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -54,6 +65,18 @@ pub struct Response {
 /// Type alias for `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`
 pub type PaymentsAuthorizeType =
     dyn ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>`
+pub type PaymentsTaxCalculationType =
+    dyn ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+/// Type alias for `ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>`
+pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
+    PostSessionTokens,
+    PaymentsPostSessionTokensData,
+    PaymentsResponseData,
+>;
+/// Type alias for `ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>`
+pub type SdkSessionUpdateType =
+    dyn ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>`
 pub type SetupMandateType =
     dyn ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
@@ -171,3 +194,31 @@ pub type RetrieveFileType =
 /// Type alias for `ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>`
 pub type DefendDisputeType =
     dyn ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
+/// Type alias for `ConnectorIntegration<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>`
+pub type UasPreAuthenticationType = dyn ConnectorIntegration<
+    PreAuthenticate,
+    UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>`
+pub type UasPostAuthenticationType = dyn ConnectorIntegration<
+    PostAuthenticate,
+    UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<Confirmation, UasConfirmationRequestData, UasAuthenticationResponseData>`
+pub type UasAuthenticationConfirmationType = dyn ConnectorIntegration<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>`
+pub type UasAuthenticationType = dyn ConnectorIntegration<
+    Authenticate,
+    UasAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;

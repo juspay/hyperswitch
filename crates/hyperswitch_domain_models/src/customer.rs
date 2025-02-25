@@ -1,8 +1,8 @@
-use api_models::customers::CustomerRequestWithEncryption;
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// use common_enums::SoftDeleteStatus;
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use common_enums::DeleteStatus;
 use common_utils::{
-    crypto, date_time,
+    crypto::{self, Encryptable},
+    date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type, pii,
@@ -13,19 +13,23 @@ use common_utils::{
 };
 use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{PeekInterface, Secret, SwitchStrategy};
+use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
 use crate::type_encryption as types;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Customer {
     pub customer_id: id_type::CustomerId,
     pub merchant_id: id_type::MerchantId,
-    pub name: crypto::OptionalEncryptableName,
-    pub email: crypto::OptionalEncryptableEmail,
-    pub phone: crypto::OptionalEncryptablePhone,
+    #[encrypt]
+    pub name: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+    #[encrypt]
+    pub phone: Option<Encryptable<Secret<String>>>,
     pub phone_country_code: Option<String>,
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
@@ -39,39 +43,67 @@ pub struct Customer {
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Customer {
     pub merchant_id: id_type::MerchantId,
-    pub name: crypto::OptionalEncryptableName,
-    pub email: crypto::OptionalEncryptableEmail,
-    pub phone: crypto::OptionalEncryptablePhone,
+    #[encrypt]
+    pub name: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+    #[encrypt]
+    pub phone: Option<Encryptable<Secret<String>>>,
     pub phone_country_code: Option<String>,
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<diesel_models::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    // pub status: Option<SoftDeleteStatus>,
-    pub id: String,
+    pub id: id_type::GlobalCustomerId,
     pub version: common_enums::ApiVersion,
+    pub status: DeleteStatus,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
-        self.customer_id.clone()
+    /// Get the unique identifier of Customer
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    pub fn get_id(&self) -> &id_type::CustomerId {
+        &self.customer_id
     }
-}
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
-        todo!()
+    /// Get the global identifier of Customer
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub fn get_id(&self) -> &id_type::GlobalCustomerId {
+        &self.id
+    }
+
+    /// Get the connector customer ID for the specified connector label, if present
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    pub fn get_connector_customer_id(&self, connector_label: &str) -> Option<&str> {
+        use masking::PeekInterface;
+
+        self.connector_customer
+            .as_ref()
+            .and_then(|connector_customer_value| {
+                connector_customer_value.peek().get(connector_label)
+            })
+            .and_then(|connector_customer| connector_customer.as_str())
+    }
+
+    /// Get the connector customer ID for the specified merchant connector account ID, if present
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub fn get_connector_customer_id(
+        &self,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    ) -> Option<&str> {
+        self.connector_customer
+            .as_ref()
+            .and_then(|connector_customer_map| connector_customer_map.get(merchant_connector_id))
+            .map(|connector_customer_id| connector_customer_id.as_str())
     }
 }
 
@@ -112,8 +144,8 @@ impl super::behaviour::Conversion for Customer {
         let decrypted = types::crypto_operation(
             state,
             common_utils::type_name!(Self::DstType),
-            types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
-                CustomerRequestWithEncryption {
+            types::CryptoOperation::BatchDecrypt(EncryptedCustomer::to_encryptable(
+                EncryptedCustomer {
                     name: item.name.clone(),
                     phone: item.phone.clone(),
                     email: item.email.clone(),
@@ -127,16 +159,23 @@ impl super::behaviour::Conversion for Customer {
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
-        let encryptable_customer = CustomerRequestWithEncryption::from_encryptable(decrypted)
-            .change_context(ValidationError::InvalidValue {
+        let encryptable_customer = EncryptedCustomer::from_encryptable(decrypted).change_context(
+            ValidationError::InvalidValue {
                 message: "Failed while decrypting customer data".to_string(),
-            })?;
+            },
+        )?;
 
         Ok(Self {
             customer_id: item.customer_id,
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
-            email: encryptable_customer.email,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
             phone: encryptable_customer.phone,
             phone_country_code: item.phone_country_code,
             description: item.description,
@@ -196,7 +235,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: self.default_billing_address.map(Encryption::from),
             default_shipping_address: self.default_shipping_address.map(Encryption::from),
             version: self.version,
-            // status: self.status,
+            status: self.status,
         })
     }
 
@@ -212,8 +251,8 @@ impl super::behaviour::Conversion for Customer {
         let decrypted = types::crypto_operation(
             state,
             common_utils::type_name!(Self::DstType),
-            types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
-                CustomerRequestWithEncryption {
+            types::CryptoOperation::BatchDecrypt(EncryptedCustomer::to_encryptable(
+                EncryptedCustomer {
                     name: item.name.clone(),
                     phone: item.phone.clone(),
                     email: item.email.clone(),
@@ -227,17 +266,24 @@ impl super::behaviour::Conversion for Customer {
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
-        let encryptable_customer = CustomerRequestWithEncryption::from_encryptable(decrypted)
-            .change_context(ValidationError::InvalidValue {
+        let encryptable_customer = EncryptedCustomer::from_encryptable(decrypted).change_context(
+            ValidationError::InvalidValue {
                 message: "Failed while decrypting customer data".to_string(),
-            })?;
+            },
+        )?;
 
         Ok(Self {
             id: item.id,
             merchant_reference_id: item.merchant_reference_id,
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
-            email: encryptable_customer.email,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
             phone: encryptable_customer.phone,
             phone_country_code: item.phone_country_code,
             description: item.description,
@@ -250,7 +296,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
             version: item.version,
-            // status: item.status,
+            status: item.status,
         })
     }
 
@@ -273,29 +319,37 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
-            // status: self.status,
             version: crate::consts::API_VERSION,
+            status: self.status,
         })
     }
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Clone, Debug)]
+pub struct CustomerGeneralUpdate {
+    pub name: crypto::OptionalEncryptableName,
+    pub email: Box<crypto::OptionalEncryptableEmail>,
+    pub phone: Box<crypto::OptionalEncryptablePhone>,
+    pub description: Option<Description>,
+    pub phone_country_code: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Box<Option<diesel_models::ConnectorCustomerMap>>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
+    pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
+    pub status: Option<DeleteStatus>,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug)]
 pub enum CustomerUpdate {
-    Update {
-        name: crypto::OptionalEncryptableName,
-        email: crypto::OptionalEncryptableEmail,
-        phone: Box<crypto::OptionalEncryptablePhone>,
-        description: Option<Description>,
-        phone_country_code: Option<String>,
-        metadata: Option<pii::SecretSerdeValue>,
-        connector_customer: Option<pii::SecretSerdeValue>,
-    },
+    Update(Box<CustomerGeneralUpdate>),
     ConnectorCustomer {
-        connector_customer: Option<pii::SecretSerdeValue>,
+        connector_customer: Option<diesel_models::ConnectorCustomerMap>,
     },
     UpdateDefaultPaymentMethod {
-        default_payment_method_id: Option<Option<String>>,
+        default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
     },
 }
 
@@ -303,37 +357,50 @@ pub enum CustomerUpdate {
 impl From<CustomerUpdate> for CustomerUpdateInternal {
     fn from(customer_update: CustomerUpdate) -> Self {
         match customer_update {
-            CustomerUpdate::Update {
-                name,
-                email,
-                phone,
-                description,
-                phone_country_code,
-                metadata,
-                connector_customer,
-            } => Self {
-                name: name.map(Encryption::from),
-                email: email.map(Encryption::from),
-                phone: phone.map(Encryption::from),
-                description,
-                phone_country_code,
-                metadata,
-                connector_customer,
-                modified_at: date_time::now(),
-                default_payment_method_id: None,
-                updated_by: None,
-            },
+            CustomerUpdate::Update(update) => {
+                let CustomerGeneralUpdate {
+                    name,
+                    email,
+                    phone,
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer,
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    status,
+                } = *update;
+                Self {
+                    name: name.map(Encryption::from),
+                    email: email.map(Encryption::from),
+                    phone: phone.map(Encryption::from),
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer: *connector_customer,
+                    modified_at: date_time::now(),
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    updated_by: None,
+                    status,
+                }
+            }
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: date_time::now(),
                 name: None,
                 email: None,
                 phone: None,
                 description: None,
                 phone_country_code: None,
                 metadata: None,
+                modified_at: date_time::now(),
                 default_payment_method_id: None,
                 updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
@@ -348,6 +415,9 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata: None,
                 connector_customer: None,
                 updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
             },
         }
     }
@@ -363,7 +433,7 @@ pub enum CustomerUpdate {
         description: Option<Description>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_customer: Option<pii::SecretSerdeValue>,
+        connector_customer: Box<Option<pii::SecretSerdeValue>>,
         address_id: Option<String>,
     },
     ConnectorCustomer {
@@ -394,7 +464,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
-                connector_customer,
+                connector_customer: *connector_customer,
                 modified_at: date_time::now(),
                 address_id,
                 default_payment_method_id: None,

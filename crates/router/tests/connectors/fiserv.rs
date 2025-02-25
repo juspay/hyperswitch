@@ -53,6 +53,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_issuing_country: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
+            card_holder_name: Some(Secret::new("card holder name".into())),
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         ..utils::PaymentAuthorizeType::default().0

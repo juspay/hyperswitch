@@ -118,7 +118,7 @@ impl Event {
 
     pub async fn list_initial_attempts_by_profile_id_primary_object_id(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -137,7 +137,7 @@ impl Event {
 
     pub async fn list_initial_attempts_by_profile_id_constraints(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
@@ -187,7 +187,7 @@ impl Event {
 
     pub async fn list_by_profile_id_initial_attempt_id(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(

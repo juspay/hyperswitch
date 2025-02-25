@@ -206,7 +206,9 @@ pub enum StripeErrorCode {
     PaymentIntentMandateInvalid { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
-    DuplicatePayment { payment_id: String },
+    DuplicatePayment {
+        payment_id: common_utils::id_type::PaymentId,
+    },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
     ExternalConnectorError {
@@ -276,6 +278,10 @@ pub enum StripeErrorCode {
     InvalidTenant,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Bad Request")]
+    PlatformBadRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
+    PlatformUnauthorizedRequest,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -442,7 +448,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
-            | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
+            | errors::ApiErrorResponse::InvalidEphemeralKey
+            | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
             | errors::ApiErrorResponse::InvalidCardIin
@@ -609,7 +616,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "authentication".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
+            errors::ApiErrorResponse::ProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
                 id,
             },
@@ -675,6 +682,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
                 Self::AmountConversionFailed { amount_type }
             }
+            errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
+            errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
         }
     }
 }
@@ -684,7 +693,7 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized | Self::PlatformUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
@@ -748,6 +757,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CurrencyConversionFailed
             | Self::PaymentMethodDeleteFailed
             | Self::ExtendedCardInfoNotFound
+            | Self::PlatformBadRequest
             | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed

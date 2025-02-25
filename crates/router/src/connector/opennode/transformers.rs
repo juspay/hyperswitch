@@ -138,13 +138,13 @@ impl<F, T>
         let response_data = if attempt_status != OpennodePaymentStatus::Underpaid {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data: Some(redirection_data),
-                mandate_reference: None,
+                redirection_data: Box::new(Some(redirection_data)),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.data.order_id,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
@@ -258,7 +258,7 @@ fn get_crypto_specific_payment_data(
     let currency = item.router_data.request.currency.to_string();
     let description = item.router_data.get_description()?;
     let auto_settle = true;
-    let success_url = item.router_data.get_return_url()?;
+    let success_url = item.router_data.request.get_router_return_url()?;
     let callback_url = item.router_data.request.get_webhook_url()?;
     let order_id = item.router_data.connector_request_reference_id.clone();
 

@@ -350,7 +350,7 @@ fn get_bank_redirection_request_data(
     auth: TrustpayAuthType,
 ) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let pm = TrustpayPaymentMethod::try_from(bank_redirection_data)?;
-    let return_url = item.request.get_return_url()?;
+    let return_url = item.request.get_router_return_url()?;
     let payment_request =
         TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
             payment_method: pm.clone(),
@@ -398,6 +398,10 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             accept_header: Some(browser_info.accept_header.unwrap_or("*".to_string())),
             user_agent: browser_info.user_agent,
             ip_address: browser_info.ip_address,
+            os_type: None,
+            os_version: None,
+            device_model: None,
+            accept_language: Some(browser_info.accept_language.unwrap_or("en".to_string())),
         };
         let params = get_mandatory_fields(item.router_data)?;
         let amount = item.amount.to_owned();
@@ -410,7 +414,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                 params,
                 amount,
                 ccard,
-                item.router_data.request.get_return_url()?,
+                item.router_data.request.get_router_return_url()?,
             )?),
             domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(
@@ -430,12 +434,14 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
@@ -726,13 +732,13 @@ fn handle_cards_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
-        redirection_data,
-        mandate_reference: None,
+        redirection_data: Box::new(redirection_data),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -753,16 +759,16 @@ fn handle_bank_redirects_response(
         resource_id: types::ResponseId::ConnectorTransactionId(
             response.payment_request_id.to_string(),
         ),
-        redirection_data: Some(services::RedirectForm::from((
+        redirection_data: Box::new(Some(services::RedirectForm::from((
             response.gateway_url,
             services::Method::Get,
-        ))),
-        mandate_reference: None,
+        )))),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -790,13 +796,13 @@ fn handle_bank_redirects_error_response(
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -851,13 +857,13 @@ fn handle_bank_redirects_sync_response(
                 .payment_request_id
                 .clone(),
         ),
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -899,13 +905,13 @@ pub fn handle_webhook_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -1229,6 +1235,7 @@ pub fn get_apple_pay_session<F, T>(
                         merchant_identifier: None,
                         required_billing_contact_fields: None,
                         required_shipping_contact_fields: None,
+                        recurring_payment_request: None,
                     }),
                     connector: "trustpay".to_string(),
                     delayed_session_token: true,
@@ -1357,10 +1364,12 @@ impl From<GpayTokenizationSpecification> for api_models::payments::GpayTokenizat
 impl From<GpayTokenParameters> for api_models::payments::GpayTokenParameters {
     fn from(value: GpayTokenParameters) -> Self {
         Self {
-            gateway: value.gateway,
+            gateway: Some(value.gateway),
             gateway_merchant_id: Some(value.gateway_merchant_id.expose()),
             stripe_version: None,
             stripe_publishable_key: None,
+            public_key: None,
+            protocol_version: None,
         }
     }
 }
@@ -1788,7 +1797,7 @@ pub struct WebhookReferences {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
     pub amount: f64,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

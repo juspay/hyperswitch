@@ -1,15 +1,19 @@
+use std::str::FromStr;
+
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
+use common_enums::EntityType;
+use common_utils::pii;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
+use masking::PeekInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
@@ -17,6 +21,8 @@ use crate::{
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
@@ -32,6 +38,7 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -46,11 +53,11 @@ pub async fn get_multiple_metadata(
     for key in metadata_keys {
         let data = metadata.iter().find(|ele| ele.data_key == key);
         let resp;
-        if data.is_none() && utils::is_backfill_required(&key) {
+        if data.is_none() && utils::is_backfill_required(key) {
             let backfill_data = backfill_metadata(&state, &user, &key).await?;
-            resp = into_response(backfill_data.as_ref(), &key)?;
+            resp = into_response(backfill_data.as_ref(), key)?;
         } else {
-            resp = into_response(data, &key)?;
+            resp = into_response(data, key)?;
         }
         response.push(resp);
     }
@@ -148,7 +155,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
 
 fn into_response(
     data: Option<&DashboardMetadata>,
-    data_type: &DBEnum,
+    data_type: DBEnum,
 ) -> UserResult<api::GetMetaDataResponse> {
     match data_type {
         DBEnum::ProductionAgreement => Ok(api::GetMetaDataResponse::ProductionAgreement(
@@ -444,6 +451,11 @@ async fn insert_metadata(
             metadata
         }
         types::MetaData::ProdIntent(data) => {
+            if let Some(poc_email) = &data.poc_email {
+                let inner_poc_email = poc_email.peek().as_str();
+                pii::Email::from_str(inner_poc_email)
+                    .change_context(UserErrors::EmailParsingError)?;
+            }
             let mut metadata = utils::insert_user_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
@@ -476,15 +488,30 @@ async fn insert_metadata(
                     .expose();
 
                 if utils::is_prod_email_required(&data, user_email) {
-                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+                        state,
+                        &user,
+                        EntityType::Merchant,
+                    )
+                    .await?;
+
+                    let email_contents = email_types::BizEmailProd::new(
+                        state,
+                        data,
+                        theme.as_ref().map(|theme| theme.theme_id.clone()),
+                        theme
+                            .map(|theme| theme.email_config())
+                            .unwrap_or(state.conf.theme.email_config.clone()),
+                    )?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
+                            email_types::get_base_url(state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )
                         .await;
-                    logger::info!(?send_email_result);
+                    logger::info!(prod_intent_email=?send_email_result);
                 }
             }
 
@@ -605,6 +632,7 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
+#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,
@@ -711,10 +739,7 @@ pub async fn get_merchant_connector_account_by_name(
     connector_name: &str,
     key_store: &MerchantKeyStore,
 ) -> UserResult<Option<domain::MerchantConnectorAccount>> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     {
         state
             .store
@@ -731,7 +756,7 @@ pub async fn get_merchant_connector_account_by_name(
             })
             .map(|data| data.first().cloned())
     }
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     {
         let _ = state;
         let _ = merchant_id;

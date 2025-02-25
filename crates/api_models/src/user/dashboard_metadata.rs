@@ -1,5 +1,5 @@
 use common_enums::CountryAlpha2;
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
 
@@ -43,7 +43,7 @@ pub struct SetupProcessor {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ProcessorConnected {
-    pub processor_id: String,
+    pub processor_id: id_type::MerchantConnectorAccountId,
     pub processor_name: String,
 }
 
@@ -68,7 +68,7 @@ pub struct ConfiguredRouting {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TestPayment {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -94,7 +94,7 @@ pub struct ProdIntent {
     pub business_label: Option<String>,
     pub business_location: Option<CountryAlpha2>,
     pub display_name: Option<String>,
-    pub poc_email: Option<String>,
+    pub poc_email: Option<Secret<String>>,
     pub business_type: Option<String>,
     pub business_identifier: Option<String>,
     pub business_website: Option<String>,

@@ -19,7 +19,6 @@ pub struct PaymentFlowData {
     pub status: common_enums::AttemptStatus,
     pub payment_method: common_enums::PaymentMethod,
     pub description: Option<String>,
-    pub return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: common_enums::AuthenticationType,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
@@ -59,7 +58,6 @@ pub struct RefundFlowData {
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
     pub payment_method: common_enums::PaymentMethod,
-    pub return_url: Option<String>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     // minor amount for amount framework
@@ -75,7 +73,6 @@ pub struct PayoutFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
-    pub return_url: Option<String>,
     pub address: PaymentAddress,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub connector_wallets_details: Option<pii::SecretSerdeValue>,
@@ -93,7 +90,6 @@ pub struct FrmFlowData {
     pub attempt_id: String,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub connector_request_reference_id: String,
-    pub return_url: Option<String>,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_wallets_details: Option<pii::SecretSerdeValue>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
@@ -115,7 +111,6 @@ pub struct DisputesFlowData {
     pub payment_id: String,
     pub attempt_id: String,
     pub payment_method: common_enums::enums::PaymentMethod,
-    pub return_url: Option<String>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     // minor amount for amount framework
@@ -145,7 +140,12 @@ pub struct FilesFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub attempt_id: String,
-    pub return_url: Option<String>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub connector_request_reference_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct UasFlowData {
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
 }

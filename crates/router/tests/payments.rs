@@ -1,4 +1,9 @@
-#![allow(clippy::expect_used, clippy::unwrap_in_result, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::unwrap_used,
+    clippy::print_stdout
+)]
 
 mod utils;
 
@@ -272,6 +277,7 @@ fn connector_list() {
     assert_eq!(true, true);
 }
 
+#[cfg(feature = "v1")]
 #[actix_rt::test]
 #[ignore] // AWS
 async fn payments_create_core() {
@@ -289,7 +295,11 @@ async fn payments_create_core() {
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
 
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
         .unwrap();
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -308,11 +318,12 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
+    let payment_id =
+        id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
+
     let req = api::PaymentsRequest {
-        payment_id: Some(api::PaymentIdType::PaymentIntentId(
-            "pay_mbabizu24mvu3mela5njyhpit10".to_string(),
-        )),
-        merchant_id: Some(merchant_id),
+        payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
+        merchant_id: Some(merchant_id.clone()),
         amount: Some(MinorUnit::new(6540).into()),
         currency: Some(api_enums::Currency::USD),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
@@ -359,10 +370,10 @@ async fn payments_create_core() {
     };
 
     let expected_response = api::PaymentsResponse {
-        payment_id: Some("pay_mbabizu24mvu3mela5njyhpit10".to_string()),
+        payment_id,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
-        amount_capturable: None,
+        amount_capturable: MinorUnit::new(0),
         amount_received: None,
         client_secret: None,
         created: None,
@@ -371,7 +382,78 @@ async fn payments_create_core() {
         description: Some("Its my first payment request".to_string()),
         refunds: None,
         mandate_id: None,
-        ..Default::default()
+        merchant_id,
+        net_amount: MinorUnit::new(6540),
+        connector: None,
+        customer: None,
+        disputes: None,
+        attempts: None,
+        captures: None,
+        mandate_data: None,
+        setup_future_usage: None,
+        off_session: None,
+        capture_on: None,
+        capture_method: None,
+        payment_method: None,
+        payment_method_data: None,
+        payment_token: None,
+        shipping: None,
+        billing: None,
+        order_details: None,
+        email: None,
+        name: None,
+        phone: None,
+        return_url: None,
+        authentication_type: None,
+        statement_descriptor_name: None,
+        statement_descriptor_suffix: None,
+        next_action: None,
+        cancellation_reason: None,
+        error_code: None,
+        error_message: None,
+        unified_code: None,
+        unified_message: None,
+        payment_experience: None,
+        payment_method_type: None,
+        connector_label: None,
+        business_country: None,
+        business_label: None,
+        business_sub_label: None,
+        allowed_payment_method_types: None,
+        ephemeral_key: None,
+        manual_retry_allowed: None,
+        connector_transaction_id: None,
+        frm_message: None,
+        metadata: None,
+        connector_metadata: None,
+        feature_metadata: None,
+        reference_id: None,
+        payment_link: None,
+        profile_id: None,
+        surcharge_details: None,
+        attempt_count: 1,
+        merchant_decision: None,
+        merchant_connector_id: None,
+        incremental_authorization_allowed: None,
+        authorization_count: None,
+        incremental_authorizations: None,
+        external_authentication_details: None,
+        external_3ds_authentication_attempted: None,
+        expires_on: None,
+        fingerprint: None,
+        browser_info: None,
+        payment_method_id: None,
+        payment_method_status: None,
+        updated: None,
+        split_payments: None,
+        frm_metadata: None,
+        merchant_order_reference_id: None,
+        capture_before: None,
+        extended_authorization_applied: None,
+        order_tax_amount: None,
+        connector_mandate_id: None,
+        shipping_cost: None,
+        card_discovery: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -381,6 +463,7 @@ async fn payments_create_core() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),
@@ -392,7 +475,8 @@ async fn payments_create_core() {
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
@@ -461,6 +545,7 @@ async fn payments_create_core() {
 //     assert_eq!(expected_response, actual_response);
 // }
 
+#[cfg(feature = "v1")]
 #[actix_rt::test]
 #[ignore]
 async fn payments_create_core_adyen_no_redirect() {
@@ -475,12 +560,18 @@ async fn payments_create_core_adyen_no_redirect() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
         .unwrap();
+
+    let payment_id =
+        id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
-    let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
     let key_manager_state = &(&state).into();
     let key_store = state
         .store
@@ -546,10 +637,10 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let expected_response = services::ApplicationResponse::JsonWithHeaders((
         api::PaymentsResponse {
-            payment_id: Some(payment_id.clone()),
+            payment_id: payment_id.clone(),
             status: api_enums::IntentStatus::Processing,
             amount: MinorUnit::new(6540),
-            amount_capturable: None,
+            amount_capturable: MinorUnit::new(0),
             amount_received: None,
             client_secret: None,
             created: None,
@@ -558,7 +649,78 @@ async fn payments_create_core_adyen_no_redirect() {
             description: Some("Its my first payment request".to_string()),
             refunds: None,
             mandate_id: None,
-            ..Default::default()
+            merchant_id,
+            net_amount: MinorUnit::new(6540),
+            connector: None,
+            customer: None,
+            disputes: None,
+            attempts: None,
+            captures: None,
+            mandate_data: None,
+            setup_future_usage: None,
+            off_session: None,
+            capture_on: None,
+            capture_method: None,
+            payment_method: None,
+            payment_method_data: None,
+            payment_token: None,
+            shipping: None,
+            billing: None,
+            order_details: None,
+            email: None,
+            name: None,
+            phone: None,
+            return_url: None,
+            authentication_type: None,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
+            next_action: None,
+            cancellation_reason: None,
+            error_code: None,
+            error_message: None,
+            unified_code: None,
+            unified_message: None,
+            payment_experience: None,
+            payment_method_type: None,
+            connector_label: None,
+            business_country: None,
+            business_label: None,
+            business_sub_label: None,
+            allowed_payment_method_types: None,
+            ephemeral_key: None,
+            manual_retry_allowed: None,
+            connector_transaction_id: None,
+            frm_message: None,
+            metadata: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            reference_id: None,
+            payment_link: None,
+            profile_id: None,
+            surcharge_details: None,
+            attempt_count: 1,
+            merchant_decision: None,
+            merchant_connector_id: None,
+            incremental_authorization_allowed: None,
+            authorization_count: None,
+            incremental_authorizations: None,
+            external_authentication_details: None,
+            external_3ds_authentication_attempted: None,
+            expires_on: None,
+            fingerprint: None,
+            browser_info: None,
+            payment_method_id: None,
+            payment_method_status: None,
+            updated: None,
+            split_payments: None,
+            frm_metadata: None,
+            merchant_order_reference_id: None,
+            capture_before: None,
+            extended_authorization_applied: None,
+            order_tax_amount: None,
+            connector_mandate_id: None,
+            shipping_cost: None,
+            card_discovery: None,
         },
         vec![],
     ));
@@ -568,6 +730,7 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),
@@ -579,7 +742,8 @@ async fn payments_create_core_adyen_no_redirect() {
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();

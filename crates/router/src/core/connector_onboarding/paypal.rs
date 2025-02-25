@@ -141,17 +141,14 @@ async fn find_paypal_merchant_by_tracking_id(
 pub async fn update_mca(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    connector_id: String,
+    connector_id: common_utils::id_type::MerchantConnectorAccountId,
     auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
     let connector_auth_json = auth_details
         .encode_to_value()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Error while deserializing connector_account_details")?;
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,
         connector_account_details: Some(Secret::new(connector_auth_json)),
@@ -164,8 +161,10 @@ pub async fn update_mca(
         connector_webhook_details: None,
         pm_auth_config: None,
         test_mode: None,
+        additional_merchant_data: None,
+        connector_wallets_details: None,
     };
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,
         connector_account_details: Some(Secret::new(connector_auth_json)),
@@ -178,6 +177,9 @@ pub async fn update_mca(
         connector_webhook_details: None,
         pm_auth_config: None,
         merchant_id: merchant_id.clone(),
+        additional_merchant_data: None,
+        connector_wallets_details: None,
+        feature_metadata: None,
     };
     let mca_response =
         admin::update_connector(state.clone(), &merchant_id, None, &connector_id, request).await?;

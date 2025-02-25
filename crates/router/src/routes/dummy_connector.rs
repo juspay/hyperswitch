@@ -13,6 +13,7 @@ mod errors;
 pub mod types;
 mod utils;
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_authorize_payment(
     state: web::Data<app::AppState>,
@@ -33,6 +34,8 @@ pub async fn dummy_connector_authorize_payment(
     )
     .await
 }
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_complete_payment(
     state: web::Data<app::AppState>,
@@ -46,7 +49,7 @@ pub async fn dummy_connector_complete_payment(
         attempt_id,
         confirm: json_payload.confirm,
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -54,9 +57,11 @@ pub async fn dummy_connector_complete_payment(
         |state, _: (), req, _| core::payment_complete(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_payment(
     state: web::Data<app::AppState>,
@@ -65,7 +70,7 @@ pub async fn dummy_connector_payment(
 ) -> impl actix_web::Responder {
     let payload = json_payload.into_inner();
     let flow = types::Flow::DummyPaymentCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -73,9 +78,11 @@ pub async fn dummy_connector_payment(
         |state, _: (), req, _| core::payment(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentRetrieve))]
 pub async fn dummy_connector_payment_data(
     state: web::Data<app::AppState>,
@@ -96,16 +103,18 @@ pub async fn dummy_connector_payment_data(
     )
     .await
 }
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyRefundCreate))]
 pub async fn dummy_connector_refund(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<types::DummyConnectorRefundRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl actix_web::Responder {
     let flow = types::Flow::DummyRefundCreate;
     let mut payload = json_payload.into_inner();
-    payload.payment_id = Some(path.to_string());
+    payload.payment_id = Some(path.into_inner());
     api::server_wrap(
         flow,
         state,
@@ -117,6 +126,8 @@ pub async fn dummy_connector_refund(
     )
     .await
 }
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyRefundRetrieve))]
 pub async fn dummy_connector_refund_data(
     state: web::Data<app::AppState>,

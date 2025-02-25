@@ -11,9 +11,8 @@ pub mod jwt;
 pub mod kafka;
 pub mod logger;
 pub mod pm_auth;
-#[cfg(feature = "recon")]
-pub mod recon;
 
+pub mod card_testing_guard;
 #[cfg(feature = "olap")]
 pub mod openidconnect;
 

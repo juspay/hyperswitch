@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
 use api_models::enums;
 use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
@@ -7,9 +7,11 @@ use error_stack::ResultExt;
 use masking::PeekInterface;
 use once_cell::sync::Lazy;
 use redis_interface::DelReply;
+use router_env::{instrument, tracing};
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
-use tokio::{sync::RwLock, time::sleep};
+use tokio::sync::RwLock;
+use tracing_futures::Instrument;
 
 use crate::{
     logger,
@@ -26,7 +28,7 @@ const FALLBACK_FOREX_API_CURRENCY_PREFIX: &str = "USD";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FxExchangeRatesCacheEntry {
-    data: Arc<ExchangeRates>,
+    pub data: Arc<ExchangeRates>,
     timestamp: i64,
 }
 
@@ -49,10 +51,14 @@ pub enum ForexCacheError {
     CouldNotAcquireLock,
     #[error("Provided currency not acceptable")]
     CurrencyNotAcceptable,
+    #[error("Forex configuration error: {0}")]
+    ConfigurationError(String),
     #[error("Incorrect entries in default Currency response")]
     DefaultCurrencyParsingError,
     #[error("Entry not found in cache")]
     EntryNotFound,
+    #[error("Forex data unavailable")]
+    ForexDataUnavailable,
     #[error("Expiration time invalid")]
     InvalidLogExpiry,
     #[error("Error reading local")]
@@ -106,42 +112,17 @@ impl FxExchangeRatesCacheEntry {
     }
 }
 
-async fn retrieve_forex_from_local() -> Option<FxExchangeRatesCacheEntry> {
+async fn retrieve_forex_from_local_cache() -> Option<FxExchangeRatesCacheEntry> {
     FX_EXCHANGE_RATES_CACHE.read().await.clone()
 }
 
-async fn save_forex_to_local(
+async fn save_forex_data_to_local_cache(
     exchange_rates_cache_entry: FxExchangeRatesCacheEntry,
 ) -> CustomResult<(), ForexCacheError> {
     let mut local = FX_EXCHANGE_RATES_CACHE.write().await;
     *local = Some(exchange_rates_cache_entry);
+    logger::debug!("forex_log: forex saved in cache");
     Ok(())
-}
-
-// Alternative handler for handling the case, When no data in local as well as redis
-#[allow(dead_code)]
-async fn waited_fetch_and_update_caches(
-    state: &SessionState,
-    local_fetch_retry_delay: u64,
-    local_fetch_retry_count: u64,
-) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
-    for _n in 1..local_fetch_retry_count {
-        sleep(Duration::from_millis(local_fetch_retry_delay)).await;
-        //read from redis and update local plus break the loop and return
-        match retrieve_forex_from_redis(state).await {
-            Ok(Some(rates)) => {
-                save_forex_to_local(rates.clone()).await?;
-                return Ok(rates.clone());
-            }
-            Ok(None) => continue,
-            Err(error) => {
-                logger::error!(?error);
-                continue;
-            }
-        }
-    }
-    //acquire lock one last time and try to fetch and update local & redis
-    successive_fetch_and_save_forex(state, None).await
 }
 
 impl TryFrom<DefaultExchangeRates> for ExchangeRates {
@@ -150,11 +131,13 @@ impl TryFrom<DefaultExchangeRates> for ExchangeRates {
         let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
         for (curr, conversion) in value.conversion {
             let enum_curr = enums::Currency::from_str(curr.as_str())
-                .change_context(ForexCacheError::ConversionError)?;
+                .change_context(ForexCacheError::ConversionError)
+                .attach_printable("Unable to Convert currency received")?;
             conversion_usable.insert(enum_curr, CurrencyFactors::from(conversion));
         }
         let base_curr = enums::Currency::from_str(value.base_currency.as_str())
-            .change_context(ForexCacheError::ConversionError)?;
+            .change_context(ForexCacheError::ConversionError)
+            .attach_printable("Unable to convert base currency")?;
         Ok(Self {
             base_currency: base_curr,
             conversion: conversion_usable,
@@ -170,104 +153,113 @@ impl From<Conversion> for CurrencyFactors {
         }
     }
 }
+
+#[instrument(skip_all)]
 pub async fn get_forex_rates(
     state: &SessionState,
     call_delay: i64,
-    local_fetch_retry_delay: u64,
-    local_fetch_retry_count: u64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
-    if let Some(local_rates) = retrieve_forex_from_local().await {
+    if let Some(local_rates) = retrieve_forex_from_local_cache().await {
         if local_rates.is_expired(call_delay) {
             // expired local data
-            handler_local_expired(state, call_delay, local_rates).await
+            logger::debug!("forex_log: Forex stored in cache is expired");
+            call_forex_api_and_save_data_to_cache_and_redis(state, Some(local_rates)).await
         } else {
             // Valid data present in local
+            logger::debug!("forex_log: forex found in cache");
             Ok(local_rates)
         }
     } else {
         // No data in local
-        handler_local_no_data(
-            state,
-            call_delay,
-            local_fetch_retry_delay,
-            local_fetch_retry_count,
-        )
-        .await
+        call_api_if_redis_forex_data_expired(state, call_delay).await
     }
 }
 
-async fn handler_local_no_data(
+async fn call_api_if_redis_forex_data_expired(
     state: &SessionState,
     call_delay: i64,
-    _local_fetch_retry_delay: u64,
-    _local_fetch_retry_count: u64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
-    match retrieve_forex_from_redis(state).await {
-        Ok(Some(data)) => fallback_forex_redis_check(state, data, call_delay).await,
+    match retrieve_forex_data_from_redis(state).await {
+        Ok(Some(data)) => call_forex_api_if_redis_data_expired(state, data, call_delay).await,
         Ok(None) => {
             // No data in local as well as redis
-            Ok(successive_fetch_and_save_forex(state, None).await?)
+            call_forex_api_and_save_data_to_cache_and_redis(state, None).await?;
+            Err(ForexCacheError::ForexDataUnavailable.into())
         }
         Err(error) => {
-            logger::error!(?error);
-            Ok(successive_fetch_and_save_forex(state, None).await?)
+            // Error in deriving forex rates from redis
+            logger::error!("forex_error: {:?}", error);
+            call_forex_api_and_save_data_to_cache_and_redis(state, None).await?;
+            Err(ForexCacheError::ForexDataUnavailable.into())
         }
     }
 }
 
-async fn successive_fetch_and_save_forex(
+async fn call_forex_api_and_save_data_to_cache_and_redis(
     state: &SessionState,
     stale_redis_data: Option<FxExchangeRatesCacheEntry>,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
-    match acquire_redis_lock(state).await {
-        Ok(lock_acquired) => {
-            if !lock_acquired {
-                return stale_redis_data.ok_or(ForexCacheError::CouldNotAcquireLock.into());
+    // spawn a new thread and do the api fetch and write operations on redis.
+    let forex_api_key = state.conf.forex_api.get_inner().api_key.peek();
+    if forex_api_key.is_empty() {
+        Err(ForexCacheError::ConfigurationError("api_keys not provided".into()).into())
+    } else {
+        let state = state.clone();
+        tokio::spawn(
+            async move {
+                acquire_redis_lock_and_call_forex_api(&state)
+                    .await
+                    .map_err(|err| {
+                        logger::error!(forex_error=?err);
+                    })
+                    .ok();
             }
-            let api_rates = fetch_forex_rates(state).await;
-            match api_rates {
-                Ok(rates) => successive_save_data_to_redis_local(state, rates).await,
-                Err(error) => {
-                    // API not able to fetch data call secondary service
-                    logger::error!(?error);
-                    let secondary_api_rates = fallback_fetch_forex_rates(state).await;
-                    match secondary_api_rates {
-                        Ok(rates) => Ok(successive_save_data_to_redis_local(state, rates).await?),
-                        Err(error) => stale_redis_data.ok_or({
-                            logger::error!(?error);
-                            ForexCacheError::ApiUnresponsive.into()
-                        }),
+            .in_current_span(),
+        );
+        stale_redis_data.ok_or(ForexCacheError::EntryNotFound.into())
+    }
+}
+
+async fn acquire_redis_lock_and_call_forex_api(
+    state: &SessionState,
+) -> CustomResult<(), ForexCacheError> {
+    let lock_acquired = acquire_redis_lock(state).await?;
+    if !lock_acquired {
+        Err(ForexCacheError::CouldNotAcquireLock.into())
+    } else {
+        logger::debug!("forex_log: redis lock acquired");
+        let api_rates = fetch_forex_rates_from_primary_api(state).await;
+        match api_rates {
+            Ok(rates) => save_forex_data_to_cache_and_redis(state, rates).await,
+            Err(error) => {
+                logger::error!(forex_error=?error,"primary_forex_error");
+                // API not able to fetch data call secondary service
+                let secondary_api_rates = fetch_forex_rates_from_fallback_api(state).await;
+                match secondary_api_rates {
+                    Ok(rates) => save_forex_data_to_cache_and_redis(state, rates).await,
+                    Err(error) => {
+                        release_redis_lock(state).await?;
+                        Err(error)
                     }
                 }
             }
         }
-        Err(error) => stale_redis_data.ok_or({
-            logger::error!(?error);
-            ForexCacheError::ApiUnresponsive.into()
-        }),
     }
 }
 
-async fn successive_save_data_to_redis_local(
+async fn save_forex_data_to_cache_and_redis(
     state: &SessionState,
     forex: FxExchangeRatesCacheEntry,
-) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
-    Ok(save_forex_to_redis(state, &forex)
+) -> CustomResult<(), ForexCacheError> {
+    save_forex_data_to_redis(state, &forex)
         .await
-        .async_and_then(|_rates| async { release_redis_lock(state).await })
+        .async_and_then(|_rates| release_redis_lock(state))
         .await
-        .async_and_then(|_val| async { Ok(save_forex_to_local(forex.clone()).await) })
+        .async_and_then(|_val| save_forex_data_to_local_cache(forex.clone()))
         .await
-        .map_or_else(
-            |error| {
-                logger::error!(?error);
-                forex.clone()
-            },
-            |_| forex.clone(),
-        ))
 }
 
-async fn fallback_forex_redis_check(
+async fn call_forex_api_if_redis_data_expired(
     state: &SessionState,
     redis_data: FxExchangeRatesCacheEntry,
     call_delay: i64,
@@ -276,57 +268,30 @@ async fn fallback_forex_redis_check(
         Some(redis_forex) => {
             // Valid data present in redis
             let exchange_rates = FxExchangeRatesCacheEntry::new(redis_forex.as_ref().clone());
-            save_forex_to_local(exchange_rates.clone()).await?;
+            logger::debug!("forex_log: forex response found in redis");
+            save_forex_data_to_local_cache(exchange_rates.clone()).await?;
             Ok(exchange_rates)
         }
         None => {
             // redis expired
-            successive_fetch_and_save_forex(state, Some(redis_data)).await
+            call_forex_api_and_save_data_to_cache_and_redis(state, Some(redis_data)).await
         }
     }
 }
 
-async fn handler_local_expired(
-    state: &SessionState,
-    call_delay: i64,
-    local_rates: FxExchangeRatesCacheEntry,
-) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
-    match retrieve_forex_from_redis(state).await {
-        Ok(redis_data) => {
-            match is_redis_expired(redis_data.as_ref(), call_delay).await {
-                Some(redis_forex) => {
-                    // Valid data present in redis
-                    let exchange_rates =
-                        FxExchangeRatesCacheEntry::new(redis_forex.as_ref().clone());
-                    save_forex_to_local(exchange_rates.clone()).await?;
-                    Ok(exchange_rates)
-                }
-                None => {
-                    // Redis is expired going for API request
-                    successive_fetch_and_save_forex(state, Some(local_rates)).await
-                }
-            }
-        }
-        Err(error) => {
-            //  data  not present in redis waited fetch
-            logger::error!(?error);
-            successive_fetch_and_save_forex(state, Some(local_rates)).await
-        }
-    }
-}
-
-async fn fetch_forex_rates(
+async fn fetch_forex_rates_from_primary_api(
     state: &SessionState,
 ) -> Result<FxExchangeRatesCacheEntry, error_stack::Report<ForexCacheError>> {
     let forex_api_key = state.conf.forex_api.get_inner().api_key.peek();
 
+    logger::debug!("forex_log: Primary api call for forex fetch");
     let forex_url: String = format!("{}{}{}", FOREX_BASE_URL, forex_api_key, FOREX_BASE_CURRENCY);
     let forex_request = services::RequestBuilder::new()
         .method(services::Method::Get)
         .url(&forex_url)
         .build();
 
-    logger::info!(?forex_request);
+    logger::info!(primary_forex_request=?forex_request,"forex_log: Primary api call for forex fetch");
     let response = state
         .api_client
         .send_request(
@@ -336,13 +301,17 @@ async fn fetch_forex_rates(
             false,
         )
         .await
-        .change_context(ForexCacheError::ApiUnresponsive)?;
+        .change_context(ForexCacheError::ApiUnresponsive)
+        .attach_printable("Primary forex fetch api unresponsive")?;
     let forex_response = response
         .json::<ForexResponse>()
         .await
-        .change_context(ForexCacheError::ParsingError)?;
+        .change_context(ForexCacheError::ParsingError)
+        .attach_printable(
+            "Unable to parse response received from primary api into ForexResponse",
+        )?;
 
-    logger::info!("{:?}", forex_response);
+    logger::info!(primary_forex_response=?forex_response,"forex_log");
 
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
@@ -351,7 +320,10 @@ async fn fetch_forex_rates(
                 let from_factor = match Decimal::new(1, 0).checked_div(**rate) {
                     Some(rate) => rate,
                     None => {
-                        logger::error!("Rates for {} not received from API", &enum_curr);
+                        logger::error!(
+                            "forex_error: Rates for {} not received from API",
+                            &enum_curr
+                        );
                         continue;
                     }
                 };
@@ -359,7 +331,10 @@ async fn fetch_forex_rates(
                 conversions.insert(enum_curr, currency_factors);
             }
             None => {
-                logger::error!("Rates for {} not received from API", &enum_curr);
+                logger::error!(
+                    "forex_error: Rates for {} not received from API",
+                    &enum_curr
+                );
             }
         };
     }
@@ -370,7 +345,7 @@ async fn fetch_forex_rates(
     )))
 }
 
-pub async fn fallback_fetch_forex_rates(
+pub async fn fetch_forex_rates_from_fallback_api(
     state: &SessionState,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     let fallback_forex_api_key = state.conf.forex_api.get_inner().fallback_api_key.peek();
@@ -382,7 +357,7 @@ pub async fn fallback_fetch_forex_rates(
         .url(&fallback_forex_url)
         .build();
 
-    logger::info!(?fallback_forex_request);
+    logger::info!(fallback_forex_request=?fallback_forex_request,"forex_log: Fallback api call for forex fetch");
     let response = state
         .api_client
         .send_request(
@@ -392,13 +367,19 @@ pub async fn fallback_fetch_forex_rates(
             false,
         )
         .await
-        .change_context(ForexCacheError::ApiUnresponsive)?;
+        .change_context(ForexCacheError::ApiUnresponsive)
+        .attach_printable("Fallback forex fetch api unresponsive")?;
+
     let fallback_forex_response = response
         .json::<FallbackForexResponse>()
         .await
-        .change_context(ForexCacheError::ParsingError)?;
+        .change_context(ForexCacheError::ParsingError)
+        .attach_printable(
+            "Unable to parse response received from falback api into ForexResponse",
+        )?;
 
-    logger::info!("{:?}", fallback_forex_response);
+    logger::info!(fallback_forex_response=?fallback_forex_response,"forex_log");
+
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match fallback_forex_response.quotes.get(
@@ -413,7 +394,10 @@ pub async fn fallback_fetch_forex_rates(
                 let from_factor = match Decimal::new(1, 0).checked_div(**rate) {
                     Some(rate) => rate,
                     None => {
-                        logger::error!("Rates for {} not received from API", &enum_curr);
+                        logger::error!(
+                            "forex_error: Rates for {} not received from API",
+                            &enum_curr
+                        );
                         continue;
                     }
                 };
@@ -421,7 +405,16 @@ pub async fn fallback_fetch_forex_rates(
                 conversions.insert(enum_curr, currency_factors);
             }
             None => {
-                logger::error!("Rates for {} not received from API", &enum_curr);
+                if enum_curr == enums::Currency::USD {
+                    let currency_factors =
+                        CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
+                    conversions.insert(enum_curr, currency_factors);
+                } else {
+                    logger::error!(
+                        "forex_error: Rates for {} not received from API",
+                        &enum_curr
+                    );
+                }
             }
         };
     }
@@ -429,71 +422,76 @@ pub async fn fallback_fetch_forex_rates(
     let rates =
         FxExchangeRatesCacheEntry::new(ExchangeRates::new(enums::Currency::USD, conversions));
     match acquire_redis_lock(state).await {
-        Ok(_) => Ok(successive_save_data_to_redis_local(state, rates).await?),
-        Err(e) => {
-            logger::error!(?e);
+        Ok(_) => {
+            save_forex_data_to_cache_and_redis(state, rates.clone()).await?;
             Ok(rates)
         }
+        Err(e) => Err(e),
     }
 }
 
 async fn release_redis_lock(
     state: &SessionState,
 ) -> Result<DelReply, error_stack::Report<ForexCacheError>> {
+    logger::debug!("forex_log: Releasing redis lock");
     state
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .delete_key(REDIX_FOREX_CACHE_KEY)
+        .delete_key(&REDIX_FOREX_CACHE_KEY.into())
         .await
         .change_context(ForexCacheError::RedisLockReleaseFailed)
+        .attach_printable("Unable to release redis lock")
 }
 
 async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCacheError> {
     let forex_api = state.conf.forex_api.get_inner();
+    logger::debug!("forex_log: Acquiring redis lock");
     state
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
         .set_key_if_not_exists_with_expiry(
-            REDIX_FOREX_CACHE_KEY,
+            &REDIX_FOREX_CACHE_KEY.into(),
             "",
             Some(
-                i64::try_from(
-                    forex_api.local_fetch_retry_count * forex_api.local_fetch_retry_delay
-                        + forex_api.api_timeout,
-                )
-                .change_context(ForexCacheError::ConversionError)?,
+                i64::try_from(forex_api.redis_lock_timeout)
+                    .change_context(ForexCacheError::ConversionError)?,
             ),
         )
         .await
         .map(|val| matches!(val, redis_interface::SetnxReply::KeySet))
         .change_context(ForexCacheError::CouldNotAcquireLock)
+        .attach_printable("Unable to acquire redis lock")
 }
 
-async fn save_forex_to_redis(
+async fn save_forex_data_to_redis(
     app_state: &SessionState,
     forex_exchange_cache_entry: &FxExchangeRatesCacheEntry,
 ) -> CustomResult<(), ForexCacheError> {
+    logger::debug!("forex_log: Saving forex to redis");
     app_state
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .serialize_and_set_key(REDIX_FOREX_CACHE_DATA, forex_exchange_cache_entry)
+        .serialize_and_set_key(&REDIX_FOREX_CACHE_DATA.into(), forex_exchange_cache_entry)
         .await
         .change_context(ForexCacheError::RedisWriteError)
+        .attach_printable("Unable to save forex data to redis")
 }
 
-async fn retrieve_forex_from_redis(
+async fn retrieve_forex_data_from_redis(
     app_state: &SessionState,
 ) -> CustomResult<Option<FxExchangeRatesCacheEntry>, ForexCacheError> {
+    logger::debug!("forex_log: Retrieving forex from redis");
     app_state
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .get_and_deserialize_key(REDIX_FOREX_CACHE_DATA, "FxExchangeRatesCache")
+        .get_and_deserialize_key(&REDIX_FOREX_CACHE_DATA.into(), "FxExchangeRatesCache")
         .await
         .change_context(ForexCacheError::EntryNotFound)
+        .attach_printable("Forex entry not found in redis")
 }
 
 async fn is_redis_expired(
@@ -504,11 +502,13 @@ async fn is_redis_expired(
         if cache.timestamp + call_delay > date_time::now_unix_timestamp() {
             Some(cache.data.clone())
         } else {
+            logger::debug!("forex_log: Forex stored in redis is expired");
             None
         }
     })
 }
 
+#[instrument(skip_all)]
 pub async fn convert_currency(
     state: SessionState,
     amount: i64,
@@ -516,24 +516,22 @@ pub async fn convert_currency(
     from_currency: String,
 ) -> CustomResult<api_models::currency::CurrencyConversionResponse, ForexCacheError> {
     let forex_api = state.conf.forex_api.get_inner();
-    let rates = get_forex_rates(
-        &state,
-        forex_api.call_delay,
-        forex_api.local_fetch_retry_delay,
-        forex_api.local_fetch_retry_count,
-    )
-    .await
-    .change_context(ForexCacheError::ApiError)?;
+    let rates = get_forex_rates(&state, forex_api.call_delay)
+        .await
+        .change_context(ForexCacheError::ApiError)?;
 
     let to_currency = enums::Currency::from_str(to_currency.as_str())
-        .change_context(ForexCacheError::CurrencyNotAcceptable)?;
+        .change_context(ForexCacheError::CurrencyNotAcceptable)
+        .attach_printable("The provided currency is not acceptable")?;
 
     let from_currency = enums::Currency::from_str(from_currency.as_str())
-        .change_context(ForexCacheError::CurrencyNotAcceptable)?;
+        .change_context(ForexCacheError::CurrencyNotAcceptable)
+        .attach_printable("The provided currency is not acceptable")?;
 
     let converted_amount =
         currency_conversion::conversion::convert(&rates.data, from_currency, to_currency, amount)
-            .change_context(ForexCacheError::ConversionError)?;
+            .change_context(ForexCacheError::ConversionError)
+            .attach_printable("Unable to perform currency conversion")?;
 
     Ok(api_models::currency::CurrencyConversionResponse {
         converted_amount: converted_amount.to_string(),

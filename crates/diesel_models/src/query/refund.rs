@@ -107,7 +107,7 @@ impl Refund {
 
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<

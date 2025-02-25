@@ -17,6 +17,7 @@ pub struct UserAuthenticationMethod {
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub email_domain: String,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -32,6 +33,7 @@ pub struct UserAuthenticationMethodNew {
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub email_domain: String,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -40,12 +42,16 @@ pub struct OrgAuthenticationMethodUpdateInternal {
     pub private_config: Option<Encryption>,
     pub public_config: Option<serde_json::Value>,
     pub last_modified_at: PrimitiveDateTime,
+    pub email_domain: Option<String>,
 }
 
 pub enum UserAuthenticationMethodUpdate {
     UpdateConfig {
         private_config: Option<Encryption>,
         public_config: Option<serde_json::Value>,
+    },
+    EmailDomain {
+        email_domain: String,
     },
 }
 
@@ -60,6 +66,13 @@ impl From<UserAuthenticationMethodUpdate> for OrgAuthenticationMethodUpdateInter
                 private_config,
                 public_config,
                 last_modified_at,
+                email_domain: None,
+            },
+            UserAuthenticationMethodUpdate::EmailDomain { email_domain } => Self {
+                private_config: None,
+                public_config: None,
+                last_modified_at,
+                email_domain: Some(email_domain),
             },
         }
     }

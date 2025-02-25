@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::{
@@ -8,6 +7,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -27,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -37,7 +37,6 @@ use crate::{
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
-
 const ADYEN_API_VERSION: &str = "v68";
 
 #[derive(Clone)]
@@ -52,16 +51,13 @@ impl Adyen {
         }
     }
 }
-
 impl ConnectorCommon for Adyen {
     fn id(&self) -> &'static str {
         "adyen"
     }
-
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Minor
     }
-
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
@@ -102,9 +98,10 @@ impl ConnectorCommon for Adyen {
 }
 
 impl ConnectorValidation for Adyen {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<storage_enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -124,6 +121,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple => Ok(()),
                     enums::CaptureMethod::Scheduled => {
@@ -135,13 +133,17 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::Ach
+                | PaymentMethodType::SamsungPay
+                | PaymentMethodType::Paze
                 | PaymentMethodType::Alma
                 | PaymentMethodType::Bacs
                 | PaymentMethodType::Givex
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
                 | PaymentMethodType::Walley => match capture_method {
-                    enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+                    enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::SequentialAutomatic => Ok(()),
                     enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
                         capture_method_not_supported!(
                             connector,
@@ -190,8 +192,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Alfamart
                 | PaymentMethodType::Indomaret
                 | PaymentMethodType::FamilyMart
-                | PaymentMethodType::Sofort
-                | PaymentMethodType::Giropay
                 | PaymentMethodType::Seicomart
                 | PaymentMethodType::PayEasy
                 | PaymentMethodType::MiniStop
@@ -200,7 +200,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBankingUk
                 | PaymentMethodType::OnlineBankingCzechRepublic
                 | PaymentMethodType::PermataBankTransfer => match capture_method {
-                    enums::CaptureMethod::Automatic => Ok(()),
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                        Ok(())
+                    }
                     enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple
                     | enums::CaptureMethod::Scheduled => {
@@ -211,7 +213,9 @@ impl ConnectorValidation for Adyen {
                         )
                     }
                 },
-                PaymentMethodType::CardRedirect
+                PaymentMethodType::AmazonPay
+                | PaymentMethodType::CardRedirect
+                | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
                 | PaymentMethodType::DuitNow
                 | PaymentMethodType::Interac
@@ -222,12 +226,13 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
+                | PaymentMethodType::Giropay
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::PromptPay
                 | PaymentMethodType::RedCompra
                 | PaymentMethodType::RedPagos
+                | PaymentMethodType::Sofort
                 | PaymentMethodType::CryptoCurrency
-                | PaymentMethodType::SamsungPay
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect
@@ -241,6 +246,7 @@ impl ConnectorValidation for Adyen {
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::SequentialAutomatic
                 | enums::CaptureMethod::Manual
                 | enums::CaptureMethod::ManualMultiple => Ok(()),
                 enums::CaptureMethod::Scheduled => {
@@ -268,9 +274,7 @@ impl ConnectorValidation for Adyen {
             PaymentMethodDataType::VippsRedirect,
             PaymentMethodDataType::KlarnaRedirect,
             PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::Sofort,
             PaymentMethodDataType::OpenBankingUk,
-            PaymentMethodDataType::Giropay,
             PaymentMethodDataType::Trustly,
             PaymentMethodDataType::BancontactCard,
             PaymentMethodDataType::AchBankDebit,
@@ -996,7 +1000,7 @@ impl
                     reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(response.psp_reference),
                 }),
                 ..data.clone()
             })
@@ -1151,7 +1155,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.secondary_base_url.as_str(),
+            connectors.adyen.payout_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -1255,7 +1259,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.secondary_base_url.as_str(),
+            connectors.adyen.payout_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -1471,7 +1475,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.secondary_base_url.as_str(),
+            connectors.adyen.payout_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -1883,6 +1887,7 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_api_response(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::TextPlain(
@@ -1898,7 +1903,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: notif.amount.value.to_string(),
-            currency: notif.amount.currency.to_string(),
+            currency: notif.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
             connector_dispute_id: notif.psp_reference,
             connector_reason: notif.reason,
@@ -1909,4 +1914,382 @@ impl api::IncomingWebhook for Adyen {
             updated_at: notif.event_date,
         })
     }
+
+    fn get_mandate_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let mandate_reference =
+            notif
+                .additional_data
+                .recurring_detail_reference
+                .map(|mandate_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
+                        connector_mandate_id: mandate_id.clone(),
+                    }
+                });
+        Ok(mandate_reference)
+    }
+
+    fn get_network_txn_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let optional_network_txn_id =
+            notif
+                .additional_data
+                .network_tx_reference
+                .map(|network_txn_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId::new(
+                        network_txn_id,
+                    )
+                });
+        Ok(optional_network_txn_id)
+    }
 }
+
+impl api::Dispute for Adyen {}
+impl api::DefendDispute for Adyen {}
+impl api::AcceptDispute for Adyen {}
+impl api::SubmitEvidence for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::Accept,
+        types::AcceptDisputeRequestData,
+        types::AcceptDisputeResponse,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::AcceptDisputeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.dispute_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}ca/services/DisputeService/v30/acceptDispute",
+            endpoint
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::AcceptDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::AcceptDisputeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::AcceptDisputeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = adyen::AdyenAcceptDisputeRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::AcceptDisputeRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: types::Response,
+    ) -> CustomResult<types::AcceptDisputeRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    services::ConnectorIntegration<
+        api::Defend,
+        types::DefendDisputeRequestData,
+        types::DefendDisputeResponse,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::DefendDisputeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.dispute_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}ca/services/DisputeService/v30/defendDispute",
+            endpoint
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::DefendDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::DefendDisputeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::DefendDisputeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = adyen::AdyenDefendDisputeRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::DefendDisputeRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: types::Response,
+    ) -> CustomResult<types::DefendDisputeRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    services::ConnectorIntegration<
+        api::Evidence,
+        types::SubmitEvidenceRequestData,
+        types::SubmitEvidenceResponse,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::SubmitEvidenceType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.dispute_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}ca/services/DisputeService/v30/supplyDefenseDocument",
+            endpoint
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = adyen::Evidence::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::SubmitEvidenceType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::SubmitEvidenceType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::SubmitEvidenceType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SubmitEvidenceRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: types::Response,
+    ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+impl api::UploadFile for Adyen {}
+impl api::RetrieveFile for Adyen {}
+impl
+    services::ConnectorIntegration<
+        api::Retrieve,
+        types::RetrieveFileRequestData,
+        types::RetrieveFileResponse,
+    > for Adyen
+{
+}
+impl
+    services::ConnectorIntegration<
+        api::Upload,
+        types::UploadFileRequestData,
+        types::UploadFileResponse,
+    > for Adyen
+{
+}
+#[async_trait::async_trait]
+impl api::FileUpload for Adyen {
+    fn validate_file_upload(
+        &self,
+        purpose: api::FilePurpose,
+        file_size: i32,
+        file_type: mime::Mime,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match purpose {
+            api::FilePurpose::DisputeEvidence => {
+                let supported_file_types =
+                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                    })?
+                }
+                //10 MB
+                if (file_type.to_string().as_str() == "image/jpeg"
+                    || file_type.to_string().as_str() == "image/jpg"
+                    || file_type.to_string().as_str() == "image/png")
+                    && file_size > 10000000
+                {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 10MB for Image formats"
+                            .to_owned(),
+                    })?
+                }
+                //2 MB
+                if file_type.to_string().as_str() == "application/pdf" && file_size > 2000000 {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 2MB for PDF formats"
+                            .to_owned(),
+                    })?
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl ConnectorSpecifications for Adyen {}

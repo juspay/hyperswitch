@@ -2,18 +2,14 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
 };
-use common_utils::consts;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-#[cfg(feature = "olap")]
-use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
-    headers::ACCEPT_LANGUAGE,
     services::{
         api,
-        authentication::{self as auth, get_header_value_by_key},
+        authentication::{self as auth},
         authorization::permissions::Permission,
     },
     types::api::payouts as payout_types,
@@ -27,24 +23,22 @@ pub async fn payouts_create(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), req.headers())
-        .ok()
-        .flatten()
-        .map(|val| val.to_string())
-        .unwrap_or(consts::DEFAULT_LOCALE.to_string());
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
-            payouts_create_core(state, auth.merchant_account, auth.key_store, req, &locale)
+        |state, auth: auth::AuthenticationData, req, _| {
+            payouts_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[cfg(all(feature = "v1", feature = "payouts"))]
 /// Payouts - Retrieve
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
 pub async fn payouts_retrieve(
@@ -59,12 +53,13 @@ pub async fn payouts_retrieve(
         merchant_id: query_params.merchant_id.to_owned(),
     };
     let flow = Flow::PayoutsRetrieve;
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payout_retrieve_request,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_retrieve_core(
                 state,
                 auth.merchant_account,
@@ -75,7 +70,9 @@ pub async fn payouts_retrieve(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -99,7 +96,7 @@ pub async fn payouts_update(
         state,
         &req,
         payout_update_payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_update_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -158,7 +155,7 @@ pub async fn payouts_cancel(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_cancel_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -183,7 +180,7 @@ pub async fn payouts_fulfill(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -208,12 +205,51 @@ pub async fn payouts_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPayoutRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - List Profile
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Query<payout_types::PayoutListConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payouts_list_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.key_store,
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -237,12 +273,14 @@ pub async fn payouts_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPayoutRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -250,13 +288,50 @@ pub async fn payouts_list_by_filter(
     .await
 }
 
-/// Payouts - Available filters
-#[cfg(feature = "olap")]
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
-pub async fn payouts_list_available_filters(
+/// Payouts - Filtered list
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
+pub async fn payouts_list_by_filter_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_types::TimeRange>,
+    json_payload: web::Json<payout_types::PayoutListFilterConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payouts_filtered_list_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.key_store,
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Available filters for Merchant
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn payouts_list_available_filters_for_merchant(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
@@ -266,12 +341,50 @@ pub async fn payouts_list_available_filters(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
-            payouts_list_available_filters_core(state, auth.merchant_account, req)
+        |state, auth: auth::AuthenticationData, req, _| {
+            payouts_list_available_filters_core(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPayoutRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Available filters for Profile
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn payouts_list_available_filters_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsFilter;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payouts_list_available_filters_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

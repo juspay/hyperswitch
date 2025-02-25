@@ -1,4 +1,4 @@
-use std::{net::IpAddr, str::FromStr};
+use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
@@ -10,7 +10,8 @@ use diesel_models::{
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResult},
@@ -36,7 +37,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
             merchant_id,
             org_id,
             data_key: metadata_key,
-            data_value,
+            data_value: Secret::from(data_value),
             created_by: user_id.clone(),
             created_at: now,
             last_modified_by: user_id,
@@ -69,7 +70,7 @@ pub async fn insert_user_scoped_metadata_to_db(
             merchant_id,
             org_id,
             data_key: metadata_key,
-            data_value,
+            data_value: Secret::from(data_value),
             created_by: user_id.clone(),
             created_at: now,
             last_modified_by: user_id,
@@ -142,7 +143,7 @@ pub async fn update_merchant_scoped_metadata(
             metadata_key,
             DashboardMetadataUpdate::UpdateData {
                 data_key: metadata_key,
-                data_value,
+                data_value: Secret::from(data_value),
                 last_modified_by: user_id,
             },
         )
@@ -170,7 +171,7 @@ pub async fn update_user_scoped_metadata(
             metadata_key,
             DashboardMetadataUpdate::UpdateData {
                 data_key: metadata_key,
-                data_value,
+                data_value: Secret::from(data_value),
                 last_modified_by: user_id,
             },
         )
@@ -182,7 +183,7 @@ pub fn deserialize_to_response<T>(data: Option<&DashboardMetadata>) -> UserResul
 where
     T: serde::de::DeserializeOwned,
 {
-    data.map(|metadata| serde_json::from_value(metadata.data_value.clone()))
+    data.map(|metadata| serde_json::from_value(metadata.data_value.clone().expose()))
         .transpose()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Serializing Metadata from DB")
@@ -232,7 +233,7 @@ pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
     }
 }
 
-pub fn is_backfill_required(metadata_key: &DBEnum) -> bool {
+pub fn is_backfill_required(metadata_key: DBEnum) -> bool {
     matches!(
         metadata_key,
         DBEnum::StripeConnected | DBEnum::PaypalConnected
@@ -277,15 +278,24 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
     })
 }
 
-fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> bool {
-    value
-        .as_ref()
-        .map_or(false, |mail| !mail.contains(value_to_be_checked))
+fn not_contains_string(value: Option<&str>, value_to_be_checked: &str) -> bool {
+    value.is_some_and(|mail| !mail.contains(value_to_be_checked))
 }
 
 pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
-    not_contains_string(&data.poc_email, "juspay")
-        && not_contains_string(&data.business_website, "juspay")
-        && not_contains_string(&data.business_website, "hyperswitch")
-        && not_contains_string(&Some(user_email), "juspay")
+    let poc_email_check = not_contains_string(
+        data.poc_email.as_ref().map(|email| email.peek().as_str()),
+        "juspay",
+    );
+    let business_website_check = not_contains_string(data.business_website.as_deref(), "juspay")
+        && not_contains_string(data.business_website.as_deref(), "hyperswitch");
+    let user_email_check = not_contains_string(Some(&user_email), "juspay");
+
+    if (poc_email_check && business_website_check && user_email_check).not() {
+        logger::info!(prod_intent_email = poc_email_check);
+        logger::info!(prod_intent_email = business_website_check);
+        logger::info!(prod_intent_email = user_email_check);
+    }
+
+    poc_email_check && business_website_check && user_email_check
 }

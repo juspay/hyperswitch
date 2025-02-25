@@ -2,8 +2,14 @@
 title: Error Codes
 ---
 
-Hyperswitch uses Error codes, types, and messages to communicate errors during API calls. There are three types of error codes:
+Hyperswitch uses error codes, types, and messages to communicate errors during API calls. There are two main types of error codes: Error Codes and Unified Error Codes.
+1. **Error Codes** refer to the error code sent by the connector.
+2. **Unified Error Codes** refer to the generic error code sent by the Hyperswitch server, based on the connector's error code. Hyperswitch groups the different error codes from connectors into more generic Unified Error Codes for structured relay of PSP errors, helping merchants derive patterns and determine the next steps for ongoing transactions.
 
+There are four types of Error Codes and five types of Unified Error Codes.
+
+**1. Error Codes:**
+The section below contains all the error codes and their corresponding error messages.
 | Error Code | Type                  | Description                                                  |
 | ---------- | --------------------- | ------------------------------------------------------------ |
 | IR         | Invalid Request Error | Error caused due to invalid fields and values in API request |
@@ -31,7 +37,7 @@ Hyperswitch uses Error codes, types, and messages to communicate errors during A
 | IR_15       | 400                                   | invalid_request_error | Invalid Ephemeral Key for the customer                                                                                                                              | Please pass the right Ephemeral key for the customer                                                                                                                                 |
 | IR_16       | 400                                   | invalid_request_error | “message”                                                                                                                                                           | Typically used when information involving multiple fields or previously provided information doesn’t satisfy a condition. Refer to our API documentation for required fields and format |
 | IR_17       | 401                                   | invalid_request_error | Access forbidden, an invalid JWT token was used                                                                                                                     | Provide a valid JWT token to access the APIs                                                                                                                                  |
-| IR_18       | 401                                      | invalid_request_error | "message"                                                                                                                                                           | The user is not authorised to update the customer, Contact Org. Admin for the appropriate access.                                                                                                                 |
+| IR_18       | 401                                   | invalid_request_error | "message"                                                                                                                                                           | The user is not authorised to update the customer, Contact Org. Admin for the appropriate access.                                                                                                                 |
 | IR_19       | 400                                      | invalid_request_error | "message"                                                                                                                                                           | Please check and retry with correct details. Refer to our API documentation                                                                                                                                                                                           |
 | IR_20       | 400                                      | invalid_request_error | "flow" not supported by the "connector"                                                                                                                             | Requested flow is not supported for this Connector.                                                                                                                              |
 | IR_21       | 400                                      | invalid_request_error | Missing required params                                                                                                                                             | Please add the required params in the request. Refer to our API documentation                                                                                                                             |
@@ -75,3 +81,15 @@ Hyperswitch uses Error codes, types, and messages to communicate errors during A
 | WE_04       | 404                                   | object_not_found        | Webhook resource not found                                                                                                                                 | Ensure the webhook URL is correct and the resource exists.                                                                          |
 | WE_05       | 400                                   | invalid_request_error     | Unable to process the webhook body                                                                                                                         | Ensure the webhook body is correctly formatted and try again.                                                                       |
 | WE_06       | 400                                   | invalid_request_error   | Merchant Secret set by merchant for webhook source verification is invalid                                                                                 | Verify the Merchant Secret, then try again.                                                              |
+
+
+**2. Unified Error codes:**
+The section below contains all the unified error codes and their corresponding error messages.
+
+| Unified Error Code | Unified Error Categorisation          | Unified Error message               |                                                                                                                                                                    
+| ------------------ | ------------------------------------- | ----------------------------------- | 
+| UE_1000            | Customer Error                        | Issue with payment method details.  |  
+| UE_2000            | Connector Declines                    | Issue with Configurations.          |  
+| UE_3000            | Connector Error                       | Technical issue with PSP.           | 
+| UE_4000            | Integration Error                     | Issue in the integration.           | 
+| UE_9000            | Others                                | Something went wrong.               |

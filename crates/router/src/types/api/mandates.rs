@@ -32,6 +32,10 @@ pub(crate) trait MandateResponseExt: Sized {
     ) -> RouterResult<Self>;
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
@@ -42,12 +46,17 @@ impl MandateResponseExt for MandateResponse {
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
-            .find_payment_method(&mandate.payment_method_id, storage_scheme)
+            .find_payment_method(
+                &(state.into()),
+                &key_store,
+                &mandate.payment_method_id,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let pm = payment_method
-            .payment_method
+            .get_payment_method_type()
             .get_required_value("payment_method")
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("payment_method not found")?;
@@ -62,7 +71,7 @@ impl MandateResponseExt for MandateResponse {
                     payment_method
                         .locker_id
                         .as_ref()
-                        .unwrap_or(&payment_method.payment_method_id),
+                        .unwrap_or(payment_method.get_id()),
                 )
                 .await?;
 
@@ -73,7 +82,6 @@ impl MandateResponseExt for MandateResponse {
                 payment_methods::cards::get_card_details_without_locker_fallback(
                     &payment_method,
                     state,
-                    &key_store,
                 )
                 .await?
             };
@@ -83,7 +91,7 @@ impl MandateResponseExt for MandateResponse {
             None
         };
         let payment_method_type = payment_method
-            .payment_method_type
+            .get_payment_method_subtype()
             .map(|pmt| pmt.to_string());
         Ok(Self {
             mandate_id: mandate.mandate_id,
@@ -108,6 +116,23 @@ impl MandateResponseExt for MandateResponse {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+impl MandateResponseExt for MandateResponse {
+    async fn from_db_mandate(
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+        mandate: storage::Mandate,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> RouterResult<Self> {
+        todo!()
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {
@@ -123,6 +148,33 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
             card_issuer: card_details_from_locker.card_issuer,
             card_network: card_details_from_locker.card_network,
             card_type: card_details_from_locker.card_type,
+            nick_name: card_details_from_locker.nick_name,
+        }
+        .into()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
+    fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
+        mandates::MandateCardDetails {
+            last4_digits: card_details_from_locker.last4_digits,
+            card_exp_month: card_details_from_locker.expiry_month.clone(),
+            card_exp_year: card_details_from_locker.expiry_year.clone(),
+            card_holder_name: card_details_from_locker.card_holder_name,
+            card_token: None,
+            scheme: None,
+            issuer_country: card_details_from_locker
+                .issuer_country
+                .map(|country| country.to_string()),
+            card_fingerprint: card_details_from_locker.card_fingerprint,
+            card_isin: card_details_from_locker.card_isin,
+            card_issuer: card_details_from_locker.card_issuer,
+            card_network: card_details_from_locker.card_network,
+            card_type: card_details_from_locker
+                .card_type
+                .as_ref()
+                .map(|c| c.to_string()),
             nick_name: card_details_from_locker.nick_name,
         }
         .into()

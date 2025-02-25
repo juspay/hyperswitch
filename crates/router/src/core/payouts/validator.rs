@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
@@ -5,10 +7,17 @@ use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::payment_methods::PaymentMethod;
+use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
+))]
+use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -18,6 +27,7 @@ use crate::{
     routes::SessionState,
     types::{api::payouts, domain, storage},
     utils,
+    utils::OptionExt,
 };
 
 #[instrument(skip(db))]
@@ -44,10 +54,27 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn validate_create_request(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutCreateRequest,
+    _merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<(
+    String,
+    Option<payouts::PayoutMethodData>,
+    String,
+    Option<domain::Customer>,
+    Option<PaymentMethod>,
+)> {
+    todo!()
+}
+
 /// Validates the request on below checks
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn validate_create_request(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -56,8 +83,9 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    String,
+    common_utils::id_type::ProfileId,
     Option<domain::Customer>,
+    Option<PaymentMethod>,
 )> {
     let merchant_id = merchant_account.get_id();
 
@@ -119,12 +147,75 @@ pub async fn validate_create_request(
         None
     };
 
+    #[cfg(feature = "v1")]
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        &state.into(),
+        merchant_key_store,
+        req.business_country,
+        req.business_label.as_ref(),
+        merchant_account,
+        req.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await?;
+
+    #[cfg(feature = "v2")]
+    // Profile id will be mandatory in v2 in the request / headers
+    let profile_id = req
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .attach_printable("Profile id is a mandatory parameter")?;
+
+    let payment_method: Option<PaymentMethod> =
+        match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
+            (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Only one of payout_method_id or payout_token should be provided."
+                    .to_string(),
+            })),
+            (None, Some(payment_method_id)) => match customer.as_ref() {
+                Some(customer) => {
+                    let payment_method = db
+                        .find_payment_method(
+                            &state.into(),
+                            merchant_key_store,
+                            &payment_method_id,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        .attach_printable("Unable to find payment method")?;
+
+                    utils::when(payment_method.customer_id != customer.customer_id, || {
+                        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Payment method does not belong to this customer_id".to_string(),
+                    })
+                    .attach_printable(
+                        "customer_id in payment_method does not match with customer_id in request",
+                    ))
+                    })?;
+                    Ok(Some(payment_method))
+                }
+                None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_id when payment_method_id is passed",
+                })),
+            },
+            _ => Ok(None),
+        }?;
+
     // payout_token
-    let payout_method_data = match (req.payout_token.as_ref(), customer.as_ref()) {
-        (Some(_), None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+    let payout_method_data = match (
+        req.payout_token.as_ref(),
+        customer.as_ref(),
+        payment_method.as_ref(),
+    ) {
+        (Some(_), None, _) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "customer or customer_id when payout_token is provided"
         })),
-        (Some(payout_token), Some(customer)) => {
+        (Some(payout_token), Some(customer), _) => {
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
@@ -138,36 +229,45 @@ pub async fn validate_create_request(
             )
             .await
         }
+        (_, Some(_), Some(payment_method)) => {
+            match get_pm_list_context(
+                state,
+                payment_method
+                    .payment_method
+                    .as_ref()
+                    .get_required_value("payment_method_id")?,
+                merchant_key_store,
+                payment_method,
+                None,
+                false,
+            )
+            .await?
+            {
+                Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
+                    (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
+                        api_models::payouts::CardPayout {
+                            card_number: card.card_number.get_required_value("card_number")?,
+                            card_holder_name: card.card_holder_name,
+                            expiry_month: card.expiry_month.get_required_value("expiry_month")?,
+                            expiry_year: card.expiry_year.get_required_value("expiry_month")?,
+                        },
+                    ))),
+                    (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                    _ => Ok(None),
+                },
+                None => Ok(None),
+            }
+        }
         _ => Ok(None),
     }?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        &state.into(),
-        merchant_key_store,
-        req.business_country,
-        req.business_label.as_ref(),
-        merchant_account,
-        req.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await?;
-
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    // Profile id will be mandatory in v2 in the request / headers
-    let profile_id = req
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .attach_printable("Profile id is a mandatory parameter")?;
-
-    Ok((payout_id, payout_method_data, profile_id, customer))
+    Ok((
+        payout_id,
+        payout_method_data,
+        profile_id,
+        customer,
+        payment_method,
+    ))
 }
 
 pub fn validate_payout_link_request(
@@ -225,88 +325,105 @@ pub(super) fn validate_payout_list_request_for_joins(
     Ok(())
 }
 
-pub fn validate_payout_link_render_request(
+pub fn validate_payout_link_render_request_and_get_allowed_domains(
     request_headers: &header::HeaderMap,
     payout_link: &PayoutLink,
-) -> RouterResult<()> {
+) -> RouterResult<HashSet<String>> {
     let link_id = payout_link.link_id.to_owned();
     let link_data = payout_link.link_data.to_owned();
 
-    // Fetch destination is "iframe"
-    match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
-        Some("iframe") => Ok(()),
-        Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "payout_link".to_string(),
-        }))
-        .attach_printable_lazy(|| {
-            format!(
-                "Access to payout_link [{}] is forbidden when requested through {}",
-                link_id, requestor
-            )
-        }),
-        None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "payout_link".to_string(),
-        }))
-        .attach_printable_lazy(|| {
-            format!(
-                "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
-                link_id
-            )
-        }),
-    }?;
+    let is_test_mode_enabled = link_data.test_mode.unwrap_or(false);
 
-    // Validate origin / referer
-    let domain_in_req = {
-        let origin_or_referer = request_headers
-            .get("origin")
-            .or_else(|| request_headers.get("referer"))
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                report!(errors::ApiErrorResponse::AccessForbidden {
+    match (router_env_which(), is_test_mode_enabled) {
+        // Throw error in case test_mode was enabled in production
+        (Env::Production, true) => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
+            message: "test_mode cannot be true for rendering payout_links in production"
+                .to_string()
+        })),
+        // Skip all validations when test mode is enabled in non prod env
+        (_, true) => Ok(HashSet::new()),
+        // Otherwise, perform validations
+        (_, false) => {
+            // Fetch destination is "iframe"
+            match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
+                Some("iframe") => Ok(()),
+                Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
                     resource: "payout_link".to_string(),
-                })
-            })
-            .attach_printable_lazy(|| {
-                format!(
-                    "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
-                    link_id
-                )
-            })?;
-
-        let url = Url::parse(origin_or_referer)
-            .map_err(|_| {
-                report!(errors::ApiErrorResponse::AccessForbidden {
+                }))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Access to payout_link [{}] is forbidden when requested through {}",
+                        link_id, requestor
+                    )
+                }),
+                None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
                     resource: "payout_link".to_string(),
-                })
-            })
-            .attach_printable_lazy(|| {
-                format!("Invalid URL found in request headers {}", origin_or_referer)
-            })?;
+                }))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
+                        link_id
+                    )
+                }),
+            }?;
 
-        url.host_str()
-            .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
-            .or_else(|| url.host_str().map(String::from))
-            .ok_or_else(|| {
-                report!(errors::ApiErrorResponse::AccessForbidden {
+            // Validate origin / referer
+            let domain_in_req = {
+                let origin_or_referer = request_headers
+                    .get("origin")
+                    .or_else(|| request_headers.get("referer"))
+                    .and_then(|v| v.to_str().ok())
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::AccessForbidden {
+                            resource: "payout_link".to_string(),
+                        })
+                    })
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
+                            link_id
+                        )
+                    })?;
+
+                let url = Url::parse(origin_or_referer)
+                    .map_err(|_| {
+                        report!(errors::ApiErrorResponse::AccessForbidden {
+                            resource: "payout_link".to_string(),
+                        })
+                    })
+                    .attach_printable_lazy(|| {
+                        format!("Invalid URL found in request headers {}", origin_or_referer)
+                    })?;
+
+                url.host_str()
+                    .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
+                    .or_else(|| url.host_str().map(String::from))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::AccessForbidden {
+                            resource: "payout_link".to_string(),
+                        })
+                    })
+                    .attach_printable_lazy(|| {
+                        format!("host or port not found in request headers {:?}", url)
+                    })?
+            };
+
+            if validate_domain_against_allowed_domains(
+                &domain_in_req,
+                link_data.allowed_domains.clone(),
+            ) {
+                Ok(link_data.allowed_domains)
+            } else {
+                Err(report!(errors::ApiErrorResponse::AccessForbidden {
                     resource: "payout_link".to_string(),
+                }))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Access to payout_link [{}] is forbidden from requestor - {}",
+                        link_id, domain_in_req
+                    )
                 })
-            })
-            .attach_printable_lazy(|| {
-                format!("host or port not found in request headers {:?}", url)
-            })?
-    };
-
-    if validate_domain_against_allowed_domains(&domain_in_req, link_data.allowed_domains) {
-        Ok(())
-    } else {
-        Err(report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "payout_link".to_string(),
-        }))
-        .attach_printable_lazy(|| {
-            format!(
-                "Access to payout_link [{}] is forbidden from requestor - {}",
-                link_id, domain_in_req
-            )
-        })
+            }
+        }
     }
 }

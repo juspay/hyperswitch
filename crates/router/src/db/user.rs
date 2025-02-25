@@ -3,14 +3,14 @@ use error_stack::report;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::MockDb;
+use super::{domain, MockDb};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    pii,
     services::Store,
 };
 pub mod sample_data;
+pub mod theme;
 
 #[async_trait::async_trait]
 pub trait UserInterface {
@@ -21,7 +21,7 @@ pub trait UserInterface {
 
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn find_user_by_id(
@@ -37,7 +37,7 @@ pub trait UserInterface {
 
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
@@ -69,10 +69,10 @@ impl UserInterface for Store {
     #[instrument(skip_all)]
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_by_user_email(&conn, user_email)
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::find_by_user_email(&conn, user_email.get_inner())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -82,7 +82,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -103,11 +103,11 @@ impl UserInterface for Store {
     #[instrument(skip_all)]
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::User::update_by_user_email(&conn, user_email, user)
+        storage::User::update_by_user_email(&conn, user_email.get_inner(), user)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -127,7 +127,7 @@ impl UserInterface for Store {
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -159,7 +159,6 @@ impl UserInterface for MockDb {
             is_verified: user_data.is_verified,
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
-            preferred_merchant_id: user_data.preferred_merchant_id,
             totp_status: user_data.totp_status,
             totp_secret: user_data.totp_secret,
             totp_recovery_codes: user_data.totp_recovery_codes,
@@ -171,12 +170,12 @@ impl UserInterface for MockDb {
 
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let users = self.users.lock().await;
         users
             .iter()
-            .find(|user| user.email.eq(user_email))
+            .find(|user| user.email.eq(user_email.get_inner()))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -218,16 +217,9 @@ impl UserInterface for MockDb {
                         is_verified: true,
                         ..user.to_owned()
                     },
-                    storage::UserUpdate::AccountUpdate {
-                        name,
-                        is_verified,
-                        preferred_merchant_id,
-                    } => storage::User {
+                    storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
-                        preferred_merchant_id: preferred_merchant_id
-                            .clone()
-                            .or(user.preferred_merchant_id.clone()),
                         ..user.to_owned()
                     },
                     storage::UserUpdate::TotpUpdate {
@@ -260,29 +252,22 @@ impl UserInterface for MockDb {
 
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
         users
             .iter_mut()
-            .find(|user| user.email.eq(user_email))
+            .find(|user| user.email.eq(user_email.get_inner()))
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {
                         is_verified: true,
                         ..user.to_owned()
                     },
-                    storage::UserUpdate::AccountUpdate {
-                        name,
-                        is_verified,
-                        preferred_merchant_id,
-                    } => storage::User {
+                    storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
-                        preferred_merchant_id: preferred_merchant_id
-                            .clone()
-                            .or(user.preferred_merchant_id.clone()),
                         ..user.to_owned()
                     },
                     storage::UserUpdate::TotpUpdate {

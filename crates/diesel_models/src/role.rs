@@ -18,7 +18,9 @@ pub struct Role {
     pub created_by: String,
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
-    pub entity_type: Option<enums::EntityType>,
+    pub entity_type: enums::EntityType,
+    pub profile_id: Option<id_type::ProfileId>,
+    pub tenant_id: id_type::TenantId,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -35,7 +37,9 @@ pub struct RoleNew {
     pub created_by: String,
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
-    pub entity_type: Option<enums::EntityType>,
+    pub entity_type: enums::EntityType,
+    pub profile_id: Option<id_type::ProfileId>,
+    pub tenant_id: id_type::TenantId,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -72,4 +76,11 @@ impl From<RoleUpdate> for RoleUpdateInternal {
             },
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum ListRolesByEntityPayload {
+    Profile(id_type::MerchantId, id_type::ProfileId),
+    Merchant(id_type::MerchantId),
+    Organization,
 }

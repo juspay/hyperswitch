@@ -13,7 +13,7 @@ use crate::{
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -462,3 +462,5 @@ impl
     > for Netcetera
 {
 }
+
+impl ConnectorSpecifications for Netcetera {}

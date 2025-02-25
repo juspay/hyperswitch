@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails, OrderDetailsWithAmount};
-use common_utils::pii::Email;
+use common_utils::{pii::Email, types::MinorUnit};
+use diesel_models::types::OrderDetailsWithAmount;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, domain, storage::enums, PaymentAddress};
 
@@ -65,7 +66,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
-        return_url: None,
         connector_customer: None,
         payment_method_token: None,
         #[cfg(feature = "payouts")]
@@ -80,7 +80,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         order_details: Some(vec![OrderDetailsWithAmount {
             product_name: "iphone 13".to_string(),
             quantity: 1,
-            amount: 1000,
+            amount: MinorUnit::new(1000),
             product_img_link: None,
             requires_shipping: None,
             product_id: None,
@@ -88,6 +88,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             sub_category: None,
             brand: None,
             product_type: None,
+            product_tax_code: None,
+            tax_rate: None,
+            total_tax_amount: None,
         }]),
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -380,7 +383,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
-                    amount: 100,
+                    amount: MinorUnit::new(100),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -388,6 +391,9 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -419,7 +425,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
-                    amount: 100,
+                    amount: MinorUnit::new(100),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -427,6 +433,9 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -458,7 +467,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
-                    amount: 100,
+                    amount: MinorUnit::new(100),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -466,6 +475,9 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),

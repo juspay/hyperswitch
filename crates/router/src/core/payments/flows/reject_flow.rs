@@ -15,6 +15,7 @@ use crate::{
 impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::PaymentsResponseData>
     for PaymentData<api::Reject>
 {
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -24,6 +25,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsRejectRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Reject,
@@ -37,8 +39,24 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
             customer,
             merchant_connector_account,
             merchant_recipient_data,
+            header_payload,
         ))
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsRejectRouterData> {
+        todo!()
     }
 
     async fn get_merchant_recipient_data<'a>(
@@ -63,8 +81,8 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
-        _business_profile: &domain::BusinessProfile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _business_profile: &domain::Profile,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),
@@ -77,7 +95,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
-        creds_identifier: Option<&String>,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await

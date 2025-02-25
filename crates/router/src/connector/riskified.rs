@@ -1,8 +1,10 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
 use base64::Engine;
+use common_utils::types::{
+    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+};
 #[cfg(feature = "frm")]
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 #[cfg(feature = "frm")]
@@ -14,12 +16,13 @@ use ring::hmac;
 #[cfg(feature = "frm")]
 use transformers as riskified;
 
+use super::utils::convert_amount;
 #[cfg(feature = "frm")]
 use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    services::{self, ConnectorIntegration, ConnectorValidation},
+    services::{self, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -35,10 +38,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Riskified;
+#[derive(Clone)]
+pub struct Riskified {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
 
 impl Riskified {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+
     #[cfg(feature = "frm")]
     pub fn generate_authorization_signature(
         &self,
@@ -173,7 +184,17 @@ impl
         req: &frm_types::FrmCheckoutRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = riskified::RiskifiedPaymentsCheckoutRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.amount),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let req_data = riskified::RiskifiedRouterData::from((amount, req));
+        let req_obj = riskified::RiskifiedPaymentsCheckoutRequest::try_from(&req_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -293,7 +314,17 @@ impl
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
             _ => {
-                let req_obj = riskified::TransactionSuccessRequest::try_from(req)?;
+                let amount = convert_amount(
+                    self.amount_converter,
+                    MinorUnit::new(req.request.amount),
+                    req.request
+                        .currency
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "currency",
+                        })?,
+                )?;
+                let req_data = riskified::RiskifiedRouterData::from((amount, req));
+                let req_obj = riskified::TransactionSuccessRequest::try_from(&req_data)?;
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
         }
@@ -646,3 +677,5 @@ impl api::IncomingWebhook for Riskified {
         Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Riskified {}

@@ -1,4 +1,4 @@
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::print_stdout)]
 use std::sync::Arc;
 
 use router::{configs::settings::Settings, routes, services};
@@ -18,7 +18,11 @@ async fn invalidate_existing_cache_success() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
         .unwrap();
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();
@@ -26,7 +30,7 @@ async fn invalidate_existing_cache_success() {
         .store
         .get_redis_conn()
         .unwrap()
-        .set_key(&cache_key.clone(), cache_key_value.clone())
+        .set_key(&cache_key.clone().into(), cache_key_value.clone())
         .await;
 
     let api_key = ("api-key", "test_admin");

@@ -45,7 +45,7 @@ for cluster_arn in $ALL_ELASTIC_CACHE; do
     if [[ $? -eq 0 ]]; then
         echo -n "Delete $cluster_id (Y/n)? "
         if yes_or_no; then
-            echo `aws elasticache delete-cache-cluster --region $REGION --cache-cluster-id $cluster_id`
+            echo "$(aws elasticache delete-cache-cluster --region $REGION --cache-cluster-id $cluster_id)"
         fi
     fi
 done
@@ -59,7 +59,7 @@ echo -n "Deleting ( $ALL_KEY_PAIRS ) key pairs? (Y/n)?"
 
 if yes_or_no; then
     for KEY_ID in $ALL_KEY_PAIRS; do
-        echo `aws ec2 delete-key-pair --key-pair-id $KEY_ID --region $REGION`
+        echo "$(aws ec2 delete-key-pair --key-pair-id $KEY_ID --region $REGION)"
     done
 fi
 
@@ -78,7 +78,7 @@ echo -n "Terminating ( $ALL_INSTANCES ) instances? (Y/n)?"
 
 if yes_or_no; then
     for INSTANCE_ID in $ALL_INSTANCES; do
-        echo `aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region $REGION`
+        echo "$(aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region $REGION)"
     done
 fi
 
@@ -105,15 +105,15 @@ for resource_id in $ALL_DB_RESOURCES; do
 
             echo -n "Create a snapshot before deleting ( $DB_INSTANCE_ID ) the database (Y/n)? "
             if yes_or_no; then
-                echo `aws rds delete-db-instance \
+                echo "$(aws rds delete-db-instance \
                     --db-instance-identifier $DB_INSTANCE_ID \
    --region $REGION \
-                    --final-db-snapshot-identifier hyperswitch-db-snapshot-`date +%s``
+                    --final-db-snapshot-identifier hyperswitch-db-snapshot-$(date +%s))"
             else
-                echo `aws rds delete-db-instance \
+                echo "$(aws rds delete-db-instance \
          --region $REGION \
                     --db-instance-identifier $DB_INSTANCE_ID \
-                    --skip-final-snapshot`
+                    --skip-final-snapshot)"
             fi
         fi
     fi

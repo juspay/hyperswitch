@@ -10,6 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::RefundMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
@@ -29,9 +30,9 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>
@@ -68,9 +69,7 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         time_range.set_filter_clause(&mut query_builder).switch()?;
 
@@ -78,7 +77,7 @@ where
             query_builder.add_group_by_clause(dim).switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .switch()?;
@@ -97,6 +96,9 @@ where
                         None,
                         i.connector.clone(),
                         i.refund_type.as_ref().map(|i| i.0.to_string()),
+                        i.profile_id.clone(),
+                        i.refund_reason.clone(),
+                        i.refund_error_message.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

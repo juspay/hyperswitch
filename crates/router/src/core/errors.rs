@@ -124,6 +124,8 @@ pub enum VaultError {
     SaveCardFailed,
     #[error("Failed to fetch card details from card vault")]
     FetchCardFailed,
+    #[error("Failed to delete card in card vault")]
+    DeleteCardFailed,
     #[error("Failed to encode card vault request")]
     RequestEncodingFailed,
     #[error("Failed to deserialize card vault response")]
@@ -146,6 +148,14 @@ pub enum VaultError {
     SavePaymentMethodFailed,
     #[error("Failed to generate fingerprint")]
     GenerateFingerprintFailed,
+    #[error("Failed to encrypt vault request")]
+    RequestEncryptionFailed,
+    #[error("Failed to decrypt vault response")]
+    ResponseDecryptionFailed,
+    #[error("Failed to call vault")]
+    VaultAPIError,
+    #[error("Failed while calling locker API")]
+    ApiError,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -222,6 +232,68 @@ pub enum ApplePayDecryptionError {
     KeyDeserializationFailed,
     #[error("Failed to Derive a shared secret key")]
     DerivingSharedSecretKeyFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PazeDecryptionError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum GooglePayDecryptionError {
+    #[error("Invalid expiration time")]
+    InvalidExpirationTime,
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Failed to deserialize input data")]
+    DeserializationFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+    #[error("Key deserialization failure")]
+    KeyDeserializationFailed,
+    #[error("Failed to derive a shared ephemeral key")]
+    DerivingSharedEphemeralKeyFailed,
+    #[error("Failed to derive a shared secret key")]
+    DerivingSharedSecretKeyFailed,
+    #[error("Failed to parse the tag")]
+    ParsingTagError,
+    #[error("HMAC verification failed")]
+    HmacVerificationFailed,
+    #[error("Failed to derive Elliptic Curve key")]
+    DerivingEcKeyFailed,
+    #[error("Failed to Derive Public key")]
+    DerivingPublicKeyFailed,
+    #[error("Failed to Derive Elliptic Curve group")]
+    DerivingEcGroupFailed,
+    #[error("Failed to allocate memory for big number")]
+    BigNumAllocationFailed,
+    #[error("Failed to get the ECDSA signature")]
+    EcdsaSignatureFailed,
+    #[error("Failed to verify the signature")]
+    SignatureVerificationFailed,
+    #[error("Invalid signature is provided")]
+    InvalidSignature,
+    #[error("Failed to parse the Signed Key")]
+    SignedKeyParsingFailure,
+    #[error("The Signed Key is expired")]
+    SignedKeyExpired,
+    #[error("Failed to parse the ECDSA signature")]
+    EcdsaSignatureParsingFailed,
+    #[error("Invalid intermediate signature is provided")]
+    InvalidIntermediateSignature,
+    #[error("Invalid protocol version")]
+    InvalidProtocolVersion,
+    #[error("Decrypted Token has expired")]
+    DecryptedTokenExpired,
+    #[error("Failed to parse the given value")]
+    ParsingFailed,
 }
 
 #[cfg(feature = "detailed_errors")]
@@ -308,6 +380,32 @@ pub enum RoutingError {
     VolumeSplitFailed,
     #[error("Unable to parse metadata")]
     MetadataParsingError,
+    #[error("Unable to retrieve success based routing config")]
+    SuccessBasedRoutingConfigError,
+    #[error("Params not found in success based routing config")]
+    SuccessBasedRoutingParamsNotFoundError,
+    #[error("Unable to calculate success based routing config from dynamic routing service")]
+    SuccessRateCalculationError,
+    #[error("Success rate client from dynamic routing gRPC service not initialized")]
+    SuccessRateClientInitializationError,
+    #[error("Unable to convert from '{from}' to '{to}'")]
+    GenericConversionError { from: String, to: String },
+    #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
+    InvalidSuccessBasedConnectorLabel(String),
+    #[error("unable to find '{field}'")]
+    GenericNotFoundError { field: String },
+    #[error("Unable to deserialize from '{from}' to '{to}'")]
+    DeserializationError { from: String, to: String },
+    #[error("Unable to retrieve contract based routing config")]
+    ContractBasedRoutingConfigError,
+    #[error("Params not found in contract based routing config")]
+    ContractBasedRoutingParamsNotFoundError,
+    #[error("Unable to calculate contract score from dynamic routing service")]
+    ContractScoreCalculationError,
+    #[error("contract routing client from dynamic routing gRPC service not initialized")]
+    ContractRoutingClientInitializationError,
+    #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
+    InvalidContractBasedConnectorLabel(String),
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -328,4 +426,39 @@ pub enum ConditionalConfigError {
     DslExecutionError,
     #[error("Error constructing the Input")]
     InputConstructionError,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum NetworkTokenizationError {
+    #[error("Failed to save network token in vault")]
+    SaveNetworkTokenFailed,
+    #[error("Failed to fetch network token details from vault")]
+    FetchNetworkTokenFailed,
+    #[error("Failed to encode network token vault request")]
+    RequestEncodingFailed,
+    #[error("Failed to deserialize network token service response")]
+    ResponseDeserializationFailed,
+    #[error("Failed to delete network token")]
+    DeleteNetworkTokenFailed,
+    #[error("Network token service not configured")]
+    NetworkTokenizationServiceNotConfigured,
+    #[error("Failed while calling Network Token Service API")]
+    ApiError,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Debug, thiserror::Error)]
+pub enum RevenueRecoveryError {
+    #[error("Failed to fetch payment intent")]
+    PaymentIntentFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptFetchFailed,
+    #[error("Failed to get revenue recovery invoice webhook")]
+    InvoiceWebhookProcessingFailed,
+    #[error("Failed to get revenue recovery invoice transaction")]
+    TransactionWebhookProcessingFailed,
+    #[error("Failed to create payment intent")]
+    PaymentIntentCreateFailed,
+    #[error("Source verification failed for billing connector")]
+    WebhookAuthenticationFailed,
 }

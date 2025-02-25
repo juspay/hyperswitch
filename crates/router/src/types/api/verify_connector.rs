@@ -29,6 +29,7 @@ impl VerifyConnectorData {
             amount: 1000,
             minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
+            order_tax_amount: None,
             currency: storage_enums::Currency::USD,
             metadata: None,
             mandate_id: None,
@@ -54,14 +55,17 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
-            charges: None,
+            split_payments: None,
             merchant_order_reference_id: None,
             integrity_object: None,
+            additional_payment_method_data: None,
+            shipping_cost: None,
         }
     }
 
     fn get_router_data<F, R1, R2>(
         &self,
+        state: &SessionState,
         request_data: R1,
         access_token: Option<types::AccessToken>,
     ) -> types::RouterData<F, R1, R2> {
@@ -75,10 +79,10 @@ impl VerifyConnectorData {
             connector: self.connector.id().to_string(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             test_mode: None,
-            return_url: None,
             attempt_id: attempt_id.clone(),
             description: None,
             customer_id: None,
+            tenant_id: state.tenant.tenant_id.clone(),
             merchant_id: common_utils::id_type::MerchantId::default(),
             reference_id: None,
             access_token,
@@ -97,9 +101,9 @@ impl VerifyConnectorData {
             payment_method_status: None,
             connector_request_reference_id: attempt_id,
             address: types::PaymentAddress::new(None, None, None, None),
-            payment_id: common_utils::generate_id_with_default_len(
-                consts::VERIFY_CONNECTOR_ID_PREFIX,
-            ),
+            payment_id: common_utils::id_type::PaymentId::default()
+                .get_string_repr()
+                .to_owned(),
             #[cfg(feature = "payouts")]
             payout_method_data: None,
             #[cfg(feature = "payouts")]
@@ -113,6 +117,11 @@ impl VerifyConnectorData {
             dispute_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
         }
     }
 }
@@ -125,7 +134,7 @@ pub trait VerifyConnector {
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
         let access_token = Self::get_access_token(state, connector_data.clone()).await?;
-        let router_data = connector_data.get_router_data(authorize_data, access_token);
+        let router_data = connector_data.get_router_data(state, authorize_data, access_token);
 
         let request = connector_data
             .connector

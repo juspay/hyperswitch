@@ -5,14 +5,9 @@ use api_models::{
     payments::{PaymentLinkData, PaymentLinkStatusWrap},
 };
 use common_utils::{
-    consts::{
-        DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
-        DEFAULT_TRANSACTION_DETAILS,
-    },
+    consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
     ext_traits::{OptionExt, ValueExt},
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
+    types::{AmountConvertor, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -21,18 +16,25 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
-use super::errors::{self, RouterResult, StorageErrorExt};
+use super::{
+    errors::{self, RouterResult, StorageErrorExt},
+    payments::helpers,
+};
 use crate::{
+    consts::{
+        self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+    },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
-    headers::ACCEPT_LANGUAGE,
     routes::SessionState,
-    services::{self, authentication::get_header_value_by_key},
+    services,
     types::{
         api::payment_link::PaymentLinkResponseExt,
         domain,
         storage::{enums as storage_enums, payment_link::PaymentLink},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -60,13 +62,24 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
 pub async fn form_payment_link_data(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
-    locale: Option<String>,
+    payment_id: common_utils::id_type::PaymentId,
+) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn form_payment_link_data(
+    state: &SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    merchant_id: common_utils::id_type::MerchantId,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
     let key_manager_state = &state.into();
@@ -109,8 +122,16 @@ pub async fn form_payment_link_data(
                 sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+                hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+                show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-                transaction_details: DEFAULT_TRANSACTION_DETAILS,
+                transaction_details: None,
+                background_image: None,
+                details_layout: None,
+                branding_visibility: None,
+                payment_button_text: None,
+                custom_message_for_card_terms: None,
+                payment_button_colour: None,
             }
         };
 
@@ -124,8 +145,8 @@ pub async fn form_payment_link_data(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_string(),
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
         })?;
 
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
@@ -164,7 +185,7 @@ pub async fn form_payment_link_data(
     let payment_link_status = check_payment_link_status(session_expiry);
 
     let is_terminal_state = check_payment_link_invalid_conditions(
-        &payment_intent.status,
+        payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
             storage_enums::IntentStatus::Failed,
@@ -220,8 +241,10 @@ pub async fn form_payment_link_data(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
-            locale: locale.clone(),
+            locale: Some(state.clone().locale),
             transaction_details: payment_link_config.transaction_details.clone(),
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         };
 
         return Ok((
@@ -247,8 +270,16 @@ pub async fn form_payment_link_data(
         merchant_description: payment_intent.description,
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
-        locale,
+        hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+        show_card_form_by_default: payment_link_config.show_card_form_by_default,
+        locale: Some(state.clone().locale),
         transaction_details: payment_link_config.transaction_details.clone(),
+        background_image: payment_link_config.background_image.clone(),
+        details_layout: payment_link_config.details_layout,
+        branding_visibility: payment_link_config.branding_visibility,
+        payment_button_text: payment_link_config.payment_button_text.clone(),
+        custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms.clone(),
+        payment_button_colour: payment_link_config.payment_button_colour.clone(),
     };
 
     Ok((
@@ -263,20 +294,12 @@ pub async fn initiate_secure_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
-    let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
-        &state,
-        merchant_account,
-        key_store,
-        merchant_id,
-        payment_id,
-        locale,
-    )
-    .await?;
+    let (payment_link, payment_link_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -304,7 +327,12 @@ pub async fn initiate_secure_payment_link_flow(
         PaymentLinkData::PaymentLinkDetails(link_details) => {
             let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
                 enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+                hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+                show_card_form_by_default: payment_link_config.show_card_form_by_default,
                 payment_link_details: *link_details.to_owned(),
+                payment_button_text: payment_link_config.payment_button_text,
+                custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms,
+                payment_button_colour: payment_link_config.payment_button_colour,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -362,20 +390,11 @@ pub async fn initiate_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
-    request_headers: &header::HeaderMap,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
-    let (_, payment_details, payment_link_config) = form_payment_link_data(
-        &state,
-        merchant_account,
-        key_store,
-        merchant_id,
-        payment_id,
-        locale,
-    )
-    .await?;
+    let (_, payment_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
@@ -529,7 +548,7 @@ fn validate_order_details(
                         .clone_from(&order.product_img_link)
                 };
                 order_details_amount_string.amount = required_conversion_type
-                    .convert(MinorUnit::new(order.amount), currency)
+                    .convert(order.amount, currency)
                     .change_context(errors::ApiErrorResponse::AmountConversionFailed {
                         amount_type: "StringMajorUnit",
                     })?;
@@ -562,18 +581,16 @@ pub fn get_payment_link_config_based_on_priority(
     default_domain_name: String,
     payment_link_config_id: Option<String>,
 ) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
-    let (domain_name, business_theme_configs, allowed_domains) =
+    let (domain_name, business_theme_configs, allowed_domains, branding_visibility) =
         if let Some(business_config) = business_link_config {
-            logger::info!(
-                "domain name set to custom domain https://{:?}",
-                business_config.domain_name
-            );
-
             (
                 business_config
                     .domain_name
                     .clone()
-                    .map(|d_name| format!("https://{}", d_name))
+                    .map(|d_name| {
+                        logger::info!("domain name set to custom domain https://{:?}", d_name);
+                        format!("https://{}", d_name)
+                    })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
                     .and_then(|id| {
@@ -584,12 +601,22 @@ pub fn get_payment_link_config_based_on_priority(
                     })
                     .or(business_config.default_config),
                 business_config.allowed_domains,
+                business_config.branding_visibility,
             )
         } else {
-            (default_domain_name, None, None)
+            (default_domain_name, None, None, None)
         };
 
-    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
+    let (
+        theme,
+        logo,
+        seller_name,
+        sdk_layout,
+        display_sdk_only,
+        enabled_saved_payment_method,
+        hide_card_nickname_field,
+        show_card_form_by_default,
+    ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -600,35 +627,49 @@ pub fn get_payment_link_config_based_on_priority(
         (
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
-        )
+        ),
+        (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
+        (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
     );
-    let payment_link_config = PaymentLinkConfig {
-        theme,
-        logo,
-        seller_name,
-        sdk_layout,
-        display_sdk_only,
-        enabled_saved_payment_method,
-        allowed_domains,
-        transaction_details: payment_create_link_config.and_then(|payment_link_config| {
-            payment_link_config
-                .theme_config
-                .transaction_details
-                .and_then(|transaction_details| {
-                    match serde_json::to_string(&transaction_details).change_context(
-                        errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "transaction_details",
-                        },
-                    ) {
-                        Ok(details) => Some(details),
-                        Err(err) => {
-                            logger::error!("Failed to serialize transaction details: {:?}", err);
-                            None
-                        }
-                    }
-                })
-        }),
-    };
+
+    let (
+        details_layout,
+        background_image,
+        payment_button_text,
+        custom_message_for_card_terms,
+        payment_button_colour,
+    ) = get_payment_link_config_value!(
+        payment_create_link_config,
+        business_theme_configs,
+        (details_layout),
+        (background_image, |background_image| background_image
+            .foreign_into()),
+        (payment_button_text),
+        (custom_message_for_card_terms),
+        (payment_button_colour),
+    );
+
+    let payment_link_config =
+        PaymentLinkConfig {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
+            allowed_domains,
+            branding_visibility,
+            transaction_details: payment_create_link_config.as_ref().and_then(
+                |payment_link_config| payment_link_config.theme_config.transaction_details.clone(),
+            ),
+            details_layout,
+            background_image,
+            payment_button_text,
+            custom_message_for_card_terms,
+            payment_button_colour,
+        };
 
     Ok((payment_link_config, domain_name))
 }
@@ -647,22 +688,31 @@ fn capitalize_first_char(s: &str) -> String {
 }
 
 fn check_payment_link_invalid_conditions(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
 ) -> bool {
-    not_allowed_statuses.contains(intent_status)
+    not_allowed_statuses.contains(&intent_status)
 }
 
+#[cfg(feature = "v2")]
+pub async fn get_payment_link_status(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_id: common_utils::id_type::MerchantId,
+    _payment_id: common_utils::id_type::PaymentId,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn get_payment_link_status(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
-    request_headers: &header::HeaderMap,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
@@ -714,8 +764,16 @@ pub async fn get_payment_link_status(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+            hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+            show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-            transaction_details: DEFAULT_TRANSACTION_DETAILS,
+            transaction_details: None,
+            background_image: None,
+            details_layout: None,
+            branding_visibility: None,
+            payment_button_text: None,
+            custom_message_for_card_terms: None,
+            payment_button_colour: None,
         }
     };
 
@@ -729,7 +787,7 @@ pub async fn get_payment_link_status(
     let required_conversion_type = StringMajorUnitForCore;
 
     let amount = required_conversion_type
-        .convert(payment_attempt.net_amount, currency)
+        .convert(payment_attempt.get_total_amount(), currency)
         .change_context(errors::ApiErrorResponse::AmountConversionFailed {
             amount_type: "StringMajorUnit",
         })?;
@@ -747,8 +805,8 @@ pub async fn get_payment_link_status(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_string(),
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
         })?;
 
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
@@ -760,6 +818,26 @@ pub async fn get_payment_link_status(
                 field_name: "return_url",
             })?
     };
+    let (unified_code, unified_message) = if let Some((code, message)) = payment_attempt
+        .unified_code
+        .as_ref()
+        .zip(payment_attempt.unified_message.as_ref())
+    {
+        (code.to_owned(), message.to_owned())
+    } else {
+        (
+            consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+            consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+        )
+    };
+    let unified_translated_message = helpers::get_unified_translation(
+        &state,
+        unified_code.to_owned(),
+        unified_message.to_owned(),
+        state.locale.clone(),
+    )
+    .await
+    .or(Some(unified_message));
 
     let payment_details = api_models::payments::PaymentLinkStatusDetails {
         amount,
@@ -774,8 +852,10 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
-        locale,
+        locale: Some(state.locale.clone()),
         transaction_details: payment_link_config.transaction_details,
+        unified_code: Some(unified_code),
+        unified_message: unified_translated_message,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

@@ -11,7 +11,7 @@ impl Connector for Payu {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payu;
         utils::construct_connector_data_old(
-            Box::new(&Payu),
+            Box::new(Payu::new()),
             types::Connector::Payu,
             types::api::GetToken::Connector,
             None,

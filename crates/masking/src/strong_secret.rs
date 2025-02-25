@@ -1,6 +1,4 @@
-//!
 //! Structure describing secret.
-//!
 
 use std::{fmt, marker::PhantomData};
 
@@ -9,11 +7,9 @@ use zeroize::{self, Zeroize as ZeroizableSecret};
 
 use crate::{strategy::Strategy, PeekInterface};
 
-///
 /// Secret thing.
 ///
 /// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
-///
 pub struct StrongSecret<Secret: ZeroizableSecret, MaskingStrategy = crate::WithType> {
     /// Inner secret value
     pub(crate) inner_secret: Secret,
@@ -35,6 +31,10 @@ impl<Secret: ZeroizableSecret, MaskingStrategy> PeekInterface<Secret>
 {
     fn peek(&self) -> &Secret {
         &self.inner_secret
+    }
+
+    fn peek_mut(&mut self) -> &mut Secret {
+        &mut self.inner_secret
     }
 }
 

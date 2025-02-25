@@ -15,10 +15,11 @@ pub struct PlaidLinkTokenRequest {
     language: String,
     products: Vec<String>,
     user: User,
+    android_package_name: Option<String>,
+    redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
-
 pub struct User {
     pub client_user_id: id_type::CustomerId,
 }
@@ -41,6 +42,22 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                         field_name: "country_codes",
                     },
                 )?,
+            },
+            android_package_name: match item.request.client_platform {
+                Some(api_models::enums::ClientPlatform::Android) => {
+                    item.request.android_package_name.clone()
+                }
+                Some(api_models::enums::ClientPlatform::Ios)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
+            },
+            redirect_uri: match item.request.client_platform {
+                Some(api_models::enums::ClientPlatform::Ios) => item.request.redirect_uri.clone(),
+                Some(api_models::enums::ClientPlatform::Android)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
         })
     }
@@ -76,7 +93,6 @@ pub struct PlaidExchangeTokenRequest {
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
-
 pub struct PlaidExchangeTokenResponse {
     pub access_token: String,
 }
@@ -218,7 +234,6 @@ pub struct PlaidBankAccountCredentialsRequest {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-
 pub struct PlaidBankAccountCredentialsResponse {
     pub accounts: Vec<PlaidBankAccountCredentialsAccounts>,
     pub numbers: PlaidBankAccountCredentialsNumbers,
@@ -233,7 +248,6 @@ pub struct BankAccountCredentialsOptions {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-
 pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
     pub name: String,

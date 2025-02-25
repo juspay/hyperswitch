@@ -147,10 +147,11 @@ where
             .and_then(|i| i.to_str().ok())
             .map(|s| s.to_owned());
         let response_fut = self.service.call(req);
+        let tenant_id_clone = tenant_id.clone();
         Box::pin(
             async move {
-                if let Some(tenant_id) = tenant_id {
-                    router_env::tracing::Span::current().record("tenant_id", &tenant_id);
+                if let Some(tenant) = tenant_id_clone {
+                    router_env::tracing::Span::current().record("tenant_id", tenant);
                 }
                 let response = response_fut.await;
                 router_env::tracing::Span::current().record("golden_log_line", true);
@@ -166,7 +167,7 @@ where
                     status_code = Empty,
                     flow = "UNKNOWN",
                     golden_log_line = Empty,
-                    tenant_id = "ta"
+                    tenant_id = &tenant_id
                 )
                 .or_current(),
             ),
@@ -284,9 +285,8 @@ where
                         content_length_header.to_str().map(ToOwned::to_owned)
                     })
                     .transpose()
-                    .map_err(|error| {
+                    .inspect_err(|error| {
                         logger::warn!("Could not convert content length to string {error:?}");
-                        error
                     })
                     .ok()
                     .flatten();

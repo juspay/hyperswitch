@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use router_env::metrics::add_attributes;
 
 use crate::{
     consts,
@@ -58,7 +57,7 @@ pub async fn add_access_token<
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
-    creds_identifier: Option<&String>,
+    creds_identifier: Option<&str>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -76,7 +75,8 @@ pub async fn add_access_token<
         let merchant_connector_id_or_connector_name = connector
             .merchant_connector_id
             .clone()
-            .or(creds_identifier.cloned())
+            .map(|mca_id| mca_id.get_string_repr().to_string())
+            .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
         let old_access_token = store
@@ -88,24 +88,28 @@ pub async fn add_access_token<
         let res = match old_access_token {
             Some(access_token) => {
                 router_env::logger::debug!(
-                    "Access token found in redis for merchant_id: {:?}, payment_id: {}, connector: {} which has expiry of: {} seconds",
+                    "Access token found in redis for merchant_id: {:?}, payment_id: {:?}, connector: {} which has expiry of: {} seconds",
                     merchant_account.get_id(),
                     router_data.payment_id,
                     connector.connector_name,
                     access_token.expires
                 );
                 metrics::ACCESS_TOKEN_CACHE_HIT.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([("connector", connector.connector_name.to_string())]),
+                    router_env::metric_attributes!((
+                        "connector",
+                        connector.connector_name.to_string()
+                    )),
                 );
                 Ok(Some(access_token))
             }
             None => {
                 metrics::ACCESS_TOKEN_CACHE_MISS.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([("connector", connector.connector_name.to_string())]),
+                    router_env::metric_attributes!((
+                        "connector",
+                        connector.connector_name.to_string()
+                    )),
                 );
 
                 let cloned_router_data = router_data.clone();
@@ -241,9 +245,8 @@ pub async fn refresh_connector_auth(
     }?;
 
     metrics::ACCESS_TOKEN_CREATION.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("connector", connector.connector_name.to_string())]),
+        router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
     Ok(access_token_router_data)
 }

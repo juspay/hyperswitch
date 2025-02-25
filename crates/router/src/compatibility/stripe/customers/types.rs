@@ -1,6 +1,11 @@
 use std::{convert::From, default::Default};
 
-use api_models::{payment_methods as api_types, payments};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::payment_methods as api_types;
+use api_models::payments;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
@@ -135,7 +140,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl From<CustomerUpdateRequest> for api::CustomerRequest {
+impl From<CustomerUpdateRequest> for api::CustomerUpdateRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
             name: req.name,
@@ -177,6 +182,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
     fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
@@ -209,6 +215,10 @@ pub struct CardDetails {
     pub fingerprint: Option<masking::Secret<String>>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
     fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;
@@ -223,27 +233,15 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
     }
 }
 
-// Check this in review
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "payment_methods_v2")
-        ))]
         let card = item.card.map(From::from);
-        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-        let card = match item.payment_method_data {
-            Some(api_types::PaymentMethodListData::Card(card)) => Some(CardDetails::from(card)),
-            _ => None,
-        };
         Self {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
             id: Some(item.payment_token),
-            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-            id: item.payment_token,
             object: "payment_method",
             card,
             created: item.created,
@@ -251,6 +249,10 @@ impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api_types::CardDetailFromLocker> for CardDetails {
     fn from(item: api_types::CardDetailFromLocker) -> Self {
         Self {

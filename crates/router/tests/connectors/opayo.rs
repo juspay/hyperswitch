@@ -15,7 +15,7 @@ impl utils::Connector for OpayoTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Opayo;
         utils::construct_connector_data_old(
-            Box::new(&Opayo),
+            Box::new(Opayo::new()),
             // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
             types::Connector::DummyConnector1,
             types::api::GetToken::Connector,

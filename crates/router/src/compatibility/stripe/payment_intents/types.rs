@@ -244,7 +244,7 @@ pub struct OnlineMandate {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
-    pub id: Option<String>,
+    pub id: Option<id_type::PaymentId>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
@@ -321,9 +321,10 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
-                None => {
-                    get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone())
-                }
+                None => get_pmd_based_on_payment_method_type(
+                    item.payment_method_types,
+                    billing.clone().map(From::from),
+                ),
             };
 
             payments::PaymentMethodDataRequest {
@@ -462,11 +463,11 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
-    pub id: Option<String>,
+    pub id: id_type::PaymentId,
     pub object: &'static str,
     pub amount: i64,
     pub amount_received: Option<i64>,
-    pub amount_capturable: Option<i64>,
+    pub amount_capturable: i64,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<masking::Secret<String>>,
@@ -520,7 +521,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             id: resp.payment_id,
             status: StripePaymentStatus::from(resp.status),
             amount: resp.amount.get_amount_as_i64(),
-            amount_capturable: resp.amount_capturable.map(|amt| amt.get_amount_as_i64()),
+            amount_capturable: resp.amount_capturable.get_amount_as_i64(),
             amount_received: resp.amount_received.map(|amt| amt.get_amount_as_i64()),
             connector: resp.connector,
             client_secret: resp.client_secret,
@@ -615,8 +616,8 @@ impl Charges {
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
     pub customer: Option<id_type::CustomerId>,
-    pub starting_after: Option<String>,
-    pub ending_before: Option<String>,
+    pub starting_after: Option<id_type::PaymentId>,
+    pub ending_before: Option<id_type::PaymentId>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     pub created: Option<i64>,
@@ -837,6 +838,9 @@ pub enum StripeNextAction {
     InvokeSdkClient {
         next_action_data: payments::SdkNextActionData,
     },
+    CollectOtp {
+        consent_data_required: payments::MobilePaymentConsent,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -892,6 +896,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::InvokeSdkClient { next_action_data } => {
             StripeNextAction::InvokeSdkClient { next_action_data }
         }
+        payments::NextActionData::CollectOtp {
+            consent_data_required,
+        } => StripeNextAction::CollectOtp {
+            consent_data_required,
+        },
     })
 }
 
@@ -903,7 +912,7 @@ pub struct StripePaymentRetrieveBody {
 //To handle payment types that have empty payment method data
 fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
-    billing_details: Option<payments::Address>,
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(

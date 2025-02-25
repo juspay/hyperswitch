@@ -27,7 +27,7 @@ pub async fn refund_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    tracing::Span::current().record("payment_id", payload.payment_intent.clone());
+    tracing::Span::current().record("payment_id", payload.payment_intent.get_string_repr());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
@@ -49,7 +49,7 @@ pub async fn refund_create(
         state.into_inner(),
         &req,
         create_refund_req,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             refunds::refund_create_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -93,14 +93,14 @@ pub async fn refund_retrieve_with_gateway_creds(
         state.into_inner(),
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth: auth::AuthenticationData, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
                 None,
                 auth.key_store,
                 refund_request,
-                refunds::refund_retrieve_core,
+                refunds::refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -136,14 +136,14 @@ pub async fn refund_retrieve(
         state.into_inner(),
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth: auth::AuthenticationData, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
                 None,
                 auth.key_store,
                 refund_request,
-                refunds::refund_retrieve_core,
+                refunds::refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -177,7 +177,9 @@ pub async fn refund_update(
         state.into_inner(),
         &req,
         create_refund_update_req,
-        |state, auth, req, _| refunds::refund_update_core(state, auth.merchant_account, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refunds::refund_update_core(state, auth.merchant_account, req)
+        },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))

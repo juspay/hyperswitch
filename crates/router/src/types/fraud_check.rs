@@ -20,6 +20,7 @@ pub type FrmSaleType =
 pub struct FrmRouterData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector: String,
+    // TODO: change this to PaymentId type
     pub payment_id: String,
     pub attempt_id: String,
     pub request: FrmRequest,
@@ -28,7 +29,7 @@ pub struct FrmRouterData {
 #[derive(Debug, Clone)]
 pub enum FrmRequest {
     Sale(FraudCheckSaleData),
-    Checkout(FraudCheckCheckoutData),
+    Checkout(Box<FraudCheckCheckoutData>),
     Transaction(FraudCheckTransactionData),
     Fulfillment(FraudCheckFulfillmentData),
     RecordReturn(FraudCheckRecordReturnData),

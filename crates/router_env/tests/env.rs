@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 #[cfg(feature = "vergen")]
 use router_env as env;
 
@@ -23,7 +25,7 @@ async fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 #[cfg(feature = "vergen")]
 #[tokio::test]
-async fn env_macro() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn env_macro() {
     println!("version : {:?}", env::version!());
     println!("build : {:?}", env::build!());
     println!("commit : {:?}", env::commit!());
@@ -33,6 +35,4 @@ async fn env_macro() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     assert!(!env::build!().is_empty());
     assert!(!env::commit!().is_empty());
     // assert!(env::platform!().len() > 0);
-
-    Ok(())
 }

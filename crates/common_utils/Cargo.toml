@@ -8,21 +8,28 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+default = []
 keymanager = ["dep:router_env"]
 keymanager_mtls = ["reqwest/rustls-tls"]
 encryption_service = ["dep:router_env"]
+km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
 signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
 async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
 metrics = ["dep:router_env", "dep:futures"]
 payouts = ["common_enums/payouts"]
+v1 = []
+v2 = []
+customer_v2 = []
+payment_methods_v2 = []
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
 base64 = "0.22.0"
+base64-serde = "0.8.0"
 blake3 = { version = "1.5.1", features = ["serde"] }
 bytes = "1.6.0"
-diesel = "2.1.5"
+diesel = "2.2.3"
 error-stack = "0.4.1"
 futures = { version = "0.3.30", optional = true }
 globset = "0.4.14"
@@ -65,3 +72,6 @@ signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional =
 fake = "2.9.2"
 proptest = "1.4.0"
 test-case = "3.3.1"
+
+[lints]
+workspace = true

@@ -31,7 +31,7 @@ pub async fn do_gsm_multiple_connector_actions(
 ) -> RouterResult<()> {
     let mut retries = None;
 
-    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut connector = original_connector_data;
 
@@ -49,14 +49,14 @@ pub async fn do_gsm_multiple_connector_actions(
                 .await;
 
                 if retries.is_none() || retries == Some(0) {
-                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     logger::info!("retries exhausted for auto_retry payout");
                     break;
                 }
 
                 if connectors.len() == 0 {
                     logger::info!("connectors exhausted for auto_retry payout");
-                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     break;
                 }
 
@@ -97,7 +97,7 @@ pub async fn do_gsm_single_connector_actions(
 ) -> RouterResult<()> {
     let mut retries = None;
 
-    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut previous_gsm = None; // to compare previous status
 
@@ -121,7 +121,7 @@ pub async fn do_gsm_single_connector_actions(
                 .await;
 
                 if retries.is_none() || retries == Some(0) {
-                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     logger::info!("retries exhausted for auto_retry payment");
                     break;
                 }
@@ -190,12 +190,15 @@ pub async fn get_gsm(
     let error_code = payout_data.payout_attempt.error_code.to_owned();
     let error_message = payout_data.payout_attempt.error_message.to_owned();
     let connector_name = Some(original_connector_data.connector_name.to_string());
-    let flow = "payout_flow".to_string();
 
-    Ok(
-        payouts::helpers::get_gsm_record(state, error_code, error_message, connector_name, flow)
-            .await,
+    Ok(payouts::helpers::get_gsm_record(
+        state,
+        error_code,
+        error_message,
+        connector_name,
+        common_utils::consts::PAYOUT_FLOW_STR,
     )
+    .await)
 }
 
 #[instrument(skip_all)]
@@ -215,7 +218,7 @@ pub fn get_gsm_decision(
             });
 
     if option_gsm_decision.is_some() {
-        metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(1, &[]);
     }
     option_gsm_decision.unwrap_or_default()
 }
@@ -229,7 +232,7 @@ pub async fn do_retry(
     key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    metrics::AUTO_RETRY_PAYOUT_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
 
     modify_trackers(state, &connector, merchant_account, payout_data).await?;
 
@@ -273,7 +276,7 @@ pub async fn modify_trackers(
         .attach_printable("Error updating payouts")?;
 
     let payout_attempt_id =
-        utils::get_payment_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
+        utils::get_payout_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
@@ -285,8 +288,22 @@ pub async fn modify_trackers(
         business_country: payout_data.payout_attempt.business_country.to_owned(),
         business_label: payout_data.payout_attempt.business_label.to_owned(),
         payout_token: payout_data.payout_attempt.payout_token.to_owned(),
-        profile_id: payout_data.payout_attempt.profile_id.to_string(),
-        ..Default::default()
+        profile_id: payout_data.payout_attempt.profile_id.to_owned(),
+        connector_payout_id: None,
+        status: common_enums::PayoutStatus::default(),
+        is_eligible: None,
+        error_message: None,
+        error_code: None,
+        created_at: common_utils::date_time::now(),
+        last_modified_at: common_utils::date_time::now(),
+        merchant_connector_id: None,
+        routing_info: None,
+        unified_code: None,
+        unified_message: None,
+        additional_payout_method_data: payout_data
+            .payout_attempt
+            .additional_payout_method_data
+            .to_owned(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

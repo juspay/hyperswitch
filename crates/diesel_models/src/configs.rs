@@ -7,7 +7,6 @@ use crate::schema::configs;
 
 #[derive(Default, Clone, Debug, Insertable, Serialize, Deserialize)]
 #[diesel(table_name = configs)]
-
 pub struct ConfigNew {
     pub key: String,
     pub config: String,

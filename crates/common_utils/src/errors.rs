@@ -7,7 +7,6 @@ use crate::types::MinorUnit;
 /// error_stack::Report<E> specific extendability
 ///
 /// Effectively, equivalent to `Result<T, error_stack::Report<E>>`
-///
 pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 /// Parsing Errors
@@ -50,6 +49,9 @@ pub enum ParsingError {
     /// Failed to parse String value to Decimal value conversion because `error`
     #[error("Failed to parse String value to Decimal value conversion because {error}")]
     StringToDecimalConversionFailure { error: String },
+    /// Failed to convert the given integer because of integer overflow error
+    #[error("Integer Overflow error")]
+    IntegerOverflow,
 }
 
 /// Validation errors.

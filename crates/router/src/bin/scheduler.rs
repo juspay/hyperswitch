@@ -1,4 +1,3 @@
-#![recursion_limit = "256"]
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
@@ -36,15 +35,8 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(
-                conf.key_manager.get_inner(),
-                &conf.locker,
-                &conf.proxy.bypass_proxy_urls,
-            ),
-        )
-        .change_context(ProcessTrackerError::ConfigurationError)?,
+        services::ProxyClient::new(&conf.proxy)
+            .change_context(ProcessTrackerError::ConfigurationError)?,
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
@@ -67,11 +59,14 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let scheduler_flow = scheduler::SchedulerFlow::from_str(&scheduler_flow_str)
         .expect("Unable to parse SchedulerFlow from environment variable");
 
+    #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
-    println!(
-        "Starting {scheduler_flow} (Version: {})",
-        router_env::git_tag!()
-    );
+    {
+        println!(
+            "Starting {scheduler_flow} (Version: {})",
+            router_env::git_tag!()
+        );
+    }
 
     let _guard = router_env::setup(
         &state.conf.log,
@@ -99,7 +94,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
 
     start_scheduler(&state, scheduler_flow, (tx, rx)).await?;
 
-    eprintln!("Scheduler shut down");
+    logger::error!("Scheduler shut down");
     Ok(())
 }
 
@@ -156,7 +151,7 @@ pub async fn deep_health_check(
     let app_state = Arc::clone(&state.into_inner());
     let service_name = service.into_inner();
     for (tenant, _) in stores {
-        let session_state_res = app_state.clone().get_session_state(&tenant, || {
+        let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "tenant_id",
             }
@@ -202,12 +197,17 @@ pub async fn deep_health_check_func(
 
     logger::debug!("Database health check begin");
 
-    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-            component: "Database",
-            message: err.to_string()
-        })
-    })?;
+    let db_status = state
+        .health_check_db()
+        .await
+        .map(|_| true)
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                component: "Database",
+                message,
+            })
+        })?;
 
     logger::debug!("Database health check end");
 
@@ -217,23 +217,26 @@ pub async fn deep_health_check_func(
         .health_check_redis()
         .await
         .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
                 component: "Redis",
-                message: err.to_string()
+                message,
             })
         })?;
 
-    let outgoing_req_check = state
-        .health_check_outgoing()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Outgoing Request",
-                message: err.to_string()
-            })
-        })?;
+    let outgoing_req_check =
+        state
+            .health_check_outgoing()
+            .await
+            .map(|_| true)
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Outgoing Request",
+                    message,
+                })
+            })?;
 
     logger::debug!("Redis health check end");
 
@@ -249,6 +252,7 @@ pub async fn deep_health_check_func(
 #[derive(Debug, Copy, Clone)]
 pub struct WorkflowRunner;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
@@ -356,6 +360,18 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     }
 }
 
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
+    async fn trigger_workflow<'a>(
+        &'a self,
+        _state: &'a routes::SessionState,
+        _process: storage::ProcessTracker,
+    ) -> CustomResult<(), ProcessTrackerError> {
+        todo!()
+    }
+}
+
 async fn start_scheduler(
     state: &routes::AppState,
     scheduler_flow: scheduler::SchedulerFlow,
@@ -374,7 +390,7 @@ async fn start_scheduler(
         WorkflowRunner {},
         |state, tenant| {
             Arc::new(state.clone())
-                .get_session_state(tenant, || ProcessTrackerError::TenantNotFound.into())
+                .get_session_state(tenant, None, || ProcessTrackerError::TenantNotFound.into())
         },
     )
     .await

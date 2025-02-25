@@ -25,32 +25,23 @@ impl ExecuteQuery for kv::DBOperation {
         let operation = self.operation();
         let table = self.table();
 
-        let tags: &[metrics::KeyValue] = &[
-            metrics::KeyValue {
-                key: "operation".into(),
-                value: operation.into(),
-            },
-            metrics::KeyValue {
-                key: "table".into(),
-                value: table.into(),
-            },
-        ];
+        let tags = router_env::metric_attributes!(("operation", operation), ("table", table));
 
         let (result, execution_time) =
             Box::pin(common_utils::date_time::time_it(|| self.execute(&conn))).await;
 
         push_drainer_delay(pushed_at, operation, table, tags);
-        metrics::QUERY_EXECUTION_TIME.record(&metrics::CONTEXT, execution_time, tags);
+        metrics::QUERY_EXECUTION_TIME.record(execution_time, tags);
 
         match result {
             Ok(result) => {
                 logger::info!(operation = operation, table = table, ?result);
-                metrics::SUCCESSFUL_QUERY_EXECUTION.add(&metrics::CONTEXT, 1, tags);
+                metrics::SUCCESSFUL_QUERY_EXECUTION.add(1, tags);
                 Ok(())
             }
             Err(err) => {
                 logger::error!(operation = operation, table = table, ?err);
-                metrics::ERRORS_WHILE_QUERY_EXECUTION.add(&metrics::CONTEXT, 1, tags);
+                metrics::ERRORS_WHILE_QUERY_EXECUTION.add(1, tags);
                 Err(err)
             }
         }
@@ -58,15 +49,25 @@ impl ExecuteQuery for kv::DBOperation {
 }
 
 #[inline(always)]
-fn push_drainer_delay(pushed_at: i64, operation: &str, table: &str, tags: &[metrics::KeyValue]) {
+fn push_drainer_delay(
+    pushed_at: i64,
+    operation: &str,
+    table: &str,
+    tags: &[router_env::opentelemetry::KeyValue],
+) {
     let drained_at = common_utils::date_time::now_unix_timestamp();
     let delay = drained_at - pushed_at;
 
-    logger::debug!(
-        operation = operation,
-        table = table,
-        delay = format!("{delay} secs")
-    );
+    logger::debug!(operation, table, delay = format!("{delay} secs"));
 
-    metrics::DRAINER_DELAY_SECONDS.record(&metrics::CONTEXT, delay, tags);
+    match u64::try_from(delay) {
+        Ok(delay) => metrics::DRAINER_DELAY_SECONDS.record(delay, tags),
+        Err(error) => logger::error!(
+            pushed_at,
+            drained_at,
+            delay,
+            ?error,
+            "Invalid drainer delay"
+        ),
+    }
 }

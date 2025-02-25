@@ -1,6 +1,4 @@
-//!
 //! Encryption management util module
-//!
 
 use std::sync::Arc;
 

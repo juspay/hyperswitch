@@ -1,0 +1,13 @@
+{
+  "bpCreate": {
+    "profile_name": "default"
+  },
+
+  "bpUpdate": {
+    "is_connector_agnostic_mit_enabled": true,
+    "collect_shipping_details_from_wallet_connector": true,
+    "collect_billing_details_from_wallet_connector": true,
+    "always_collect_billing_details_from_wallet_connector": true,
+    "always_collect_shipping_details_from_wallet_connector": true
+  }
+}

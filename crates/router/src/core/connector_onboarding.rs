@@ -95,7 +95,7 @@ pub async fn sync_onboarding_status(
                 .await?;
 
                 return Ok(ApplicationResponse::Json(api::OnboardingStatus::PayPal(
-                    api::PayPalOnboardingStatus::ConnectorIntegrated(update_mca_data),
+                    api::PayPalOnboardingStatus::ConnectorIntegrated(Box::new(update_mca_data)),
                 )));
             }
             Ok(ApplicationResponse::Json(status))

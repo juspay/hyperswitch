@@ -5,7 +5,6 @@ use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
 use crate::{
-    connector::utils::PaymentsAttemptData,
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
@@ -29,17 +28,37 @@ use crate::{
 impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
     for FrmData
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn construct_router_data<'a>(
         &self,
         _state: &SessionState,
+        _connector_id: &str,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
+    {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
+        use crate::connector::utils::PaymentsAttemptData;
+
         let status = storage_enums::AttemptStatus::Pending;
 
         let auth_type: ConnectorAuthType = merchant_connector_account
@@ -50,16 +69,15 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             })?;
 
         let browser_info: Option<BrowserInformation> = self.payment_attempt.get_browser_info().ok();
-        let customer_id = customer
-            .to_owned()
-            .map(|customer| customer.get_customer_id());
+        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
             merchant_id: merchant_account.get_id().clone(),
             customer_id,
+            tenant_id: state.tenant.tenant_id.clone(),
             connector: connector_id.to_string(),
-            payment_id: self.payment_intent.payment_id.clone(),
+            payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
             status,
             payment_method: self
@@ -68,7 +86,6 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?,
             connector_auth_type: auth_type,
             description: None,
-            return_url: None,
             payment_method_status: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
@@ -77,7 +94,11 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckCheckoutData {
-                amount: self.payment_attempt.amount.get_amount_as_i64(),
+                amount: self
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
@@ -137,6 +158,11 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             dispute_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload,
+            connector_mandate_request_reference_id: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
         };
 
         Ok(router_data)
@@ -174,9 +200,9 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
     }
 }
 
-pub async fn decide_frm_flow<'a, 'b>(
-    router_data: &'b mut FrmCheckoutRouterData,
-    state: &'a SessionState,
+pub async fn decide_frm_flow(
+    router_data: &mut FrmCheckoutRouterData,
+    state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

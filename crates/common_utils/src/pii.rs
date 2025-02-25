@@ -348,7 +348,6 @@ where
 }
 
 /// Strategy for masking UPI VPA's
-
 #[derive(Debug)]
 pub enum UpiVpaMaskingStrategy {}
 

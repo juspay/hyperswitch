@@ -29,7 +29,6 @@ impl Store {
     ///
     /// Panics if there is a failure while obtaining the HashiCorp client using the provided configuration.
     /// This panic indicates a critical failure in setting up external services, and the application cannot proceed without a valid HashiCorp client.
-    ///
     pub async fn new(config: &crate::Settings, test_transaction: bool, tenant: &Tenant) -> Self {
         let redis_conn = crate::connection::redis_connection(config).await;
         Self {

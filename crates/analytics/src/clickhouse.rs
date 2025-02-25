@@ -13,10 +13,12 @@ use super::{
     health_check::HealthCheck,
     payment_intents::{filters::PaymentIntentFilterRow, metrics::PaymentIntentMetricRow},
     payments::{
-        distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
+        distribution::PaymentDistributionRow, filters::PaymentFilterRow, metrics::PaymentMetricRow,
     },
     query::{Aggregate, ToSql, Window},
-    refunds::{filters::RefundFilterRow, metrics::RefundMetricRow},
+    refunds::{
+        distribution::RefundDistributionRow, filters::RefundFilterRow, metrics::RefundMetricRow,
+    },
     sdk_events::{filters::SdkEventFilter, metrics::SdkEventMetricRow},
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, QueryExecutionError},
 };
@@ -130,11 +132,17 @@ impl AnalyticsDataSource for ClickhouseClient {
     fn get_table_engine(table: AnalyticsCollection) -> TableEngine {
         match table {
             AnalyticsCollection::Payment
+            | AnalyticsCollection::PaymentSessionized
             | AnalyticsCollection::Refund
+            | AnalyticsCollection::RefundSessionized
             | AnalyticsCollection::FraudCheck
             | AnalyticsCollection::Authentications
             | AnalyticsCollection::PaymentIntent
+            | AnalyticsCollection::PaymentIntentSessionized
             | AnalyticsCollection::Dispute => {
+                TableEngine::CollapsingMergeTree { sign: "sign_flag" }
+            }
+            AnalyticsCollection::DisputeSessionized => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
             AnalyticsCollection::SdkEvents
@@ -165,6 +173,7 @@ impl super::payment_intents::filters::PaymentIntentFilterAnalytics for Clickhous
 impl super::payment_intents::metrics::PaymentIntentMetricAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
+impl super::refunds::distribution::RefundDistributionAnalytics for ClickhouseClient {}
 impl super::frm::metrics::FrmMetricAnalytics for ClickhouseClient {}
 impl super::frm::filters::FrmFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
@@ -245,10 +254,10 @@ impl TryInto<PaymentDistributionRow> for serde_json::Value {
     }
 }
 
-impl TryInto<FilterRow> for serde_json::Value {
+impl TryInto<PaymentFilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
-    fn try_into(self) -> Result<FilterRow, Self::Error> {
+    fn try_into(self) -> Result<PaymentFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse FilterRow in clickhouse results",
         ))
@@ -291,6 +300,16 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     fn try_into(self) -> Result<RefundFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse RefundFilterRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<RefundDistributionRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<RefundDistributionRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse RefundDistributionRow in clickhouse results",
         ))
     }
 }
@@ -416,15 +435,7 @@ impl TryInto<ActivePaymentsMetricRow> for serde_json::Value {
 
 impl ToSql<ClickhouseClient> for PrimitiveDateTime {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
-        let format =
-            time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-                .change_context(ParsingError::DateTimeParsingError)
-                .attach_printable("Failed to parse format description")?;
-        self.format(&format)
-            .change_context(ParsingError::EncodeError(
-                "failed to encode to clickhouse date-time format",
-            ))
-            .attach_printable("Failed to format date time")
+        Ok(self.assume_utc().unix_timestamp().to_string())
     }
 }
 
@@ -432,16 +443,20 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
             Self::Payment => Ok("payment_attempts".to_string()),
+            Self::PaymentSessionized => Ok("sessionizer_payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
+            Self::RefundSessionized => Ok("sessionizer_refunds".to_string()),
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
             Self::SdkEventsAnalytics => Ok("sdk_events".to_string()),
             Self::ApiEvents => Ok("api_events_audit".to_string()),
             Self::ApiEventsAnalytics => Ok("api_events".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
+            Self::PaymentIntentSessionized => Ok("sessionizer_payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::Dispute => Ok("dispute".to_string()),
+            Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
             Self::Authentications => Ok("authentications".to_string()),
         }

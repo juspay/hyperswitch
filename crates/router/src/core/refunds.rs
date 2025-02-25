@@ -1,3 +1,4 @@
+pub mod transformers;
 pub mod validator;
 
 #[cfg(feature = "olap")]
@@ -6,15 +7,16 @@ use std::collections::HashMap;
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
-    ext_traits::{AsyncExt, ValueExt},
-    types::MinorUnit,
+    ext_traits::AsyncExt,
+    types::{ConnectorTransactionId, MinorUnit},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data::ErrorResponse;
+use hyperswitch_domain_models::{
+    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
+};
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
-use masking::PeekInterface;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
@@ -23,7 +25,8 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, types::PaymentCharges},
+        payments::{self, access_token, helpers},
+        refunds::transformers::SplitRefundInput,
         utils as core_utils,
     },
     db, logger,
@@ -35,7 +38,6 @@ use crate::{
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
-        ChargeRefunds,
     },
     utils::{self, OptionExt},
     workflows::payment_sync,
@@ -47,7 +49,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    _profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -113,7 +115,7 @@ pub async fn refund_create_core(
     req.merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;
@@ -142,7 +144,7 @@ pub async fn trigger_refund_to_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
-    charges: Option<ChargeRefunds>,
+    split_refunds: Option<SplitRefundsRequest>,
 ) -> RouterResult<storage::Refund> {
     let routed_through = payment_attempt
         .connector
@@ -152,9 +154,8 @@ pub async fn trigger_refund_to_gateway(
 
     let storage_scheme = merchant_account.storage_scheme;
     metrics::REFUND_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("connector", routed_through.clone())]),
+        router_env::metric_attributes!(("connector", routed_through.clone())),
     );
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -177,12 +178,12 @@ pub async fn trigger_refund_to_gateway(
         &routed_through,
         merchant_account,
         key_store,
-        (payment_attempt.amount, currency),
+        (payment_attempt.get_total_amount(), currency),
         payment_intent,
         payment_attempt,
         refund,
         creds_identifier.clone(),
-        charges,
+        split_refunds,
     )
     .await?;
 
@@ -191,7 +192,7 @@ pub async fn trigger_refund_to_gateway(
         &connector,
         merchant_account,
         &router_data,
-        creds_identifier.as_ref(),
+        creds_identifier.as_deref(),
     )
     .await?;
 
@@ -234,6 +235,9 @@ pub async fn trigger_refund_to_gateway(
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
+                            processor_refund_data: None,
+                            unified_code: None,
+                            unified_message: None,
                         })
                     }
                     errors::ConnectorError::NotSupported { message, connector } => {
@@ -245,6 +249,9 @@ pub async fn trigger_refund_to_gateway(
                             refund_error_code: Some("NOT_SUPPORTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
+                            processor_refund_data: None,
+                            unified_code: None,
+                            unified_message: None,
                         })
                     }
                     _ => None,
@@ -280,28 +287,72 @@ pub async fn trigger_refund_to_gateway(
     };
 
     let refund_update = match router_data_res.response {
-        Err(err) => storage::RefundUpdate::ErrorUpdate {
-            refund_status: Some(enums::RefundStatus::Failure),
-            refund_error_message: err.reason.or(Some(err.message)),
-            refund_error_code: Some(err.code),
-            updated_by: storage_scheme.to_string(),
-            connector_refund_id: None,
-        },
+        Err(err) => {
+            let option_gsm = helpers::get_gsm_record(
+                state,
+                Some(err.code.clone()),
+                Some(err.message.clone()),
+                connector.connector_name.to_string(),
+                consts::REFUND_FLOW_STR.to_string(),
+            )
+            .await;
+            // Note: Some connectors do not have a separate list of refund errors
+            // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
+            // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
+            let option_gsm = if option_gsm.is_none() {
+                helpers::get_gsm_record(
+                    state,
+                    Some(err.code.clone()),
+                    Some(err.message.clone()),
+                    connector.connector_name.to_string(),
+                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                )
+                .await
+            } else {
+                option_gsm
+            };
+
+            let gsm_unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+            let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+
+            let (unified_code, unified_message) = if let Some((code, message)) =
+                gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
+            {
+                (code.to_owned(), message.to_owned())
+            } else {
+                (
+                    consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                    consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                )
+            };
+
+            storage::RefundUpdate::ErrorUpdate {
+                refund_status: Some(enums::RefundStatus::Failure),
+                refund_error_message: err.reason.or(Some(err.message)),
+                refund_error_code: Some(err.code),
+                updated_by: storage_scheme.to_string(),
+                connector_refund_id: None,
+                processor_refund_data: None,
+                unified_code: Some(unified_code),
+                unified_message: Some(unified_message),
+            }
+        }
         Ok(response) => {
             // match on connector integrity checks
             match router_data_res.integrity_check.clone() {
                 Err(err) => {
-                    let refund_connector_transaction_id = err.connector_transaction_id;
+                    let (refund_connector_transaction_id, processor_refund_data) =
+                        err.connector_transaction_id.map_or((None, None), |txn_id| {
+                            let (refund_id, refund_data) =
+                                ConnectorTransactionId::form_id_and_data(txn_id);
+                            (Some(refund_id), refund_data)
+                        });
                     metrics::INTEGRITY_CHECK_FAILED.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             ("connector", connector.connector_name.to_string()),
-                            (
-                                "merchant_id",
-                                merchant_account.get_id().get_string_repr().to_owned(),
-                            ),
-                        ]),
+                            ("merchant_id", merchant_account.get_id().clone()),
+                        ),
                     );
                     storage::RefundUpdate::ErrorUpdate {
                         refund_status: Some(enums::RefundStatus::ManualReview),
@@ -312,23 +363,31 @@ pub async fn trigger_refund_to_gateway(
                         refund_error_code: Some("IE".to_string()),
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: refund_connector_transaction_id,
+                        processor_refund_data,
+                        unified_code: None,
+                        unified_message: None,
                     }
                 }
                 Ok(()) => {
                     if response.refund_status == diesel_models::enums::RefundStatus::Success {
                         metrics::SUCCESSFUL_REFUND.add(
-                            &metrics::CONTEXT,
                             1,
-                            &add_attributes([("connector", connector.connector_name.to_string())]),
+                            router_env::metric_attributes!((
+                                "connector",
+                                connector.connector_name.to_string(),
+                            )),
                         )
                     }
+                    let (connector_refund_id, processor_refund_data) =
+                        ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
                     storage::RefundUpdate::Update {
-                        connector_refund_id: response.connector_refund_id,
+                        connector_refund_id,
                         refund_status: response.refund_status,
                         sent_to_gateway: true,
                         refund_error_message: None,
                         refund_arn: "".to_string(),
                         updated_by: storage_scheme.to_string(),
+                        processor_refund_data,
                     }
                 }
             }
@@ -350,6 +409,16 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        &response,
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -371,10 +440,10 @@ where
 
 // ********************************************** REFUND SYNC **********************************************
 
-pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
+pub async fn refund_response_wrapper<F, Fut, T, Req>(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
@@ -383,7 +452,7 @@ where
     F: Fn(
         SessionState,
         domain::MerchantAccount,
-        Option<String>,
+        Option<common_utils::id_type::ProfileId>,
         domain::MerchantKeyStore,
         Req,
     ) -> Fut,
@@ -401,27 +470,16 @@ where
 pub async fn refund_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
+    refund: storage::Refund,
 ) -> RouterResult<storage::Refund> {
-    let refund_id = request.refund_id;
     let db = &*state.store;
-    let (merchant_id, payment_intent, payment_attempt, refund, response);
-
-    merchant_id = merchant_account.get_id();
-
-    refund = db
-        .find_refund_by_merchant_id_refund_id(
-            merchant_id,
-            refund_id.as_str(),
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+    let merchant_id = merchant_account.get_id();
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
-    let payment_id = refund.payment_id.as_str();
-    payment_intent = db
+    let payment_id = &refund.payment_id;
+    let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             payment_id,
@@ -432,7 +490,7 @@ pub async fn refund_retrieve_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    payment_attempt = db
+    let payment_attempt = db
         .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
             &refund.connector_transaction_id,
             payment_id,
@@ -450,13 +508,40 @@ pub async fn refund_retrieve_core(
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;
 
-    response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
-        sync_refund_with_gateway(
+    let split_refunds_req = core_utils::get_split_refunds(SplitRefundInput {
+        split_payment_request: payment_intent.split_payments.clone(),
+        payment_charges: payment_attempt.charges.clone(),
+        charge_id: payment_attempt.charge_id.clone(),
+        refund_request: refund.split_refunds.clone(),
+    })?;
+
+    let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
+        (refund.unified_code.clone(), refund.unified_message.clone())
+    {
+        helpers::get_unified_translation(
+            &state,
+            unified_code,
+            unified_message.clone(),
+            state.locale.to_string(),
+        )
+        .await
+        .or(Some(unified_message))
+    } else {
+        refund.unified_message
+    };
+
+    let refund = storage::Refund {
+        unified_message: unified_translated_message,
+        ..refund
+    };
+
+    let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
+        Box::pin(sync_refund_with_gateway(
             &state,
             &merchant_account,
             &key_store,
@@ -464,7 +549,8 @@ pub async fn refund_retrieve_core(
             &payment_intent,
             &refund,
             creds_identifier,
-        )
+            split_refunds_req,
+        ))
         .await
     } else {
         Ok(refund)
@@ -490,6 +576,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
     predicate1 && predicate2
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
     state: &SessionState,
@@ -499,6 +586,7 @@ pub async fn sync_refund_with_gateway(
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
     creds_identifier: Option<String>,
+    split_refunds: Option<SplitRefundsRequest>,
 ) -> RouterResult<storage::Refund> {
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -519,12 +607,12 @@ pub async fn sync_refund_with_gateway(
         &connector_id,
         merchant_account,
         key_store,
-        (payment_attempt.amount, currency),
+        (payment_attempt.get_total_amount(), currency),
         payment_intent,
         payment_attempt,
         refund,
         creds_identifier.clone(),
-        None,
+        split_refunds,
     )
     .await?;
 
@@ -533,7 +621,7 @@ pub async fn sync_refund_with_gateway(
         &connector,
         merchant_account,
         &router_data,
-        creds_identifier.as_ref(),
+        creds_identifier.as_deref(),
     )
     .await?;
 
@@ -589,22 +677,27 @@ pub async fn sync_refund_with_gateway(
                 refund_error_code: Some(error_message.code),
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
+                processor_refund_data: None,
+                unified_code: None,
+                unified_message: None,
             }
         }
         Ok(response) => match router_data_res.integrity_check.clone() {
             Err(err) => {
                 metrics::INTEGRITY_CHECK_FAILED.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
-                        (
-                            "merchant_id",
-                            merchant_account.get_id().get_string_repr().to_owned(),
-                        ),
-                    ]),
+                        ("merchant_id", merchant_account.get_id().clone()),
+                    ),
                 );
-                let refund_connector_transaction_id = err.connector_transaction_id;
+                let (refund_connector_transaction_id, processor_refund_data) = err
+                    .connector_transaction_id
+                    .map_or((None, None), |refund_id| {
+                        let (refund_id, refund_data) =
+                            ConnectorTransactionId::form_id_and_data(refund_id);
+                        (Some(refund_id), refund_data)
+                    });
                 storage::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::ManualReview),
                     refund_error_message: Some(format!(
@@ -614,16 +707,24 @@ pub async fn sync_refund_with_gateway(
                     refund_error_code: Some("IE".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: refund_connector_transaction_id,
+                    processor_refund_data,
+                    unified_code: None,
+                    unified_message: None,
                 }
             }
-            Ok(()) => storage::RefundUpdate::Update {
-                connector_refund_id: response.connector_refund_id,
-                refund_status: response.refund_status,
-                sent_to_gateway: true,
-                refund_error_message: None,
-                refund_arn: "".to_string(),
-                updated_by: storage_scheme.to_string(),
-            },
+            Ok(()) => {
+                let (connector_refund_id, processor_refund_data) =
+                    ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
+                storage::RefundUpdate::Update {
+                    connector_refund_id,
+                    refund_status: response.refund_status,
+                    sent_to_gateway: true,
+                    refund_error_message: None,
+                    refund_arn: "".to_string(),
+                    updated_by: storage_scheme.to_string(),
+                    processor_refund_data,
+                }
+            }
         },
     };
 
@@ -642,6 +743,16 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        &response,
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -696,39 +807,12 @@ pub async fn validate_and_create_refund(
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
-
-    // Validate charge_id and refund options
-    let charges = match (
-        payment_intent.charges.as_ref(),
-        payment_attempt.charge_id.as_ref(),
-    ) {
-        (Some(charges), Some(charge_id)) => {
-            let refund_charge_request = req.charges.clone().get_required_value("charges")?;
-            utils::when(*charge_id != refund_charge_request.charge_id, || {
-                Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "charges.charge_id"
-                }))
-                .attach_printable("charge_id sent in request mismatches with original charge_id")
-            })?;
-            let payment_charges: PaymentCharges = charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges in to PaymentCharges")?;
-            let options = validator::validate_charge_refund(
-                &refund_charge_request,
-                &payment_charges.charge_type,
-            )?;
-            Some(ChargeRefunds {
-                charge_id: charge_id.to_string(),
-                charge_type: payment_charges.charge_type,
-                transfer_account_id: payment_charges.transfer_account_id,
-                options,
-            })
-        }
-        _ => None,
-    };
+    let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
+        split_payment_request: payment_intent.split_payments.clone(),
+        payment_charges: payment_attempt.charges.clone(),
+        charge_id: payment_attempt.charge_id.clone(),
+        refund_request: req.split_refunds.clone(),
+    })?;
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
@@ -750,7 +834,7 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
+    let connector_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
         report!(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
     })?;
@@ -758,7 +842,7 @@ pub async fn validate_and_create_refund(
     let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
             merchant_account.get_id(),
-            &connecter_transaction_id,
+            &connector_transaction_id,
             merchant_account.storage_scheme,
         )
         .await
@@ -778,7 +862,7 @@ pub async fn validate_and_create_refund(
 
     let total_amount_captured = payment_intent
         .amount_captured
-        .unwrap_or(payment_attempt.amount);
+        .unwrap_or(payment_attempt.get_total_amount());
 
     validator::validate_refund_amount(
         total_amount_captured.get_amount_as_i64(),
@@ -798,30 +882,39 @@ pub async fn validate_and_create_refund(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
-
-    let refund_create_req = storage::RefundNew::default()
-        .set_refund_id(refund_id.to_string())
-        .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
-        .set_external_reference_id(Some(refund_id.clone()))
-        .set_payment_id(req.payment_id)
-        .set_merchant_id(merchant_account.get_id().clone())
-        .set_connector_transaction_id(connecter_transaction_id.to_string())
-        .set_connector(connector)
-        .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
-        .set_total_amount(payment_attempt.amount)
-        .set_refund_amount(refund_amount)
-        .set_currency(currency)
-        .set_created_at(common_utils::date_time::now())
-        .set_modified_at(common_utils::date_time::now())
-        .set_refund_status(enums::RefundStatus::Pending)
-        .set_metadata(req.metadata)
-        .set_description(req.reason.clone())
-        .set_attempt_id(payment_attempt.attempt_id.clone())
-        .set_refund_reason(req.reason)
-        .set_profile_id(payment_intent.profile_id.clone())
-        .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
-        .set_charges(req.charges)
-        .to_owned();
+    let (connector_transaction_id, processor_transaction_data) =
+        ConnectorTransactionId::form_id_and_data(connector_transaction_id);
+    let refund_create_req = storage::RefundNew {
+        refund_id: refund_id.to_string(),
+        internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
+        external_reference_id: Some(refund_id.clone()),
+        payment_id: req.payment_id,
+        merchant_id: merchant_account.get_id().clone(),
+        connector_transaction_id,
+        connector,
+        refund_type: req.refund_type.unwrap_or_default().foreign_into(),
+        total_amount: payment_attempt.get_total_amount(),
+        refund_amount,
+        currency,
+        created_at: common_utils::date_time::now(),
+        modified_at: common_utils::date_time::now(),
+        refund_status: enums::RefundStatus::Pending,
+        metadata: req.metadata,
+        description: req.reason.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        refund_reason: req.reason,
+        profile_id: payment_intent.profile_id.clone(),
+        merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+        charges: None,
+        split_refunds: req.split_refunds,
+        connector_refund_id: None,
+        sent_to_gateway: Default::default(),
+        refund_arn: None,
+        updated_by: Default::default(),
+        organization_id: merchant_account.organization_id.clone(),
+        processor_transaction_data,
+        processor_refund_data: None,
+    };
 
     let refund = match db
         .insert_refund(refund_create_req, merchant_account.storage_scheme)
@@ -837,7 +930,7 @@ pub async fn validate_and_create_refund(
                 payment_attempt,
                 payment_intent,
                 creds_identifier,
-                charges,
+                split_refunds,
             ))
             .await?
         }
@@ -851,6 +944,25 @@ pub async fn validate_and_create_refund(
             }
         }
     };
+    let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
+        (refund.unified_code.clone(), refund.unified_message.clone())
+    {
+        helpers::get_unified_translation(
+            state,
+            unified_code,
+            unified_message.clone(),
+            state.locale.to_string(),
+        )
+        .await
+        .or(Some(unified_message))
+    } else {
+        refund.unified_message
+    };
+
+    let refund = storage::Refund {
+        unified_message: unified_translated_message,
+        ..refund
+    };
 
     Ok(refund.foreign_into())
 }
@@ -859,13 +971,12 @@ pub async fn validate_and_create_refund(
 
 ///   If payment-id is provided, lists all the refunds associated with that particular payment-id
 ///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
-
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -875,7 +986,7 @@ pub async fn refund_list(
     let refund_list = db
         .filter_refund_by_constraints(
             merchant_account.get_id(),
-            &req,
+            &(req.clone(), profile_id_list.clone()).try_into()?,
             merchant_account.storage_scheme,
             limit,
             offset,
@@ -891,7 +1002,7 @@ pub async fn refund_list(
     let total_count = db
         .get_total_count_of_refunds(
             merchant_account.get_id(),
-            &req,
+            &(req, profile_id_list).try_into()?,
             merchant_account.storage_scheme,
         )
         .await
@@ -911,7 +1022,7 @@ pub async fn refund_list(
 pub async fn refund_filter_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: api_models::payments::TimeRange,
+    req: common_utils::types::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
     let db = state.store;
     let filter_list = db
@@ -924,6 +1035,76 @@ pub async fn refund_filter_list(
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     Ok(services::ApplicationResponse::Json(filter_list))
+}
+
+#[instrument(skip_all)]
+pub async fn refund_retrieve_core_with_internal_reference_id(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    refund_internal_request_id: String,
+    force_sync: Option<bool>,
+) -> RouterResult<storage::Refund> {
+    let db = &*state.store;
+    let merchant_id = merchant_account.get_id();
+
+    let refund = db
+        .find_refund_by_internal_reference_id_merchant_id(
+            &refund_internal_request_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let request = refunds::RefundsRetrieveRequest {
+        refund_id: refund.refund_id.clone(),
+        force_sync,
+        merchant_connector_details: None,
+    };
+
+    Box::pin(refund_retrieve_core(
+        state.clone(),
+        merchant_account,
+        profile_id,
+        key_store,
+        request,
+        refund,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn refund_retrieve_core_with_refund_id(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    request: refunds::RefundsRetrieveRequest,
+) -> RouterResult<storage::Refund> {
+    let refund_id = request.refund_id.clone();
+    let db = &*state.store;
+    let merchant_id = merchant_account.get_id();
+
+    let refund = db
+        .find_refund_by_merchant_id_refund_id(
+            merchant_id,
+            refund_id.as_str(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    Box::pin(refund_retrieve_core(
+        state.clone(),
+        merchant_account,
+        profile_id,
+        key_store,
+        request,
+        refund,
+    ))
+    .await
 }
 
 #[instrument(skip_all)]
@@ -987,7 +1168,7 @@ pub async fn refund_manual_update(
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
@@ -1030,6 +1211,38 @@ pub async fn get_filters_for_refunds(
     ))
 }
 
+#[instrument(skip_all)]
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_refunds(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    time_range: common_utils::types::TimeRange,
+) -> RouterResponse<api_models::refunds::RefundAggregateResponse> {
+    let db = state.store.as_ref();
+    let refund_status_with_count = db
+        .get_refund_status_with_count(
+            merchant.get_id(),
+            profile_id_list,
+            &time_range,
+            merchant.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to find status count")?;
+    let mut status_map: HashMap<enums::RefundStatus, i64> =
+        refund_status_with_count.into_iter().collect();
+    for status in enums::RefundStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::RefundAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
+}
+
 impl ForeignFrom<storage::Refund> for api::RefundResponse {
     fn foreign_from(refund: storage::Refund) -> Self {
         let refund = refund;
@@ -1049,7 +1262,9 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
-            charges: refund.charges,
+            split_refunds: refund.split_refunds,
+            unified_code: refund.unified_code,
+            unified_message: refund.unified_message,
         }
     }
 }
@@ -1067,7 +1282,7 @@ pub async fn schedule_refund_execution(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
-    charges: Option<ChargeRefunds>,
+    split_refunds: Option<SplitRefundsRequest>,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
@@ -1096,7 +1311,7 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            trigger_refund_to_gateway(
+                            let update_refund = Box::pin(trigger_refund_to_gateway(
                                 state,
                                 &refund,
                                 merchant_account,
@@ -1104,9 +1319,23 @@ pub async fn schedule_refund_execution(
                                 payment_attempt,
                                 payment_intent,
                                 creds_identifier,
-                                charges,
-                            )
-                            .await
+                                split_refunds,
+                            ))
+                            .await;
+
+                            match update_refund {
+                                Ok(updated_refund_data) => {
+                                    add_refund_sync_task(db, &updated_refund_data, runner)
+                                        .await
+                                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable_lazy(|| format!(
+                                            "Failed while pushing refund sync task in scheduler: refund_id: {}",
+                                            refund.refund_id
+                                        ))?;
+                                    Ok(updated_refund_data)
+                                }
+                                Err(err) => Err(err),
+                            }
                         }
                     }
                 }
@@ -1170,16 +1399,13 @@ pub async fn sync_refund_with_gateway_workflow(
         )
         .await?;
 
-    let response = Box::pin(refund_retrieve_core(
+    let response = Box::pin(refund_retrieve_core_with_internal_reference_id(
         state.clone(),
         merchant_account,
         None,
         key_store,
-        refunds::RefundsRetrieveRequest {
-            refund_id: refund_core.refund_internal_reference_id,
-            force_sync: Some(true),
-            merchant_connector_details: None,
-        },
+        refund_core.refund_internal_reference_id,
+        Some(true),
     ))
     .await?;
     let terminal_status = [
@@ -1301,44 +1527,15 @@ pub async fn trigger_refund_execute_workflow(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-            let charges = match (
-                payment_intent.charges.as_ref(),
-                payment_attempt.charge_id.as_ref(),
-            ) {
-                (Some(charges), Some(charge_id)) => {
-                    let refund_charge_request =
-                        refund.charges.clone().get_required_value("charges")?;
-                    utils::when(*charge_id != refund_charge_request.charge_id, || {
-                        Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "charges.charge_id"
-                        }))
-                        .attach_printable(
-                            "charge_id sent in request mismatches with original charge_id",
-                        )
-                    })?;
-                    let payment_charges: PaymentCharges = charges
-                        .peek()
-                        .clone()
-                        .parse_value("PaymentCharges")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse charges in to PaymentCharges")?;
-                    let options = validator::validate_charge_refund(
-                        &refund_charge_request,
-                        &payment_charges.charge_type,
-                    )?;
-                    Some(ChargeRefunds {
-                        charge_id: charge_id.to_string(),
-                        charge_type: payment_charges.charge_type,
-                        transfer_account_id: payment_charges.transfer_account_id,
-                        options,
-                    })
-                }
-                _ => None,
-            };
+            let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
+                split_payment_request: payment_intent.split_payments.clone(),
+                payment_charges: payment_attempt.charges.clone(),
+                charge_id: payment_attempt.charge_id.clone(),
+                refund_request: refund.split_refunds.clone(),
+            })?;
 
             //trigger refund request to gateway
-            let updated_refund = trigger_refund_to_gateway(
+            let updated_refund = Box::pin(trigger_refund_to_gateway(
                 state,
                 &refund,
                 &merchant_account,
@@ -1346,8 +1543,8 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_attempt,
                 &payment_intent,
                 None,
-                charges,
-            )
+                split_refunds,
+            ))
             .await?;
             add_refund_sync_task(
                 db,
@@ -1387,6 +1584,7 @@ pub fn refund_to_refund_core_workflow_model(
         connector_transaction_id: refund.connector_transaction_id.clone(),
         merchant_id: refund.merchant_id.clone(),
         payment_id: refund.payment_id.clone(),
+        processor_transaction_data: refund.processor_transaction_data.clone(),
     }
 }
 
@@ -1422,7 +1620,7 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &add_attributes([("flow", "Refund")]));
+    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "Refund")));
 
     Ok(response)
 }

@@ -41,8 +41,8 @@ pub fn insert_locales_in_context_for_payout_link_status(context: &mut Context, l
     let i18n_payout_link_status_title = t!("payout_link.status.title", locale = locale);
     let i18n_success_text = t!("payout_link.status.text.success", locale = locale);
     let i18n_success_message = t!("payout_link.status.message.success", locale = locale);
-    let i18n_pending_text = t!("payout_link.status.text.pending", locale = locale);
-    let i18n_pending_message = t!("payout_link.status.message.pending", locale = locale);
+    let i18n_pending_text = t!("payout_link.status.text.processing", locale = locale);
+    let i18n_pending_message = t!("payout_link.status.message.processing", locale = locale);
     let i18n_failed_text = t!("payout_link.status.text.failed", locale = locale);
     let i18n_failed_message = t!("payout_link.status.message.failed", locale = locale);
     let i18n_ref_id_text = t!("payout_link.status.info.ref_id", locale = locale);

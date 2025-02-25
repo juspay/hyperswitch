@@ -9,6 +9,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment(
     state: SessionState,
     req: types::DummyConnectorPaymentRequest,
@@ -32,7 +33,7 @@ pub async fn payment(
     .await?;
     utils::store_data_in_redis(
         &state,
-        payment_data.payment_id.clone(),
+        payment_data.payment_id.get_string_repr().to_owned(),
         payment_data.clone(),
         state.conf.dummy_connector.payment_ttl,
     )
@@ -54,6 +55,7 @@ pub async fn payment_data(
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment_authorize(
     state: SessionState,
     req: types::DummyConnectorPaymentConfirmRequest,
@@ -82,6 +84,7 @@ pub async fn payment_authorize(
     }
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment_complete(
     state: SessionState,
     req: types::DummyConnectorPaymentCompleteRequest,
@@ -106,7 +109,7 @@ pub async fn payment_complete(
         .change_context(errors::DummyConnectorErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let _ = redis_conn.delete_key(req.attempt_id.as_str()).await;
+    let _ = redis_conn.delete_key(&req.attempt_id.as_str().into()).await;
 
     if let Ok(payment_data) = payment_data {
         let updated_payment_data = types::DummyConnectorPaymentData {
@@ -116,7 +119,7 @@ pub async fn payment_complete(
         };
         utils::store_data_in_redis(
             &state,
-            updated_payment_data.payment_id.clone(),
+            updated_payment_data.payment_id.get_string_repr().to_owned(),
             updated_payment_data.clone(),
             state.conf.dummy_connector.payment_ttl,
         )
@@ -144,6 +147,7 @@ pub async fn payment_complete(
     ))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn refund_payment(
     state: SessionState,
     req: types::DummyConnectorRefundRequest,
@@ -162,7 +166,8 @@ pub async fn refund_payment(
         })?;
 
     let mut payment_data =
-        utils::get_payment_data_from_payment_id(&state, payment_id.clone()).await?;
+        utils::get_payment_data_from_payment_id(&state, payment_id.get_string_repr().to_owned())
+            .await?;
 
     payment_data.is_eligible_for_refund(req.amount)?;
 
@@ -171,7 +176,7 @@ pub async fn refund_payment(
 
     utils::store_data_in_redis(
         &state,
-        payment_id,
+        payment_id.get_string_repr().to_owned(),
         payment_data.to_owned(),
         state.conf.dummy_connector.payment_ttl,
     )
@@ -196,6 +201,7 @@ pub async fn refund_payment(
     Ok(api::ApplicationResponse::Json(refund_data))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn refund_data(
     state: SessionState,
     req: types::DummyConnectorRefundRetrieveRequest,
@@ -214,7 +220,7 @@ pub async fn refund_data(
         .attach_printable("Failed to get redis connection")?;
     let refund_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorRefundResponse>(
-            refund_id.as_str(),
+            &refund_id.as_str().into(),
             "DummyConnectorRefundResponse",
         )
         .await

@@ -20,7 +20,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -237,7 +237,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/sales"
+            "v3/orders/events/sales"
         ))
     }
 
@@ -325,7 +325,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/checkouts"
+            "v3/orders/events/checkouts"
         ))
     }
 
@@ -413,7 +413,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/transactions"
+            "v3/orders/events/transactions"
         ))
     }
 
@@ -503,7 +503,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/fulfillments"
+            "v3/orders/events/fulfillments"
         ))
     }
 
@@ -593,7 +593,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/returns/records"
+            "v3/orders/events/returns/records"
         ))
     }
 
@@ -754,3 +754,5 @@ impl api::IncomingWebhook for Signifyd {
         Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Signifyd {}

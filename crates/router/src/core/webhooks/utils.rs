@@ -11,10 +11,9 @@ use crate::{
     db::{get_and_deserialize_key, StorageInterface},
     services::logger,
     types::{self, api, domain, PaymentAddress},
+    SessionState,
 };
 
-const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_payment_id_in_source_verification_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_attempt_id_in_source_verification_flow";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
@@ -58,7 +57,8 @@ pub async fn is_webhook_event_disabled(
     }
 }
 
-pub async fn construct_webhook_router_data<'a>(
+pub async fn construct_webhook_router_data(
+    state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
     merchant_account: &domain::MerchantAccount,
@@ -66,7 +66,7 @@ pub async fn construct_webhook_router_data<'a>(
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
     let auth_type: types::ConnectorAuthType =
-        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone())
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone()))
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -76,13 +76,15 @@ pub async fn construct_webhook_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
-        payment_id: IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+        tenant_id: state.tenant.tenant_id.clone(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("source_verification_flow")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
@@ -120,6 +122,11 @@ pub async fn construct_webhook_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }

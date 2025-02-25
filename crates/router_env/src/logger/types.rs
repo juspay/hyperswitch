@@ -1,6 +1,4 @@
-//!
 //! Types.
-//!
 
 use serde::Deserialize;
 use strum::{Display, EnumString};
@@ -9,12 +7,9 @@ pub use tracing::{
     Level, Value,
 };
 
-///
 /// Category and tag of log event.
 ///
 /// Don't hesitate to add your variant if it is missing here.
-///
-
 #[derive(Debug, Default, Deserialize, Clone, Display, EnumString)]
 pub enum Tag {
     /// General.
@@ -93,6 +88,8 @@ pub enum Flow {
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
     ConfigKeyFetch,
+    /// Enable platform account flow.
+    EnablePlatformAccount,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
     /// ConfigKey Delete flow.
@@ -147,6 +144,8 @@ pub enum Flow {
     PaymentsRetrieve,
     /// Payments Retrieve force sync flow.
     PaymentsRetrieveForceSync,
+    /// Payments Retrieve using merchant reference id
+    PaymentsRetrieveUsingMerchantReferenceId,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -167,6 +166,18 @@ pub enum Flow {
     PaymentsList,
     /// Payments filters flow
     PaymentsFilters,
+    /// Payments aggregates flow
+    PaymentsAggregate,
+    /// Payments Create Intent flow
+    PaymentsCreateIntent,
+    /// Payments Get Intent flow
+    PaymentsGetIntent,
+    /// Payments Update Intent flow
+    PaymentsUpdateIntent,
+    /// Payments confirm intent flow
+    PaymentsConfirmIntent,
+    /// Payments create and confirm intent flow
+    PaymentsCreateAndConfirmIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -210,6 +221,8 @@ pub enum Flow {
     RefundsList,
     /// Refunds filters flow
     RefundsFilters,
+    /// Refunds aggregates flow
+    RefundsAggregate,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -240,6 +253,10 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Toggle dynamic routing
+    ToggleDynamicRouting,
+    /// Update dynamic routing config
+    UpdateDynamicRoutingConfigs,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
@@ -250,6 +267,8 @@ pub enum Flow {
     ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Recovery incoming webhook receive
+    RecoveryIncomingWebhookReceive,
     /// Validate payment method flow
     ValidatePaymentMethod,
     /// API Key create flow
@@ -266,6 +285,8 @@ pub enum Flow {
     DisputesRetrieve,
     /// Dispute List flow
     DisputesList,
+    /// Dispute Filters flow
+    DisputesFilters,
     /// Cards Info flow
     CardsInfo,
     /// Create File flow
@@ -282,6 +303,8 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Delete Dispute Evidence flow
     DeleteDisputeEvidence,
+    /// Disputes aggregate flow
+    DisputesAggregate,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
@@ -296,16 +319,16 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
-    /// Create a business profile
-    BusinessProfileCreate,
-    /// Update a business profile
-    BusinessProfileUpdate,
-    /// Retrieve a business profile
-    BusinessProfileRetrieve,
-    /// Delete a business profile
-    BusinessProfileDelete,
-    /// List all the business profiles for a merchant
-    BusinessProfileList,
+    /// Create a profile
+    ProfileCreate,
+    /// Update a profile
+    ProfileUpdate,
+    /// Retrieve a profile
+    ProfileRetrieve,
+    /// Delete a profile
+    ProfileDelete,
+    /// List all the profiles for a merchant
+    ProfileList,
     /// Different verification flows
     Verification,
     /// Rust locker migration
@@ -338,6 +361,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Manual payment fulfillment acknowledgement
     FrmFulfillment,
+    /// Get connectors feature matrix
+    FeatureMatrix,
     /// Change password flow
     ChangePassword,
     /// Signout flow
@@ -350,34 +375,48 @@ pub enum Flow {
     VerifyPaymentConnector,
     /// Internal user signup
     InternalUserSignup,
-    /// Switch merchant
-    SwitchMerchant,
+    /// Create tenant level user
+    TenantUserCreate,
+    /// Switch org
+    SwitchOrg,
+    /// Switch merchant v2
+    SwitchMerchantV2,
+    /// Switch profile
+    SwitchProfile,
     /// Get permission info
     GetAuthorizationInfo,
-    /// List roles
-    ListRoles,
+    /// Get Roles info
+    GetRolesInfo,
+    /// Get Parent Group Info
+    GetParentGroupInfo,
+    /// List roles v2
+    ListRolesV2,
+    /// List invitable roles at entity level
+    ListInvitableRolesAtEntityLevel,
+    /// List updatable roles at entity level
+    ListUpdatableRolesAtEntityLevel,
     /// Get role
     GetRole,
+    /// Get parent info for role
+    GetRoleV2,
     /// Get role from token
     GetRoleFromToken,
+    /// Get resources and groups for role from token
+    GetRoleFromTokenV2,
     /// Update user role
     UpdateUserRole,
-    /// Transfer organization ownership
-    TransferOrgOwnership,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Org in a given tenancy
+    UserOrgMerchantCreate,
     /// Generate Sample Data
     GenerateSampleData,
     /// Delete Sample Data
     DeleteSampleData,
-    /// List merchant accounts for user
-    UserMerchantAccountList,
     /// Get details of a user
     GetUserDetails,
     /// Get details of a user role in a merchant account
     GetUserRoleDetails,
-    /// List users for merchant account
-    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -410,10 +449,10 @@ pub enum Flow {
     VerifyEmailRequest,
     /// Update user account details
     UpdateUserAccountDetails,
-    /// Accept user invitation
-    AcceptInvitation,
-    /// Select merchant from invitations
-    MerchantSelect,
+    /// Accept user invitation using entities
+    AcceptInvitationsV2,
+    /// Accept user invitation using entities before user login
+    AcceptInvitationsPreAuth,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -452,6 +491,28 @@ pub enum Flow {
     SignInWithSso,
     /// Auth Select
     AuthSelect,
+    /// List Orgs for user
+    ListOrgForUser,
+    /// List Merchants for user in org
+    ListMerchantsForUserInOrg,
+    /// List Profile for user in org and merchant
+    ListProfileForUserInOrgAndMerchant,
+    /// List Users in Org
+    ListUsersInLineage,
+    /// List invitations for user
+    ListInvitationsForUser,
+    /// Get theme using lineage
+    GetThemeUsingLineage,
+    /// Get theme using theme id
+    GetThemeUsingThemeId,
+    /// Upload file to theme storage
+    UploadFileToThemeStorage,
+    /// Create theme
+    CreateTheme,
+    /// Update theme
+    UpdateTheme,
+    /// Delete theme
+    DeleteTheme,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -470,11 +531,35 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Dynamic Tax Calcultion
+    SessionUpdateTaxCalculation,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
+    /// Payments start redirection flow
+    PaymentStartRedirection,
+    /// Volume split on the routing type
+    VolumeSplitOnRoutingType,
+    /// Relay flow
+    Relay,
+    /// Relay retrieve flow
+    RelayRetrieve,
+    /// Incoming Relay Webhook Receive
+    IncomingRelayWebhookReceive,
+    /// Generate Hypersense Token
+    HypersenseTokenRequest,
+    /// Verify Hypersense Token
+    HypersenseVerifyToken,
+    /// Signout Hypersense Token
+    HypersenseSignoutToken,
+    /// Payment Method Session Create
+    PaymentMethodSessionCreate,
+    /// Payment Method Session Retrieve
+    PaymentMethodSessionRetrieve,
+    /// Update a saved payment method using the payment methods session
+    PaymentMethodSessionUpdateSavedPaymentMethod,
 }
 
-///
 /// Trait for providing generic behaviour to flow metric
-///
 pub trait FlowMetric: ToString + std::fmt::Debug + Clone {}
 impl FlowMetric for Flow {}
 

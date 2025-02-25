@@ -4,7 +4,7 @@ use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    errors::api_error_response::ApiErrorResponse, payment_method_data::PaymentMethodData,
+    address, errors::api_error_response::ApiErrorResponse, payment_method_data::PaymentMethodData,
     router_request_types::BrowserInformation,
 };
 
@@ -77,8 +77,8 @@ pub struct PreAuthNRequestData {
 #[derive(Clone, Debug)]
 pub struct ConnectorAuthenticationRequestData {
     pub payment_method_data: PaymentMethodData,
-    pub billing_address: api_models::payments::Address,
-    pub shipping_address: Option<api_models::payments::Address>,
+    pub billing_address: address::Address,
+    pub shipping_address: Option<address::Address>,
     pub browser_details: Option<BrowserInformation>,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,

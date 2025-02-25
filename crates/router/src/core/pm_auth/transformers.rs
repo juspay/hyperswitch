@@ -1,4 +1,4 @@
-use pm_auth::types::{self as pm_auth_types};
+use pm_auth::types as pm_auth_types;
 
 use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 

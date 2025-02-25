@@ -1,10 +1,14 @@
+use std::collections::HashSet;
+
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
-    payments::TimeRange,
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
-use common_utils::errors::{CustomResult, ErrorSwitch};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    types::TimeRange,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use opensearch::{
@@ -24,7 +28,7 @@ use storage_impl::errors::ApplicationError;
 use time::PrimitiveDateTime;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
-use crate::query::QueryBuildingError;
+use crate::{enums::AuthInfo, query::QueryBuildingError};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
@@ -40,6 +44,10 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+    pub sessionizer_payment_attempts: String,
+    pub sessionizer_payment_intents: String,
+    pub sessionizer_refunds: String,
+    pub sessionizer_disputes: String,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
@@ -79,6 +87,10 @@ impl Default for OpenSearchConfig {
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
+                sessionizer_payment_attempts: "sessionizer-payment-attempt-events".to_string(),
+                sessionizer_payment_intents: "sessionizer-payment-intent-events".to_string(),
+                sessionizer_refunds: "sessionizer-refund-events".to_string(),
+                sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
         }
     }
@@ -102,6 +114,8 @@ pub enum OpenSearchError {
     IndexAccessNotPermittedError(SearchIndex),
     #[error("Opensearch unknown error")]
     UnknownError,
+    #[error("Opensearch access forbidden error")]
+    AccessForbiddenError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -157,6 +171,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             Self::UnknownError => {
                 ApiErrorResponse::InternalServerError(ApiError::new("IR", 6, "Unknown error", None))
             }
+            Self::AccessForbiddenError => ApiErrorResponse::ForbiddenCommonResource(ApiError::new(
+                "IR",
+                7,
+                "Access Forbidden error",
+                None,
+            )),
         }
     }
 }
@@ -209,6 +229,14 @@ impl OpenSearchClient {
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
             SearchIndex::Disputes => self.indexes.disputes.clone(),
+            SearchIndex::SessionizerPaymentAttempts => {
+                self.indexes.sessionizer_payment_attempts.clone()
+            }
+            SearchIndex::SessionizerPaymentIntents => {
+                self.indexes.sessionizer_payment_intents.clone()
+            }
+            SearchIndex::SessionizerRefunds => self.indexes.sessionizer_refunds.clone(),
+            SearchIndex::SessionizerDisputes => self.indexes.sessionizer_disputes.clone(),
         }
     }
 
@@ -278,7 +306,10 @@ impl HealthCheck for OpenSearchClient {
         if health.status != OpenSearchHealthStatus::Red {
             Ok(())
         } else {
-            Err(QueryExecutionError::DatabaseError.into())
+            Err::<(), error_stack::Report<QueryExecutionError>>(
+                QueryExecutionError::DatabaseError.into(),
+            )
+            .attach_printable_lazy(|| format!("Opensearch cluster health is red: {health:?}"))
         }
     }
 }
@@ -308,6 +339,36 @@ impl OpenSearchIndexes {
         when(self.disputes.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Disputes index must not be empty".into(),
+            ))
+        })?;
+
+        when(
+            self.sessionizer_payment_attempts.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Attempts index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.sessionizer_payment_intents.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Intents index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(self.sessionizer_refunds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Refunds index must not be empty".into(),
+            ))
+        })?;
+
+        when(self.sessionizer_disputes.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Disputes index must not be empty".into(),
             ))
         })?;
 
@@ -395,19 +456,30 @@ pub struct OpenSearchQueryBuilder {
     pub query: String,
     pub offset: Option<i64>,
     pub count: Option<i64>,
-    pub filters: Vec<(String, Vec<String>)>,
+    pub filters: Vec<(String, Vec<Value>)>,
     pub time_range: Option<OpensearchTimeRange>,
+    search_params: Vec<AuthInfo>,
+    case_sensitive_fields: HashSet<&'static str>,
 }
 
 impl OpenSearchQueryBuilder {
-    pub fn new(query_type: OpenSearchQuery, query: String) -> Self {
+    pub fn new(query_type: OpenSearchQuery, query: String, search_params: Vec<AuthInfo>) -> Self {
         Self {
             query_type,
             query,
+            search_params,
             offset: Default::default(),
             count: Default::default(),
             filters: Default::default(),
             time_range: Default::default(),
+            case_sensitive_fields: HashSet::from([
+                "customer_email.keyword",
+                "search_tags.keyword",
+                "card_last_4.keyword",
+                "payment_id.keyword",
+                "amount",
+                "customer_id.keyword",
+            ]),
         }
     }
 
@@ -422,43 +494,209 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<String>) -> QueryResult<()> {
+    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<Value>) -> QueryResult<()> {
         self.filters.push((lhs, rhs));
         Ok(())
     }
 
-    pub fn get_status_field(&self, index: &SearchIndex) -> &str {
+    pub fn get_status_field(&self, index: SearchIndex) -> &str {
         match index {
-            SearchIndex::Refunds => "refund_status.keyword",
-            SearchIndex::Disputes => "dispute_status.keyword",
+            SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_status.keyword",
+            SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_status.keyword",
             _ => "status.keyword",
         }
     }
 
-    pub fn replace_status_field(&self, filters: &[Value], index: &SearchIndex) -> Vec<Value> {
-        filters
-            .iter()
-            .map(|filter| {
-                if let Some(terms) = filter.get("terms").and_then(|v| v.as_object()) {
-                    let mut new_filter = filter.clone();
-                    if let Some(new_terms) =
-                        new_filter.get_mut("terms").and_then(|v| v.as_object_mut())
-                    {
-                        let key = "status.keyword";
-                        if let Some(status_terms) = terms.get(key) {
-                            new_terms.remove(key);
-                            new_terms.insert(
-                                self.get_status_field(index).to_string(),
-                                status_terms.clone(),
-                            );
-                        }
-                    }
-                    new_filter
+    pub fn get_amount_field(&self, index: SearchIndex) -> &str {
+        match index {
+            SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_amount",
+            SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_amount",
+            _ => "amount",
+        }
+    }
+
+    pub fn build_filter_array(
+        &self,
+        case_sensitive_filters: Vec<&(String, Vec<Value>)>,
+        index: SearchIndex,
+    ) -> Vec<Value> {
+        let mut filter_array = Vec::new();
+        if !self.query.is_empty() {
+            filter_array.push(json!({
+                "multi_match": {
+                    "type": "phrase",
+                    "query": self.query,
+                    "lenient": true
+                }
+            }));
+        }
+
+        let case_sensitive_json_filters = case_sensitive_filters
+            .into_iter()
+            .map(|(k, v)| {
+                let key = if *k == "amount" {
+                    self.get_amount_field(index).to_string()
                 } else {
-                    filter.clone()
+                    k.clone()
+                };
+                json!({"terms": {key: v}})
+            })
+            .collect::<Vec<Value>>();
+
+        filter_array.extend(case_sensitive_json_filters);
+
+        if let Some(ref time_range) = self.time_range {
+            let range = json!(time_range);
+            filter_array.push(json!({
+                "range": {
+                    "@timestamp": range
+                }
+            }));
+        }
+
+        filter_array
+    }
+
+    pub fn build_case_insensitive_filters(
+        &self,
+        mut payload: Value,
+        case_insensitive_filters: &[&(String, Vec<Value>)],
+        auth_array: Vec<Value>,
+        index: SearchIndex,
+    ) -> Value {
+        let mut must_array = case_insensitive_filters
+            .iter()
+            .map(|(k, v)| {
+                let key = if *k == "status.keyword" {
+                    self.get_status_field(index).to_string()
+                } else {
+                    k.clone()
+                };
+                json!({
+                    "bool": {
+                        "must": [
+                            {
+                                "bool": {
+                                    "should": v.iter().map(|value| {
+                                        json!({
+                                            "term": {
+                                                format!("{}", key): {
+                                                    "value": value,
+                                                    "case_insensitive": true
+                                                }
+                                            }
+                                        })
+                                    }).collect::<Vec<Value>>(),
+                                    "minimum_should_match": 1
+                                }
+                            }
+                        ]
+                    }
+                })
+            })
+            .collect::<Vec<Value>>();
+
+        must_array.push(json!({ "bool": {
+            "must": [
+                {
+                    "bool": {
+                        "should": auth_array,
+                        "minimum_should_match": 1
+                    }
+                }
+            ]
+        }}));
+
+        if let Some(query) = payload.get_mut("query") {
+            if let Some(bool_obj) = query.get_mut("bool") {
+                if let Some(bool_map) = bool_obj.as_object_mut() {
+                    bool_map.insert("must".to_string(), Value::Array(must_array));
+                }
+            }
+        }
+
+        payload
+    }
+
+    pub fn build_auth_array(&self) -> Vec<Value> {
+        self.search_params
+            .iter()
+            .map(|user_level| match user_level {
+                AuthInfo::OrgLevel { org_id } => {
+                    let must_clauses = vec![json!({
+                        "term": {
+                            "organization_id.keyword": {
+                                "value": org_id
+                            }
+                        }
+                    })];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+                AuthInfo::MerchantLevel {
+                    org_id,
+                    merchant_ids,
+                } => {
+                    let must_clauses = vec![
+                        json!({
+                            "term": {
+                                "organization_id.keyword": {
+                                    "value": org_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "terms": {
+                                "merchant_id.keyword": merchant_ids
+                            }
+                        }),
+                    ];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+                AuthInfo::ProfileLevel {
+                    org_id,
+                    merchant_id,
+                    profile_ids,
+                } => {
+                    let must_clauses = vec![
+                        json!({
+                            "term": {
+                                "organization_id.keyword": {
+                                    "value": org_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "term": {
+                                "merchant_id.keyword": {
+                                    "value": merchant_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "terms": {
+                                "profile_id.keyword": profile_ids
+                            }
+                        }),
+                    ];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
                 }
             })
-            .collect()
+            .collect::<Vec<Value>>()
     }
 
     /// # Panics
@@ -470,55 +708,50 @@ impl OpenSearchQueryBuilder {
     /// Ensure that the input data and the structure of the query are valid and correctly handled.
     pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
         let mut query_obj = Map::new();
-        let mut bool_obj = Map::new();
-        let mut filter_array = Vec::new();
+        let bool_obj = Map::new();
 
-        filter_array.push(json!({
-            "multi_match": {
-                "type": "phrase",
-                "query": self.query,
-                "lenient": true
-            }
-        }));
-
-        let mut filters = self
+        let (case_sensitive_filters, case_insensitive_filters): (Vec<_>, Vec<_>) = self
             .filters
             .iter()
-            .map(|(k, v)| json!({"terms": {k: v}}))
-            .collect::<Vec<Value>>();
+            .partition(|(k, _)| self.case_sensitive_fields.contains(k.as_str()));
 
-        filter_array.append(&mut filters);
+        let should_array = self.build_auth_array();
 
-        if let Some(ref time_range) = self.time_range {
-            let range = json!(time_range);
-            filter_array.push(json!({
-                "range": {
-                    "@timestamp": range
-                }
-            }));
-        }
+        query_obj.insert("bool".to_string(), Value::Object(bool_obj.clone()));
 
-        bool_obj.insert("filter".to_string(), Value::Array(filter_array));
-        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
-
-        let mut query = Map::new();
-        query.insert("query".to_string(), Value::Object(query_obj));
+        let mut sort_obj = Map::new();
+        sort_obj.insert(
+            "@timestamp".to_string(),
+            json!({
+                "order": "desc"
+            }),
+        );
 
         Ok(indexes
             .iter()
             .map(|index| {
-                let updated_query = query
-                    .get("query")
-                    .and_then(|q| q.get("bool"))
-                    .and_then(|b| b.get("filter"))
-                    .and_then(|f| f.as_array())
-                    .map(|filters| self.replace_status_field(filters, index))
-                    .unwrap_or_default();
-
-                let mut final_query = Map::new();
-                final_query.insert("bool".to_string(), json!({ "filter": updated_query }));
-
-                let payload = json!({ "query": Value::Object(final_query) });
+                let mut payload = json!({
+                    "query": query_obj.clone(),
+                    "sort": [
+                        Value::Object(sort_obj.clone())
+                    ]
+                });
+                let filter_array = self.build_filter_array(case_sensitive_filters.clone(), *index);
+                if !filter_array.is_empty() {
+                    payload
+                        .get_mut("query")
+                        .and_then(|query| query.get_mut("bool"))
+                        .and_then(|bool_obj| bool_obj.as_object_mut())
+                        .map(|bool_map| {
+                            bool_map.insert("filter".to_string(), Value::Array(filter_array));
+                        });
+                }
+                payload = self.build_case_insensitive_filters(
+                    payload,
+                    &case_insensitive_filters,
+                    should_array.clone(),
+                    *index,
+                );
                 payload
             })
             .collect::<Vec<Value>>())

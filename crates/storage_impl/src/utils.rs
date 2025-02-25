@@ -59,7 +59,7 @@ where
         Ok(output) => Ok(output),
         Err(redis_error) => match redis_error.current_context() {
             redis_interface::errors::RedisError::NotFound => {
-                metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
+                metrics::KV_MISS.add(1, &[]);
                 database_call_closure().await
             }
             // Keeping the key empty here since the error would never go here.

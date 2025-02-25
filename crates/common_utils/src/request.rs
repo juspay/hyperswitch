@@ -152,6 +152,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn set_optional_body<T: Into<RequestContent>>(mut self, body: Option<T>) -> Self {
+        body.map(|body| self.body.replace(body.into()));
+        self
+    }
+
     pub fn set_body<T: Into<RequestContent>>(mut self, body: T) -> Self {
         self.body.replace(body.into());
         self

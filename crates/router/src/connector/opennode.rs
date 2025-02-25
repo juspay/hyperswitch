@@ -16,7 +16,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -449,3 +449,5 @@ impl api::IncomingWebhook for Opennode {
         Ok(Box::new(notif.status))
     }
 }
+
+impl ConnectorSpecifications for Opennode {}

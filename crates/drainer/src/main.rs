@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use drainer::{
-    errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
-};
+use drainer::{errors::DrainerResult, logger, services, settings, start_drainer, start_web_server};
 use router_env::tracing::Instrument;
 
 #[tokio::main]
@@ -25,8 +23,11 @@ async fn main() -> DrainerResult<()> {
         stores.insert(tenant_name.clone(), store);
     }
 
+    #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
-    println!("Starting drainer (Version: {})", router_env::git_tag!());
+    {
+        println!("Starting drainer (Version: {})", router_env::git_tag!());
+    }
 
     let _guard = router_env::setup(
         &conf.log,

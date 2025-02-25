@@ -7,7 +7,7 @@ use aws_sdk_sesv2::{
     Client,
 };
 use aws_sdk_sts::config::Credentials;
-use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii};
+use common_utils::{errors::CustomResult, pii};
 use error_stack::{report, ResultExt};
 use hyper::Uri;
 use masking::PeekInterface;
@@ -19,6 +19,7 @@ use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, Intermed
 #[derive(Debug, Clone)]
 pub struct AwsSes {
     sender: String,
+    ses_config: SESConfig,
     settings: EmailSettings,
 }
 
@@ -30,6 +31,21 @@ pub struct SESConfig {
 
     /// The name of sts_session role
     pub sts_role_session_name: String,
+}
+
+impl SESConfig {
+    /// Validation for the SES client specific configs
+    pub fn validate(&self) -> Result<(), &'static str> {
+        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+
+        when(self.email_role_arn.is_default_or_empty(), || {
+            Err("email.aws_ses.email_role_arn must not be empty")
+        })?;
+
+        when(self.sts_role_session_name.is_default_or_empty(), || {
+            Err("email.aws_ses.sts_role_session_name must not be empty")
+        })
+    }
 }
 
 /// Errors that could occur during SES operations.
@@ -67,15 +83,20 @@ pub enum AwsSesError {
 
 impl AwsSes {
     /// Constructs a new AwsSes client
-    pub async fn create(conf: &EmailSettings, proxy_url: Option<impl AsRef<str>>) -> Self {
+    pub async fn create(
+        conf: &EmailSettings,
+        ses_config: &SESConfig,
+        proxy_url: Option<impl AsRef<str>>,
+    ) -> Self {
         // Build the client initially which will help us know if the email configuration is correct
-        Self::create_client(conf, proxy_url)
+        Self::create_client(conf, ses_config, proxy_url)
             .await
             .map_err(|error| logger::error!(?error, "Failed to initialize SES Client"))
             .ok();
 
         Self {
             sender: conf.sender_email.clone(),
+            ses_config: ses_config.clone(),
             settings: conf.clone(),
         }
     }
@@ -83,18 +104,12 @@ impl AwsSes {
     /// A helper function to create ses client
     pub async fn create_client(
         conf: &EmailSettings,
+        ses_config: &SESConfig,
         proxy_url: Option<impl AsRef<str>>,
     ) -> CustomResult<Client, AwsSesError> {
         let sts_config = Self::get_shared_config(conf.aws_region.to_owned(), proxy_url.as_ref())?
             .load()
             .await;
-
-        let ses_config = conf
-            .aws_ses
-            .as_ref()
-            .get_required_value("aws ses configuration")
-            .attach_printable("The selected email client is aws ses, but configuration is missing")
-            .change_context(AwsSesError::MissingConfigurationVariable("aws_ses"))?;
 
         let role = aws_sdk_sts::Client::new(&sts_config)
             .assume_role()
@@ -219,7 +234,7 @@ impl EmailClient for AwsSes {
     ) -> EmailResult<()> {
         // Not using the same email client which was created at startup as the role session would expire
         // Create a client every time when the email is being sent
-        let email_client = Self::create_client(&self.settings, proxy_url)
+        let email_client = Self::create_client(&self.settings, &self.ses_config, proxy_url)
             .await
             .change_context(EmailError::ClientBuildingFailure)?;
 

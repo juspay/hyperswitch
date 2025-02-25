@@ -25,14 +25,19 @@ pub trait KvStorePartition {
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        payment_id: &'a str,
+        payment_id: &'a common_utils::id_type::PaymentId,
     },
     CombinationKey {
         combination: &'a str,
     },
     MerchantIdCustomerId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        customer_id: &'a str,
+        customer_id: &'a common_utils::id_type::CustomerId,
+    },
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    MerchantIdMerchantReferenceId {
+        merchant_id: &'a common_utils::id_type::MerchantId,
+        merchant_reference_id: &'a str,
     },
     MerchantIdPayoutId {
         merchant_id: &'a common_utils::id_type::MerchantId,
@@ -46,24 +51,38 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
     },
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    GlobalId {
+        id: &'a str,
+    },
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
-impl<'a> std::fmt::Display for PartitionKey<'a> {
+impl std::fmt::Display for PartitionKey<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             PartitionKey::MerchantIdPaymentId {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!(
-                "mid_{}_pid_{payment_id}",
-                merchant_id.get_string_repr()
+                "mid_{}_pid_{}",
+                merchant_id.get_string_repr(),
+                payment_id.get_string_repr()
             )),
             PartitionKey::CombinationKey { combination } => f.write_str(combination),
             PartitionKey::MerchantIdCustomerId {
                 merchant_id,
                 customer_id,
             } => f.write_str(&format!(
-                "mid_{}_cust_{customer_id}",
+                "mid_{}_cust_{}",
+                merchant_id.get_string_repr(),
+                customer_id.get_string_repr()
+            )),
+            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            PartitionKey::MerchantIdMerchantReferenceId {
+                merchant_id,
+                merchant_reference_id,
+            } => f.write_str(&format!(
+                "mid_{}_cust_{merchant_reference_id}",
                 merchant_id.get_string_repr()
             )),
             PartitionKey::MerchantIdPayoutId {
@@ -87,6 +106,9 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 "mid_{}_mandate_{mandate_id}",
                 merchant_id.get_string_repr()
             )),
+
+            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            PartitionKey::GlobalId { id } => f.write_str(&format!("cust_{id}",)),
         }
     }
 }
@@ -159,7 +181,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 redis_conn
-                    .set_hash_fields(&key, value, Some(ttl.into()))
+                    .set_hash_fields(&key.into(), value, Some(ttl.into()))
                     .await?;
 
                 store
@@ -171,14 +193,14 @@ where
 
             KvOperation::HGet(field) => {
                 let result = redis_conn
-                    .get_hash_field_and_deserialize(&key, field, type_name)
+                    .get_hash_field_and_deserialize(&key.into(), field, type_name)
                     .await?;
                 Ok(KvResult::HGet(result))
             }
 
             KvOperation::Scan(pattern) => {
                 let result: Vec<T> = redis_conn
-                    .hscan_and_deserialize(&key, pattern, None)
+                    .hscan_and_deserialize(&key.into(), pattern, None)
                     .await
                     .and_then(|result| {
                         if result.is_empty() {
@@ -196,7 +218,7 @@ where
                 value.check_for_constraints(&redis_conn).await?;
 
                 let result = redis_conn
-                    .serialize_and_set_hash_field_if_not_exist(&key, field, value, Some(ttl))
+                    .serialize_and_set_hash_field_if_not_exist(&key.into(), field, value, Some(ttl))
                     .await?;
 
                 if matches!(result, redis_interface::HsetnxReply::KeySet) {
@@ -213,7 +235,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
-                    .serialize_and_set_key_if_not_exist(&key, value, Some(ttl.into()))
+                    .serialize_and_set_key_if_not_exist(&key.into(), value, Some(ttl.into()))
                     .await?;
 
                 value.check_for_constraints(&redis_conn).await?;
@@ -229,27 +251,24 @@ where
             }
 
             KvOperation::Get => {
-                let result = redis_conn.get_and_deserialize_key(&key, type_name).await?;
+                let result = redis_conn
+                    .get_and_deserialize_key(&key.into(), type_name)
+                    .await?;
                 Ok(KvResult::Get(result))
             }
         }
     };
 
+    let attributes = router_env::metric_attributes!(("operation", operation.clone()));
     result
         .await
-        .map(|result| {
+        .inspect(|_| {
             logger::debug!(kv_operation= %operation, status="success");
-            let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation.clone());
-
-            metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
-            result
+            metrics::KV_OPERATION_SUCCESSFUL.add(1, attributes);
         })
-        .map_err(|err| {
+        .inspect_err(|err| {
             logger::error!(kv_operation = %operation, status="error", error = ?err);
-            let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation);
-
-            metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
-            err
+            metrics::KV_OPERATION_FAILED.add(1, attributes);
         })
 }
 
@@ -259,7 +278,7 @@ pub enum Op<'a> {
     Find,
 }
 
-impl<'a> std::fmt::Display for Op<'a> {
+impl std::fmt::Display for Op<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Op::Insert => f.write_str("insert"),
@@ -271,10 +290,10 @@ impl<'a> std::fmt::Display for Op<'a> {
     }
 }
 
-pub async fn decide_storage_scheme<'a, T, D>(
+pub async fn decide_storage_scheme<T, D>(
     store: &KVRouterStore<T>,
     storage_scheme: MerchantStorageScheme,
-    operation: Op<'a>,
+    operation: Op<'_>,
 ) -> MerchantStorageScheme
 where
     D: de::DeserializeOwned
@@ -292,11 +311,15 @@ where
             Op::Find => MerchantStorageScheme::RedisKv,
             Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
             Op::Update(partition_key, field, Some(_updated_by)) => {
-                match kv_wrapper::<D, _, _>(store, KvOperation::<D>::HGet(field), partition_key)
-                    .await
+                match Box::pin(kv_wrapper::<D, _, _>(
+                    store,
+                    KvOperation::<D>::HGet(field),
+                    partition_key,
+                ))
+                .await
                 {
                     Ok(_) => {
-                        metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(1, &[]);
                         MerchantStorageScheme::RedisKv
                     }
                     Err(_) => MerchantStorageScheme::PostgresOnly,
