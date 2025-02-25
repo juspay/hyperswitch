@@ -991,12 +991,13 @@ pub fn generate_payment_method_session_response(
         .as_ref()
         .and_then(|payment| payment.next_action.clone());
 
-    let customer_authentication_details = associated_payment.map(|payment| {
-        api_models::payment_methods::CustomerAuthenticationDetails {
-            status: payment.status,
-            error: payment.error,
-        }
-    });
+    let authentication_details =
+        associated_payment.map(
+            |payment| api_models::payment_methods::AuthenticationDetails {
+                status: payment.status,
+                error: payment.error,
+            },
+        );
 
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
@@ -1012,7 +1013,7 @@ pub fn generate_payment_method_session_response(
         next_action,
         return_url: payment_method_session.return_url,
         associated_payment_methods: payment_method_session.associated_payment_methods,
-        customer_authentication_details,
+        authentication_details,
     }
 }
 
