@@ -590,7 +590,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             customer_id: self.customer_id,
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokeinzation: self.network_tokenization,
+            network_tokenization: self.network_tokenization,
             expires_at: self.expires_at,
         })
     }
@@ -639,7 +639,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
                 customer_id: storage_model.customer_id,
                 billing,
                 psp_tokenization: storage_model.psp_tokenization,
-                network_tokenization: storage_model.network_tokeinzation,
+                network_tokenization: storage_model.network_tokenization,
                 expires_at: storage_model.expires_at,
             })
         }
@@ -655,10 +655,65 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             customer_id: self.customer_id,
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
-            network_tokeinzation: self.network_tokenization,
+            network_tokenization: self.network_tokenization,
             expires_at: self.expires_at,
         })
     }
+}
+
+#[cfg(feature = "v2")]
+pub enum PaymentMethodsSessionUpdateEnum {
+    GeneralUpdate {
+        billing: Option<Encryptable<Address>>,
+        psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+        network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+    },
+}
+
+#[cfg(feature = "v2")]
+impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateInternal {
+    fn from(update: PaymentMethodsSessionUpdateEnum) -> Self {
+        match update {
+            PaymentMethodsSessionUpdateEnum::GeneralUpdate {
+                billing,
+                psp_tokenization,
+                network_tokenization,
+            } => Self {
+                billing,
+                psp_tokenization,
+                network_tokenization,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodsSession {
+    pub fn apply_changeset(self, update_session: PaymentMethodsSessionUpdateInternal) -> Self {
+        let Self {
+            id,
+            customer_id,
+            billing,
+            psp_tokenization,
+            network_tokenization,
+            expires_at,
+        } = self;
+        Self {
+            id,
+            customer_id,
+            billing: update_session.billing.or(billing),
+            psp_tokenization: update_session.psp_tokenization.or(psp_tokenization),
+            network_tokenization: update_session.network_tokenization.or(network_tokenization),
+            expires_at,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodsSessionUpdateInternal {
+    pub billing: Option<Encryptable<Address>>,
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
 #[cfg(all(
