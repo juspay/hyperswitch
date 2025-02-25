@@ -19,7 +19,12 @@ use crate::{
     redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
 };
-use crate::{kv_router_store::{KVRouterStore, InsertResourceParams}, DatabaseStore, RouterStore};
+use crate::{
+    kv_router_store::{
+        FilterResourceParams, InsertResourceParams, KVRouterStore, UpdateResourceParams,
+    },
+    DatabaseStore, RouterStore,
+};
 use hyperswitch_domain_models::{
     errors,
     merchant_key_store::MerchantKeyStore,
@@ -43,18 +48,13 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
+            state,
+            key_store,
             storage_scheme,
             || async { PaymentMethod::find_by_payment_method_id(&conn, payment_method_id).await },
             format!("payment_method_{}", payment_method_id),
         )
-        .await?
-        .convert(
-            state,
-            key_store.key.get_inner(),
-            key_store.merchant_id.clone().into(),
-        )
         .await
-        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -72,14 +72,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             || async { PaymentMethod::find_by_payment_method_id(&conn, payment_method_id).await },
             format!("payment_method_{}", payment_method_id.get_string_repr()),
         )
-        .await?
-        .convert(
-            state,
-            key_store.key.get_inner(),
-            key_store.merchant_id.clone().into(),
-        )
         .await
-        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(all(
@@ -96,18 +89,13 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
+            state,
+            key_store,
             storage_scheme,
             || async { PaymentMethod::find_by_locker_id(&conn, locker_id).await },
             format!("payment_method_locker_{}", locker_id),
         )
-        .await?
-        .convert(
-            state,
-            key_store.key.get_inner(),
-            key_store.merchant_id.clone().into(),
-        )
         .await
-        .change_context(errors::StorageError::DecryptionError)
     }
 
     // not supported in kv
@@ -168,7 +156,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             merchant_id: &payment_method_new.merchant_id.clone(),
             customer_id: &payment_method_new.customer_id.clone(),
         };
-        let field = format!("payment_method_id_{}", payment_method_new.get_id());
+        let identifier = format!("payment_method_id_{}", payment_method_new.get_id());
         let lookup_id1 = format!("payment_method_{}", payment_method_new.get_id());
         let mut reverse_lookups = vec![lookup_id1];
         if let Some(locker_id) = &payment_method_new.locker_id {
@@ -176,6 +164,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         }
         let payment_method = (&payment_method_new.clone()).into();
         self.insert_resource(
+            state,
+            key_store,
             storage_scheme,
             || async { payment_method_new.clone().insert(&conn).await },
             payment_method,
@@ -183,18 +173,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 insertable: kv::Insertable::PaymentMethod(payment_method_new.clone()),
                 reverse_lookups,
                 key,
-                field,
+                identifier,
                 resource_type: "payment_method",
             },
         )
-        .await?
-        .convert(
-            state,
-            key_store.key.get_inner(),
-            key_store.merchant_id.clone().into(),
-        )
         .await
-        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(all(
@@ -226,6 +209,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             payment_method_update.convert_to_payment_method_update(storage_scheme);
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
         self.update_resource(
+            state,
+            key_store,
             storage_scheme,
             || async {
                 payment_method
@@ -234,24 +219,21 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                     .await
             },
             updated_payment_method,
-            kv::Updateable::PaymentMethodUpdate(Box::new(kv::PaymentMethodUpdateMems {
-                orig: payment_method.clone(),
-                update_data: p_update.clone(),
-            })),
-            Op::Update(
-                key.clone(),
-                &field,
-                payment_method.clone().updated_by.as_deref(),
-            ),
-        )
-        .await?
-        .convert(
-            state,
-            key_store.key.get_inner(),
-            key_store.merchant_id.clone().into(),
+            UpdateResourceParams {
+                updateable: kv::Updateable::PaymentMethodUpdate(Box::new(
+                    kv::PaymentMethodUpdateMems {
+                        orig: payment_method.clone(),
+                        update_data: p_update.clone(),
+                    },
+                )),
+                operation: Op::Update(
+                    key.clone(),
+                    &field,
+                    payment_method.clone().updated_by.as_deref(),
+                ),
+            },
         )
         .await
-        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -343,36 +325,22 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             )
             .await
         };
-        let payment_methods = self
-            .filter_resources(
-                storage_scheme,
-                database_call,
-                PartitionKey::MerchantIdCustomerId {
+        self.filter_resources(
+            state,
+            key_store,
+            storage_scheme,
+            database_call,
+            |pm| pm.status == status,
+            FilterResourceParams {
+                key: PartitionKey::MerchantIdCustomerId {
                     merchant_id,
                     customer_id,
                 },
-                "payment_method_id_*",
-                |pm| pm.status == status,
+                pattern: "payment_method_id_*",
                 limit,
-            )
-            .await?;
-
-        let pm_futures = payment_methods
-            .into_iter()
-            .map(|pm| async {
-                pm.convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
-            .collect::<Vec<_>>();
-
-        let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
-
-        Ok(domain_payment_methods)
+            },
+        )
+        .await
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -429,27 +397,9 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let payment_method = Conversion::convert(payment_method)
+        self.router_store
+            .delete_payment_method(state, key_store, payment_method)
             .await
-            .change_context(errors::StorageError::DecryptionError)?;
-        let conn = pg_connection_write(self).await?;
-        let payment_method_update = PaymentMethodUpdate::StatusUpdate {
-            status: Some(common_enums::PaymentMethodStatus::Inactive),
-        };
-        payment_method
-            .update_with_id(&conn, payment_method_update.into())
-            .await
-            .map_err(|error| {
-                let new_err = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_err)
-            })?
-            .convert(
-                state,
-                key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
     }
 
     // Check if KV stuff is needed here
@@ -461,19 +411,9 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id)
+        self.router_store
+            .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
             .await
-            .map_err(|error| {
-                let new_err = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_err)
-            })?
-            .convert(
-                state,
-                key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
     }
 }
 
@@ -507,7 +447,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(state, key_store, || async {
+        self.call_database(state, key_store, || async {
             PaymentMethod::find_by_id(&conn, payment_method_id).await
         })
         .await
@@ -613,15 +553,16 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        self.router_store
-            .update_payment_method(
-                state,
-                key_Store,
-                payment_method,
-                payment_method_update,
-                storage_scheme,
-            )
+        let payment_method = Conversion::convert(payment_method)
             .await
+            .change_context(errors::StorageError::DecryptionError)?;
+        let conn = pg_connection_write(self).await?;
+        self.call_database(state, key_store, || async {
+            payment_method
+                .update_with_payment_method_id(&conn, payment_method_update.into())
+                .await
+        })
+        .await
     }
 
     #[cfg(all(
