@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.25.0
+
+### Features
+
+- **router:** Add customer_list_saved_payment_methods endpoint to OLAP ([#7241](https://github.com/juspay/hyperswitch/pull/7241)) ([`fdfcdcc`](https://github.com/juspay/hyperswitch/commit/fdfcdcc7a163410c8a690ec5d11a83d97d887856))
+
+### Bug Fixes
+
+- **connector:** [NMI] Added enum for Void Reason ([#7221](https://github.com/juspay/hyperswitch/pull/7221)) ([`9032165`](https://github.com/juspay/hyperswitch/commit/90321653ba5e8efd862ae5e25b35b2f2644cefa3))
+- **router:** Resolve spell check for state introduced for ISO representation ([#7342](https://github.com/juspay/hyperswitch/pull/7342)) ([`db498c2`](https://github.com/juspay/hyperswitch/commit/db498c272caa8a8a875da14c51fffd1d17efb4cc))
+
+**Full Changelog:** [`2025.02.24.0...2025.02.25.0`](https://github.com/juspay/hyperswitch/compare/2025.02.24.0...2025.02.25.0)
+
+
+- - -
+
 ## 2025.02.24.0
 
 ### Features
