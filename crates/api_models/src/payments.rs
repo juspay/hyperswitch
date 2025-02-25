@@ -2521,7 +2521,9 @@ impl GetPaymentMethodType for WalletData {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
-            Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::AmazonPay(_) | Self::AmazonPayRedirect(_) => {
+                api_enums::PaymentMethodType::AmazonPay
+            }
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -3400,6 +3402,8 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
+    /// The wallet data for Amazon Pay
+    AmazonPay(AmazonPayWalletData),
     /// The wallet data for Amazon Pay redirect
     AmazonPayRedirect(AmazonPayRedirectData),
     /// The wallet data for Momo redirect
@@ -3481,6 +3485,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::AliPayQr(_)
             | Self::AliPayRedirect(_)
             | Self::AliPayHkRedirect(_)
+            | Self::AmazonPay(_)
             | Self::MomoRedirect(_)
             | Self::KakaoPayRedirect(_)
             | Self::GoPayRedirect(_)
@@ -3640,6 +3645,20 @@ pub struct GooglePayWalletData {
     pub tokenization_data: GpayTokenizationData,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPaySessionTokenData {
+    #[serde(rename = "amazon_pay")]
+    pub data: AmazonPayMerchantCredentials,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPayMerchantCredentials {
+    /// Amazon Pay merchant account identifier
+    pub merchant_id: String,
+    /// Amazon Pay store ID
+    pub store_id: String,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRedirectData {}
 
@@ -3751,6 +3770,12 @@ pub struct GpayTokenizationData {
     pub token_type: String,
     /// Token generated for the wallet
     pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AmazonPayWalletData {
+    /// Checkout Session identifier
+    pub checkout_session_id: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -6812,6 +6837,8 @@ pub enum SessionToken {
     Paze(Box<PazeSessionTokenResponse>),
     /// The sessions response structure for ClickToPay
     ClickToPay(Box<ClickToPaySessionResponse>),
+    /// The session response structure for Amazon Pay
+    AmazonPay(Box<AmazonPaySessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -7181,6 +7208,64 @@ pub struct AmountInfo {
 pub struct ApplepayErrorResponse {
     pub status_code: String,
     pub status_message: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct AmazonPaySessionTokenResponse {
+    /// Amazon Pay merchant account identifier
+    pub merchant_id: String,
+    /// Ledger currency provided during registration for the given merchant identifier
+    pub ledger_currency: common_enums::Currency,
+    /// Amazon Pay store ID
+    pub store_id: String,
+    /// Payment flow for charging the buyer
+    pub payment_intent: AmazonPayPaymentIntent,
+    /// The total shipping costs
+    pub total_shipping_amount: StringMajorUnit,
+    /// The total tax amount for the order
+    pub total_tax_amount: StringMajorUnit,
+    /// The total amount for items in the cart
+    pub total_base_amount: StringMajorUnit,
+    /// The delivery options available for the provided address
+    pub delivery_options: Vec<AmazonPayDeliveryOptions>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub enum AmazonPayPaymentIntent {
+    /// Create a Charge Permission to authorize and capture funds at a later time
+    Confirm,
+    /// Authorize funds immediately and capture at a later time
+    Authorize,
+    /// Authorize and capture funds immediately
+    AuthorizeWithCapture,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct AmazonPayDeliveryOptions {
+    /// Delivery Option identifier
+    pub id: String,
+    /// Total delivery cost
+    pub price: AmazonPayDeliveryPrice,
+    /// Shipping method details
+    pub shipping_method: AmazonPayShippingMethod,
+    /// Specifies if this delivery option is the default
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct AmazonPayDeliveryPrice {
+    /// Transaction amount
+    pub amount: StringMajorUnit,
+    /// Transaction currency code in ISO 4217 format
+    pub currency_code: common_enums::Currency,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct AmazonPayShippingMethod {
+    /// Name of the shipping method
+    pub shipping_method_name: String,
+    /// Code of the shipping method
+    pub shipping_method_code: String,
 }
 
 #[cfg(feature = "v1")]

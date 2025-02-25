@@ -1810,6 +1810,7 @@ fn get_wallet_data(
         domain::WalletData::AliPayQr(_)
         | domain::WalletData::AliPayRedirect(_)
         | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::AmazonPay(_)
         | domain::WalletData::AmazonPayRedirect(_)
         | domain::WalletData::MomoRedirect(_)
         | domain::WalletData::KakaoPayRedirect(_)

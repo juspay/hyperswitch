@@ -120,6 +120,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
             | WalletData::GcashRedirect(_)
+            | WalletData::AmazonPay(_)
             | WalletData::ApplePay(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect { .. }

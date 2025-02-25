@@ -11,7 +11,8 @@ key1 = "MerchantId"
 api_secret = "Secondary key"
 
 [amazonpay]
-api_key="API Key"
+api_key="Private Key"
+key1="Public Key"
 
 [authorizedotnet]
 api_key = "MyMerchantName"
