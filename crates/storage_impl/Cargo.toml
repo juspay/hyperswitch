@@ -11,9 +11,11 @@ license.workspace = true
 default = ["olap", "oltp"]
 dynamic_routing = []
 oltp = []
+accounts_cache = []
+kv_store = []
 olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1", "sample/v1"]
 v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2"]
 payment_methods_v2 = ["diesel_models/payment_methods_v2", "api_models/payment_methods_v2", "hyperswitch_domain_models/payment_methods_v2"]
@@ -29,6 +31,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env" }
+sample = { version = "0.1.0", path = "../sample" }
 
 # Third party crates
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
@@ -47,6 +50,7 @@ serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 thiserror = "1.0.58"
 tokio = { version = "1.37.0", features = ["rt-multi-thread"] }
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 
 [lints]
 workspace = true

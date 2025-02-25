@@ -1,0 +1,352 @@
+use common_utils::id_type;
+use diesel_models::{enums, user::dashboard_metadata as storage};
+// use error_stack::{report, ResultExt};
+// use router_env::{instrument, tracing};
+// use storage_impl::MockDb;
+
+// use crate::{
+//     connection,
+//     core::errors::{self, CustomResult},
+//     services::Store,
+// };
+
+// use hyperswitch_domain_models::errors;
+use common_utils::errors::CustomResult;
+
+#[async_trait::async_trait]
+#[allow(dead_code)]
+pub trait DashboardMetadataInterface {
+    type Error;
+    async fn insert_metadata(
+        &self,
+        metadata: storage::DashboardMetadataNew,
+    ) -> CustomResult<storage::DashboardMetadata, Self::Error>;
+
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: id_type::MerchantId,
+        org_id: id_type::OrganizationId,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, Self::Error>;
+
+    async fn find_user_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, Self::Error>;
+
+    async fn find_merchant_scoped_dashboard_metadata(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, Self::Error>;
+
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<bool, Self::Error>;
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &id_type::MerchantId,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<storage::DashboardMetadata, Self::Error>;
+}
+
+// #[async_trait::async_trait]
+// impl DashboardMetadataInterface for Store {
+//     #[instrument(skip_all)]
+//     async fn insert_metadata(
+//         &self,
+//         metadata: storage::DashboardMetadataNew,
+//     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+//         let conn = connection::pg_connection_write(self).await?;
+//         metadata
+//             .insert(&conn)
+//             .await
+//             .map_err(|error| report!(errors::StorageError::from(error)))
+//     }
+
+//     #[instrument(skip_all)]
+//     async fn update_metadata(
+//         &self,
+//         user_id: Option<String>,
+//         merchant_id: id_type::MerchantId,
+//         org_id: id_type::OrganizationId,
+//         data_key: enums::DashboardMetadata,
+//         dashboard_metadata_update: storage::DashboardMetadataUpdate,
+//     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+//         let conn = connection::pg_connection_write(self).await?;
+//         storage::DashboardMetadata::update(
+//             &conn,
+//             user_id,
+//             merchant_id,
+//             org_id,
+//             data_key,
+//             dashboard_metadata_update,
+//         )
+//         .await
+//         .map_err(|error| report!(errors::StorageError::from(error)))
+//     }
+
+//     #[instrument(skip_all)]
+//     async fn find_user_scoped_dashboard_metadata(
+//         &self,
+//         user_id: &str,
+//         merchant_id: &id_type::MerchantId,
+//         org_id: &id_type::OrganizationId,
+//         data_keys: Vec<enums::DashboardMetadata>,
+//     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+//         let conn = connection::pg_connection_read(self).await?;
+//         storage::DashboardMetadata::find_user_scoped_dashboard_metadata(
+//             &conn,
+//             user_id.to_owned(),
+//             merchant_id.to_owned(),
+//             org_id.to_owned(),
+//             data_keys,
+//         )
+//         .await
+//         .map_err(|error| report!(errors::StorageError::from(error)))
+//     }
+
+//     #[instrument(skip_all)]
+//     async fn find_merchant_scoped_dashboard_metadata(
+//         &self,
+//         merchant_id: &id_type::MerchantId,
+//         org_id: &id_type::OrganizationId,
+//         data_keys: Vec<enums::DashboardMetadata>,
+//     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+//         let conn = connection::pg_connection_read(self).await?;
+//         storage::DashboardMetadata::find_merchant_scoped_dashboard_metadata(
+//             &conn,
+//             merchant_id.to_owned(),
+//             org_id.to_owned(),
+//             data_keys,
+//         )
+//         .await
+//         .map_err(|error| report!(errors::StorageError::from(error)))
+//     }
+
+//     #[instrument(skip_all)]
+//     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
+//         &self,
+//         user_id: &str,
+//         merchant_id: &id_type::MerchantId,
+//     ) -> CustomResult<bool, errors::StorageError> {
+//         let conn = connection::pg_connection_write(self).await?;
+//         storage::DashboardMetadata::delete_all_user_scoped_dashboard_metadata_by_merchant_id(
+//             &conn,
+//             user_id.to_owned(),
+//             merchant_id.to_owned(),
+//         )
+//         .await
+//         .map_err(|error| report!(errors::StorageError::from(error)))
+//     }
+
+//     #[instrument(skip_all)]
+//     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+//         &self,
+//         user_id: &str,
+//         merchant_id: &id_type::MerchantId,
+//         data_key: enums::DashboardMetadata,
+//     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+//         let conn = connection::pg_connection_write(self).await?;
+//         storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+//             &conn,
+//             user_id.to_owned(),
+//             merchant_id.to_owned(),
+//             data_key,
+//         )
+//         .await
+//         .map_err(|error| report!(errors::StorageError::from(error)))
+//     }
+// }
+
+// #[async_trait::async_trait]
+// impl DashboardMetadataInterface for MockDb {
+//     async fn insert_metadata(
+//         &self,
+//         metadata: storage::DashboardMetadataNew,
+//     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+//         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+//         if dashboard_metadata.iter().any(|metadata_inner| {
+//             metadata_inner.user_id == metadata.user_id
+//                 && metadata_inner.merchant_id == metadata.merchant_id
+//                 && metadata_inner.org_id == metadata.org_id
+//                 && metadata_inner.data_key == metadata.data_key
+//         }) {
+//             Err(errors::StorageError::DuplicateValue {
+//                 entity: "user_id, merchant_id, org_id and data_key",
+//                 key: None,
+//             })?
+//         }
+//         let metadata_new = storage::DashboardMetadata {
+//             id: i32::try_from(dashboard_metadata.len())
+//                 .change_context(errors::StorageError::MockDbError)?,
+//             user_id: metadata.user_id,
+//             merchant_id: metadata.merchant_id,
+//             org_id: metadata.org_id,
+//             data_key: metadata.data_key,
+//             data_value: metadata.data_value,
+//             created_by: metadata.created_by,
+//             created_at: metadata.created_at,
+//             last_modified_by: metadata.last_modified_by,
+//             last_modified_at: metadata.last_modified_at,
+//         };
+//         dashboard_metadata.push(metadata_new.clone());
+//         Ok(metadata_new)
+//     }
+
+//     async fn update_metadata(
+//         &self,
+//         user_id: Option<String>,
+//         merchant_id: id_type::MerchantId,
+//         org_id: id_type::OrganizationId,
+//         data_key: enums::DashboardMetadata,
+//         dashboard_metadata_update: storage::DashboardMetadataUpdate,
+//     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+//         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+//         let dashboard_metadata_to_update = dashboard_metadata
+//             .iter_mut()
+//             .find(|metadata| {
+//                 metadata.user_id == user_id
+//                     && metadata.merchant_id == merchant_id
+//                     && metadata.org_id == org_id
+//                     && metadata.data_key == data_key
+//             })
+//             .ok_or(errors::StorageError::MockDbError)?;
+
+//         match dashboard_metadata_update {
+//             storage::DashboardMetadataUpdate::UpdateData {
+//                 data_key,
+//                 data_value,
+//                 last_modified_by,
+//             } => {
+//                 dashboard_metadata_to_update.data_key = data_key;
+//                 dashboard_metadata_to_update.data_value = data_value;
+//                 dashboard_metadata_to_update.last_modified_by = last_modified_by;
+//                 dashboard_metadata_to_update.last_modified_at = common_utils::date_time::now();
+//             }
+//         }
+//         Ok(dashboard_metadata_to_update.clone())
+//     }
+
+//     async fn find_user_scoped_dashboard_metadata(
+//         &self,
+//         user_id: &str,
+//         merchant_id: &id_type::MerchantId,
+//         org_id: &id_type::OrganizationId,
+//         data_keys: Vec<enums::DashboardMetadata>,
+//     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+//         let dashboard_metadata = self.dashboard_metadata.lock().await;
+//         let query_result = dashboard_metadata
+//             .iter()
+//             .filter(|metadata_inner| {
+//                 metadata_inner
+//                     .user_id
+//                     .clone()
+//                     .map(|user_id_inner| user_id_inner == user_id)
+//                     .unwrap_or(false)
+//                     && metadata_inner.merchant_id == *merchant_id
+//                     && metadata_inner.org_id == *org_id
+//                     && data_keys.contains(&metadata_inner.data_key)
+//             })
+//             .cloned()
+//             .collect::<Vec<storage::DashboardMetadata>>();
+
+//         if query_result.is_empty() {
+//             return Err(errors::StorageError::ValueNotFound(format!(
+//                 "No dashboard_metadata available for user_id = {user_id},\
+//                 merchant_id = {merchant_id:?}, org_id = {org_id:?} and data_keys = {data_keys:?}",
+//             ))
+//             .into());
+//         }
+//         Ok(query_result)
+//     }
+
+//     async fn find_merchant_scoped_dashboard_metadata(
+//         &self,
+//         merchant_id: &id_type::MerchantId,
+//         org_id: &id_type::OrganizationId,
+//         data_keys: Vec<enums::DashboardMetadata>,
+//     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+//         let dashboard_metadata = self.dashboard_metadata.lock().await;
+//         let query_result = dashboard_metadata
+//             .iter()
+//             .filter(|metadata_inner| {
+//                 metadata_inner.merchant_id == *merchant_id
+//                     && metadata_inner.org_id == *org_id
+//                     && data_keys.contains(&metadata_inner.data_key)
+//             })
+//             .cloned()
+//             .collect::<Vec<storage::DashboardMetadata>>();
+
+//         if query_result.is_empty() {
+//             return Err(errors::StorageError::ValueNotFound(format!(
+//                 "No dashboard_metadata available for merchant_id = {merchant_id:?},\
+//                       org_id = {org_id:?} and data_keyss = {data_keys:?}",
+//             ))
+//             .into());
+//         }
+//         Ok(query_result)
+//     }
+//     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
+//         &self,
+//         user_id: &str,
+//         merchant_id: &id_type::MerchantId,
+//     ) -> CustomResult<bool, errors::StorageError> {
+//         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+//         let initial_len = dashboard_metadata.len();
+
+//         dashboard_metadata.retain(|metadata_inner| {
+//             !(metadata_inner
+//                 .user_id
+//                 .clone()
+//                 .map(|user_id_inner| user_id_inner == user_id)
+//                 .unwrap_or(false)
+//                 && metadata_inner.merchant_id == *merchant_id)
+//         });
+
+//         if dashboard_metadata.len() == initial_len {
+//             return Err(errors::StorageError::ValueNotFound(format!(
+//                 "No user available for user_id = {user_id} and merchant id = {merchant_id:?}"
+//             ))
+//             .into());
+//         }
+
+//         Ok(true)
+//     }
+
+//     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+//         &self,
+//         user_id: &str,
+//         merchant_id: &id_type::MerchantId,
+//         data_key: enums::DashboardMetadata,
+//     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+//         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+//         let index_to_remove = dashboard_metadata
+//             .iter()
+//             .position(|metadata_inner| {
+//                 metadata_inner.user_id.as_deref() == Some(user_id)
+//                     && metadata_inner.merchant_id == *merchant_id
+//                     && metadata_inner.data_key == data_key
+//             })
+//             .ok_or(errors::StorageError::ValueNotFound(
+//                 "No data found".to_string(),
+//             ))?;
+
+//         let deleted_value = dashboard_metadata.swap_remove(index_to_remove);
+
+//         Ok(deleted_value)
+//     }
+// }

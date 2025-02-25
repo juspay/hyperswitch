@@ -185,6 +185,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
+        let a = state.store.user_key_store.get_user_key(&self.request.user_id).await;
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);

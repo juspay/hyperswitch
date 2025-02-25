@@ -1,0 +1,39 @@
+[package]
+name = "web_server"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = ["olap", "oltp"]
+v1 = ["hyperswitch_domain_models/v1", "common_utils/v1", "storage_impl/v1"]
+v2 = []
+kv_store = []
+frm = []
+payouts = []
+dummy_connector = []
+olap = ["hyperswitch_domain_models/olap", "storage_impl/olap"]
+oltp = []
+keymanager_mtls = []
+email = []
+
+
+[dependencies]
+# Third party crates
+serde = { version = "1.0.197", features = ["derive"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+hex = "0.4.3"
+async-trait = "0.1.79"
+
+# First party crates
+scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
+sample = { version = "0.1.0", path = "../sample" }
+router_env = { version = "0.1.0", path = "../router_env"}
+external_services = { version = "0.1.0", path = "../external_services" }
+common_utils = { version = "0.1.0", path = "../common_utils"}
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
+masking = { version = "0.1.0", path = "../masking" }
+storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false}
+redis_interface = { version = "0.1.0", path = "../redis_interface" }

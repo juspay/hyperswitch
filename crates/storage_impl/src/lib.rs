@@ -6,24 +6,60 @@ use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+mod api_key;
+mod authentication;
+mod authorization;
+mod blocklist;
+mod blocklist_fingerprint;
+mod blocklist_lookup;
+mod business_profile;
 pub mod callback_mapper;
+pub mod capture;
+mod cards_info;
 pub mod config;
+mod configs;
 pub mod connection;
 pub mod customers;
+mod dashboard_metadata;
 pub mod database;
+mod dispute;
+mod dynamic_routing_stats;
+mod ephemeral_key;
 pub mod errors;
+mod event;
+mod file;
+mod fraud_check;
+mod generic_link;
+mod gsm;
+mod health_check;
+mod locker_mock_up;
 mod lookup;
 pub mod mandate;
+mod merchant_account;
+mod merchant_connector_account;
+mod merchant_key_store;
 pub mod metrics;
 pub mod mock_db;
+mod organization;
+mod payment_link;
 pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+mod process_tracker;
+mod queue;
 pub mod redis;
 pub mod refund;
+mod relay;
 mod reverse_lookup;
+mod role;
+mod routing_algorithm;
 mod utils;
+mod unified_translation;
+mod user_authentication_method;
+mod user_key_store;
+mod user_role;
+mod user;
 
 use common_utils::errors::CustomResult;
 use database::store::PgPool;
@@ -89,6 +125,12 @@ where
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
+    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
+        self.cache_store.get_redis_conn()
+    }
+}
+
+impl<T: DatabaseStore> sample::RedisConnInterface for RouterStore<T> {
     fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
         self.cache_store.get_redis_conn()
     }
@@ -495,3 +537,31 @@ impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
+use sample::{CommonStorageInterface, GlobalStorageInterface, StorageInterface, SchedulerInterface};
+
+impl<T: DatabaseStore + 'static> CommonStorageInterface<errors::StorageError> for RouterStore<T> {
+    fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface<errors::StorageError>> {
+        Box::new(self.clone())
+    }
+    fn get_storage_interface(&self) -> Box<dyn StorageInterface<errors::StorageError>> {
+        Box::new(self.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl<T: DatabaseStore> StorageInterface<errors::StorageError> for RouterStore<T> {
+    // fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+    //     Box::new(self.clone())
+    // }
+
+    // fn get_cache_store(&self) -> Box<(dyn kv_store::RedisConnInterface + Send + Sync + 'static)> {
+    //     Box::new(self.clone())
+    // }
+}
+
+#[async_trait::async_trait]
+impl<T: DatabaseStore> GlobalStorageInterface<errors::StorageError> for RouterStore<T> {}
+
+#[async_trait::async_trait]
+impl<T: DatabaseStore> SchedulerInterface<errors::StorageError> for RouterStore<T> {}

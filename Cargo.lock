@@ -7035,6 +7035,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "sample"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "diesel_models",
+ "dyn-clone",
+ "error-stack",
+ "external_services",
+ "hyperswitch_domain_models",
+ "masking",
+ "once_cell",
+ "rdkafka",
+ "redis_interface",
+ "reqwest 0.11.27",
+ "router_derive",
+ "router_env",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "validator",
+]
+
+[[package]]
 name = "scc"
 version = "2.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7889,9 +7916,11 @@ dependencies = [
  "redis_interface",
  "router_derive",
  "router_env",
+ "sample",
  "serde",
  "serde_json",
  "thiserror",
+ "time",
  "tokio 1.40.0",
 ]
 
@@ -9362,6 +9391,26 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "web_server"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "common_utils",
+ "external_services",
+ "hex",
+ "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking",
+ "redis_interface",
+ "router_env",
+ "sample",
+ "scheduler",
+ "serde",
+ "storage_impl",
+ "tokio 1.40.0",
 ]
 
 [[package]]
