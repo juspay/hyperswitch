@@ -2833,6 +2833,47 @@
         ]
       }
     },
+    "/v2/customers/{id}/saved-payment-methods": {
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - List Customer Saved Payment Methods",
+        "description": "List the payment methods saved for a customer",
+        "operationId": "List Customer Saved Payment Methods",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-session": {
       "post": {
         "tags": [
@@ -7054,6 +7095,56 @@
             "description": "List of supported card networks"
           }
         }
+      },
+      "CardTestingGuardConfig": {
+        "type": "object",
+        "required": [
+          "card_ip_blocking_status",
+          "card_ip_blocking_threshold",
+          "guest_user_card_blocking_status",
+          "guest_user_card_blocking_threshold",
+          "customer_id_blocking_status",
+          "customer_id_blocking_threshold",
+          "card_testing_guard_expiry"
+        ],
+        "properties": {
+          "card_ip_blocking_status": {
+            "$ref": "#/components/schemas/CardTestingGuardStatus"
+          },
+          "card_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Card IP Blocking for profile"
+          },
+          "guest_user_card_blocking_status": {
+            "$ref": "#/components/schemas/CardTestingGuardStatus"
+          },
+          "guest_user_card_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest User Card Blocking for profile"
+          },
+          "customer_id_blocking_status": {
+            "$ref": "#/components/schemas/CardTestingGuardStatus"
+          },
+          "customer_id_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Customer Id Blocking for profile"
+          },
+          "card_testing_guard_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          }
+        }
+      },
+      "CardTestingGuardStatus": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ]
       },
       "CardToken": {
         "type": "object",
@@ -18551,6 +18642,14 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "card_testing_guard_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18774,6 +18873,14 @@
           "authentication_product_ids": {
             "type": "object",
             "description": "Product authentication ids",
+            "nullable": true
+          },
+          "card_testing_guard_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardConfig"
+              }
+            ],
             "nullable": true
           }
         }

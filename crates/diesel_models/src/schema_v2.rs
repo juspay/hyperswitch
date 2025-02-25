@@ -213,6 +213,8 @@ diesel::table! {
         always_request_extended_authorization -> Nullable<Bool>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
+        card_testing_guard_config -> Nullable<Jsonb>,
+        card_testing_secret_key -> Nullable<Bytea>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
