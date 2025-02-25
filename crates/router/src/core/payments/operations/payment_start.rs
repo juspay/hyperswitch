@@ -68,6 +68,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once Merchant ID auth is solved
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
             &[
@@ -201,6 +203,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

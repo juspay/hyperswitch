@@ -85,6 +85,7 @@ pub async fn create_payment_method_api(
                 req,
                 &auth.merchant_account,
                 &auth.key_store,
+                &auth.profile,
             ))
             .await
         },
@@ -415,6 +416,7 @@ pub async fn list_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
+            // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
@@ -574,6 +576,43 @@ pub async fn initiate_pm_collect_link_flow(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+pub async fn list_customer_payment_method_api(
+    state: web::Data<AppState>,
+    customer_id: web::Path<id_type::GlobalCustomerId>,
+    req: HttpRequest,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let customer_id = customer_id.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, _, _| {
+            payment_methods_routes::list_saved_payment_methods_for_customer(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                customer_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
