@@ -5,20 +5,20 @@ use std::marker::PhantomData;
 use api_models::payments::SessionToken;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::ValueExt;
+#[cfg(feature = "v1")]
+use common_utils::types::RequestExtendedAuthorizationBool;
 use common_utils::{
     self,
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
-#[cfg(feature = "v2")]
-use payment_intent::PaymentIntentUpdate;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -29,10 +29,7 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::{
-    ephemeral_key,
-    types::{FeatureMetadata, OrderDetailsWithAmount},
-};
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v1")]

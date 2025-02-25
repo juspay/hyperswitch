@@ -1,9 +1,10 @@
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
+#[cfg(feature = "v1")]
+use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
-    crypto::OptionalEncryptableValue,
     errors::{CustomResult, ParsingError, ValidationError},
     pii, type_name,
     types::keymanager,
@@ -19,11 +20,16 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
+use crate::address::Address;
 use crate::{
-    mandates::{CommonMandateReference, PaymentsMandateReference},
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    mandates::CommonMandateReference,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::{mandates::PaymentsMandateReference, type_encryption::AsyncLift};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
