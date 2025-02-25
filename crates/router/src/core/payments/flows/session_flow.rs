@@ -831,7 +831,7 @@ fn create_gpay_session_token(
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     // connector_wallet_details is being parse into admin types to check specifically if google_pay field is present
     // this is being done because apple_pay details from metadata is also being filled into connector_wallets_details
-    let connector_wallets_details = router_data
+    let google_pay_wallets_details = router_data
         .connector_wallets_details
         .clone()
         .parse_value::<admin_types::ConnectorWalletDetails>("ConnectorWalletDetails")
@@ -840,10 +840,14 @@ fn create_gpay_session_token(
             "cannot parse connector_wallets_details from the given value {:?}",
             router_data.connector_wallets_details
         ))
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_wallets_details".to_string(),
-            expected_format: "admin_types_connector_wallets_details_format".to_string(),
-        })?;
+        .map_err(|err| {
+            logger::debug!(
+                "Failed to parse connector_wallets_details for google_pay flow: {:?}",
+                err
+            );
+        })
+        .ok()
+        .and_then(|connector_wallets_details| connector_wallets_details.google_pay);
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
 
@@ -928,7 +932,7 @@ fn create_gpay_session_token(
                 false
             };
 
-        if connector_wallets_details.google_pay.is_some() {
+        if google_pay_wallets_details.is_some() {
             let gpay_data = router_data
                 .connector_wallets_details
                 .clone()
