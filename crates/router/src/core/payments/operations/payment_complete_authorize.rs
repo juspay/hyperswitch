@@ -354,6 +354,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
             vault_operation: None,
         };
 

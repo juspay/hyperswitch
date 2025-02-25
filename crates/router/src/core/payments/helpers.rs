@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
@@ -591,10 +591,13 @@ pub async fn get_token_pm_type_mandate_details(
                             mandate_generic_data.mandate_connector,
                             mandate_generic_data.payment_method_info,
                         )
-                    } else if request.payment_method_type
-                        == Some(api_models::enums::PaymentMethodType::ApplePay)
-                        || request.payment_method_type
-                            == Some(api_models::enums::PaymentMethodType::GooglePay)
+                    } else if request
+                        .payment_method_type
+                        .map(|payment_method_type_value| {
+                            payment_method_type_value
+                                .should_check_for_customer_saved_payment_method_type()
+                        })
+                        .unwrap_or(false)
                     {
                         let payment_request_customer_id = request.get_customer_id();
                         if let Some(customer_id) =
@@ -1472,6 +1475,84 @@ pub fn validate_customer_information(
         })?
     } else {
         Ok(())
+    }
+}
+
+pub async fn validate_card_ip_blocking_for_business_profile(
+    state: &SessionState,
+    ip: IpAddr,
+    fingerprnt: masking::Secret<String>,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek(),
+        ip
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.card_ip_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
+pub async fn validate_guest_user_card_blocking_for_business_profile(
+    state: &SessionState,
+    fingerprnt: masking::Secret<String>,
+    customer_id: Option<id_type::CustomerId>,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}",
+        consts::GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek()
+    );
+
+    let unsuccessful_payment_threshold =
+        card_testing_guard_config.guest_user_card_blocking_threshold;
+
+    if customer_id.is_none() {
+        Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+    } else {
+        Ok(cache_key)
+    }
+}
+
+pub async fn validate_customer_id_blocking_for_business_profile(
+    state: &SessionState,
+    customer_id: id_type::CustomerId,
+    profile_id: &id_type::ProfileId,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CUSTOMER_ID_BLOCKING_PREFIX,
+        profile_id.get_string_repr(),
+        customer_id.get_string_repr(),
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.customer_id_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
+pub async fn validate_blocking_threshold(
+    state: &SessionState,
+    unsuccessful_payment_threshold: i32,
+    cache_key: String,
+) -> RouterResult<String> {
+    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+        Ok(Some(unsuccessful_payment_count)) => {
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Blocked due to suspicious activity".to_string(),
+                })?
+            } else {
+                Ok(cache_key)
+            }
+        }
+        Ok(None) => Ok(cache_key),
+        Err(error) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(error)?,
     }
 }
 
@@ -6674,13 +6755,14 @@ pub fn validate_mandate_data_and_future_usage(
 pub enum UnifiedAuthenticationServiceFlow {
     ClickToPayInitiate,
     ExternalAuthenticationInitiate {
-        acquirer_details: authentication::types::AcquirerDetails,
+        acquirer_details: Option<authentication::types::AcquirerDetails>,
         card_number: ::cards::CardNumber,
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
         authentication_id: String,
     },
+    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6691,6 +6773,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
+    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6721,7 +6804,9 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if *do_authorisation_confirmation {
+                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
@@ -6731,6 +6816,11 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     None
                 }
             } else {
+                logger::info!(
+                    payment_method=?payment_data.payment_attempt.payment_method,
+                    click_to_pay_enabled=?business_profile.is_click_to_pay_enabled,
+                    "skipping unified authentication service call since payment conditions are not satisfied"
+                );
                 None
             }
         }
@@ -6739,7 +6829,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
 
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
-        acquirer_details: authentication::types::AcquirerDetails,
+        acquirer_details: Option<authentication::types::AcquirerDetails>,
         card_number: ::cards::CardNumber,
         token: String,
     },
@@ -6816,17 +6906,27 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
-            let acquirer_details: authentication::types::AcquirerDetails = payment_connector_mca
+            let acquirer_details = payment_connector_mca
                 .get_metadata()
-                .get_required_value("merchant_connector_account.metadata")?
-                .peek()
                 .clone()
-                .parse_value("AcquirerDetails")
-                .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                            .to_string(),
-                })?;
+                .and_then(|metadata| {
+                    metadata
+                    .peek()
+                    .clone()
+                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                .to_string(),
+                    })
+                    .inspect_err(|err| {
+                        logger::error!(
+                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+                });
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card_number,
                 token,
@@ -7119,6 +7219,70 @@ pub fn validate_platform_request_for_marketplace(
                     Ok(())
                 })?;
         }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+            xendit_split_payment,
+        )) => match xendit_split_payment {
+            common_types::payments::XenditSplitRequest::MultipleSplits(
+                xendit_multiple_split_payment,
+            ) => {
+                match amount {
+                    api::Amount::Zero => {
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                            .routes
+                            .iter()
+                            .map(|route| {
+                                route
+                                    .flat_amount
+                                    .unwrap_or(MinorUnit::new(0))
+                                    .get_amount_as_i64()
+                            })
+                            .sum();
+
+                        if total_split_amount != 0 {
+                            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name:
+                                    "Sum of split amounts should be equal to the total amount",
+                            });
+                        }
+                    }
+                    api::Amount::Value(amount) => {
+                        let total_payment_amount: i64 = amount.into();
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                    .routes
+                    .into_iter()
+                    .map(|route| {
+                        if route.flat_amount.is_none() && route.percent_amount.is_none() {
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount to be provided".to_string(),
+                            })
+                        } else if route.flat_amount.is_some() && route.percent_amount.is_some(){
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount, but not both".to_string(),
+                            })
+                        } else {
+                            Ok(route
+                                .flat_amount
+                                .map(|amount| amount.get_amount_as_i64())
+                                .or(route.percent_amount.map(|percentage| (percentage * total_payment_amount) / 100))
+                                .unwrap_or(0))
+                            }
+                            })
+                            .collect::<Result<Vec<i64>, _>>()?
+                            .into_iter()
+                            .sum();
+
+                        if total_payment_amount < total_split_amount {
+                            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                                message:
+                                    "The sum of split amounts should not exceed the total amount"
+                                        .to_string(),
+                            });
+                        }
+                    }
+                };
+            }
+            common_types::payments::XenditSplitRequest::SingleSplit(_) => (),
+        },
         None => (),
     }
     Ok(())

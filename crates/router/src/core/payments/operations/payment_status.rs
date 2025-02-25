@@ -535,6 +535,7 @@ async fn get_tracker_for_sync<
         tax_data: None,
         session_id: None,
         service_details: None,
+        card_testing_guard_data: None,
         vault_operation: None,
     };
 

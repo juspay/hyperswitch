@@ -228,6 +228,8 @@ diesel::table! {
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
+        card_testing_guard_config -> Nullable<Jsonb>,
+        card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
     }
 }
@@ -885,6 +887,7 @@ diesel::table! {
         capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

@@ -61,6 +61,8 @@ pub struct Profile {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
 }
 
@@ -108,6 +110,8 @@ pub struct ProfileNew {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
 }
 
@@ -153,6 +157,8 @@ pub struct ProfileUpdateInternal {
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -196,6 +202,8 @@ impl ProfileUpdateInternal {
             always_request_extended_authorization,
             is_click_to_pay_enabled,
             authentication_product_ids,
+            card_testing_guard_config,
+            card_testing_secret_key,
             is_clear_pan_retries_enabled,
         } = self;
         Profile {
@@ -262,6 +270,9 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_click_to_pay_enabled),
             authentication_product_ids: authentication_product_ids
                 .or(source.authentication_product_ids),
+            card_testing_guard_config: card_testing_guard_config
+                .or(source.card_testing_guard_config),
+            card_testing_secret_key,
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
         }
@@ -323,6 +334,8 @@ pub struct Profile {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
 }
 
@@ -386,6 +399,8 @@ pub struct ProfileNew {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -433,6 +448,8 @@ pub struct ProfileUpdateInternal {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -478,6 +495,8 @@ impl ProfileUpdateInternal {
             is_click_to_pay_enabled,
             authentication_product_ids,
             three_ds_decision_manager_config,
+            card_testing_guard_config,
+            card_testing_secret_key,
             is_clear_pan_retries_enabled,
         } = self;
         Profile {
@@ -550,6 +569,9 @@ impl ProfileUpdateInternal {
                 .or(source.authentication_product_ids),
             three_ds_decision_manager_config: three_ds_decision_manager_config
                 .or(source.three_ds_decision_manager_config),
+            card_testing_guard_config: card_testing_guard_config
+                .or(source.card_testing_guard_config),
+            card_testing_secret_key: card_testing_secret_key.or(source.card_testing_secret_key),
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
         }
@@ -564,6 +586,20 @@ pub struct AuthenticationConnectorDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct CardTestingGuardConfig {
+    pub is_card_ip_blocking_enabled: bool,
+    pub card_ip_blocking_threshold: i32,
+    pub is_guest_user_card_blocking_enabled: bool,
+    pub guest_user_card_blocking_threshold: i32,
+    pub is_customer_id_blocking_enabled: bool,
+    pub customer_id_blocking_threshold: i32,
+    pub card_testing_guard_expiry: i32,
+}
+
+common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
