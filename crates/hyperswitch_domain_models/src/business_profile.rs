@@ -549,6 +549,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,

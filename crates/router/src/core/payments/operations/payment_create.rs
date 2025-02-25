@@ -1242,7 +1242,7 @@ impl PaymentCreate {
         let request_overcapture = helpers::validate_and_get_overcapture_request(
             &request.capture_method,
             &request.request_overcapture,
-            &business_profile,
+            business_profile,
             request.confirm.unwrap_or_default(),
         )?;
 

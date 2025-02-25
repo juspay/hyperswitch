@@ -7301,9 +7301,9 @@ pub fn validate_and_get_overcapture_request(
     confirm: bool,
 ) -> Result<Option<api_enums::OverCaptureRequest>, errors::ApiErrorResponse> {
     if let Some(api_enums::CaptureMethod::Manual) = capture_method {
-        let is_overcapture_requested = match request_overcapture {
-            &Some(request_overcapture) => Some(request_overcapture),
-            &None => {
+        let is_overcapture_requested = match *request_overcapture {
+            Some(request_overcapture) => Some(request_overcapture),
+            None => {
                 if confirm {
                     profile
                         .always_request_overcapture
@@ -7315,11 +7315,11 @@ pub fn validate_and_get_overcapture_request(
         };
         Ok(is_overcapture_requested)
     } else {
-        match request_overcapture {
-            &Some(_) => Err(errors::ApiErrorResponse::PreconditionFailed {
+        match *request_overcapture {
+            Some(_) => Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
             }),
-            &request_overcapture => Ok(request_overcapture),
+            request_overcapture => Ok(request_overcapture),
         }
     }
 }

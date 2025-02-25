@@ -2144,6 +2144,8 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            request_overcapture,
+            overcapture_status,
         } = self;
 
         let card_network = payment_method_data
