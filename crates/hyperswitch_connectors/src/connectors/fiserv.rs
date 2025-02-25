@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -51,13 +51,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Fiserv {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Fiserv {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
     pub fn generate_authorization_signature(

@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, pii, types::MinorUnit};
+use common_utils::{ext_traits::ValueExt, pii, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -23,14 +23,14 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct FiservRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for FiservRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for FiservRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -81,7 +81,7 @@ pub struct GooglePayToken {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Amount {
-    total: MinorUnit,
+    total: FloatMajorUnit,
     currency: String,
 }
 
