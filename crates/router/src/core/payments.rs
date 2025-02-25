@@ -301,6 +301,12 @@ where
             platform_merchant_account.as_ref(),
         )
         .await?;
+
+    operation
+        .to_get_tracker()?
+        .validate_request_with_state(state, &req, &mut payment_data, &business_profile)
+        .await?;
+
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
@@ -5279,6 +5285,8 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
+    pub card_testing_guard_data:
+        Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
