@@ -11,8 +11,10 @@ use crate::{
     generate_id_with_default_len,
     id_type::{AlphaNumericId, LengthId},
     new_type::MerchantName,
-    types::keymanager,
 };
+
+#[cfg(feature = "keymanager")]
+use crate::types::keymanager;
 
 crate::id_type!(
     MerchantId,
@@ -89,6 +91,7 @@ impl MerchantId {
     }
 }
 
+#[cfg(feature = "keymanager")]
 impl From<MerchantId> for keymanager::Identifier {
     fn from(value: MerchantId) -> Self {
         Self::Merchant(value)

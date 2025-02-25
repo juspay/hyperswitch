@@ -125,7 +125,7 @@ analytics = { version = "0.1.0", path = "../analytics", optional = true, default
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics"] }
 common_types = { version = "0.1.0", path = "../common_types" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
