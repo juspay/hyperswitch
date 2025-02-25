@@ -1,20 +1,18 @@
 //! Interactions with the AZURE KEY VAULT SDK
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc, time::Instant};
 
 use azure_identity::DefaultAzureCredential;
 use azure_security_keyvault_keys::{
+    models::{JsonWebKeyEncryptionAlgorithm, KeyOperationsParameters},
     KeyClient,
-    models::{KeyOperationsParameters, JsonWebKeyEncryptionAlgorithm},
 };
-use crate::{consts, metrics};
 use base64::Engine;
-
-use std::time::Instant;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use router_env::logger;
 
+use crate::{consts, metrics};
 
 /// Configuration parameters required for constructing a [`AzureKeyVaultClient`].
 #[derive(Clone, Debug, Default, serde::Deserialize)]
@@ -26,6 +24,8 @@ pub struct AzureKeyVaultConfig {
     pub vault_url: String,
     /// version of the key name
     pub version: String,
+    /// algorithm used to encrypt and decrypt keys
+    pub algorithm: Option<JsonWebKeyEncryptionAlgorithm>,
 }
 
 impl AzureKeyVaultConfig {
@@ -49,6 +49,20 @@ pub struct AzureKeyVaultClient {
     inner_client: Arc<KeyClient>,
     key_name: String,
     version: String,
+    algorithm: JsonWebKeyEncryptionAlgorithm,
+}
+
+/// Implement Debug for AzureKeyVaultClient as KeyClient doesn't implement Debug Trait
+impl fmt::Debug for AzureKeyVaultClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "AzureKeyVaultClient(inner_client: KeyClient(endpoint: {}), key_name: {}, version: {})",
+            self.inner_client.endpoint(),
+            self.key_name,
+            self.version
+        )
+    }
 }
 
 impl AzureKeyVaultClient {
@@ -59,23 +73,25 @@ impl AzureKeyVaultClient {
 
         Ok(Self {
             inner_client: Arc::new(
-                    KeyClient::new(
-                    &config.vault_url,
-                    credential.clone(),
-                    None
-                )
-                .map_err(
-                    |_| AzureKeyVaultError::AzureKeyVaultClientInitializationFailed)?
+                KeyClient::new(&config.vault_url, credential.clone(), None)
+                    .map_err(|_| AzureKeyVaultError::AzureKeyVaultClientInitializationFailed)?,
             ),
             key_name: config.key_name.clone(),
             version: config.version.clone(),
+            algorithm: config
+                .algorithm
+                .clone()
+                .unwrap_or(JsonWebKeyEncryptionAlgorithm::RsaOAEP256),
         })
     }
     /// Decrypts the provided base64-encoded encrypted data using the AZURE KEY VAULT SDK. We assume that
     /// the SDK has the values required to interact with the AZURE KEY VAULT APIs (`AZURE_TENANT_ID`,
     /// `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`) either set in environment variables, or that the
     /// SDK is running in a machine that is able to assume an Azure AD role.
-    pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AzureKeyVaultError> {
+    pub async fn decrypt(
+        &self,
+        data: impl AsRef<[u8]>,
+    ) -> CustomResult<String, AzureKeyVaultError> {
         let start = Instant::now();
 
         let data = consts::BASE64_ENGINE
@@ -83,12 +99,20 @@ impl AzureKeyVaultClient {
             .change_context(AzureKeyVaultError::Base64DecodingFailed)?;
 
         let decrypt_params = KeyOperationsParameters {
-            algorithm: Some(JsonWebKeyEncryptionAlgorithm::RsaOaep),
+            algorithm: Some(self.algorithm.clone()),
             value: Some(data),
             ..Default::default()
         };
         let decrypted_output = self.inner_client
-            .decrypt(&self.key_name, &self.version , decrypt_params.clone().try_into().unwrap(), None)
+            .decrypt(
+                &self.key_name,
+                &self.version,
+                decrypt_params
+                    .clone()
+                    .try_into()
+                    .map_err(|_| AzureKeyVaultError::KeyOperationsParameterTypeConversionFailed)?,
+                None
+            )
             .await
             .inspect_err(|error| {
                 logger::error!(azure_key_vault_error=?error, "Failed to Azure Key Vault decrypt data");
@@ -105,11 +129,12 @@ impl AzureKeyVaultClient {
 
         let output = decrypted_output
             .result
-            .ok_or(report!(AzureKeyVaultError::MissingPlaintextDecryptionOutput))
-            .and_then(|bytes|
-                String::from_utf8(bytes)
-                    .change_context(AzureKeyVaultError::Utf8DecodingFailed)
-            )?;
+            .ok_or(report!(
+                AzureKeyVaultError::MissingPlaintextDecryptionOutput
+            ))
+            .and_then(|bytes| {
+                String::from_utf8(bytes).change_context(AzureKeyVaultError::Utf8DecodingFailed)
+            })?;
 
         let time_taken = start.elapsed();
         metrics::AZURE_KEY_VAULT_DECRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
@@ -121,18 +146,29 @@ impl AzureKeyVaultClient {
     ///  We assume that the SDK has the values required to interact with the AZURE KEY VAULT APIs (`AZURE_TENANT_ID`,
     /// `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`) either set in environment variables, or that the
     /// SDK is running in a machine that is able to assume an Azure AD role.
-    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AzureKeyVaultError> {
+    pub async fn encrypt(
+        &self,
+        data: impl AsRef<[u8]>,
+    ) -> CustomResult<String, AzureKeyVaultError> {
         let start = Instant::now();
 
         let encrypt_params = KeyOperationsParameters {
-            algorithm: Some(JsonWebKeyEncryptionAlgorithm::RsaOaep),
+            algorithm: Some(self.algorithm.clone()),
             value: Some(data.as_ref().to_vec()),
             ..Default::default()
         };
 
         let encrypted_output = self
             .inner_client
-            .encrypt(&self.key_name, &self.version, encrypt_params.clone().try_into().unwrap(), None)
+            .encrypt(
+                &self.key_name,
+                &self.version,
+                encrypt_params
+                    .clone()
+                    .try_into()
+                    .map_err(|_| AzureKeyVaultError::KeyOperationsParameterTypeConversionFailed)?,
+                None
+            )
             .await
             .inspect_err(|error| {
                 logger::error!(azure_key_vault_error=?error, "Failed to Azure Key Vault decrypt data");
@@ -157,10 +193,7 @@ impl AzureKeyVaultClient {
 
         Ok(output)
     }
-
-
 }
-
 
 /// Errors that could occur during AZURE KEY VAULT operations.
 #[derive(Debug, thiserror::Error)]
@@ -196,8 +229,11 @@ pub enum AzureKeyVaultError {
     /// The AZURE KEY VAULT client has not been initialized.
     #[error("The AZURE KEY VAULT client has not been initialized")]
     AzureKeyVaultClientInitializationFailed,
-}
 
+    /// KeyOperationsParameters type conversion failed
+    #[error("KeyOperationsParameters type conversion to RequestContent failed")]
+    KeyOperationsParameterTypeConversionFailed,
+}
 
 #[cfg(test)]
 mod tests {
@@ -212,6 +248,7 @@ mod tests {
             key_name: "YOUR AZURE KEY VAULT KEY NAME".to_string(),
             vault_url: "YOUR AZURE KEY VAULT URL".to_string(),
             version: "".to_string(),
+            ..Default::default()
         };
 
         let data = "hello".to_string();
@@ -236,6 +273,7 @@ mod tests {
             key_name: "YOUR AZURE KEY VAULT KEY NAME".to_string(),
             vault_url: "YOUR AZURE KEY VAULT URL".to_string(),
             version: "".to_string(),
+            ..Default::default()
         };
 
         // Should decrypt to hello
