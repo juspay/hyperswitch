@@ -4045,31 +4045,37 @@ type="Text"
 name="mcc"
 label="MCC"
 placeholder="Enter MCC"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_country_code]
 name="merchant_country_code"
 label="3 digit numeric country code"
 placeholder="Enter 3 digit numeric country code"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_name]
 name="merchant_name"
 label="Name of the merchant"
 placeholder="Enter Name of the merchant"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_name]
 name="three_ds_requestor_name"
 label="ThreeDS requestor name"
 placeholder="Enter ThreeDS requestor name"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_id]
 name="three_ds_requestor_id"
 label="ThreeDS request id"
 placeholder="Enter ThreeDS request id"
-required=true
+required=false
+type="Text"
+[netcetera.metadata.merchant_configuration_id]
+name="merchant_configuration_id"
+label="Merchant Configuration ID"
+placeholder="Enter Merchant Configuration ID"
+required=false
 type="Text"
 
 
