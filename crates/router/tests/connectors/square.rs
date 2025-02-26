@@ -13,7 +13,7 @@ impl Connector for SquareTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Square;
         utils::construct_connector_data_old(
-            Box::new(&Square),
+            Box::new(Square::new()),
             types::Connector::Square,
             types::api::GetToken::Connector,
             None,
