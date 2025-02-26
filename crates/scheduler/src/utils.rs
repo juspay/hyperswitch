@@ -288,7 +288,7 @@ pub fn add_histogram_metrics(
     #[warn(clippy::option_map_unit_fn)]
     if let Some((schedule_time, runner)) = task.schedule_time.as_ref().zip(task.runner.as_ref()) {
         let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
-        logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
+        logger::info!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
         metrics::CONSUMER_OPS.record(
             pickup_schedule_delta,
