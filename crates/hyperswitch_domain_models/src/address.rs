@@ -23,10 +23,19 @@ impl Address {
                 .email
                 .clone()
                 .or(other.and_then(|other| other.email.clone())),
-            phone: self
-                .phone
-                .clone()
-                .or(other.and_then(|other| other.phone.clone())),
+                phone: {
+                    self
+                        .phone
+                        .clone()
+                        .and_then(|phone_details| {
+                            if phone_details.number.is_some() || phone_details.country_code.is_some() {
+                                Some(phone_details)
+                            } else {
+                                None
+                            }
+                        })
+                        .or_else(|| other.and_then(|other| other.phone.clone())) // Directly return other.phone
+                },
         }
     }
 }

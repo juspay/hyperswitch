@@ -3116,6 +3116,8 @@ pub struct JCSVoucherData {
     /// The telephone number for Japanese convenience stores
     #[schema(value_type = Option<String>, example = "9123456789")]
     pub phone_number: Option<String>,
+    #[schema(value_type = Option<String>, example = "+91")]
+    pub country_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3862,7 +3864,7 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                 }),
                 phone: Some(PhoneDetails {
                     number: voucher_data.phone_number.clone().map(Secret::new),
-                    country_code: None,
+                    country_code: voucher_data.country_code.clone(),
                 }),
                 email: voucher_data.email.clone(),
             }),

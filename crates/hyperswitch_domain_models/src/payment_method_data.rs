@@ -1147,6 +1147,7 @@ impl From<Box<JCSVoucherData>> for Box<api_models::payments::JCSVoucherData> {
             last_name: None,
             email: None,
             phone_number: None,
+            country_code: None,
         })
     }
 }

@@ -211,6 +211,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
     UserBankAccountNumber,

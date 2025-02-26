@@ -189,6 +189,7 @@ merchant_secret="Source verification key"
   payment_method_type = "momo"
 [[adyen.wallet]]
   payment_method_type = "swish"
+  payment_experience = "display_qr_code"
 [[adyen.wallet]]
   payment_method_type = "touch_n_go"
 [[adyen.voucher]]
@@ -3199,6 +3200,7 @@ merchant_secret="Source verification key"
   payment_method_type = "ali_pay"
 [[stripe.wallet]]
   payment_method_type = "cashapp"
+  payment_experience = "display_qr_code"
 is_verifiable = true
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"
