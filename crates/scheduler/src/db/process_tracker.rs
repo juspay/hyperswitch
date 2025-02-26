@@ -55,6 +55,16 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
         business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError>;
 
+    #[cfg(feature = "v1")]
+    async fn find_processes_by_time_status(
+        &self,
+        time_lower_limit: PrimitiveDateTime,
+        time_upper_limit: PrimitiveDateTime,
+        status: storage_enums::ProcessTrackerStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError>;
+
+    #[cfg(feature = "v2")]
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -87,6 +97,7 @@ impl ProcessTrackerInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[cfg(feature = "v1")]
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -101,6 +112,28 @@ impl ProcessTrackerInterface for Store {
             time_upper_limit,
             status,
             limit,
+            hyperswitch_domain_models::consts::API_VERSION,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_processes_by_time_status(
+        &self,
+        time_lower_limit: PrimitiveDateTime,
+        time_upper_limit: PrimitiveDateTime,
+        status: storage_enums::ProcessTrackerStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::ProcessTracker::find_processes_by_time_status(
+            &conn,
+            time_lower_limit,
+            time_upper_limit,
+            status,
+            limit,
+            hyperswitch_domain_models::consts::API_VERSION,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -218,7 +251,7 @@ impl ProcessTrackerInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
-
+    #[cfg(feature = "v1")]
     async fn find_processes_by_time_status(
         &self,
         _time_lower_limit: PrimitiveDateTime,
@@ -230,6 +263,17 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_processes_by_time_status(
+        &self,
+        _time_lower_limit: PrimitiveDateTime,
+        _time_upper_limit: PrimitiveDateTime,
+        _status: storage_enums::ProcessTrackerStatus,
+        _limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,

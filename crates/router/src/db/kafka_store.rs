@@ -2496,7 +2496,19 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
-
+    #[cfg(feature = "v1")]
+    async fn find_processes_by_time_status(
+        &self,
+        time_lower_limit: PrimitiveDateTime,
+        time_upper_limit: PrimitiveDateTime,
+        status: ProcessTrackerStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
+        self.diesel_store
+            .find_processes_by_time_status(time_lower_limit, time_upper_limit, status, limit)
+            .await
+    }
+    #[cfg(feature = "v2")]
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
