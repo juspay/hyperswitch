@@ -12968,7 +12968,7 @@
           },
           "payment_button_text_colour": {
             "type": "string",
-            "description": "Custom text colour for payment link's handle confirm button ",
+            "description": "Custom text colour for payment link's handle confirm button",
             "nullable": true
           },
           "background_colour": {
@@ -13083,7 +13083,7 @@
           },
           "payment_button_text_colour": {
             "type": "string",
-            "description": "Custom text colour for payment link's handle confirm button ",
+            "description": "Custom text colour for payment link's handle confirm button",
             "nullable": true
           },
           "background_colour": {
