@@ -40,7 +40,7 @@ pub enum ApiIdentifier {
     Relay,
     Documentation,
     Hypersense,
-    PaymentMethodsSession,
+    PaymentMethodSession,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -320,7 +320,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
-            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
+            | Flow::PaymentMethodSessionConfirm
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
         }
     }
 }
