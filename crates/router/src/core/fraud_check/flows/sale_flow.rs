@@ -154,6 +154,15 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
     ) -> RouterResult<Option<MerchantRecipientData>> {
         Ok(None)
     }
+
+    #[cfg(feature = "v2")]
+    fn get_connector_customer_id(
+        &self,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+    ) -> Option<String>{
+        None
+    }
 }
 
 #[async_trait]

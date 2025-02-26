@@ -69,6 +69,15 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
     }
+
+    #[cfg(feature = "v2")]
+    fn get_connector_customer_id(
+        &self,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+    ) -> Option<String>{
+        None
+    }
 }
 
 #[async_trait]
