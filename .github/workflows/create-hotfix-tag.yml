@@ -9,7 +9,6 @@ jobs:
 
     steps:
       - name: Generate a token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
         uses: actions/create-github-app-token@v1
         with:
@@ -23,10 +22,10 @@ jobs:
           token: ${{ steps.generate_token.outputs.token }}
 
       - name: Install git-cliff
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: git-cliff
-          version: 1.2.0
+          tool: git-cliff
+          checksum: true
 
       - name: Check if the input is valid hotfix branch
         shell: bash
@@ -55,7 +54,7 @@ jobs:
             local previous_tag="${1}"
             local previous_hotfix_number
             local next_tag
-            
+
             previous_hotfix_number="$(echo "${previous_tag}" | awk -F. '{ print $4 }' | sed -E 's/([0-9]+)(-hotfix([0-9]+))?/\3/')"
 
             if [[ -z "${previous_hotfix_number}" ]]; then
@@ -66,7 +65,7 @@ jobs:
               local hotfix_number=$((previous_hotfix_number + 1))
               next_tag="${previous_tag/%${previous_hotfix_number}/${hotfix_number}}"
             fi
-            
+
             echo "${next_tag}"
           }
 

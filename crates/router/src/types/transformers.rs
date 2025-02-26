@@ -273,7 +273,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
-            // api_enums::Connector::Nomupay => Self::Nomupay,
+            api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
@@ -2015,6 +2015,56 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
+    for diesel_models::business_profile::CardTestingGuardConfig
+{
+    fn foreign_from(item: api_models::admin::CardTestingGuardConfig) -> Self {
+        Self {
+            is_card_ip_blocking_enabled: match item.card_ip_blocking_status {
+                api_models::admin::CardTestingGuardStatus::Enabled => true,
+                api_models::admin::CardTestingGuardStatus::Disabled => false,
+            },
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            is_guest_user_card_blocking_enabled: match item.guest_user_card_blocking_status {
+                api_models::admin::CardTestingGuardStatus::Enabled => true,
+                api_models::admin::CardTestingGuardStatus::Disabled => false,
+            },
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            is_customer_id_blocking_enabled: match item.customer_id_blocking_status {
+                api_models::admin::CardTestingGuardStatus::Enabled => true,
+                api_models::admin::CardTestingGuardStatus::Disabled => false,
+            },
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
+    for api_models::admin::CardTestingGuardConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::CardTestingGuardConfig) -> Self {
+        Self {
+            card_ip_blocking_status: match item.is_card_ip_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            },
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            guest_user_card_blocking_status: match item.is_guest_user_card_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            },
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            customer_id_blocking_status: match item.is_customer_id_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            },
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
         }
     }
 }

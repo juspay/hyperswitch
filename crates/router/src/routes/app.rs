@@ -568,12 +568,17 @@ impl Payments {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
             .service(
-                web::resource("")
-                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
-            )
-            .service(
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
+            )
+            .service(web::resource("/filter").route(web::get().to(payments::get_payment_filters)))
+            .service(
+                web::resource("/profile/filter")
+                    .route(web::get().to(payments::get_payment_filters_profile)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
