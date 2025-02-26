@@ -114,7 +114,11 @@ impl
             .feature_metadata
             .as_ref()
             .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rrm| rrm.billing_connector_payment_details.connector_customer_id.clone())
+            .map(|rrm| {
+                rrm.billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
     }
 }
 

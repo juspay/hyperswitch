@@ -184,7 +184,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccount,
-    ) -> Option<String>{
+    ) -> Option<String> {
         None
     }
 }

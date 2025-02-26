@@ -1,8 +1,6 @@
 use api_models::{
     enums::FrmSuggestion,
-    payments::{
-        ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsRequest,
-    },
+    payments::{ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsRequest},
 };
 // use diesel_models::payment_attempt::ConnectorMandateReferenceId;
 use async_trait::async_trait;
@@ -79,8 +77,7 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for &PaymentProx
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
-    {
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
         Ok(*self)
     }
     fn to_domain(&self) -> RouterResult<&(dyn Domain<F, ProxyPaymentsRequest, Self::Data>)> {
@@ -88,8 +85,7 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for &PaymentProx
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
-    {
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
         Ok(*self)
     }
 }
@@ -105,8 +101,7 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for PaymentProxy
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
-    {
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
         Ok(self)
     }
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, ProxyPaymentsRequest, Self::Data>> {
@@ -114,8 +109,7 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for PaymentProxy
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
-    {
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
         Ok(self)
     }
 }

@@ -169,7 +169,7 @@ impl
         &self,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccount,
-    ) -> Option<String>{
+    ) -> Option<String> {
         None
     }
 }

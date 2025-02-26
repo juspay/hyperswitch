@@ -4,7 +4,6 @@ use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     RequestSurchargeDetails,
 };
-use crate::core::payments::flows::ConstructFlowSpecificData;
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -33,7 +32,7 @@ use crate::{
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payments::{self, helpers},
+        payments::{self, flows::ConstructFlowSpecificData, helpers},
         utils as core_utils,
     },
     headers::X_PAYMENT_CONFIRM_SOURCE,
@@ -212,7 +211,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
-    let connector_customer_id = payment_data.get_connector_customer_id(customer, merchant_connector_account);
+    let connector_customer_id =
+        payment_data.get_connector_customer_id(customer, merchant_connector_account);
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
@@ -4317,7 +4317,7 @@ impl
                 attempt_triggered_by: recovery.attempt_triggered_by,
             }
         });
-        Self { revenue_recovery }       
+        Self { revenue_recovery }
     }
 }
 

@@ -521,7 +521,6 @@ impl PaymentAttempt {
             )),
         });
 
-
         let connector_token = Some(diesel_models::ConnectorTokenDetails {
             connector_mandate_id: None,
             connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
@@ -2224,13 +2223,13 @@ impl behaviour::Conversion for PaymentAttempt {
         } = self;
 
         let card_network = payment_method_data
-        .as_ref()
-        .and_then(|data| data.peek().as_object())
-        .and_then(|card| card.get("card"))
-        .and_then(|data| data.as_object())
-        .and_then(|card| card.get("card_network"))
-        .and_then(|network| network.as_str())
-        .map(|network| network.to_string());
+            .as_ref()
+            .and_then(|data| data.peek().as_object())
+            .and_then(|card| card.get("card"))
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card_network"))
+            .and_then(|network| network.as_str())
+            .map(|network| network.to_string());
 
         let error_details = error;
 
