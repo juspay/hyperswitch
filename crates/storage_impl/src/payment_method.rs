@@ -22,7 +22,9 @@ use router_env::{instrument, tracing};
 use super::MockDb;
 use crate::{
     diesel_error_to_data_error,
-    kv_router_store::{InsertResourceParams, FilterResourceParams, KVRouterStore, UpdateResourceParams},
+    kv_router_store::{
+        FilterResourceParams, InsertResourceParams, KVRouterStore, UpdateResourceParams,
+    },
     redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,
@@ -64,8 +66,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
+            state,
+            key_store,
             storage_scheme,
-            || async { PaymentMethod::find_by_payment_method_id(&conn, payment_method_id).await },
+            || async { PaymentMethod::find_by_id(&conn, payment_method_id).await },
             format!("payment_method_{}", payment_method_id.get_string_repr()),
         )
         .await
@@ -555,7 +559,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         self.call_database(state, key_store, || async {
             payment_method
-                .update_with_payment_method_id(&conn, payment_method_update.into())
+                .update_with_id(&conn, payment_method_update.into())
                 .await
         })
         .await
@@ -894,10 +898,12 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resources(state, key_store, payment_methods, |pm| {
+        let find_pm_by = |pm| {
             pm.customer_id == *customer_id && pm.merchant_id == *merchant_id && pm.status == status
-        })
-        .await
+        };
+        let error_message = "cannot find payment method".to_string();
+        self.find_resources(state, key_store, payment_methods, find_pm_by, error_message)
+            .await
     }
 
     #[cfg(all(
@@ -954,7 +960,7 @@ impl PaymentMethodInterface for MockDb {
             self.payment_methods.lock().await,
             payment_method_updated,
             |pm| pm.get_id() == payment_method.get_id(),
-            "cannot find payment method".to_string(),
+            "cannot update payment method".to_string(),
         )
         .await
     }
@@ -981,6 +987,7 @@ impl PaymentMethodInterface for MockDb {
             self.payment_methods.lock().await,
             payment_method_updated,
             |pm| pm.get_id() == payment_method.get_id(),
+            "cannot find payment method".to_string(),
         )
         .await
     }
@@ -993,9 +1000,13 @@ impl PaymentMethodInterface for MockDb {
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(state, key_store, payment_methods, |pm| {
-            pm.locker_fingerprint_id == Some(fingerprint_id.to_string())
-        })
+        self.find_resource::<PaymentMethod, _>(
+            state,
+            key_store,
+            payment_methods,
+            |pm| pm.locker_fingerprint_id == Some(fingerprint_id.to_string()),
+            "cannot find payment method".to_string(),
+        )
         .await
     }
 }

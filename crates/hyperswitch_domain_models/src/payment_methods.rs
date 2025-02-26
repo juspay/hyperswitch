@@ -2,11 +2,6 @@
 use api_models::payment_methods::PaymentMethodsData;
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
-#[cfg(feature = "v2")]
-use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
-    types::keymanager::ToEncryptable,
-};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
@@ -21,19 +16,9 @@ use masking::{PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v2")]
-use rustc_hash::FxHashMap;
-#[cfg(feature = "v2")]
-use serde_json::Value;
-#[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
-#[cfg(feature = "v2")]
-use crate::{
-    address::Address,
-    consts, router_response_types,
-    type_encryption::{crypto_operation, CryptoOperation},
-};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{

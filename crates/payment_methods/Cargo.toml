@@ -19,6 +19,5 @@ workspace = true
 [features]
 default = ["v1"]
 v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
-v2 = [ "customer_v2", "payment_methods_v2"]
-customer_v2 = [  "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
+v2 = [ "payment_methods_v2"]
 payment_methods_v2 = [ "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]

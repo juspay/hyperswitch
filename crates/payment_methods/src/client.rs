@@ -37,6 +37,10 @@ impl From<&PaymentMethodsClient> for KeyManagerState {
         state.key_manager_state.clone()
     }
 }
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl PaymentMethodsClient {
     pub async fn find_payment_method(
         &self,
