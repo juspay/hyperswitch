@@ -1,6 +1,8 @@
 use api_models::{
     enums::FrmSuggestion,
-    payments::{ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsRequest},
+    payments::{
+        ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsRequest,
+    },
 };
 // use diesel_models::payment_attempt::ConnectorMandateReferenceId;
 use async_trait::async_trait;
@@ -42,6 +44,9 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
+            //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
@@ -74,7 +79,8 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for &PaymentProx
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
+    {
         Ok(*self)
     }
     fn to_domain(&self) -> RouterResult<&(dyn Domain<F, ProxyPaymentsRequest, Self::Data>)> {
@@ -82,7 +88,8 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for &PaymentProx
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
+    {
         Ok(*self)
     }
 }
@@ -98,7 +105,8 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for PaymentProxy
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
+    {
         Ok(self)
     }
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, ProxyPaymentsRequest, Self::Data>> {
@@ -106,7 +114,8 @@ impl<F: Send + Clone + Sync> Operation<F, ProxyPaymentsRequest> for PaymentProxy
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)> {
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, ProxyPaymentsRequest> + Send + Sync)>
+    {
         Ok(self)
     }
 }

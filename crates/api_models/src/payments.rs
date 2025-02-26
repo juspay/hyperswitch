@@ -5122,7 +5122,7 @@ pub struct ProxyPaymentsRequest {
 
     #[schema(example = "stripe")]
     pub connector: String,
-
+    
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
