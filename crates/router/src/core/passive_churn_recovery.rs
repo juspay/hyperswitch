@@ -105,7 +105,7 @@ pub async fn perform_execute_payment(
                 }
             };
         }
-        pcr_types::Decision::Invalid => {
+        pcr_types::Decision::InvalidDecision => {
             db.finish_process_with_business_status(
                 execute_task_process.clone(),
                 business_status::EXECUTE_WORKFLOW_COMPLETE,
