@@ -60,14 +60,14 @@ pub async fn card_iin_info(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::CreateCardsInfo))]
+#[instrument(skip_all, fields(flow = ?Flow::CardsInfoCreate))]
 pub async fn create_cards_info(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<cards_info_api_types::CardInfoCreateRequest>,
 ) -> impl Responder {
     let payload = json_payload.into_inner();
-    let flow = Flow::CreateCardsInfo;
+    let flow = Flow::CardsInfoCreate;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
@@ -80,14 +80,14 @@ pub async fn create_cards_info(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::UpdateCardsInfo))]
+#[instrument(skip_all, fields(flow = ?Flow::CardsInfoUpdate))]
 pub async fn update_cards_info(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<cards_info_api_types::CardInfoUpdateRequest>,
 ) -> impl Responder {
     let payload = json_payload.into_inner();
-    let flow = Flow::UpdateCardsInfo;
+    let flow = Flow::CardsInfoUpdate;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

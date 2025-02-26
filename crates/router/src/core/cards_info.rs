@@ -75,33 +75,20 @@ pub async fn update_card_info(
     card_info_request: cards_info_api_types::CardInfoUpdateRequest,
 ) -> RouterResponse<cards_info_api_types::CardInfoResponse> {
     let db = state.store.as_ref();
-    let cards_info_api_types::CardInfoUpdateRequest {
-        card_iin,
-        card_issuer,
-        card_network,
-        card_type,
-        card_subtype,
-        card_issuing_country,
-        bank_code_id,
-        bank_code,
-        country_code,
-        last_updated_provider,
-        ..
-    } = card_info_request;
     CardsInfoInterface::update_card_info(
         db,
-        card_iin,
+        card_info_request.card_iin,
         card_info_models::UpdateCardInfo {
-            card_issuer,
-            card_network,
-            card_type,
-            card_subtype,
-            card_issuing_country,
-            bank_code_id,
-            bank_code,
-            country_code,
+            card_issuer: card_info_request.card_issuer,
+            card_network: card_info_request.card_network,
+            card_type: card_info_request.card_type,
+            card_subtype: card_info_request.card_subtype,
+            card_issuing_country: card_info_request.card_issuing_country,
+            bank_code_id: card_info_request.bank_code_id,
+            bank_code: card_info_request.bank_code,
+            country_code: card_info_request.country_code,
             last_updated: Some(common_utils::date_time::now()),
-            last_updated_provider,
+            last_updated_provider: card_info_request.last_updated_provider,
         },
     )
     .await

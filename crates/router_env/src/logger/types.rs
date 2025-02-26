@@ -562,9 +562,9 @@ pub enum Flow {
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
     /// Create Cards Info flow
-    CreateCardsInfo,
+    CardsInfoCreate,
     /// Update Cards Info flow
-    UpdateCardsInfo,
+    CardsInfoUpdate,
     /// Cards Info migrate flow
     CardsInfoMigrate,
 }

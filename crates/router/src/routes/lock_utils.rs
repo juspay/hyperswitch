@@ -197,8 +197,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
             Flow::CardsInfo
-            | Flow::CreateCardsInfo
-            | Flow::UpdateCardsInfo
+            | Flow::CardsInfoCreate
+            | Flow::CardsInfoUpdate
             | Flow::CardsInfoMigrate => Self::CardsInfo,
 
             Flow::CreateFile | Flow::DeleteFile | Flow::RetrieveFile => Self::Files,

@@ -1,4 +1,3 @@
-use common_utils::events::ApiEventMetric;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -30,8 +29,6 @@ pub struct CardInfo {
     pub last_updated_provider: Option<String>,
 }
 
-impl ApiEventMetric for CardInfo {}
-
 #[derive(
     Clone, Debug, PartialEq, Eq, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize,
 )]
@@ -48,4 +45,3 @@ pub struct UpdateCardInfo {
     pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
 }
-impl ApiEventMetric for UpdateCardInfo {}
