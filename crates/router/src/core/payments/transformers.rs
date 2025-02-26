@@ -27,12 +27,14 @@ use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
+#[cfg(feature = "v2")]
+use crate::core::payments::flows::ConstructFlowSpecificData;
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payments::{self, flows::ConstructFlowSpecificData, helpers},
+        payments::{self, helpers},
         utils as core_utils,
     },
     headers::X_PAYMENT_CONFIRM_SOURCE,
