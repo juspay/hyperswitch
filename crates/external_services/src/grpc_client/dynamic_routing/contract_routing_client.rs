@@ -26,6 +26,8 @@ use crate::grpc_client::{self, GrpcHeaders};
 pub mod contract_routing {
     tonic::include_proto!("contract_routing");
 }
+pub use tonic::Code;
+
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
 /// The trait ContractBasedDynamicRouting would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
@@ -46,6 +48,7 @@ pub trait ContractBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         label_info: Vec<LabelInformation>,
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
+        incr_count: u64,
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateContractResponse>;
     /// To invalidates the contract scores against the id
@@ -90,9 +93,10 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .clone()
             .fetch_contract_score(request)
             .await
-            .change_context(DynamicRoutingError::ContractBasedRoutingFailure(
-                "Failed to fetch the contract score".to_string(),
-            ))?
+            .map_err(|err| match err.code() {
+                Code::NotFound => DynamicRoutingError::ContractNotFound,
+                _ => DynamicRoutingError::ContractBasedRoutingFailure(err.to_string()),
+            })?
             .into_inner();
 
         logger::info!(dynamic_routing_response=?response);
@@ -106,12 +110,17 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
         label_info: Vec<LabelInformation>,
         params: String,
         _response: Vec<RoutableConnectorChoiceWithStatus>,
+        incr_count: u64,
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateContractResponse> {
-        let labels_information = label_info
+        let mut labels_information = label_info
             .into_iter()
             .map(ProtoLabelInfo::foreign_from)
             .collect::<Vec<_>>();
+
+        labels_information
+            .iter_mut()
+            .for_each(|info| info.current_count += incr_count);
 
         let request = grpc_client::create_grpc_request(
             UpdateContractRequest {
@@ -183,10 +192,14 @@ impl ForeignTryFrom<ContractBasedRoutingConfigBody> for CalContractScoreConfig {
 impl ForeignFrom<LabelInformation> for ProtoLabelInfo {
     fn foreign_from(config: LabelInformation) -> Self {
         Self {
-            label: config.label,
+            label: format!(
+                "{}:{}",
+                config.label.clone(),
+                config.mca_id.get_string_repr()
+            ),
             target_count: config.target_count,
             target_time: config.target_time,
-            current_count: 1,
+            current_count: u64::default(),
         }
     }
 }
