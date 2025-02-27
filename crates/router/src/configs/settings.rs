@@ -343,11 +343,10 @@ pub struct KvConfig {
 #[serde(default)]
 pub struct KeyManagerConfig {
     pub enabled: bool,
+    pub mtls_enabled: bool,
     pub url: String,
-    #[cfg(feature = "keymanager_mtls")]
-    pub cert: Secret<String>,
-    #[cfg(feature = "keymanager_mtls")]
-    pub ca: Secret<String>,
+    pub cert: Option<Secret<String>>,
+    pub ca: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

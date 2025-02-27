@@ -150,6 +150,8 @@ where
 #[allow(missing_docs)]
 #[derive(Debug, thiserror::Error)]
 pub enum KeyManagerClientError {
+    #[error("Failed to get the certificates for MTLS")]
+    CertificateNotFound,
     #[error("Failed to construct header from the given value")]
     FailedtoConstructHeader,
     #[error("Failed to send request to Keymanager")]
