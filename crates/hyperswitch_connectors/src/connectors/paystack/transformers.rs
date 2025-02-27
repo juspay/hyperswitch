@@ -1,47 +1,32 @@
-use common_enums::enums;
-use serde::{Deserialize, Serialize};
-use masking::Secret;
-use common_utils:: {
-    types::MinorUnit,
-    pii::Email,
-    request::Method,
-};
-use common_enums::Currency;
+use common_enums::{enums, Currency};
+use common_utils::{pii::Email, request::Method, types::MinorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
-use url::Url;
-use error_stack::ResultExt;
 
 pub struct PaystackRouterData<T> {
     pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T>
-    From<(
-        MinorUnit,
-        T,
-    )> for PaystackRouterData<T>
-{
-    fn from(
-        (amount, item): (
-            MinorUnit,
-            T,
-        ),
-    ) -> Self {
-         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(MinorUnit, T)> for PaystackRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -68,11 +53,9 @@ impl TryFrom<&PaystackRouterData<&PaymentsAuthorizeRouterData>> for PaystackPaym
         item: &PaystackRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankRedirect(BankRedirectData::Eft{provider}) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::Eft { provider }) => {
                 let email = item.router_data.request.get_email()?;
-                let eft = PaystackEftProvider {
-                    provider,
-                };
+                let eft = PaystackEftProvider { provider };
                 Ok(Self {
                     amount: item.amount.clone(),
                     currency: item.router_data.request.currency,
@@ -126,7 +109,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsRe
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response {
             PaystackPaymentsResponse::PaystackPaymentsData(resp) => {
                 let redirection_url = Url::parse(resp.data.url.as_str())
@@ -145,7 +130,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsRe
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charges: None,
-                    })
+                    }),
                 )
             }
             PaystackPaymentsResponse::PaystackPaymentsError(err) => {
@@ -161,14 +146,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsRe
                         status_code: item.http_code,
                     }),
                 )
-            }    
+            }
         };
         Ok(Self {
             status,
             response,
             ..item.data
         })
-        
     }
 }
 
@@ -218,7 +202,7 @@ pub struct PaystackPSyncResponseData {
 pub enum PaystackPSyncResponse {
     PaystackPSyncData(PaystackPSyncResponseData),
     PaystackPSyncWebhook(PaystackPaymentWebhookData),
-    PaystackPSyncError(PaystackErrorResponse)
+    PaystackPSyncError(PaystackErrorResponse),
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsResponseData>>
@@ -229,42 +213,34 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsRespo
         item: ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            PaystackPSyncResponse::PaystackPSyncData(resp) => {
-                Ok(Self {
-                    status: common_enums::AttemptStatus::from(resp.data.status),
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            resp.data.reference.clone(),
-                        ),
-                        redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charges: None,
-                    }),
-                    ..item.data
-                })
-            }
-            PaystackPSyncResponse::PaystackPSyncWebhook(resp) => {
-                Ok(Self {
-                    status: common_enums::AttemptStatus::from(resp.status),
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            resp.reference.clone(),
-                        ),
-                        redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charges: None,
-                    }),
-                    ..item.data
-                })
-            }
+            PaystackPSyncResponse::PaystackPSyncData(resp) => Ok(Self {
+                status: common_enums::AttemptStatus::from(resp.data.status),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(resp.data.reference.clone()),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
+            PaystackPSyncResponse::PaystackPSyncWebhook(resp) => Ok(Self {
+                status: common_enums::AttemptStatus::from(resp.status),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(resp.reference.clone()),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
             PaystackPSyncResponse::PaystackPSyncError(err) => {
                 let err_msg = get_error_message(err.clone());
                 Ok(Self {
@@ -280,14 +256,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsRespo
                 })
             }
         }
-         
     }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaystackRefundRequest {
     pub transaction: String,
-    pub amount: MinorUnit
+    pub amount: MinorUnit,
 }
 
 impl<F> TryFrom<&PaystackRouterData<&RefundsRouterData<F>>> for PaystackRefundRequest {
@@ -307,7 +282,7 @@ pub enum PaystackRefundStatus {
     Failed,
     #[default]
     Processing,
-    Pending
+    Pending,
 }
 
 impl From<PaystackRefundStatus> for enums::RefundStatus {
@@ -330,7 +305,7 @@ pub struct PaystackRefundsData {
 pub struct PaystackRefundsResponseData {
     status: bool,
     message: String,
-    data: PaystackRefundsData
+    data: PaystackRefundsData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -338,7 +313,7 @@ pub struct PaystackRefundsResponseData {
 pub enum PaystackRefundsResponse {
     PaystackRefundsData(PaystackRefundsResponseData),
     PaystackRSyncWebhook(PaystackRefundWebhookData),
-    PaystackRefundsError(PaystackErrorResponse)
+    PaystackRefundsError(PaystackErrorResponse),
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, PaystackRefundsResponse>>
@@ -381,10 +356,13 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaystackRefundsResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, PaystackRefundsResponse>> for RefundsRouterData<RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, PaystackRefundsResponse>>
+    for RefundsRouterData<RSync>
 {
-     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: RefundsResponseRouterData<RSync, PaystackRefundsResponse>) -> Result<Self,Self::Error> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, PaystackRefundsResponse>,
+    ) -> Result<Self, Self::Error> {
         match item.response {
             PaystackRefundsResponse::PaystackRefundsData(resp) => Ok(Self {
                 response: Ok(RefundsResponseData {
@@ -415,9 +393,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaystackRefundsResponse>> for Refu
                 })
             }
         }
-        
-     }
- }
+    }
+}
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaystackErrorResponse {
@@ -425,7 +402,7 @@ pub struct PaystackErrorResponse {
     pub message: String,
     pub data: Option<serde_json::Value>,
     pub meta: serde_json::Value,
-    pub code: String, 
+    pub code: String,
 }
 
 pub fn get_error_message(response: PaystackErrorResponse) -> String {
@@ -433,7 +410,8 @@ pub fn get_error_message(response: PaystackErrorResponse) -> String {
         err_map.get("message").map(|msg| msg.clone().to_string())
     } else {
         None
-    }.unwrap_or(response.message)
+    }
+    .unwrap_or(response.message)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -478,7 +456,9 @@ impl From<PaystackWebhookEventData> for api_models::webhooks::IncomingWebhookEve
             PaystackWebhookEventData::Refund(refund_data) => match refund_data.status {
                 PaystackRefundStatus::Processed => Self::RefundSuccess,
                 PaystackRefundStatus::Failed => Self::RefundFailure,
-                PaystackRefundStatus::Processing | PaystackRefundStatus::Pending => Self::EventNotSupported,
+                PaystackRefundStatus::Processing | PaystackRefundStatus::Pending => {
+                    Self::EventNotSupported
+                }
             },
         }
     }
