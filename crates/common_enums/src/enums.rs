@@ -1,14 +1,15 @@
+mod accounts;
 mod payments;
 mod ui;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use accounts::MerchantProductType;
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::RoutableConnectors;
-
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -1649,6 +1650,12 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
     DirectCarrierBilling,
+}
+
+impl PaymentMethodType {
+    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
+        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+    }
 }
 
 impl masking::SerializableSecret for PaymentMethodType {}
@@ -7373,6 +7380,19 @@ pub enum ConnectorMandateStatus {
     Inactive,
 }
 
+/// Connector Mandate Status
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorTokenStatus {
+    /// Indicates that the connector mandate is active and can be used for payments.
+    Active,
+    /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
+    Inactive,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -7584,4 +7604,29 @@ pub enum PaymentConnectorTransmission {
     ConnectorCallFailed,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TriggeredBy {
+    /// Denotes payment attempt is been created by internal system.
+    #[default]
+    Internal,
+    /// Denotes payment attempt is been created by external system.
+    External,
 }

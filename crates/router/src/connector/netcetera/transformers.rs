@@ -253,12 +253,13 @@ pub struct NetceteraErrorDetails {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NetceteraMetaData {
-    pub mcc: String,
-    pub merchant_country_code: String,
-    pub merchant_name: String,
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
     pub endpoint_prefix: String,
-    pub three_ds_requestor_name: String,
-    pub three_ds_requestor_id: String,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub merchant_configuration_id: Option<String>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData {
@@ -368,10 +369,49 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::PreAuthNRouterData>>
         value: &NetceteraRouterData<&types::authentication::PreAuthNRouterData>,
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
+        let is_cobadged_card = || {
+            router_data
+                .request
+                .card
+                .card_number
+                .is_cobadged_card()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("error while checking is_cobadged_card")
+        };
         Ok(Self {
-            cardholder_account_number: router_data.request.card_holder_account_number.clone(),
-            scheme_id: None,
+            cardholder_account_number: router_data.request.card.card_number.clone(),
+            scheme_id: router_data
+                .request
+                .card
+                .card_network
+                .clone()
+                .map(|card_network| {
+                    is_cobadged_card().map(|is_cobadged_card| {
+                        is_cobadged_card.then_some(SchemeId::try_from(card_network))
+                    })
+                })
+                .transpose()?
+                .flatten()
+                .transpose()?,
         })
+    }
+}
+
+impl TryFrom<common_enums::CardNetwork> for SchemeId {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
+            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
+            _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Invalid card network".to_string(),
+            ))?,
+        }
     }
 }
 
@@ -515,13 +555,13 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             .parse_value("NetceteraMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_data = netcetera_types::MerchantData {
-            merchant_configuration_id: None,
-            mcc: Some(connector_meta_data.mcc),
-            merchant_country_code: Some(connector_meta_data.merchant_country_code),
-            merchant_name: Some(connector_meta_data.merchant_name),
+            merchant_configuration_id: connector_meta_data.merchant_configuration_id,
+            mcc: connector_meta_data.mcc,
+            merchant_country_code: connector_meta_data.merchant_country_code,
+            merchant_name: connector_meta_data.merchant_name,
             notification_url: request.return_url.clone(),
-            three_ds_requestor_id: Some(connector_meta_data.three_ds_requestor_id),
-            three_ds_requestor_name: Some(connector_meta_data.three_ds_requestor_name),
+            three_ds_requestor_id: connector_meta_data.three_ds_requestor_id,
+            three_ds_requestor_name: connector_meta_data.three_ds_requestor_name,
             white_list_status: None,
             trust_list_status: None,
             seller_info: None,

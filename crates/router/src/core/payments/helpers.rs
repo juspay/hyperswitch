@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
@@ -591,10 +591,13 @@ pub async fn get_token_pm_type_mandate_details(
                             mandate_generic_data.mandate_connector,
                             mandate_generic_data.payment_method_info,
                         )
-                    } else if request.payment_method_type
-                        == Some(api_models::enums::PaymentMethodType::ApplePay)
-                        || request.payment_method_type
-                            == Some(api_models::enums::PaymentMethodType::GooglePay)
+                    } else if request
+                        .payment_method_type
+                        .map(|payment_method_type_value| {
+                            payment_method_type_value
+                                .should_check_for_customer_saved_payment_method_type()
+                        })
+                        .unwrap_or(false)
                     {
                         let payment_request_customer_id = request.get_customer_id();
                         if let Some(customer_id) =
@@ -1472,6 +1475,84 @@ pub fn validate_customer_information(
         })?
     } else {
         Ok(())
+    }
+}
+
+pub async fn validate_card_ip_blocking_for_business_profile(
+    state: &SessionState,
+    ip: IpAddr,
+    fingerprnt: masking::Secret<String>,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek(),
+        ip
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.card_ip_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
+pub async fn validate_guest_user_card_blocking_for_business_profile(
+    state: &SessionState,
+    fingerprnt: masking::Secret<String>,
+    customer_id: Option<id_type::CustomerId>,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}",
+        consts::GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek()
+    );
+
+    let unsuccessful_payment_threshold =
+        card_testing_guard_config.guest_user_card_blocking_threshold;
+
+    if customer_id.is_none() {
+        Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+    } else {
+        Ok(cache_key)
+    }
+}
+
+pub async fn validate_customer_id_blocking_for_business_profile(
+    state: &SessionState,
+    customer_id: id_type::CustomerId,
+    profile_id: &id_type::ProfileId,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CUSTOMER_ID_BLOCKING_PREFIX,
+        profile_id.get_string_repr(),
+        customer_id.get_string_repr(),
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.customer_id_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
+pub async fn validate_blocking_threshold(
+    state: &SessionState,
+    unsuccessful_payment_threshold: i32,
+    cache_key: String,
+) -> RouterResult<String> {
+    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+        Ok(Some(unsuccessful_payment_count)) => {
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Blocked due to suspicious activity".to_string(),
+                })?
+            } else {
+                Ok(cache_key)
+            }
+        }
+        Ok(None) => Ok(cache_key),
+        Err(error) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(error)?,
     }
 }
 
@@ -6539,8 +6620,8 @@ pub fn validate_mandate_data_and_future_usage(
 pub enum UnifiedAuthenticationServiceFlow {
     ClickToPayInitiate,
     ExternalAuthenticationInitiate {
-        acquirer_details: authentication::types::AcquirerDetails,
-        card_number: ::cards::CardNumber,
+        acquirer_details: Option<authentication::types::AcquirerDetails>,
+        card: Box<hyperswitch_domain_models::payment_method_data::Card>,
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
@@ -6571,12 +6652,12 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     Ok(match external_authentication_flow {
         Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
             acquirer_details,
-            card_number,
+            card,
             token,
         }) => Some(
             UnifiedAuthenticationServiceFlow::ExternalAuthenticationInitiate {
                 acquirer_details,
-                card_number,
+                card,
                 token,
             },
         ),
@@ -6613,8 +6694,8 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
 
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
-        acquirer_details: authentication::types::AcquirerDetails,
-        card_number: ::cards::CardNumber,
+        acquirer_details: Option<authentication::types::AcquirerDetails>,
+        card: Box<hyperswitch_domain_models::payment_method_data::Card>,
         token: String,
     },
     PostAuthenticationFlow {
@@ -6653,9 +6734,9 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         "payment connector supports external authentication: {:?}",
         connector_supports_separate_authn.is_some()
     );
-    let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
+    let card = payment_data.payment_method_data.as_ref().and_then(|pmd| {
         if let domain::PaymentMethodData::Card(card) = pmd {
-            Some(card.card_number.clone())
+            Some(card.clone())
         } else {
             None
         }
@@ -6669,9 +6750,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         && mandate_type
             != Some(api_models::payments::MandateTransactionType::RecurringMandateTransaction)
     {
-        if let Some((connector_data, card_number)) =
-            connector_supports_separate_authn.zip(card_number)
-        {
+        if let Some((connector_data, card)) = connector_supports_separate_authn.zip(card) {
             let token = payment_data
                 .token
                 .clone()
@@ -6690,19 +6769,29 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
-            let acquirer_details: authentication::types::AcquirerDetails = payment_connector_mca
+            let acquirer_details = payment_connector_mca
                 .get_metadata()
-                .get_required_value("merchant_connector_account.metadata")?
-                .peek()
                 .clone()
-                .parse_value("AcquirerDetails")
-                .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                            .to_string(),
-                })?;
+                .and_then(|metadata| {
+                    metadata
+                    .peek()
+                    .clone()
+                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                .to_string(),
+                    })
+                    .inspect_err(|err| {
+                        logger::error!(
+                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+                });
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
-                card_number,
+                card: Box::new(card),
                 token,
                 acquirer_details,
             })

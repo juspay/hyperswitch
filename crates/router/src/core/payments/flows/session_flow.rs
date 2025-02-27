@@ -610,8 +610,11 @@ fn create_paze_session_token(
 }
 
 fn create_samsung_pay_session_token(
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let samsung_pay_session_token_data = router_data
         .connector_wallets_details
@@ -657,6 +660,20 @@ fn create_samsung_pay_session_token(
 
     let formatted_payment_id = router_data.payment_id.replace("_", "-");
 
+    let billing_address_required = is_billing_address_required_to_be_collected_from_wallet(
+        state,
+        connector,
+        business_profile,
+        enums::PaymentMethodType::SamsungPay,
+    );
+
+    let shipping_address_required = is_shipping_address_required_to_be_collected_form_wallet(
+        state,
+        connector,
+        business_profile,
+        enums::PaymentMethodType::SamsungPay,
+    );
+
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::SamsungPay(Box::new(
@@ -677,11 +694,93 @@ fn create_samsung_pay_session_token(
                     },
                     protocol: payment_types::SamsungPayProtocolType::Protocol3ds,
                     allowed_brands: samsung_pay_wallet_details.allowed_brands,
+                    billing_address_required,
+                    shipping_address_required,
                 },
             )),
         }),
         ..router_data.clone()
     })
+}
+
+/// Function to determine whether the billing address is required to be collected from the wallet,
+/// based on business profile settings, the payment method type, and the connector's required fields
+/// for the specific payment method.
+///
+/// If `always_collect_billing_details_from_wallet_connector` is enabled, it indicates that the
+/// billing address is always required to be collected from the wallet.
+///
+/// If only `collect_billing_details_from_wallet_connector` is enabled, the billing address will be
+/// collected only if the connector required fields for the specific payment method type contain
+/// the billing fields.
+fn is_billing_address_required_to_be_collected_from_wallet(
+    state: &routes::SessionState,
+    connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
+    payment_method_type: enums::PaymentMethodType,
+) -> bool {
+    let always_collect_billing_details_from_wallet_connector = business_profile
+        .always_collect_billing_details_from_wallet_connector
+        .unwrap_or(false);
+
+    if always_collect_billing_details_from_wallet_connector {
+        always_collect_billing_details_from_wallet_connector
+    } else if business_profile
+        .collect_billing_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        let billing_variants = enums::FieldType::get_billing_variants();
+
+        is_dynamic_fields_required(
+            &state.conf.required_fields,
+            enums::PaymentMethod::Wallet,
+            payment_method_type,
+            connector.connector_name,
+            billing_variants,
+        )
+    } else {
+        false
+    }
+}
+
+/// Function to determine whether the shipping address is required to be collected from the wallet,
+/// based on business profile settings, the payment method type, and the connector required fields
+/// for the specific payment method type.
+///
+/// If `always_collect_shipping_details_from_wallet_connector` is enabled, it indicates that the
+/// shipping address is always required to be collected from the wallet.
+///
+/// If only `collect_shipping_details_from_wallet_connector` is enabled, the shipping address will be
+/// collected only if the connector required fields for the specific payment method type contain
+/// the shipping fields.
+fn is_shipping_address_required_to_be_collected_form_wallet(
+    state: &routes::SessionState,
+    connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
+    payment_method_type: enums::PaymentMethodType,
+) -> bool {
+    let always_collect_shipping_details_from_wallet_connector = business_profile
+        .always_collect_shipping_details_from_wallet_connector
+        .unwrap_or(false);
+
+    if always_collect_shipping_details_from_wallet_connector {
+        always_collect_shipping_details_from_wallet_connector
+    } else if business_profile
+        .collect_shipping_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        let shipping_variants = enums::FieldType::get_shipping_variants();
+
+        is_dynamic_fields_required(
+            &state.conf.required_fields,
+            enums::PaymentMethod::Wallet,
+            payment_method_type,
+            connector.connector_name,
+            shipping_variants,
+        )
+    } else {
+        false
+    }
 }
 
 fn get_session_request_for_simplified_apple_pay(
@@ -831,7 +930,7 @@ fn create_gpay_session_token(
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     // connector_wallet_details is being parse into admin types to check specifically if google_pay field is present
     // this is being done because apple_pay details from metadata is also being filled into connector_wallets_details
-    let connector_wallets_details = router_data
+    let google_pay_wallets_details = router_data
         .connector_wallets_details
         .clone()
         .parse_value::<admin_types::ConnectorWalletDetails>("ConnectorWalletDetails")
@@ -840,10 +939,14 @@ fn create_gpay_session_token(
             "cannot parse connector_wallets_details from the given value {:?}",
             router_data.connector_wallets_details
         ))
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_wallets_details".to_string(),
-            expected_format: "admin_types_connector_wallets_details_format".to_string(),
-        })?;
+        .map_err(|err| {
+            logger::debug!(
+                "Failed to parse connector_wallets_details for google_pay flow: {:?}",
+                err
+            );
+        })
+        .ok()
+        .and_then(|connector_wallets_details| connector_wallets_details.google_pay);
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
 
@@ -865,27 +968,12 @@ fn create_gpay_session_token(
             ..router_data.clone()
         })
     } else {
-        let always_collect_billing_details_from_wallet_connector = business_profile
-            .always_collect_billing_details_from_wallet_connector
-            .unwrap_or(false);
-
-        let is_billing_details_required = if always_collect_billing_details_from_wallet_connector {
-            always_collect_billing_details_from_wallet_connector
-        } else if business_profile
-            .collect_billing_details_from_wallet_connector
-            .unwrap_or(false)
-        {
-            let billing_variants = enums::FieldType::get_billing_variants();
-            is_dynamic_fields_required(
-                &state.conf.required_fields,
-                enums::PaymentMethod::Wallet,
-                enums::PaymentMethodType::GooglePay,
-                connector.connector_name,
-                billing_variants,
-            )
-        } else {
-            false
-        };
+        let is_billing_details_required = is_billing_address_required_to_be_collected_from_wallet(
+            state,
+            connector,
+            business_profile,
+            enums::PaymentMethodType::GooglePay,
+        );
 
         let required_amount_type = StringMajorUnitForConnector;
         let google_pay_amount = required_amount_type
@@ -904,31 +992,15 @@ fn create_gpay_session_token(
             total_price: google_pay_amount,
         };
 
-        let always_collect_shipping_details_from_wallet_connector = business_profile
-            .always_collect_shipping_details_from_wallet_connector
-            .unwrap_or(false);
-
         let required_shipping_contact_fields =
-            if always_collect_shipping_details_from_wallet_connector {
-                true
-            } else if business_profile
-                .collect_shipping_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                let shipping_variants = enums::FieldType::get_shipping_variants();
+            is_shipping_address_required_to_be_collected_form_wallet(
+                state,
+                connector,
+                business_profile,
+                enums::PaymentMethodType::GooglePay,
+            );
 
-                is_dynamic_fields_required(
-                    &state.conf.required_fields,
-                    enums::PaymentMethod::Wallet,
-                    enums::PaymentMethodType::GooglePay,
-                    connector.connector_name,
-                    shipping_variants,
-                )
-            } else {
-                false
-            };
-
-        if connector_wallets_details.google_pay.is_some() {
+        if google_pay_wallets_details.is_some() {
             let gpay_data = router_data
                 .connector_wallets_details
                 .clone()
@@ -1199,9 +1271,13 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
             api::GetToken::GpayMetadata => {
                 create_gpay_session_token(state, self, connector, business_profile)
             }
-            api::GetToken::SamsungPayMetadata => {
-                create_samsung_pay_session_token(self, header_payload)
-            }
+            api::GetToken::SamsungPayMetadata => create_samsung_pay_session_token(
+                state,
+                self,
+                header_payload,
+                connector,
+                business_profile,
+            ),
             api::GetToken::ApplePayMetadata => {
                 create_applepay_session_token(
                     state,
