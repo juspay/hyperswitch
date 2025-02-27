@@ -137,7 +137,7 @@ impl ConnectorCommon for Paystack {
             status_code: res.status_code,
             code: response.code,
             message: error_message,
-            reason: None,
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
         })

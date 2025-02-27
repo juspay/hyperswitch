@@ -189,13 +189,13 @@ impl From<PaystackPSyncStatus> for common_enums::AttemptStatus {
     fn from(item: PaystackPSyncStatus) -> Self {
         match item {
             PaystackPSyncStatus::Success => Self::Charged,
-            PaystackPSyncStatus::Abandoned
-            | PaystackPSyncStatus::Ongoing
+            PaystackPSyncStatus::Abandoned => Self::AuthenticationPending,
+            PaystackPSyncStatus::Ongoing
             | PaystackPSyncStatus::Pending
             | PaystackPSyncStatus::Processing
-            | PaystackPSyncStatus::Queued => Self::AuthenticationPending,
+            | PaystackPSyncStatus::Queued => Self::Pending,
             PaystackPSyncStatus::Failed => Self::Failure,
-            PaystackPSyncStatus::Reversed => Self::AutoRefunded,
+            PaystackPSyncStatus::Reversed => Self::Voided,
         }
     }
 }
