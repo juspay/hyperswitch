@@ -1099,7 +1099,6 @@ pub async fn get_tokenized_data(
                     .decode_message(
                         encryption_key.peek().as_ref(),
                         masking::Secret::new(resp.into()),
-                        None,
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to decode redis temp locker data")?;

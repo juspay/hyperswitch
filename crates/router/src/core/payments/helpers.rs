@@ -5607,34 +5607,21 @@ impl GooglePayTokenDecryptor {
             .change_context(errors::GooglePayDecryptionError::DerivingSharedSecretKeyFailed)?;
 
         // derive the symmetric encryption key and MAC key
+        // First 32 bytes for AES-256 and Remaining bytes for HMAC
         // Salt is not provided as per the Google Pay documentation
         // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#encrypt-spec
-        let derived_key = crypto::HkdfSha256
+        let (symmetric_encryption_key, mac_key) = crypto::HkdfSha256
             .derive_key(ephemeral_public_key, &shared_key, consts::SENDER_ID, None)
             .change_context(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)?;
 
-        // First 32 bytes for AES-256 and Remaining bytes for HMAC
-        let (symmetric_encryption_key, mac_key) = derived_key
-            .split_at_checked(32)
-            .ok_or(errors::GooglePayDecryptionError::ParsingFailed)?;
-
         // verify the HMAC of the message
         crypto::HmacSha256
-            .verify_signature(mac_key, tag, &encrypted_message)
+            .verify_signature(&mac_key, tag, &encrypted_message)
             .change_context(errors::GooglePayDecryptionError::HmacVerificationFailed)?;
-
-        //initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
-        // zero iv is being passed as specified in Google Pay documentation
-        // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#decrypt-token
-        let iv = [0u8; 16];
 
         // decrypt the message using AES-256-CTR
         let decrypted = crypto::CtrAes256
-            .decode_message(
-                symmetric_encryption_key,
-                encrypted_message.into(),
-                Some(&iv),
-            )
+            .decode_message(&symmetric_encryption_key, encrypted_message.into())
             .change_context(errors::GooglePayDecryptionError::DecryptionFailed)?;
 
         // parse the decrypted data

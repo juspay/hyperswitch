@@ -107,7 +107,6 @@ pub trait DecodeMessage {
         &self,
         _secret: &[u8],
         _msg: Secret<Vec<u8>, EncryptionStrategy>,
-        _iv: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
@@ -124,13 +123,15 @@ pub trait GetSharedKey {
 /// Trait for deriving key (Symmetric Key + MAC Key) from a secret
 pub trait DeriveKey {
     /// Takes in a key, a shared secret and an optional salt and returns the derived key
+    /// both key stretching and key strengthening is done in this method
+    /// https://en.wikipedia.org/wiki/Key_derivation_function
     fn derive_key(
         &self,
         _key: &[u8],
         _shared_secret: &[u8],
         _info: &[u8],
         _salt: Option<&[u8]>,
-    ) -> CustomResult<Vec<u8>, errors::CryptoError>;
+    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::CryptoError>;
 }
 
 /// Represents no cryptographic algorithm.
@@ -174,7 +175,6 @@ impl DecodeMessage for NoAlgorithm {
         &self,
         _secret: &[u8],
         msg: Secret<Vec<u8>, EncryptionStrategy>,
-        _iv: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         Ok(msg.expose())
     }
@@ -331,7 +331,6 @@ impl DecodeMessage for GcmAes256 {
         &self,
         secret: &[u8],
         msg: Secret<Vec<u8>, EncryptionStrategy>,
-        _iv: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let msg = msg.expose();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
@@ -452,20 +451,19 @@ impl DecodeMessage for CtrAes256 {
         &self,
         secret: &[u8],
         msg: Secret<Vec<u8>, EncryptionStrategy>,
-        iv: Option<&[u8]>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let encrypted_message = msg.expose();
+        let iv = [0u8; 16];
+
         // extract the tag from the end of the encrypted message
         let tag = encrypted_message
             .get(encrypted_message.len() - 16..)
             .ok_or(errors::CryptoError::DecodingFailed)?;
 
         let cipher = openssl::symm::Cipher::aes_256_ctr();
-        let decrypted_data =
-            openssl::symm::decrypt_aead(cipher, secret, iv, &[], &encrypted_message, tag)
-                .change_context(errors::CryptoError::DecodingFailed)?;
 
-        Ok(decrypted_data)
+        openssl::symm::decrypt_aead(cipher, secret, Some(&iv), &[], &encrypted_message, tag)
+            .change_context(errors::CryptoError::DecodingFailed)
     }
 }
 
@@ -552,7 +550,7 @@ impl DeriveKey for HkdfSha256 {
         shared_secret: &[u8],
         info: &[u8],
         salt: Option<&[u8]>,
-    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::CryptoError> {
         // concatenate key and shared secret
         let input_key_material = [key, shared_secret].concat();
 
@@ -568,7 +566,11 @@ impl DeriveKey for HkdfSha256 {
             report!(errors::CryptoError::DerivingSharedSecretFailed)
         })?;
 
-        Ok(output_key)
+        // split the symmetric encryption key and MAC key
+        output_key
+            .split_at_checked(32)
+            .map(|derived_key| (derived_key.0.to_vec(), derived_key.1.to_vec()))
+            .ok_or(errors::CryptoError::DerivingSharedSecretFailed.into())
     }
 }
 
@@ -822,7 +824,7 @@ mod crypto_tests {
 
         assert_eq!(
             algorithm
-                .decode_message(&secret, encoded_message.into(), None)
+                .decode_message(&secret, encoded_message.into())
                 .expect("Decode Failed"),
             message
         );
@@ -850,7 +852,7 @@ mod crypto_tests {
         let algorithm = super::GcmAes256;
 
         let decoded = algorithm
-            .decode_message(&right_secret, message.clone().into(), None)
+            .decode_message(&right_secret, message.clone().into())
             .expect("Decoded message");
 
         assert_eq!(
@@ -859,7 +861,7 @@ mod crypto_tests {
                 .expect("Decoded plaintext message")
         );
 
-        let err_decoded = algorithm.decode_message(&wrong_secret, message.into(), None);
+        let err_decoded = algorithm.decode_message(&wrong_secret, message.into());
 
         assert!(err_decoded.is_err());
     }

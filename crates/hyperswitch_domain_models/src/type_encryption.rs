@@ -216,7 +216,7 @@ mod encrypt {
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             let encrypted = encrypted_data.into_inner();
-            let data = crypt_algo.decode_message(key, encrypted.clone(), None)?;
+            let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
             let value: String = std::str::from_utf8(&data)
                 .change_context(errors::CryptoError::DecodingFailed)?
@@ -336,7 +336,7 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let data = crypt_algo.decode_message(key, v.clone().into_inner(), None)?;
+                    let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
                     let value: String = std::str::from_utf8(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?
                         .to_string();
@@ -454,7 +454,7 @@ mod encrypt {
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             let encrypted = encrypted_data.into_inner();
-            let data = crypt_algo.decode_message(key, encrypted.clone(), None)?;
+            let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
             let value: serde_json::Value = serde_json::from_slice(&data)
                 .change_context(errors::CryptoError::DecodingFailed)?;
@@ -571,8 +571,7 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let data =
-                        crypt_algo.decode_message(key, v.clone().into_inner().clone(), None)?;
+                    let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
 
                     let value: serde_json::Value = serde_json::from_slice(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?;
@@ -924,7 +923,7 @@ mod encrypt {
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             let encrypted = encrypted_data.into_inner();
-            let data = crypt_algo.decode_message(key, encrypted.clone(), None)?;
+            let data = crypt_algo.decode_message(key, encrypted.clone())?;
             Ok(Self::new(data.into(), encrypted))
         }
 
@@ -1040,7 +1039,7 @@ mod encrypt {
                         k,
                         Self::new(
                             crypt_algo
-                                .decode_message(key, v.clone().into_inner().clone(), None)?
+                                .decode_message(key, v.clone().into_inner().clone())?
                                 .into(),
                             v.into_inner(),
                         ),
