@@ -19,6 +19,7 @@ use diesel_models::{
     user_role::{UserRole, UserRoleNew},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
@@ -34,7 +35,7 @@ use crate::{
         admin,
         errors::{UserErrors, UserResult},
     },
-    db::GlobalStorageInterface,
+    db::{errors::StorageErrorExt, GlobalStorageInterface},
     routes::SessionState,
     services::{self, authentication::UserFromToken},
     types::transformers::ForeignFrom,
@@ -479,24 +480,117 @@ impl NewUserMerchant {
         })
     }
 
+    #[cfg(feature = "v1")]
     pub async fn create_new_merchant_and_insert_in_db(
         &self,
         state: SessionState,
-    ) -> UserResult<()> {
+    ) -> UserResult<hyperswitch_domain_models::merchant_account::MerchantAccount> {
         self.check_if_already_exists_in_db(state.clone()).await?;
 
         let merchant_account_create_request = self
             .create_merchant_account_request()
             .attach_printable("unable to construct merchant account create request")?;
 
-        Box::pin(admin::create_merchant_account(
-            state.clone(),
-            merchant_account_create_request,
+        let merchant_account_response =
+            if let ApplicationResponse::Json(merchant_account) = Box::pin(
+                admin::create_merchant_account(state.clone(), merchant_account_create_request),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while creating a merchant")?
+            {
+                merchant_account
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            };
+        let key_manager_state = &(&state).into();
+        let merchant_key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_account_response.merchant_id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &merchant_account_response.merchant_id,
+                &merchant_key_store,
+            )
+            .await
+            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+        Ok(merchant_account)
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn create_new_merchant_and_insert_in_db(
+        &self,
+        state: SessionState,
+    ) -> UserResult<hyperswitch_domain_models::merchant_account::MerchantAccount> {
+        self.check_if_already_exists_in_db(state.clone()).await?;
+
+        let merchant_account_create_request = self
+            .create_merchant_account_request()
+            .attach_printable("unable to construct merchant account create request")?;
+
+        let merchant_account_response =
+            if let ApplicationResponse::Json(merchant_account) = Box::pin(
+                admin::create_merchant_account(state.clone(), merchant_account_create_request),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while creating a merchant")?
+            {
+                merchant_account
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            };
+        let profile_request = api_models::admin::ProfileCreate {
+            profile_name: "default".to_string(),
+            ..Default::default()
+        };
+        let key_manager_state = &(&state).into();
+        let merchant_key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_account_response.id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &merchant_account_response.id,
+                &merchant_key_store,
+            )
+            .await
+            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+        let key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_account_response.id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+        Box::pin(admin::create_profile(
+            state,
+            profile_request,
+            merchant_account.clone(),
+            key_store,
         ))
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?;
-        Ok(())
+        .attach_printable("Error while creating a profile")?;
+        Ok(merchant_account)
     }
 }
 

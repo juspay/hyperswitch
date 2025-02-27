@@ -2021,6 +2021,76 @@ impl Verify {
 
 pub struct User;
 
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+
+        route = route
+            .service(web::resource("/signin").route(web::post().to(user::user_signin)))
+            .service(
+                web::resource("/create_merchant")
+                    .route(web::post().to(user::user_merchant_account_create)),
+            );
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(web::scope("/switch").service(
+            web::resource("/merchant").route(web::post().to(user::switch_merchant_for_user_in_org)),
+        ));
+
+        route = route.service(
+            web::scope("/2fa")
+                // TODO: to be deprecated
+                .service(web::resource("").route(web::get().to(user::check_two_factor_auth_status)))
+                .service(
+                    web::resource("/v2")
+                        .route(web::get().to(user::check_two_factor_auth_status_with_attempts)),
+                )
+                .service(
+                    web::scope("/totp")
+                        .service(web::resource("/begin").route(web::get().to(user::totp_begin)))
+                        .service(web::resource("/reset").route(web::get().to(user::totp_reset)))
+                        .service(
+                            web::resource("/verify")
+                                .route(web::post().to(user::totp_verify))
+                                .route(web::put().to(user::totp_update)),
+                        ),
+                )
+                .service(
+                    web::scope("/recovery_code")
+                        .service(
+                            web::resource("/verify")
+                                .route(web::post().to(user::verify_recovery_code)),
+                        )
+                        .service(
+                            web::resource("/generate")
+                                .route(web::get().to(user::generate_recovery_codes)),
+                        ),
+                )
+                .service(
+                    web::resource("/terminate")
+                        .route(web::get().to(user::terminate_two_factor_auth)),
+                ),
+        );
+        #[cfg(not(feature = "email"))]
+        {
+            route = route.service(web::resource("/signup").route(web::post().to(user::user_signup)))
+        }
+
+        route
+    }
+}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {

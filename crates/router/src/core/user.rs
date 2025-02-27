@@ -42,7 +42,10 @@ use crate::{
     },
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
-    types::{domain, transformers::ForeignInto},
+    types::{
+        api, domain,
+        transformers::{ForeignInto, ForeignTryFrom},
+    },
     utils::{
         self,
         user::{theme as theme_utils, two_factor_auth as tfa_utils},
@@ -1478,19 +1481,44 @@ pub async fn create_org_merchant_for_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<()> {
+) -> UserResponse<api_models::admin::MerchantAccountResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
-    new_merchant
+    let merchant_account = new_merchant
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to construct response")?,
+    ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn create_merchant_account(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    req: user_api::UserMerchantCreate,
+) -> UserResponse<api_models::admin::MerchantAccountResponse> {
+    let user_from_db = user_from_token.get_user_from_db(&state).await?;
+
+    let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
+    let merchant_account = new_merchant
+        .create_new_merchant_and_insert_in_db(state.to_owned())
+        .await?;
+
+    Ok(ApplicationResponse::Json(
+        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to construct response")?,
+    ))
 }
 
 pub async fn list_user_roles_details(
