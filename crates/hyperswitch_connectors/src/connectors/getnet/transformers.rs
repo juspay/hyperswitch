@@ -1,8 +1,11 @@
 use api_models::webhooks::IncomingWebhookEvent;
+use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2};
 use common_utils::{
-    pii::{self, Email},
+    consts::BASE64_ENGINE,
+    errors::CustomResult,
+    pii::{Email, IpAddress},
     types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
@@ -20,10 +23,11 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connectors::paybox::transformers::parse_url_encoded_to_struct,
     types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
@@ -54,7 +58,7 @@ pub struct Amount {
 pub struct Address {
     #[serde(rename = "street1")]
     pub street1: Option<Secret<String>>,
-    pub city: Option<Secret<String>>,
+    pub city: Option<String>,
     pub state: Option<Secret<String>>,
     pub country: Option<CountryAlpha2>,
 }
@@ -62,12 +66,12 @@ pub struct Address {
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AccountHolder {
     #[serde(rename = "first-name")]
-    pub first_name: Secret<String>,
+    pub first_name: Option<Secret<String>>,
     #[serde(rename = "last-name")]
-    pub last_name: Secret<String>,
-    pub email: Email,
-    pub phone: Secret<String>,
-    pub address: Address,
+    pub last_name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub address: Option<Address>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -146,7 +150,7 @@ pub struct PaymentData {
     pub account_holder: Option<AccountHolder>,
     pub card: Card,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String, pii::IpAddress>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     pub notifications: Option<NotificationContainer>,
@@ -164,6 +168,25 @@ pub struct GetnetCard {
     expiry_year: Secret<String>,
     cvc: Secret<String>,
     complete: bool,
+}
+
+impl TryFrom<enums::PaymentMethodType> for PaymentMethodContainer {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(payment_method_type: enums::PaymentMethodType) -> Result<Self, Self::Error> {
+        match payment_method_type {
+            enums::PaymentMethodType::Credit => Ok(Self {
+                payment_method: vec![PaymentMethod {
+                    name: GetnetPaymentMethods::CreditCard,
+                }],
+            }),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Payment method type not supported".to_string(),
+                connector: "Getnet",
+            }
+            .into()),
+        }
+    }
 }
 
 impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPaymentsRequest {
@@ -193,19 +216,16 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                 };
 
                 let account_holder = AccountHolder {
-                    first_name: item.router_data.get_billing_first_name()?,
-                    last_name: item.router_data.get_billing_last_name()?,
-                    email: item.router_data.request.get_email()?,
+                    first_name: item.router_data.get_optional_billing_first_name(),
+                    last_name: item.router_data.get_optional_billing_last_name(),
+                    email: item.router_data.request.get_optional_email(),
                     phone: item.router_data.get_optional_billing_phone_number(),
-                    address: Address {
+                    address: Some(Address {
                         street1: item.router_data.get_optional_billing_line2(),
-                        city: item
-                            .router_data
-                            .get_optional_billing_city()
-                            .map(Secret::new),
+                        city: item.router_data.get_optional_billing_city(),
                         state: item.router_data.get_optional_billing_state(),
                         country: item.router_data.get_optional_billing_country(),
-                    },
+                    }),
                 };
 
                 let card = Card {
@@ -219,11 +239,9 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                         .map(|network| network.to_string().to_lowercase()),
                 };
 
-                let payment_method = PaymentMethodContainer {
-                    payment_method: vec![PaymentMethod {
-                        name: GetnetPaymentMethods::CreditCard,
-                    }],
-                };
+                let pmt = item.router_data.request.get_payment_method_type()?;
+                let payment_method = PaymentMethodContainer::try_from(pmt)?;
+
                 let notifications: NotificationContainer = NotificationContainer {
                     format: NotificationFormat::JsonSigned,
 
@@ -358,7 +376,8 @@ pub struct PaymentsResponse {
     payment: PaymentResponseData,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug , Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum GetnetPaymentsResponse {
     PaymentsResponse(Box<PaymentsResponse>),
     GetnetWebhookNotificationResponse(Box<GetnetWebhookNotificationResponse>),
@@ -398,7 +417,7 @@ impl<F>
         match item.response {
             GetnetPaymentsResponse::PaymentsResponse(ref payment_response) => Ok(Self {
                 status: authorization_attempt_status_from_transaction_state(
-                    payment_response.payment.transaction_state,
+                    payment_response.payment.transaction_state.clone(),
                     item.data.request.is_auto_capture()?,
                 ),
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -416,9 +435,9 @@ impl<F>
                 ..item.data
             }),
 
-            GetnetPaymentsResponse::WebhookResponse(ref webhook_response) | _ => Err(
-                error_stack::Report::new(errors::ConnectorError::ResponseHandlingFailed),
-            ),
+            _ => Err(error_stack::Report::new(
+                errors::ConnectorError::ResponseHandlingFailed,
+            )),
         }
     }
 }
@@ -449,7 +468,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
         match item.response {
             GetnetPaymentsResponse::PaymentsResponse(ref payment_response) => Ok(Self {
                 status: authorization_attempt_status_from_transaction_state(
-                    payment_response.payment.transaction_state,
+                    payment_response.payment.transaction_state.clone(),
                     item.data.request.is_auto_capture()?,
                 ),
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -467,9 +486,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                 ..item.data
             }),
 
-            GetnetPaymentsResponse::WebhookResponse(ref webhook_response) | _ => Err(
-                error_stack::Report::new(errors::ConnectorError::ResponseHandlingFailed),
-            ),
+            _ => Err(error_stack::Report::new(
+                errors::ConnectorError::ResponseHandlingFailed,
+            )),
         }
     }
 }
@@ -519,7 +538,7 @@ impl TryFrom<&GetnetRouterData<&PaymentsCaptureRouterData>> for GetnetCaptureReq
             }],
         };
         let transaction_type = GetnetTransactionType::CaptureAuthorization;
-        let ip_address: Option<Secret<String>> = req
+        let ip_address = req
             .browser_info
             .as_ref()
             .and_then(|info| info.ip_address.as_ref())
