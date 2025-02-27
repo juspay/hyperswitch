@@ -98,7 +98,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -109,6 +109,7 @@ pub enum RoutableConnectors {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
@@ -240,7 +241,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -251,6 +252,7 @@ pub enum Connector {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
@@ -291,6 +293,7 @@ impl Connector {
             (Self::Paypal, Some(PayoutType::Wallet))
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
+                | (Self::Nomupay, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -311,7 +314,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Nomupay)
     }
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
@@ -391,7 +394,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
-            // | Self::Nomupay
+            | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -399,6 +402,7 @@ impl Connector {
             | Self::Payme
             | Self::Payone
             | Self::Paypal
+            | Self::Paystack
             | Self::Payu
             | Self::Placetopay
             | Self::Powertranz
@@ -522,6 +526,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nexinets => Self::Nexinets,
             RoutableConnectors::Nexixpay => Self::Nexixpay,
             RoutableConnectors::Nmi => Self::Nmi,
+            RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
@@ -530,6 +535,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
+            RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,

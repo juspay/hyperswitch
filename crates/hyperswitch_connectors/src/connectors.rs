@@ -46,6 +46,7 @@ pub mod novalnet;
 pub mod nuvei;
 pub mod paybox;
 pub mod payeezy;
+pub mod paystack;
 pub mod payu;
 pub mod placetopay;
 pub mod powertranz;
@@ -81,9 +82,9 @@ pub use self::{
     iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
     nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, nuvei::Nuvei,
-    paybox::Paybox, payeezy::Payeezy, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4,
-    square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes,
+    paybox::Paybox, payeezy::Payeezy, paystack::Paystack, payu::Payu, placetopay::Placetopay,
+    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
+    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax,stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes,
     tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,
