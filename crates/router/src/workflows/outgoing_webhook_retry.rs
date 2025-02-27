@@ -118,7 +118,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             response: None,
             delivery_attempt: Some(delivery_attempt),
             metadata: initial_event.metadata,
-            is_overall_delivery_successful: false,
         };
 
         let event = db

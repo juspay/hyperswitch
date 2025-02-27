@@ -64,7 +64,6 @@ pub async fn list_initial_delivery_attempts(
             created_before,
             limit,
             offset,
-            is_delivered
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -115,7 +114,6 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
-                    is_delivered,
                     &key_store,
                 )
                 .await,
@@ -126,7 +124,6 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
-                    is_delivered,
                     &key_store,
                 )
                 .await,
@@ -146,15 +143,12 @@ pub async fn list_initial_delivery_attempts(
         .unwrap_or(events_list_begin_time);
     let created_before = api_constraints.created_before.unwrap_or(now);
 
-    let is_delivered = api_constraints.is_delivered;
-
     let total_count = store
         .count_initial_events_by_constraints(
             &merchant_id,
             profile_id,
             created_after,
             created_before,
-            is_delivered,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -275,7 +269,6 @@ pub async fn retry_delivery_attempt(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
-        is_overall_delivery_successful: false,
     };
 
     let event = store

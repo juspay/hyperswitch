@@ -53,7 +53,6 @@ where
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -82,7 +81,6 @@ where
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -101,7 +99,6 @@ where
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
-        is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError>;
 }
 
@@ -196,7 +193,6 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -207,7 +203,6 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
-            is_delivered,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -309,7 +304,6 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -320,7 +314,6 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
-            is_delivered,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -373,7 +366,6 @@ impl EventInterface for Store {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
-        is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::count_initial_attempts_by_constraints(
@@ -382,7 +374,6 @@ impl EventInterface for Store {
             profile_id,
             created_after,
             created_before,
-            is_delivered,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -492,23 +483,17 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
-            let mut check = event.merchant_id == Some(merchant_id.to_owned())
+            let check = event.merchant_id == Some(merchant_id.to_owned())
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before);
 
-            if let Some(is_delivered) = is_delivered {
-                check = check && (event.is_overall_delivery_successful == is_delivered);
-            }
-
             check
         });
-
         let offset: usize = if let Some(offset) = offset {
             if offset < 0 {
                 Err(errors::StorageError::MockDbError)?;
@@ -629,19 +614,14 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
-            let mut check = event.business_profile_id == Some(profile_id.to_owned())
+            let check = event.business_profile_id == Some(profile_id.to_owned())
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before);
-
-            if let Some(is_delivered) = is_delivered {
-                check = check && (event.is_overall_delivery_successful == is_delivered);
-            }
 
             check
         });
@@ -714,9 +694,6 @@ impl EventInterface for MockDb {
                 event_to_update.is_webhook_notified = is_webhook_notified;
                 event_to_update.response = response.map(Into::into);
             }
-            domain::EventUpdate::ParentUpdate {
-                is_overall_delivery_successful,
-            } => event_to_update.is_overall_delivery_successful = is_overall_delivery_successful,
         }
 
         event_to_update
@@ -736,20 +713,15 @@ impl EventInterface for MockDb {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
-        is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         let locked_events = self.events.lock().await;
 
         let iter_events = locked_events.iter().filter(|event| {
-            let mut check = event.initial_attempt_id.as_ref() == Some(&event.event_id)
+            let check = event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.merchant_id == Some(merchant_id.to_owned()))
                 && (event.business_profile_id == profile_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before);
-
-            if let Some(is_delivered) = is_delivered {
-                check = check && (event.is_overall_delivery_successful == is_delivered);
-            }
 
             check
         });
@@ -871,7 +843,6 @@ mod tests {
                         )
                         .unwrap(),
                     }),
-                    is_overall_delivery_successful: false,
                 },
                 &merchant_key_store,
             )
