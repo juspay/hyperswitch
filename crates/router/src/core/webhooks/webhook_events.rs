@@ -81,7 +81,7 @@ pub async fn list_initial_delivery_attempts(
             };
 
             fp_utils::when(!created_after.zip(created_before).map(|(created_after,created_before)| created_after<=created_before).unwrap_or(true), || {
-                Err(errors::ApiErrorResponse::InvalidRequestData { message: "Invalid time range provided with `created_after` and `created_before`".to_string() })
+                Err(errors::ApiErrorResponse::InvalidRequestData { message: "The `created_after` timestamp must be an earlier timestamp compared to the `created_before` timestamp".to_string() })
             })?;
 
             let created_after = match created_after {
