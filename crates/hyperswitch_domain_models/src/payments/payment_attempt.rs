@@ -521,7 +521,6 @@ impl PaymentAttempt {
             )),
         });
 
-
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
         Ok(Self {
