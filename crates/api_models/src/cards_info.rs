@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_utils::events::ApiEventMetric;
 use utoipa::ToSchema;
 
-use crate::enums as storage_enums;
+use crate::enums;
 
 #[derive(serde::Deserialize, ToSchema)]
 pub struct CardsInfoRequestParams {
@@ -47,7 +47,7 @@ pub struct CardInfoMigrateResponseRecord {
 pub struct CardInfoCreateRequest {
     pub card_iin: String,
     pub card_issuer: Option<String>,
-    pub card_network: Option<storage_enums::CardNetwork>,
+    pub card_network: Option<enums::CardNetwork>,
     pub card_type: Option<String>,
     pub card_subtype: Option<String>,
     pub card_issuing_country: Option<String>,
@@ -63,7 +63,7 @@ impl ApiEventMetric for CardInfoCreateRequest {}
 pub struct CardInfoUpdateRequest {
     pub card_iin: String,
     pub card_issuer: Option<String>,
-    pub card_network: Option<storage_enums::CardNetwork>,
+    pub card_network: Option<enums::CardNetwork>,
     pub card_type: Option<String>,
     pub card_subtype: Option<String>,
     pub card_issuing_country: Option<String>,
