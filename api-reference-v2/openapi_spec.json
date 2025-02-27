@@ -9426,7 +9426,7 @@
           },
           "is_delivery_successful": {
             "type": "boolean",
-            "description": "Indicates whether the webhook was ultimately delivery."
+            "description": "Indicates whether the webhook delivery attempt was successful."
           },
           "initial_attempt_id": {
             "type": "string",
