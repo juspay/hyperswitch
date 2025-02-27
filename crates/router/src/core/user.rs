@@ -4,6 +4,7 @@ use std::{
 };
 
 use api_models::{
+    admin as admin_api,
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
@@ -1486,16 +1487,16 @@ pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<api_models::admin::MerchantAccountResponse> {
+) -> UserResponse<admin_api::MerchantAccountResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
-    let merchant_account = new_merchant
+    let domain_merchant_account = new_merchant
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
 
     Ok(ApplicationResponse::Json(
-        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+        api::MerchantAccountResponse::foreign_try_from(domain_merchant_account)
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
@@ -1506,16 +1507,16 @@ pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<api_models::admin::MerchantAccountResponse> {
+) -> UserResponse<admin_api::MerchantAccountResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
-    let merchant_account = new_merchant
+    let domain_merchant_account = new_merchant
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
 
     Ok(ApplicationResponse::Json(
-        api::MerchantAccountResponse::foreign_try_from(merchant_account)
+        api::MerchantAccountResponse::foreign_try_from(domain_merchant_account)
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))

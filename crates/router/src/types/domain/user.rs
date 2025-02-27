@@ -38,7 +38,7 @@ use crate::{
     db::{errors::StorageErrorExt, GlobalStorageInterface},
     routes::SessionState,
     services::{self, authentication::UserFromToken},
-    types::transformers::ForeignFrom,
+    types::{domain, transformers::ForeignFrom},
     utils::user::password,
 };
 
@@ -484,7 +484,7 @@ impl NewUserMerchant {
     pub async fn create_new_merchant_and_insert_in_db(
         &self,
         state: SessionState,
-    ) -> UserResult<hyperswitch_domain_models::merchant_account::MerchantAccount> {
+    ) -> UserResult<domain::MerchantAccount> {
         self.check_if_already_exists_in_db(state.clone()).await?;
 
         let merchant_account_create_request = self
@@ -529,7 +529,7 @@ impl NewUserMerchant {
     pub async fn create_new_merchant_and_insert_in_db(
         &self,
         state: SessionState,
-    ) -> UserResult<hyperswitch_domain_models::merchant_account::MerchantAccount> {
+    ) -> UserResult<domain::MerchantAccount> {
         self.check_if_already_exists_in_db(state.clone()).await?;
 
         let merchant_account_create_request = self
@@ -548,7 +548,7 @@ impl NewUserMerchant {
             } else {
                 return Err(UserErrors::InternalServerError.into());
             };
-        let profile_request = api_models::admin::ProfileCreate {
+        let profile_request = admin_api::ProfileCreate {
             profile_name: "default".to_string(),
             ..Default::default()
         };
