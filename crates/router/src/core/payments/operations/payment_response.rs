@@ -32,6 +32,7 @@ use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
     core::{
+        card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::create_encrypted_data},
@@ -2048,6 +2049,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
+
+    if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
+        let _ = card_testing_guard_utils::increment_blocked_count_in_cache(
+            state,
+            payment_data.card_testing_guard_data.clone(),
+        )
+        .await;
+    }
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),

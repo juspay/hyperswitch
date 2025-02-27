@@ -136,6 +136,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_delete_api,
+        routes::payment_method::list_customer_payment_method_api,
 
         //Routes for payment method session
         routes::payment_method::payment_method_session_create,
@@ -286,6 +287,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::UIWidgetFormLayout,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
+        api_models::admin::CardTestingGuardConfig,
+        api_models::admin::CardTestingGuardStatus,
         api_models::admin::ConnectorWalletDetails,
         api_models::admin::MerchantRecipientData,
         api_models::admin::MerchantAccountData,

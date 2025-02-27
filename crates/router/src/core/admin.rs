@@ -12,7 +12,7 @@ use common_utils::{
 };
 use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
-use diesel_models::organization::OrganizationBridge;
+use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
@@ -1456,6 +1456,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Nmi => {
                 nmi::transformers::NmiAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Nomupay => {
+                nomupay::transformers::NomupayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Noon => {
@@ -3645,6 +3649,35 @@ impl ProfileCreateBridge for api::ProfileCreate {
             })
             .transpose()?;
 
+        let key = key_store.key.clone().into_inner();
+        let key_manager_state = state.into();
+
+        let card_testing_secret_key = Some(Secret::new(utils::generate_id(
+            consts::FINGERPRINT_SECRET_LENGTH,
+            "fs",
+        )));
+
+        let card_testing_guard_config = match self.card_testing_guard_config {
+            Some(card_testing_guard_config) => Some(CardTestingGuardConfig::foreign_from(
+                card_testing_guard_config,
+            )),
+            None => Some(CardTestingGuardConfig {
+                is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+                card_ip_blocking_threshold:
+                    common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+                is_guest_user_card_blocking_enabled:
+                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+                guest_user_card_blocking_threshold:
+                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+                is_customer_id_blocking_enabled:
+                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+                customer_id_blocking_threshold:
+                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+                card_testing_guard_expiry:
+                    common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            }),
+        };
+
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_account.get_id().clone(),
@@ -3717,6 +3750,22 @@ impl ProfileCreateBridge for api::ProfileCreate {
             always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            card_testing_guard_config,
+            card_testing_secret_key: card_testing_secret_key
+                .async_lift(|inner| async {
+                    domain_types::crypto_operation(
+                        &key_manager_state,
+                        common_utils::type_name!(domain::Profile),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("error while generating card testing secret key")?,
         }))
     }
 
@@ -3767,6 +3816,35 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 )),
             })
             .transpose()?;
+
+        let key = key_store.key.clone().into_inner();
+        let key_manager_state = state.into();
+
+        let card_testing_secret_key = Some(Secret::new(utils::generate_id(
+            consts::FINGERPRINT_SECRET_LENGTH,
+            "fs",
+        )));
+
+        let card_testing_guard_config = match self.card_testing_guard_config {
+            Some(card_testing_guard_config) => Some(CardTestingGuardConfig::foreign_from(
+                card_testing_guard_config,
+            )),
+            None => Some(CardTestingGuardConfig {
+                is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+                card_ip_blocking_threshold:
+                    common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+                is_guest_user_card_blocking_enabled:
+                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+                guest_user_card_blocking_threshold:
+                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+                is_customer_id_blocking_enabled:
+                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+                customer_id_blocking_threshold:
+                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+                card_testing_guard_expiry:
+                    common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            }),
+        };
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             id: profile_id,
@@ -3827,6 +3905,22 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: None,
+            card_testing_guard_config,
+            card_testing_secret_key: card_testing_secret_key
+                .async_lift(|inner| async {
+                    domain_types::crypto_operation(
+                        &key_manager_state,
+                        common_utils::type_name!(domain::Profile),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("error while generating card testing secret key")?,
         }))
     }
 }
@@ -3960,6 +4054,7 @@ trait ProfileUpdateBridge {
         self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
+        business_profile: &domain::Profile,
     ) -> RouterResult<domain::ProfileUpdate>;
 }
 
@@ -3970,6 +4065,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
+        business_profile: &domain::Profile,
     ) -> RouterResult<domain::ProfileUpdate> {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
@@ -4034,6 +4130,35 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
+        let key = key_store.key.clone().into_inner();
+        let key_manager_state = state.into();
+
+        let card_testing_secret_key = match business_profile.card_testing_secret_key {
+            Some(_) => None,
+            None => {
+                let card_testing_secret_key = Some(Secret::new(utils::generate_id(
+                    consts::FINGERPRINT_SECRET_LENGTH,
+                    "fs",
+                )));
+
+                card_testing_secret_key
+                    .async_lift(|inner| async {
+                        domain_types::crypto_operation(
+                            &key_manager_state,
+                            common_utils::type_name!(domain::Profile),
+                            domain_types::CryptoOperation::EncryptOptional(inner),
+                            km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("error while generating card testing secret key")?
+            }
+        };
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4078,6 +4203,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
+                card_testing_guard_config: self
+                    .card_testing_guard_config
+                    .map(ForeignInto::foreign_into),
+                card_testing_secret_key,
             },
         )))
     }
@@ -4090,6 +4219,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
+        business_profile: &domain::Profile,
     ) -> RouterResult<domain::ProfileUpdate> {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
@@ -4140,6 +4270,35 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
+        let key = key_store.key.clone().into_inner();
+        let key_manager_state = state.into();
+
+        let card_testing_secret_key = match business_profile.card_testing_secret_key {
+            Some(_) => None,
+            None => {
+                let card_testing_secret_key = Some(Secret::new(utils::generate_id(
+                    consts::FINGERPRINT_SECRET_LENGTH,
+                    "fs",
+                )));
+
+                card_testing_secret_key
+                    .async_lift(|inner| async {
+                        domain_types::crypto_operation(
+                            &key_manager_state,
+                            common_utils::type_name!(domain::Profile),
+                            domain_types::CryptoOperation::EncryptOptional(inner),
+                            km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("error while generating card testing secret key")?
+            }
+        };
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4177,6 +4336,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: self
+                    .card_testing_guard_config
+                    .map(ForeignInto::foreign_into),
+                card_testing_secret_key,
             },
         )))
     }
@@ -4200,7 +4363,7 @@ pub async fn update_profile(
         })?;
 
     let profile_update = request
-        .get_update_profile_object(&state, &key_store)
+        .get_update_profile_object(&state, &key_store, &business_profile)
         .await?;
 
     let updated_business_profile = db
