@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
-        webhooks::VerifyWebhookSource,
+        webhooks::{VerifyWebhookSource,GetAdditionalRevenueRecoveryDetails},
     },
     router_request_types::{
         unified_authentication_service::{
@@ -33,11 +33,13 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        AdditionalRevenueRecoveryDetailsRequestData
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        AdditionalRevenueRecoveryDetailsResponseData
     },
 };
 #[cfg(feature = "payouts")]
@@ -221,4 +223,11 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     Authenticate,
     UasAuthenticationRequestData,
     UasAuthenticationResponseData,
+>;
+
+///Type alias for `ConnectorIntegration<GetAdditionalRevenueRecoveryDetails, AdditionalRevenueRecoveryDetailsRequestData, AdditionalRevenueRecoveryDetailsResponseData>`
+pub type AdditionalRevenueRecoveryCallType = dyn ConnectorIntegration<
+    GetAdditionalRevenueRecoveryDetails,
+    AdditionalRevenueRecoveryDetailsRequestData,
+    AdditionalRevenueRecoveryDetailsResponseData
 >;

@@ -913,3 +913,8 @@ pub struct SetupMandateRequestData {
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
 }
+
+#[derive(Debug, Clone)]
+pub struct AdditionalRevenueRecoveryDetailsRequestData{
+    pub transaction_id : String,
+}

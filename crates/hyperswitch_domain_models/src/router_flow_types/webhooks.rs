@@ -19,3 +19,6 @@ impl ConnectorNetworkTxnId {
         &self.0
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct GetAdditionalRevenueRecoveryDetails;

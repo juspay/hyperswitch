@@ -149,3 +149,5 @@ pub struct UasFlowData {
     pub authenticate_by: String,
     pub source_authentication_id: String,
 }
+
+pub struct AdditionalRevenueRecoveryCallFlowCommonData;

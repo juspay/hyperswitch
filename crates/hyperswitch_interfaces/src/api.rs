@@ -30,24 +30,21 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
-        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+        flow_common_types::{AdditionalRevenueRecoveryCallFlowCommonData, WebhookSourceVerifyData}, AccessTokenFlowData, MandateRevokeFlowData,
         UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation, GetAdditionalRevenueRecoveryDetails, PostAuthenticate, PreAuthenticate, VerifyWebhookSource
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
-        },
-        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+        }, AccessTokenRequestData, AdditionalRevenueRecoveryDetailsRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData
     },
     router_response_types::{
-        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
-        VerifyWebhookSourceResponseData,
+        AdditionalRevenueRecoveryDetailsResponseData, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods, VerifyWebhookSourceResponseData
     },
 };
 use masking::Maskable;
@@ -368,6 +365,27 @@ pub trait ConnectorVerifyWebhookSourceV2:
     VerifyWebhookSourceResponseData,
 >
 {
+}
+
+/// trait ConnectorAdditionalRevenueRecoveryDetailsCall
+pub trait ConnectorAdditionalRevenueRecoveryDetailsCall: 
+    ConnectorIntegration<
+    GetAdditionalRevenueRecoveryDetails,
+    AdditionalRevenueRecoveryDetailsRequestData,
+    AdditionalRevenueRecoveryDetailsResponseData
+>
+{   
+}
+
+/// trait ConnectorAdditionalRevenueRecoveryDetailsCallV2
+pub trait ConnectorAdditionalRevenueRecoveryDetailsCallV2 : 
+    ConnectorIntegrationV2<
+    GetAdditionalRevenueRecoveryDetails,
+    AdditionalRevenueRecoveryCallFlowCommonData,
+    AdditionalRevenueRecoveryDetailsRequestData,
+    AdditionalRevenueRecoveryDetailsResponseData
+>
+{   
 }
 
 /// trait UnifiedAuthenticationService

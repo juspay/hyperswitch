@@ -73,14 +73,14 @@ pub use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, ResponseId,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData, AdditionalRevenueRecoveryDetailsRequestData
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        VerifyWebhookStatus,
+        VerifyWebhookStatus, AdditionalRevenueRecoveryDetailsResponseData
     },
 };
 #[cfg(feature = "payouts")]

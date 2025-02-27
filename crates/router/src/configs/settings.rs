@@ -96,6 +96,7 @@ pub struct Settings<S: SecretState> {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    pub additonal_recovery_details_call : GetAdditionalRecoveryDetailsCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -845,6 +846,12 @@ pub struct DelayedSessionConfig {
 pub struct WebhookSourceVerificationCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connectors_with_webhook_source_verification_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GetAdditionalRecoveryDetailsCall{
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connectors_with_additional_revenue_recovery_details_call : HashSet<enums::Connector>
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -3,28 +3,17 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
-        },
-        AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
+        }, AccessTokenRequestData, AdditionalRevenueRecoveryDetailsRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData
     },
     router_response_types::{
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData,
+        AdditionalRevenueRecoveryDetailsResponseData, MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData
     },
 };
 #[cfg(feature = "payouts")]
@@ -81,3 +70,6 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
+
+pub type AdditionalRevenueRecoveryDetailsRouterData =
+    RouterData<GetAdditionalRevenueRecoveryDetails,AdditionalRevenueRecoveryDetailsRequestData,AdditionalRevenueRecoveryDetailsResponseData>;
