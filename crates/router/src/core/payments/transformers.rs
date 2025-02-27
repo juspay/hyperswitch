@@ -4307,6 +4307,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text: config.payment_button_text,
             custom_message_for_card_terms: config.custom_message_for_card_terms,
             payment_button_colour: config.payment_button_colour,
+            skip_status_screen: config.skip_status_screen,
+            background_colour: config.background_colour,
+            payment_button_text_colour: config.payment_button_text_colour,
         }
     }
 }
@@ -4372,6 +4375,9 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             payment_button_text: config.payment_button_text,
             custom_message_for_card_terms: config.custom_message_for_card_terms,
             payment_button_colour: config.payment_button_colour,
+            skip_status_screen: config.skip_status_screen,
+            background_colour: config.background_colour,
+            payment_button_text_colour: config.payment_button_text_colour,
         }
     }
 }

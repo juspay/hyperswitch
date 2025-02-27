@@ -2723,6 +2723,12 @@ pub struct PaymentLinkConfigRequest {
     pub custom_message_for_card_terms: Option<String>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
+    /// Skip the status screen after payment completion
+    pub skip_status_screen: Option<bool>,
+    /// Custom text colour for payment link's handle confirm button
+    pub payment_button_text_colour: Option<String>,
+    /// Custom background colour for the payment link
+    pub background_colour: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2798,6 +2804,12 @@ pub struct PaymentLinkConfig {
     pub custom_message_for_card_terms: Option<String>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
+    /// Skip the status screen after payment completion
+    pub skip_status_screen: Option<bool>,
+    /// Custom text colour for payment link's handle confirm button
+    pub payment_button_text_colour: Option<String>,
+    /// Custom background colour for the payment link
+    pub background_colour: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
