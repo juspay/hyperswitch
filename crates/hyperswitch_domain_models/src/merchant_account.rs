@@ -244,14 +244,13 @@ pub enum MerchantAccountUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: OptionalEncryptableName,
         merchant_details: OptionalEncryptableValue,
         publishable_key: Option<String>,
-        metadata: Option<pii::SecretSerdeValue>,
+        metadata: Option<Box<pii::SecretSerdeValue>>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -477,7 +476,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
                 publishable_key,
-                metadata,
+                metadata: metadata.map(|metadata| *metadata),
                 modified_at: now,
                 storage_scheme: None,
                 organization_id: None,
