@@ -376,7 +376,7 @@ pub struct PaymentsResponse {
     payment: PaymentResponseData,
 }
 
-#[derive(Debug , Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GetnetPaymentsResponse {
     PaymentsResponse(Box<PaymentsResponse>),
