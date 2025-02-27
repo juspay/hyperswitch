@@ -9,32 +9,38 @@ pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
         api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
-        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
-        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
-        AnalyticsFlow,
+        errors::AnalyticsError, opensearch::OpenSearchError,
+        outgoing_webhook_event::outgoing_webhook_events_core, AnalyticsFlow,
     };
+    #[cfg(feature = "v1")]
+    use analytics::{lambda_utils::invoke_lambda, sdk_events::sdk_events_core};
     use api_models::analytics::{
         api_event::QueryType,
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
-        AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
-        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventMetricRequest,
+        AnalyticsRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
         GetDisputeMetricRequest, GetFrmFilterRequest, GetFrmMetricRequest,
         GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
         GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
+    };
+    #[cfg(feature = "v1")]
+    use api_models::analytics::{
+        GenerateReportRequest, GetActivePaymentsMetricRequest, GetAuthEventMetricRequest,
         GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
     use common_utils::types::TimeRange;
-    use error_stack::{report, ResultExt};
+    #[cfg(feature = "v1")]
+    use error_stack::report;
+    use error_stack::ResultExt;
     use futures::{stream::FuturesUnordered, StreamExt};
 
     use crate::{
         analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
-        db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
+        db::user_role::ListUserRolesByUserIdPayload,
         routes::AppState,
         services::{
             api,
@@ -42,8 +48,10 @@ pub mod routes {
             authorization::{permissions::Permission, roles::RoleInfo},
             ApplicationResponse,
         },
-        types::{domain::UserEmail, storage::UserRole},
+        types::storage::UserRole,
     };
+    #[cfg(feature = "v1")]
+    use crate::{db::user::UserInterface, types::domain::UserEmail};
 
     pub struct Analytics;
 

@@ -33,6 +33,7 @@ pub trait GetAuthType {
     fn get_auth_type(&self) -> PayloadType;
 }
 
+#[allow(dead_code)]
 impl ExtractedPayload {
     pub fn from_headers(headers: &HeaderMap) -> RouterResult<Self> {
         let merchant_id = headers

@@ -1,4 +1,6 @@
-use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::StringExt;
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -7,21 +9,22 @@ use scheduler::{
     errors as sch_errors, utils as scheduler_utils,
 };
 
+#[cfg(feature = "v1")]
 use crate::{
     consts,
     core::{
         errors::StorageErrorExt,
         payments::{self as payment_flows, operations},
     },
+    services,
+    types::{api, storage::enums},
+    utils,
+};
+use crate::{
     db::StorageInterface,
     errors,
     routes::SessionState,
-    services,
-    types::{
-        api,
-        storage::{self, enums},
-    },
-    utils,
+    types::storage::{self},
 };
 
 pub struct PaymentsSyncWorkflow;
@@ -31,8 +34,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
     #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a SessionState,
-        process: storage::ProcessTracker,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         todo!()
     }

@@ -1,13 +1,14 @@
 use common_utils::types::MinorUnit;
 use diesel_models::{capture::CaptureNew, enums};
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::payments::payment_attempt::{
     PaymentAttempt, PaymentAttemptUpdate,
 };
 
-use crate::{
-    core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
-};
+#[cfg(feature = "v1")]
+use crate::{core::errors, utils::OptionExt};
+use crate::{errors::RouterResult, types::transformers::ForeignFrom};
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
@@ -24,8 +25,8 @@ impl PaymentAttemptExt for PaymentAttempt {
     #[cfg(feature = "v2")]
     fn make_new_capture(
         &self,
-        capture_amount: MinorUnit,
-        capture_status: enums::CaptureStatus,
+        _capture_amount: MinorUnit,
+        _capture_status: enums::CaptureStatus,
     ) -> RouterResult<CaptureNew> {
         todo!()
     }

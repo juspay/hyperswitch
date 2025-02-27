@@ -15,25 +15,31 @@ pub use api_models::{
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },
 };
-use common_utils::{ext_traits::ValueExt, types::keymanager as km_types};
+use common_utils::ext_traits::ValueExt;
+#[cfg(feature = "v1")]
+use common_utils::types::keymanager as km_types;
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use masking::PeekInterface;
+use masking::{ExposeInterface, Secret};
 
+#[cfg(feature = "v1")]
 use crate::{
     consts,
-    core::errors,
     routes::SessionState,
+    types::domain::types::{self as domain_types, AsyncLift},
+    utils,
+};
+use crate::{
+    core::errors,
     types::{
-        domain::{
-            self,
-            types::{self as domain_types, AsyncLift},
-        },
+        domain::{self},
         transformers::{ForeignInto, ForeignTryFrom},
         ForeignFrom,
     },
-    utils,
 };
 
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {

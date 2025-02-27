@@ -5,10 +5,12 @@ use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
+#[cfg(feature = "v1")]
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
+#[cfg(feature = "v1")]
 use router_env::env;
 
 use crate::{

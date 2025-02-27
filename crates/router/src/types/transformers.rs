@@ -14,6 +14,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -125,7 +126,7 @@ impl
     )> for payment_methods::PaymentMethodResponse
 {
     fn foreign_from(
-        (card_details, item): (
+        (_card_details, _item): (
             Option<payment_methods::CardDetailFromLocker>,
             domain::PaymentMethod,
         ),
@@ -1601,10 +1602,10 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             .map(|value| value == Some("true"))
             .unwrap_or(false);
 
-        let client_source =
+        let _client_source =
             get_header_value_by_key(X_CLIENT_SOURCE.into(), headers)?.map(|val| val.to_string());
 
-        let client_version =
+        let _client_version =
             get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
 
         let browser_name_str =

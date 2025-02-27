@@ -2,9 +2,14 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::{OptionExt, StringExt};
-use diesel_models::process_tracker::{self as storage, business_status};
+use diesel_models::process_tracker as storage;
+#[cfg(feature = "v1")]
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use router::workflows;
 use router::{
     configs::settings::{CmdLineConf, Settings},
     core::{
@@ -13,16 +18,14 @@ use router::{
     },
     logger, routes,
     services::{self, api},
-    workflows,
 };
 use router_env::{
     instrument,
     tracing::{self, Instrument},
 };
-use scheduler::{
-    consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
-    workflows::ProcessTrackerWorkflows, SchedulerSessionState,
-};
+#[cfg(feature = "v1")]
+use scheduler::{consumer::workflows::ProcessTrackerWorkflow, scheduler::SchedulerSessionState};
+use scheduler::{errors::ProcessTrackerError, workflows::ProcessTrackerWorkflows};
 use storage_impl::errors::ApplicationError;
 use tokio::sync::{mpsc, oneshot};
 

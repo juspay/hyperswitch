@@ -77,6 +77,7 @@ pub async fn check_if_connector_exists(
         todo!()
     };
 
+    #[allow(unreachable_code)]
     Ok(())
 }
 

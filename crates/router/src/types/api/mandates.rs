@@ -1,14 +1,18 @@
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::OptionExt;
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "v1")]
+use crate::core::{
+    errors::{self, StorageErrorExt},
+    payment_methods,
+};
 use crate::{
-    core::{
-        errors::{self, RouterResult, StorageErrorExt},
-        payment_methods,
-    },
+    core::errors::RouterResult,
     newtype,
     routes::SessionState,
     types::{
@@ -120,10 +124,10 @@ impl MandateResponseExt for MandateResponse {
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
-        state: &SessionState,
-        key_store: domain::MerchantKeyStore,
-        mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        _state: &SessionState,
+        _key_store: domain::MerchantKeyStore,
+        _mandate: storage::Mandate,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<Self> {
         todo!()
     }
