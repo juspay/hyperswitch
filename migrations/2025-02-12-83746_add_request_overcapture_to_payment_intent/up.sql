@@ -1,1 +1,0 @@
-ALTER TABLE payment_intent ADD COLUMN IF NOT EXISTS request_overcapture VARCHAR(32) DEFAULT NULL;
