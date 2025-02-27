@@ -34,16 +34,16 @@ pub struct Event {
     /// Reference to the object for which the webhook was created.
     pub primary_object_id: String,
 
-    /// Reference to the object type for which the webhook was created.
+    /// Type of the object type for which the webhook was created.
     pub primary_object_type: EventObjectType,
 
     /// The timestamp when the webhook was created.
     pub created_at: time::PrimitiveDateTime,
 
-    /// Merchant identifier to which the webhook was sent.
+    /// Merchant Account identifier to which the object is associated with.
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
-    /// Business Profile identifier to which the webhook was sent.
+    /// Business Profile identifier to which the object is associated with.
     pub business_profile_id: Option<common_utils::id_type::ProfileId>,
 
     /// The timestamp when the primary object was created.
@@ -79,7 +79,7 @@ pub enum EventUpdate {
         is_webhook_notified: bool,
         response: OptionalEncryptableSecretString,
     },
-    ParentUpdate {
+    OverallDeliveryStatusUpdate {
         is_overall_delivery_successful: bool,
     },
 }
@@ -95,7 +95,7 @@ impl From<EventUpdate> for EventUpdateInternal {
                 response: response.map(Into::into),
                 is_overall_delivery_successful: None,
             },
-            EventUpdate::ParentUpdate {
+            EventUpdate::OverallDeliveryStatusUpdate {
                 is_overall_delivery_successful,
             } => Self {
                 is_webhook_notified: None,

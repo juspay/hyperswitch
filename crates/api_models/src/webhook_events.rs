@@ -29,7 +29,7 @@ pub struct EventListConstraints {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 
-    // Filter all events by overall_delivery_status.
+    /// Filter all events by is_overall_delivery_successful field in events table.
     pub is_delivered: Option<bool>,
 }
 
@@ -72,7 +72,7 @@ pub struct EventListItemResponse {
     /// Specifies the class of event (the type of object: Payment, Refund, etc.)
     pub event_class: EventClass,
 
-    /// Indicates whether the webhook was ultimately delivery.
+    /// Indicates whether the webhook was ultimately delivered.
     pub is_delivery_successful: bool,
 
     /// The identifier for the initial delivery attempt. This will be the same as `event_id` for

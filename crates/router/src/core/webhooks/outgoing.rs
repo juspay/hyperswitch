@@ -12,6 +12,7 @@ use common_utils::{
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
+use http::StatusCode;
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
@@ -313,7 +314,7 @@ async fn trigger_webhook_to_merchant(
             }
             Ok(response) => {
                 let status_code = response.status();
-                let _updated_event = update_event_in_storage(
+                let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
@@ -323,6 +324,15 @@ async fn trigger_webhook_to_merchant(
                 .await?;
 
                 if status_code.is_success() {
+                    update_overall_delivery_status(
+                        state.clone(),
+                        merchant_key_store.clone(),
+                        &business_profile.merchant_id,
+                        updated_event,
+                        status_code
+                    )
+                    .await?;
+
                     success_response_handler(
                         state.clone(),
                         &business_profile.merchant_id,
@@ -330,6 +340,7 @@ async fn trigger_webhook_to_merchant(
                         business_status::INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL,
                     )
                     .await?;
+
                 } else {
                     error_response_handler(
                         state.clone(),
@@ -363,7 +374,7 @@ async fn trigger_webhook_to_merchant(
                 }
                 Ok(response) => {
                     let status_code = response.status();
-                    let _updated_event = update_event_in_storage(
+                    let updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
@@ -373,6 +384,15 @@ async fn trigger_webhook_to_merchant(
                     .await?;
 
                     if status_code.is_success() {
+                        update_overall_delivery_status(
+                            state.clone(),
+                            merchant_key_store.clone(),
+                            &business_profile.merchant_id,
+                            updated_event,
+                            status_code
+                        )
+                        .await?;
+
                         success_response_handler(
                             state.clone(),
                             &business_profile.merchant_id,
@@ -380,6 +400,7 @@ async fn trigger_webhook_to_merchant(
                             "COMPLETED_BY_PT",
                         )
                         .await?;
+
                     } else {
                         error_response_handler(
                             state.clone(),
@@ -825,7 +846,7 @@ async fn update_event_in_storage(
             .attach_printable("Failed to encrypt outgoing webhook response content")?,
         ),
     };
-    let current_event = state
+    state
         .store
         .update_event_by_merchant_id_event_id(
             key_manager_state,
@@ -835,14 +856,24 @@ async fn update_event_in_storage(
             &merchant_key_store,
         )
         .await
-        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
+        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+}
 
-    let parent_update = domain::EventUpdate::ParentUpdate {
+async fn update_overall_delivery_status(
+    state: SessionState,
+    merchant_key_store: domain::MerchantKeyStore,
+    merchant_id: &common_utils::id_type::MerchantId,
+    updated_event: domain::Event,
+    status_code: StatusCode,
+) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
+    let key_manager_state = &(&state).into();
+
+    let parent_update = domain::EventUpdate::OverallDeliveryStatusUpdate {
         is_overall_delivery_successful: status_code.is_success(),
     };
 
-    let parent_event_id = current_event.initial_attempt_id.clone();
-    let delivery_attempt = current_event.delivery_attempt;
+    let parent_event_id = updated_event.initial_attempt_id.clone();
+    let delivery_attempt: Option<common_enums::WebhookDeliveryAttempt> = updated_event.delivery_attempt;
 
     if let Some((
         parent_event_id,
@@ -864,7 +895,8 @@ async fn update_event_in_storage(
             .attach_printable("Failed to update parent event")?;
     }
 
-    Ok(current_event)
+    unimplemented!()
+
 }
 
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {

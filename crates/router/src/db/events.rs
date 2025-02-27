@@ -714,7 +714,7 @@ impl EventInterface for MockDb {
                 event_to_update.is_webhook_notified = is_webhook_notified;
                 event_to_update.response = response.map(Into::into);
             }
-            domain::EventUpdate::ParentUpdate {
+            domain::EventUpdate::OverallDeliveryStatusUpdate {
                 is_overall_delivery_successful,
             } => event_to_update.is_overall_delivery_successful = is_overall_delivery_successful,
         }
