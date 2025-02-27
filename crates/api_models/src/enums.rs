@@ -149,6 +149,12 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
+#[derive(Clone, Debug, serde::Serialize, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingConnectors {
+    Chargebee,
+}
+
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
@@ -405,6 +411,9 @@ pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
     TaxConnectors::from_str(connector_name).ok()
 }
 
+pub fn convert_billing_connector(connector_name: &str) -> Option<BillingConnectors> {
+    BillingConnectors::from_str(connector_name).ok()
+}
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()

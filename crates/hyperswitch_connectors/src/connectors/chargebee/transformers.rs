@@ -1,5 +1,15 @@
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use std::str::FromStr;
+
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    types::{MinorUnit, StringMinorUnit},
+};
+use error_stack::ResultExt;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -11,6 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -225,4 +236,265 @@ pub struct ChargebeeErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeWebhookBody {
+    pub content: ChargebeeWebhookContent,
+    pub event_type: ChargebeeEventType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceBody {
+    pub content: ChargebeeInvoiceContent,
+    pub event_type: ChargebeeEventType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceContent {
+    pub invoice: ChargebeeInvoiceData,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+
+pub struct ChargebeeWebhookContent {
+    pub transaction: ChargebeeTransactionData,
+    pub invoice: ChargebeeInvoiceData,
+    pub customer: Option<ChargebeeCustomer>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeEventType {
+    PaymentSucceeded,
+    PaymentFailed,
+    InvoiceDeleted,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceData {
+    // invoice id
+    pub id: String,
+    pub total: MinorUnit,
+    pub currency_code: enums::Currency,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeTransactionData {
+    id_at_gateway: Option<String>,
+    status: ChargebeeTranasactionStatus,
+    error_code: Option<String>,
+    error_text: Option<String>,
+    gateway_account_id: Option<String>,
+    currency_code: enums::Currency,
+    amount: MinorUnit,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    date: Option<PrimitiveDateTime>,
+    payment_method: ChargebeeTransactionPaymentMethod,
+    payment_method_details: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeTransactionPaymentMethod {
+    Card,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeePaymentMethodDetails {
+    card: ChargebeeCardDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeCardDetails {
+    funding_type: ChargebeeFundingType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeFundingType {
+    Credit,
+    Debit,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeTranasactionStatus {
+    // Waiting for response from the payment gateway.
+    InProgress,
+    // The transaction is successful.
+    Success,
+    // Transaction failed.
+    Failure,
+    // No response received while trying to charge the card.
+    Timeout,
+    // Indicates that a successful payment transaction has failed now due to a late failure notification from the payment gateway,
+    // typically caused by issues like insufficient funds or a closed bank account.
+    LateFailure,
+    // Connection with Gateway got terminated abruptly. So, status of this transaction needs to be resolved manually
+    NeedsAttention,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeCustomer {
+    pub payment_method: ChargebeePaymentMethod,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeePaymentMethod {
+    pub reference_id: String,
+    pub gateway: ChargebeeGateway,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeGateway {
+    Stripe,
+    Braintree,
+}
+
+impl ChargebeeWebhookBody {
+    pub fn get_webhook_object_from_body(body: &[u8]) -> CustomResult<Self, errors::ConnectorError> {
+        let webhook_body = body
+            .parse_struct::<Self>("ChargebeeWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(webhook_body)
+    }
+}
+
+impl ChargebeeInvoiceBody {
+    pub fn get_invoice_webhook_data_from_body(
+        body: &[u8],
+    ) -> CustomResult<Self, errors::ConnectorError> {
+        let webhook_body = body
+            .parse_struct::<Self>("ChargebeeInvoiceBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(webhook_body)
+    }
+}
+
+impl ChargebeeCustomer {
+    // the logic to find connector customer id & mandate id is different for different gateways, reference : https://apidocs.chargebee.com/docs/api/customers?prod_cat_ver=2#customer_payment_method_reference_id .
+    pub fn find_connector_ids(&self) -> Result<(String, String), errors::ConnectorError> {
+        match self.payment_method.gateway {
+            ChargebeeGateway::Stripe | ChargebeeGateway::Braintree => {
+                let mut parts = self.payment_method.reference_id.split('/');
+                let customer_id = parts
+                    .next()
+                    .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
+                    .to_string();
+                let mandate_id = parts
+                    .last()
+                    .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
+                    .to_string();
+                Ok((customer_id, mandate_id))
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ChargebeeWebhookBody) -> Result<Self, Self::Error> {
+        let amount = item.content.transaction.amount;
+        let currency = item.content.transaction.currency_code.to_owned();
+        let merchant_reference_id =
+            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let connector_transaction_id = item
+            .content
+            .transaction
+            .id_at_gateway
+            .map(common_utils::types::ConnectorTransactionId::TxnId);
+        let error_code = item.content.transaction.error_code.clone();
+        let error_message = item.content.transaction.error_text.clone();
+        let (connector_customer_id, processor_payment_method_token) = match &item.content.customer {
+            Some(customer) => {
+                let (customer_id, mandate_id) = customer.find_connector_ids()?;
+                (Some(customer_id), Some(mandate_id))
+            }
+            None => (None, None),
+        };
+        let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
+        let transaction_created_at = item.content.transaction.date;
+        let status = enums::AttemptStatus::from(item.content.transaction.status);
+        let payment_method_type =
+            enums::PaymentMethod::from(item.content.transaction.payment_method);
+        let payment_method_details: ChargebeePaymentMethodDetails =
+            serde_json::from_str(&item.content.transaction.payment_method_details)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let payment_method_sub_type =
+            enums::PaymentMethodType::from(payment_method_details.card.funding_type);
+        Ok(Self {
+            amount,
+            currency,
+            merchant_reference_id,
+            connector_transaction_id,
+            error_code,
+            error_message,
+            processor_payment_method_token,
+            connector_customer_id,
+            connector_account_reference_id,
+            transaction_created_at,
+            status,
+            payment_method_type,
+            payment_method_sub_type,
+        })
+    }
+}
+
+impl From<ChargebeeTranasactionStatus> for enums::AttemptStatus {
+    fn from(status: ChargebeeTranasactionStatus) -> Self {
+        match status {
+            ChargebeeTranasactionStatus::InProgress
+            | ChargebeeTranasactionStatus::NeedsAttention => Self::Pending,
+            ChargebeeTranasactionStatus::Success => Self::Charged,
+            ChargebeeTranasactionStatus::Failure
+            | ChargebeeTranasactionStatus::Timeout
+            | ChargebeeTranasactionStatus::LateFailure => Self::Pending,
+        }
+    }
+}
+
+impl From<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
+    fn from(payment_method: ChargebeeTransactionPaymentMethod) -> Self {
+        match payment_method {
+            ChargebeeTransactionPaymentMethod::Card => Self::Card,
+        }
+    }
+}
+
+impl From<ChargebeeFundingType> for enums::PaymentMethodType {
+    fn from(funding_type: ChargebeeFundingType) -> Self {
+        match funding_type {
+            ChargebeeFundingType::Credit => Self::Credit,
+            ChargebeeFundingType::Debit => Self::Debit,
+        }
+    }
+}
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+        }
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
+        let merchant_reference_id =
+            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Self {
+            amount: item.content.invoice.total,
+            currency: item.content.invoice.currency_code,
+            merchant_reference_id,
+        })
+    }
 }
