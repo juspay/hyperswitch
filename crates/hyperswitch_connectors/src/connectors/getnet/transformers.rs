@@ -293,7 +293,7 @@ pub enum GetnetPaymentStatus {
 impl From<GetnetPaymentStatus> for AttemptStatus {
     fn from(item: GetnetPaymentStatus) -> Self {
         match item {
-            GetnetPaymentStatus::Success => Self::Authorized,
+            GetnetPaymentStatus::Success => Self::Charged,
             GetnetPaymentStatus::Failed => Self::Failure,
             GetnetPaymentStatus::InProgress => Self::Pending,
         }
@@ -344,7 +344,7 @@ pub struct PaymentResponseData {
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "api-id")]
@@ -354,8 +354,14 @@ pub struct PaymentResponseData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetnetPaymentsResponse {
+pub struct PaymentsResponse {
     payment: PaymentResponseData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum GetnetPaymentsResponse {
+    PaymentsResponse(Box<PaymentsResponse>),
+    GetnetWebhookNotificationResponse(Box<GetnetWebhookNotificationResponse>),
 }
 
 pub fn authorization_attempt_status_from_transaction_state(
@@ -389,25 +395,31 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: authorization_attempt_status_from_transaction_state(
-                item.response.payment.transaction_state,
-                item.data.request.is_auto_capture()?,
-            ),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.payment.transaction_id,
+        match item.response {
+            GetnetPaymentsResponse::PaymentsResponse(ref payment_response) => Ok(Self {
+                status: authorization_attempt_status_from_transaction_state(
+                    payment_response.payment.transaction_state,
+                    item.data.request.is_auto_capture()?,
                 ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        payment_response.payment.transaction_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+
+            GetnetPaymentsResponse::WebhookResponse(ref webhook_response) | _ => Err(
+                error_stack::Report::new(errors::ConnectorError::ResponseHandlingFailed),
+            ),
+        }
     }
 }
 
@@ -434,26 +446,31 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
     fn try_from(
         item: PaymentsSyncResponseRouterData<GetnetPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: psync_attempt_status_from_transaction_state(
-                item.response.payment.transaction_state,
-                item.data.request.is_auto_capture()?,
-                item.response.payment.transaction_type,
-            ),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.payment.transaction_id,
+        match item.response {
+            GetnetPaymentsResponse::PaymentsResponse(ref payment_response) => Ok(Self {
+                status: authorization_attempt_status_from_transaction_state(
+                    payment_response.payment.transaction_state,
+                    item.data.request.is_auto_capture()?,
                 ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        payment_response.payment.transaction_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+
+            GetnetPaymentsResponse::WebhookResponse(ref webhook_response) | _ => Err(
+                error_stack::Report::new(errors::ConnectorError::ResponseHandlingFailed),
+            ),
+        }
     }
 }
 
@@ -471,7 +488,7 @@ pub struct CapturePaymentData {
     pub requested_amount: Amount,
     pub notifications: NotificationContainer,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -551,7 +568,7 @@ pub struct CaptureResponseData {
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -621,7 +638,7 @@ pub struct RefundPaymentData {
     pub parent_transaction_id: String,
     pub notifications: NotificationContainer,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
 }
 #[derive(Debug, Serialize)]
 pub struct GetnetRefundRequest {
@@ -728,7 +745,7 @@ pub struct RefundResponseData {
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -787,7 +804,7 @@ pub struct CancelPaymentData {
     pub parent_transaction_id: String,
     pub notifications: NotificationContainer,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -891,7 +908,7 @@ pub struct CancelResponseData {
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -911,7 +928,7 @@ pub fn cancel_status_from_transaction_state(getnet_status: GetnetPaymentStatus) 
     match getnet_status {
         GetnetPaymentStatus::Success => AttemptStatus::Voided,
         GetnetPaymentStatus::InProgress => AttemptStatus::Pending,
-        GetnetPaymentStatus::Failed => AttemptStatus::Authorized,
+        GetnetPaymentStatus::Failed => AttemptStatus::VoidFailed,
     }
 }
 
@@ -987,7 +1004,7 @@ pub struct WebhookResponseData {
     #[serde(rename = "card-token")]
     pub card_token: CardToken,
     #[serde(rename = "ip-address")]
-    pub ip_address: Option<Secret<String>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
@@ -1013,6 +1030,39 @@ pub fn is_refund_event(transaction_type: &GetnetTransactionType) -> bool {
         transaction_type,
         GetnetTransactionType::RefundPurchase | GetnetTransactionType::RefundCapture
     )
+}
+
+pub fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<GetnetWebhookNotificationResponseBody, errors::ConnectorError> {
+    let body_bytes = bytes::Bytes::copy_from_slice(body);
+    let parsed_param: GetnetWebhookNotificationResponse =
+        parse_url_encoded_to_struct(body_bytes)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    let response_base64 = &parsed_param.response_base64.peek();
+    let decoded_response = BASE64_ENGINE
+        .decode(response_base64)
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+    let getnet_webhook_notification_response: GetnetWebhookNotificationResponseBody =
+        match serde_json::from_slice::<GetnetWebhookNotificationResponseBody>(&decoded_response) {
+            Ok(response) => response,
+            Err(_e) => {
+                return Err(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            }
+        };
+
+    Ok(getnet_webhook_notification_response)
+}
+
+pub fn get_webhook_response(
+    body: &[u8],
+) -> CustomResult<GetnetWebhookNotificationResponse, errors::ConnectorError> {
+    let body_bytes = bytes::Bytes::copy_from_slice(body);
+    let parsed_param: GetnetWebhookNotificationResponse =
+        parse_url_encoded_to_struct(body_bytes)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    Ok(parsed_param)
 }
 
 pub fn get_incoming_webhook_event(

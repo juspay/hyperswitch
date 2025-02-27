@@ -11,7 +11,6 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
-use hmac::{Hmac, Mac};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -42,6 +41,7 @@ use hyperswitch_interfaces::{
     webhooks::{self},
 };
 use masking::{Mask, PeekInterface, Secret};
+use ring::hmac;
 use sha2::Sha256;
 use transformers as getnet;
 
@@ -713,41 +713,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
     }
 }
 
-fn get_webhook_object_from_body(
-    body: &[u8],
-) -> CustomResult<getnet::GetnetWebhookNotificationResponseBody, errors::ConnectorError> {
-    let body_bytes = bytes::Bytes::copy_from_slice(body);
-    let parsed_param: getnet::GetnetWebhookNotificationResponse =
-        parse_url_encoded_to_struct(body_bytes)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    let response_base64 = &parsed_param.response_base64.peek();
-    let decoded_response = BASE64_ENGINE
-        .decode(response_base64)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-    let getnet_webhook_notification_response: getnet::GetnetWebhookNotificationResponseBody =
-        match serde_json::from_slice::<getnet::GetnetWebhookNotificationResponseBody>(
-            &decoded_response,
-        ) {
-            Ok(response) => response,
-            Err(_e) => {
-                return Err(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-            }
-        };
-
-    Ok(getnet_webhook_notification_response)
-}
-
-fn get_webhook_response(
-    body: &[u8],
-) -> CustomResult<getnet::GetnetWebhookNotificationResponse, errors::ConnectorError> {
-    let body_bytes = bytes::Bytes::copy_from_slice(body);
-    let parsed_param: getnet::GetnetWebhookNotificationResponse =
-        parse_url_encoded_to_struct(body_bytes)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    Ok(parsed_param)
-}
-
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Getnet {
     fn get_webhook_source_verification_algorithm(
@@ -762,7 +727,7 @@ impl webhooks::IncomingWebhook for Getnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif_item = get_webhook_response(request.body)
+        let notif_item = getnet::get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let response_base64 = &notif_item.response_base64.peek().clone();
         BASE64_ENGINE
@@ -776,7 +741,7 @@ impl webhooks::IncomingWebhook for Getnet {
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif = get_webhook_response(request.body)
+        let notif = getnet::get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         Ok(notif.response_base64.peek().clone().into_bytes())
@@ -786,7 +751,7 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
+        let notif = getnet::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let transaction_type = &notif.payment.transaction_type;
         if getnet::is_refund_event(transaction_type) {
@@ -808,7 +773,7 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
+        let notif = getnet::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let incoming_webhook_event = getnet::get_incoming_webhook_event(
             notif.payment.transaction_type,
@@ -821,10 +786,11 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
+        let notif = getnet::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(notif))
     }
+
     async fn verify_webhook_source(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -833,7 +799,7 @@ impl webhooks::IncomingWebhook for Getnet {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let notif_item = get_webhook_response(request.body)
+        let notif_item = getnet::get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let connector_webhook_secrets = self
@@ -854,15 +820,12 @@ impl webhooks::IncomingWebhook for Getnet {
 
         let secret = connector_webhook_secrets.secret;
 
-        let mut mac: Hmac<Sha256> = Hmac::new_from_slice(&secret)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        mac.update(&message);
+        let key = hmac::Key::new(hmac::SHA256, &secret);
+        let result = hmac::sign(&key, message.as_bytes());
 
-        let result = mac.finalize();
-        let code_bytes = result.into_bytes();
-        let computed_signature = BASE64_ENGINE.encode(code_bytes);
+        let computed_signature = BASE64_ENGINE.encode(result.as_ref());
+
         let normalized_computed_signature = computed_signature.replace("+", " ");
-
         Ok(signature == normalized_computed_signature)
     }
 }
