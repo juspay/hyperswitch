@@ -69,6 +69,7 @@ mod payeezy;
 mod payme;
 mod payone;
 mod paypal;
+mod paystack;
 mod payu;
 mod placetopay;
 mod plaid;
