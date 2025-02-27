@@ -403,6 +403,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
                     is_platform_account: false,
+                    product_type: None,
                 },
             )
         }
@@ -671,6 +672,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
+                    product_type: None,
                 }),
             )
         }
@@ -1038,7 +1040,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant details")?,
-            metadata,
+            metadata: metadata.map(Box::new),
             publishable_key: None,
         })
     }
@@ -1456,6 +1458,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Nmi => {
                 nmi::transformers::NmiAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Nomupay => {
+                nomupay::transformers::NomupayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Noon => {

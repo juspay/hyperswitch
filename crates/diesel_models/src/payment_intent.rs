@@ -58,6 +58,10 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -76,10 +80,6 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
-    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
-    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -380,8 +380,8 @@ pub struct PaymentIntentNew {
     pub skip_external_tax_calculation: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]

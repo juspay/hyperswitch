@@ -535,8 +535,7 @@ impl
                                         .connector_token_details
                                         .as_ref()
                                         .and_then(|token_details| {
-                                            token_details
-                                                .get_connector_mandate_request_reference_id()
+                                            token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
                         },
@@ -1188,8 +1187,7 @@ impl
                                         .connector_token_details
                                         .as_ref()
                                         .and_then(|token_details| {
-                                            token_details
-                                                .get_connector_mandate_request_reference_id()
+                                            token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
                         },
