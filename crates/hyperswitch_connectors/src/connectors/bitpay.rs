@@ -1,6 +1,6 @@
 pub mod transformers;
-
 use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
 use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::ByteSliceExt,
@@ -20,7 +20,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundsRouterData,
@@ -37,6 +40,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as bitpay;
 
@@ -416,4 +420,48 @@ impl webhooks::IncomingWebhook for Bitpay {
     }
 }
 
-impl ConnectorSpecifications for Bitpay {}
+lazy_static! {
+    static ref BITPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+        ];
+
+        let mut bitpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        bitpay_supported_payment_methods.add(
+            enums::PaymentMethod::Crypto,
+            enums::PaymentMethodType::CryptoCurrency,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        bitpay_supported_payment_methods
+    };
+
+    static ref BITPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Bitpay",
+        description:
+            "BitPay is a cryptocurrency payment processor that enables businesses to accept Bitcoin and other digital currencies ",
+        connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    };
+
+    static ref BITPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments];
+}
+
+impl ConnectorSpecifications for Bitpay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*BITPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*BITPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*BITPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

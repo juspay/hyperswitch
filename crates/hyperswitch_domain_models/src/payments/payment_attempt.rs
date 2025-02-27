@@ -556,7 +556,7 @@ impl PaymentAttempt {
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
-            payment_method_id: None,
+            payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
             payment_method_subtype: request.payment_method_subtype,
             authentication_applied: None,
@@ -565,7 +565,7 @@ impl PaymentAttempt {
             error: None,
             connector_token_details: Some(diesel_models::ConnectorTokenDetails {
                 connector_mandate_id: None,
-                connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+                connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
                     consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )),
             }),

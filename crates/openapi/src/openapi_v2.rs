@@ -143,6 +143,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_session_retrieve,
         routes::payment_method::payment_method_session_list_payment_methods,
         routes::payment_method::payment_method_session_update_saved_payment_method,
+        routes::payment_method::payment_method_session_confirm,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -504,7 +505,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payments::ExtendedCardInfo,
         api_models::payments::PaymentsConfirmIntentRequest,
-        api_models::payments::PaymentsConfirmIntentResponse,
         api_models::payments::AmountDetailsResponse,
         api_models::payments::BankCodeResponse,
         api_models::payments::Order,
@@ -521,8 +521,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::payment_methods::PaymentMethodSubtypeSpecificData,
         api_models::payment_methods::PaymentMethodSessionRequest,
-        api_models::payment_methods::PaymentMethodsSessionResponse,
-        api_models::payments::PaymentsRetrieveResponse,
+        api_models::payment_methods::PaymentMethodSessionResponse,
+        api_models::payment_methods::PaymentMethodsSessionUpdateRequest,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::AmountFilter,
@@ -691,6 +691,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::TokenizationType,
         api_models::enums::NetworkTokenizationToggle,
         api_models::payments::PaymentAmountDetailsResponse,
+        api_models::payment_methods::PaymentMethodSessionConfirmRequest,
+        api_models::payment_methods::PaymentMethodSessionResponse,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)

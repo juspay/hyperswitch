@@ -1018,19 +1018,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data.authentication = match external_authentication_flow {
             Some(helpers::PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 acquirer_details,
-                card_number,
+                card,
                 token,
             }) => {
-                let authentication = authentication::perform_pre_authentication(
+                let authentication = Box::pin(authentication::perform_pre_authentication(
                     state,
                     key_store,
-                    card_number,
+                    *card,
                     token,
                     business_profile,
                     acquirer_details,
                     Some(payment_data.payment_attempt.payment_id.clone()),
                     payment_data.payment_attempt.organization_id.clone(),
-                )
+                ))
                 .await?;
                 if authentication.is_separate_authn_required()
                     || authentication.authentication_status.is_failed()
