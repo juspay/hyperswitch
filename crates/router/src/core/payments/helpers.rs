@@ -6756,7 +6756,7 @@ pub enum UnifiedAuthenticationServiceFlow {
     ClickToPayInitiate,
     ExternalAuthenticationInitiate {
         acquirer_details: Option<authentication::types::AcquirerDetails>,
-        card_number: ::cards::CardNumber,
+        card: Box<hyperswitch_domain_models::payment_method_data::Card>,
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
@@ -6787,12 +6787,12 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     Ok(match external_authentication_flow {
         Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
             acquirer_details,
-            card_number,
+            card,
             token,
         }) => Some(
             UnifiedAuthenticationServiceFlow::ExternalAuthenticationInitiate {
                 acquirer_details,
-                card_number,
+                card,
                 token,
             },
         ),
@@ -6830,7 +6830,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
         acquirer_details: Option<authentication::types::AcquirerDetails>,
-        card_number: ::cards::CardNumber,
+        card: Box<hyperswitch_domain_models::payment_method_data::Card>,
         token: String,
     },
     PostAuthenticationFlow {
@@ -6869,9 +6869,9 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         "payment connector supports external authentication: {:?}",
         connector_supports_separate_authn.is_some()
     );
-    let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
+    let card = payment_data.payment_method_data.as_ref().and_then(|pmd| {
         if let domain::PaymentMethodData::Card(card) = pmd {
-            Some(card.card_number.clone())
+            Some(card.clone())
         } else {
             None
         }
@@ -6885,9 +6885,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         && mandate_type
             != Some(api_models::payments::MandateTransactionType::RecurringMandateTransaction)
     {
-        if let Some((connector_data, card_number)) =
-            connector_supports_separate_authn.zip(card_number)
-        {
+        if let Some((connector_data, card)) = connector_supports_separate_authn.zip(card) {
             let token = payment_data
                 .token
                 .clone()
@@ -6928,7 +6926,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                     .ok()
                 });
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
-                card_number,
+                card: Box::new(card),
                 token,
                 acquirer_details,
             })
