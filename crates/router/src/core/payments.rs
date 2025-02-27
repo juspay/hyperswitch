@@ -1703,7 +1703,7 @@ where
             req_state,
             merchant_account.clone(),
             key_store,
-            profile,
+            profile.clone(),
             operation.clone(),
             req,
             get_tracker_response,
@@ -1718,6 +1718,7 @@ where
         external_latency,
         header_payload.x_hs_latency,
         &merchant_account,
+        &profile,
     )
 }
 

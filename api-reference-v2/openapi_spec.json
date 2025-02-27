@@ -16788,7 +16788,7 @@
       },
       "PaymentsResponse": {
         "type": "object",
-        "description": "Response for Payment Intent Confirm\nFew fields should be expandable, we need not return these in the normal response\nBut when explictly requested for expanded objects, these can be returned\nFor example\nshipping, billing, customer, payment_method",
+        "description": "Response for Payment Intent Confirm\nFew fields should be expandable, we need not return these in the normal response\nBut when explicitly requested for expanded objects, these can be returned\nFor example\nshipping, billing, customer, payment_method",
         "required": [
           "id",
           "status",

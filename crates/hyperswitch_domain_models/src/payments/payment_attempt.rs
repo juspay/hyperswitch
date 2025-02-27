@@ -516,17 +516,11 @@ impl PaymentAttempt {
 
         let connector_token = Some(diesel_models::ConnectorTokenDetails {
             connector_mandate_id: None,
-            connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
                 consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
             )),
         });
 
-        let connector_token = Some(diesel_models::ConnectorTokenDetails {
-            connector_mandate_id: None,
-            connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
-                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
-            )),
-        });
 
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
@@ -608,7 +602,7 @@ impl PaymentAttempt {
             .attach_printable("Unable to decode billing address")?;
         let connector_token = Some(diesel_models::ConnectorTokenDetails {
             connector_mandate_id: None,
-            connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
                 consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
             )),
         });

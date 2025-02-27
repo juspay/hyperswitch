@@ -5425,7 +5425,7 @@ pub struct ConnectorTokenDetails {
 
 /// Response for Payment Intent Confirm
 /// Few fields should be expandable, we need not return these in the normal response
-/// But when explictly requested for expanded objects, these can be returned
+/// But when explicitly requested for expanded objects, these can be returned
 /// For example
 /// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
