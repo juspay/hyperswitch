@@ -84,8 +84,9 @@ pub use self::{
     nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, nuvei::Nuvei,
     paybox::Paybox, payeezy::Payeezy, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax,stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling,
+    taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,
 };
