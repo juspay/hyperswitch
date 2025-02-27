@@ -318,8 +318,6 @@ pub struct PaymentAttemptNew {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
-    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     pub connector: Option<String>,
 }
 
