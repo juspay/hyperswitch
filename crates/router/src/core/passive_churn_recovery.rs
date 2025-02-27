@@ -195,7 +195,7 @@ pub async fn call_psync_api(
         state.get_req_state(),
         pcr_data.merchant_account.clone(),
         pcr_data.key_store.clone(),
-        pcr_data.profile.clone(),
+        &pcr_data.profile,
         operation,
         req,
         get_tracker_response,
