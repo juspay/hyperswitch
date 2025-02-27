@@ -42,3 +42,9 @@ pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the co
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
 
 pub const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
+
+pub(crate) const CANNOT_CONTINUE_AUTH: &str =
+    "Cannot continue with Authorization due to failed Liability Shift.";
+
+#[cfg(feature = "payouts")]
+pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";

@@ -6,8 +6,8 @@ use crate::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
+        SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -20,11 +20,12 @@ use crate::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
+        PaymentsTaxCalculationData, RefundsData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData,
+        TaxCalculationResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -74,6 +75,14 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     IncrementalAuthorization,
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
+>;
+pub type SdkSessionUpdateRouterData =
+    RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
+
+pub type VerifyWebhookSourceRouterData = RouterData<
+    VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
 >;
 
 #[cfg(feature = "payouts")]

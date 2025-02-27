@@ -2,50 +2,87 @@ pub mod transformers;
 use std::fmt::Write;
 
 use base64::Engine;
+use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
+    consts,
+    errors::CustomResult,
     ext_traits::ByteSliceExt,
-    request::RequestContent,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
-use diesel_models::enums;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::logger;
-#[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
-use transformers as paypal;
-
-use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
-use super::utils::{
-    ConnectorErrorType, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-    PaymentsCompleteAuthorizeRequestData,
-};
-use crate::{
-    configs::settings,
-    connector::utils::{
-        self as connector_utils, to_connector_meta, ConnectorErrorTypeMapping, RefundsRequestData,
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PostSessionTokens, PreProcessing,
+            SdkSessionUpdate, Session, SetupMandate, Void,
+        },
+        payouts::{PoCreate, PoSync},
+        refunds::{Execute, RSync},
+        CompleteAuthorize,
     },
-    consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
+    router_request_types::{
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, ResponseId, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
-    db::domain,
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation, PaymentAction,
+    router_response_types::{
+        PaymentsResponseData, RefundsResponseData, VerifyWebhookSourceResponseData,
     },
     types::{
-        self,
-        api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
-        storage::enums as storage_enums,
-        transformers::{ForeignFrom, ForeignTryFrom},
-        ConnectorAuthType, ErrorResponse, Response,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPostSessionTokensRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
-    utils::BytesExt,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{payouts::PoFulfill, VerifyWebhookSource},
+    router_response_types::PayoutsResponseData,
+    types::{PayoutsData, PayoutsRouterData},
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::{PaymentsPreProcessingType, PayoutFulfillType, PayoutSyncType};
+use hyperswitch_interfaces::{
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation, MandateSetup,
+    },
+    configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    disputes, errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
+        PaymentsPostSessionTokensType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType, SetupMandateType,
+        VerifyWebhookSourceType,
+    },
+    webhooks::{self, IncomingWebhook, IncomingWebhookRequestDetails},
+};
+use masking::{Maskable, Secret};
+#[cfg(feature = "payouts")]
+use router_env::{instrument, tracing};
+use transformers::{
+    self as paypal, auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType,
+};
+
+// use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
+use crate::{
+    constants::{self, headers},
+    types::ResponseRouterData,
+    utils::{
+        self as connector_utils, to_connector_meta, ConnectorErrorType, ConnectorErrorTypeMapping,
+        ForeignTryFrom, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -136,10 +173,10 @@ impl Paypal {
             code: option_error_code_message
                 .clone()
                 .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                .unwrap_or(NO_ERROR_CODE.to_string()),
             message: option_error_code_message
                 .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
@@ -153,9 +190,9 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let access_token = req
             .access_token
             .clone()
@@ -236,14 +273,14 @@ impl ConnectorCommon for Paypal {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.paypal.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(auth_type)?;
         let credentials = auth.get_credentials()?;
 
@@ -308,10 +345,10 @@ impl ConnectorCommon for Paypal {
             code: option_error_code_message
                 .clone()
                 .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                .unwrap_or(NO_ERROR_CODE.to_string()),
             message: option_error_code_message
                 .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
             connector_transaction_id: response.debug_id,
@@ -338,8 +375,8 @@ impl ConnectorValidation for Paypal {
     }
     fn validate_mandate_payment(
         &self,
-        pm_type: Option<types::storage::enums::PaymentMethodType>,
-        pm_data: domain::PaymentMethodData,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
@@ -350,27 +387,18 @@ impl ConnectorValidation for Paypal {
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Paypal
-{
-}
-
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Paypal
 {
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Paypal
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Paypal {}
+
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Paypal {
     fn get_url(
         &self,
-        _req: &types::RefreshTokenRouterData,
-        connectors: &settings::Connectors,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v1/oauth2/token", self.base_url(connectors)))
     }
@@ -379,9 +407,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
     fn get_headers(
         &self,
-        req: &types::RefreshTokenRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
         let credentials = auth.get_credentials()?;
         let auth_val = credentials.generate_authorization_value();
@@ -389,17 +417,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefreshTokenType::get_content_type(self)
-                    .to_string()
-                    .into(),
+                RefreshTokenType::get_content_type(self).to_string().into(),
             ),
             (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
         ])
     }
     fn get_request_body(
         &self,
-        req: &types::RefreshTokenRouterData,
-        _connectors: &settings::Connectors,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paypal::PaypalAuthUpdateRequest::try_from(req)?;
 
@@ -408,17 +434,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
     fn build_request(
         &self,
-        req: &types::RefreshTokenRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let req = Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
-                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .set_body(types::RefreshTokenType::get_request_body(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .headers(RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
                 .build(),
         );
 
@@ -427,10 +451,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
     fn handle_response(
         &self,
-        data: &types::RefreshTokenRouterData,
+        data: &RefreshTokenRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
         let response: paypal::PaypalAuthUpdateResponse = res
             .response
             .parse_struct("Paypal PaypalAuthUpdateResponse")
@@ -439,7 +463,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -471,29 +495,27 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
-    for Paypal
-{
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Paypal {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v1/payments/payouts", self.base_url(connectors)))
     }
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        _connectors: &settings::Connectors,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -508,19 +530,15 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::PayoutFulfillType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::PayoutFulfillType::get_request_body(
-                self, req, connectors,
-            )?)
+            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
+            .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -529,10 +547,10 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoFulfill>,
+        data: &PayoutsRouterData<PoFulfill>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
         let response: paypal::PaypalFulfillResponse = res
             .response
             .parse_struct("PaypalFulfillResponse")
@@ -541,7 +559,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -558,11 +576,11 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData> for Paypal {
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Paypal {
     fn get_url(
         &self,
-        req: &types::PayoutsRouterData<api::PoSync>,
-        connectors: &settings::Connectors,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let batch_id = req.request.connector_payout_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -578,22 +596,22 @@ impl ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsRespons
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoSync>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoSync>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Get)
-            .url(&types::PayoutSyncType::get_url(self, req, connectors)?)
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&PayoutSyncType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::PayoutSyncType::get_headers(self, req, connectors)?)
+            .headers(PayoutSyncType::get_headers(self, req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -602,10 +620,10 @@ impl ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsRespons
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoSync>,
+        data: &PayoutsRouterData<PoSync>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoSync>, errors::ConnectorError> {
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
         let response: paypal::PaypalFulfillResponse = res
             .response
             .parse_struct("PaypalFulfillResponse")
@@ -614,7 +632,7 @@ impl ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsRespons
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -632,14 +650,12 @@ impl ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsRespons
 
 #[async_trait::async_trait]
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
-    for Paypal
-{
+impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Paypal {
     fn build_request(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCreate>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &PayoutsRouterData<PoCreate>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         // Eligibility check for wallet is not implemented
         Err(
             errors::ConnectorError::NotImplemented("Payout Eligibility for Paypal".to_string())
@@ -648,18 +664,12 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Paypal
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::SetupMandateRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -667,8 +677,8 @@ impl
     }
     fn get_url(
         &self,
-        _req: &types::SetupMandateRouterData,
-        connectors: &settings::Connectors,
+        _req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}v3/vault/payment-tokens/",
@@ -677,8 +687,8 @@ impl
     }
     fn get_request_body(
         &self,
-        req: &types::SetupMandateRouterData,
-        _connectors: &settings::Connectors,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paypal::PaypalZeroMandateRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -686,35 +696,33 @@ impl
 
     fn build_request(
         &self,
-        req: &types::SetupMandateRouterData,
-        connectors: &settings::Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(types::SetupMandateType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(SetupMandateType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::SetupMandateRouterData,
+        data: &SetupMandateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
         let response: paypal::PaypalSetupMandatesResponse = res
             .response
             .parse_struct("PaypalSetupMandatesResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -730,18 +738,14 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::PostSessionTokens,
-        types::PaymentsPostSessionTokensData,
-        types::PaymentsResponseData,
-    > for Paypal
+impl ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
+    for Paypal
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsPostSessionTokensRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsPostSessionTokensRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -749,27 +753,27 @@ impl
     }
     fn get_url(
         &self,
-        _req: &types::PaymentsPostSessionTokensRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsPostSessionTokensRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/checkout/orders", self.base_url(connectors)))
     }
     fn build_request(
         &self,
-        req: &types::PaymentsPostSessionTokensRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsPostSessionTokensRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsPostSessionTokensType::get_url(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsPostSessionTokensType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsPostSessionTokensType::get_headers(
+                .headers(PaymentsPostSessionTokensType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsPostSessionTokensType::get_request_body(
+                .set_body(PaymentsPostSessionTokensType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -778,8 +782,8 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsPostSessionTokensRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsPostSessionTokensRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -809,17 +813,17 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsPostSessionTokensRouterData,
+        data: &PaymentsPostSessionTokensRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsPostSessionTokensRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsPostSessionTokensRouterData, errors::ConnectorError> {
         let response: paypal::PaypalRedirectResponse = res
             .response
             .parse_struct("PaypalRedirectResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -835,18 +839,14 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::SdkSessionUpdate,
-        types::SdkPaymentsSessionUpdateData,
-        types::PaymentsResponseData,
-    > for Paypal
+impl ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
+    for Paypal
 {
     fn get_headers(
         &self,
-        req: &types::SdkSessionUpdateRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &SdkSessionUpdateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -856,8 +856,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::SdkSessionUpdateRouterData,
-        connectors: &settings::Connectors,
+        req: &SdkSessionUpdateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let session_id =
             req.request
@@ -875,20 +875,16 @@ impl
 
     fn build_request(
         &self,
-        req: &types::SdkSessionUpdateRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &SdkSessionUpdateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Patch)
-                .url(&types::SdkSessionUpdateType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Patch)
+                .url(&SdkSessionUpdateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::SdkSessionUpdateType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::SdkSessionUpdateType::get_request_body(
+                .headers(SdkSessionUpdateType::get_headers(self, req, connectors)?)
+                .set_body(SdkSessionUpdateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -897,8 +893,8 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::SdkSessionUpdateRouterData,
-        _connectors: &settings::Connectors,
+        req: &SdkSessionUpdateRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let order_amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -937,11 +933,11 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::SdkSessionUpdateRouterData,
+        data: &SdkSessionUpdateRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::SdkSessionUpdateRouterData, errors::ConnectorError> {
-        logger::debug!("Expected zero bytes response, skipped parsing of the response");
+    ) -> CustomResult<SdkSessionUpdateRouterData, errors::ConnectorError> {
+        router_env::logger::debug!("Expected zero bytes response, skipped parsing of the response");
         // https://developer.paypal.com/docs/api/orders/v2/#orders_patch
         // If 204 status code, then the session was updated successfully.
         let status = if res.status_code == 204 {
@@ -949,8 +945,8 @@ impl
         } else {
             enums::SessionUpdateStatus::Failure
         };
-        Ok(types::SdkSessionUpdateRouterData {
-            response: Ok(types::PaymentsResponseData::SessionUpdateResponse { status }),
+        Ok(SdkSessionUpdateRouterData {
+            response: Ok(PaymentsResponseData::SessionUpdateResponse { status }),
             ..data.clone()
         })
     }
@@ -964,14 +960,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Paypal
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -981,13 +975,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(
-                paypal_wallet_data,
-            )) => {
+            PaymentMethodData::Wallet(WalletData::PaypalSdk(paypal_wallet_data)) => {
                 let authorize_url = if req.request.is_auto_capture()? {
                     "capture".to_string()
                 } else {
@@ -1005,8 +997,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -1026,32 +1018,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let payment_method_data = req.request.payment_method_data.clone();
         let req = match payment_method_data {
-            domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) => {
-                services::RequestBuilder::new()
-                    .method(services::Method::Post)
-                    .url(&types::PaymentsAuthorizeType::get_url(
-                        self, req, connectors,
-                    )?)
-                    .headers(types::PaymentsAuthorizeType::get_headers(
-                        self, req, connectors,
-                    )?)
-                    .build()
-            }
-            _ => services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+            PaymentMethodData::Wallet(WalletData::PaypalSdk(_)) => RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .build(),
+            _ => RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1062,10 +1044,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: PaypalAuthResponse =
             res.response
                 .parse_struct("paypal PaypalAuthResponse")
@@ -1075,7 +1057,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -1084,7 +1066,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             PaypalAuthResponse::PaypalRedirectResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -1093,7 +1075,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -1113,25 +1095,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
 impl api::PaymentsPreProcessing for Paypal {}
 
-impl
-    ConnectorIntegration<
-        api::PreProcessing,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-    > for Paypal
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Paypal
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req
             .request
@@ -1147,17 +1125,15 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsPreProcessingType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsPreProcessingType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
+                .headers(PaymentsPreProcessingType::get_headers(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1166,10 +1142,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsPreProcessingRouterData,
+        data: &PaymentsPreProcessingRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: paypal::PaypalPreProcessingResponse = res
             .response
             .parse_struct("paypal PaypalPreProcessingResponse")
@@ -1217,10 +1193,10 @@ impl
                     | (Some(paypal::EnrollmentStatus::NotReady), None, paypal::LiabilityShift::No)
                     | (Some(paypal::EnrollmentStatus::Unavailable), None, paypal::LiabilityShift::No)
                     | (Some(paypal::EnrollmentStatus::Bypassed), None, paypal::LiabilityShift::No) => {
-                        Ok(types::PaymentsPreProcessingRouterData {
-                            status: storage_enums::AttemptStatus::AuthenticationSuccessful,
-                            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                                resource_id: types::ResponseId::NoResponseId,
+                        Ok(PaymentsPreProcessingRouterData {
+                            status: enums::AttemptStatus::AuthenticationSuccessful,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::NoResponseId,
                                 redirection_data: Box::new(None),
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
@@ -1232,14 +1208,14 @@ impl
                             ..data.clone()
                         })
                     }
-                    _ => Ok(types::PaymentsPreProcessingRouterData {
+                    _ => Ok(PaymentsPreProcessingRouterData {
                         response: Err(ErrorResponse {
                             attempt_status: Some(enums::AttemptStatus::Failure),
-                            code: consts::NO_ERROR_CODE.to_string(),
-                            message: consts::NO_ERROR_MESSAGE.to_string(),
+                            code: NO_ERROR_CODE.to_string(),
+                            message: NO_ERROR_MESSAGE.to_string(),
                             connector_transaction_id: None,
                             reason: Some(format!("{} Connector Responsded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
-                            consts::CANNOT_CONTINUE_AUTH,
+                            constants::CANNOT_CONTINUE_AUTH,
                             liability_response
                                 .payment_source
                                 .card
@@ -1268,10 +1244,10 @@ impl
             }
             // if card does not supports 3DS check for liability
             paypal::PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
-                Ok(types::PaymentsPreProcessingRouterData {
-                    status: storage_enums::AttemptStatus::AuthenticationSuccessful,
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::NoResponseId,
+                Ok(PaymentsPreProcessingRouterData {
+                    status: enums::AttemptStatus::AuthenticationSuccessful,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
@@ -1295,18 +1271,14 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        CompleteAuthorize,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for Paypal
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Paypal
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1316,8 +1288,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let complete_authorize_url = if req.request.is_auto_capture()? {
             "capture".to_string()
@@ -1336,16 +1308,16 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                .headers(PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1354,17 +1326,17 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCompleteAuthorizeRouterData,
+        data: &PaymentsCompleteAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: paypal::PaypalOrdersResponse = res
             .response
             .parse_struct("paypal PaypalOrdersResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1380,14 +1352,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Paypal
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1397,8 +1367,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         match req.payment_method {
@@ -1449,32 +1419,32 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsSyncType::get_url(self, req, connectors)?)
+                .headers(PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: paypal::PaypalSyncResponse = res
             .response
             .parse_struct("paypal SyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::foreign_try_from((
-            types::ResponseRouterData {
+        RouterData::foreign_try_from((
+            ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
@@ -1492,14 +1462,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Paypal
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1509,8 +1477,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         let authorize_id = paypal_meta.authorize_id.ok_or(
@@ -1527,8 +1495,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount_to_capture = connector_utils::convert_amount(
             self.amount_converter,
@@ -1543,17 +1511,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsCaptureType::get_url(self, req, connectors)?)
+                .headers(PaymentsCaptureType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1562,17 +1528,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: paypal::PaypalCaptureResponse = res
             .response
             .parse_struct("Paypal PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1588,14 +1554,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Paypal
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1605,8 +1569,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         let authorize_id = paypal_meta.authorize_id.ok_or(
@@ -1623,13 +1587,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -1637,17 +1601,17 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let response: paypal::PaypalPaymentsCancelResponse = res
             .response
             .parse_struct("PaymentCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1662,12 +1626,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Paypal {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1677,8 +1641,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_metadata.clone())?;
         let capture_id = paypal_meta.capture_id.ok_or(
@@ -1695,8 +1659,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
@@ -1711,18 +1675,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&RefundExecuteType::get_url(self, req, connectors)?)
+            .headers(RefundExecuteType::get_headers(self, req, connectors)?)
+            .set_body(RefundExecuteType::get_request_body(self, req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -1730,17 +1690,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: paypal::RefundResponse =
             res.response
                 .parse_struct("paypal RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1756,12 +1716,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Paypal {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paypal {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1771,8 +1731,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}v2/payments/refunds/{}",
@@ -1783,31 +1743,31 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&RefundSyncType::get_url(self, req, connectors)?)
+                .headers(RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::RefundSyncRouterData,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: paypal::RefundSyncResponse = res
             .response
             .parse_struct("paypal RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1826,19 +1786,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl
     ConnectorIntegration<
         VerifyWebhookSource,
-        types::VerifyWebhookSourceRequestData,
-        types::VerifyWebhookSourceResponseData,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
     > for Paypal
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
+        req: &RouterData<
             VerifyWebhookSource,
-            types::VerifyWebhookSourceRequestData,
-            types::VerifyWebhookSourceResponseData,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
         >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
         let credentials = auth.get_credentials()?;
         let auth_val = credentials.generate_authorization_value();
@@ -1846,7 +1806,7 @@ impl
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::VerifyWebhookSourceType::get_content_type(self)
+                VerifyWebhookSourceType::get_content_type(self)
                     .to_string()
                     .into(),
             ),
@@ -1860,12 +1820,12 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
+        _req: &RouterData<
             VerifyWebhookSource,
-            types::VerifyWebhookSourceRequestData,
-            types::VerifyWebhookSourceResponseData,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
         >,
-        connectors: &settings::Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}v1/notifications/verify-webhook-signature",
@@ -1875,18 +1835,14 @@ impl
 
     fn build_request(
         &self,
-        req: &types::VerifyWebhookSourceRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::VerifyWebhookSourceType::get_url(
-                self, req, connectors,
-            )?)
-            .headers(types::VerifyWebhookSourceType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::VerifyWebhookSourceType::get_request_body(
+        req: &VerifyWebhookSourceRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&VerifyWebhookSourceType::get_url(self, req, connectors)?)
+            .headers(VerifyWebhookSourceType::get_headers(self, req, connectors)?)
+            .set_body(VerifyWebhookSourceType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1895,12 +1851,12 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<
+        req: &RouterData<
             VerifyWebhookSource,
-            types::VerifyWebhookSourceRequestData,
-            types::VerifyWebhookSourceResponseData,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
         >,
-        _connectors: &settings::Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1908,17 +1864,17 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::VerifyWebhookSourceRouterData,
+        data: &VerifyWebhookSourceRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ConnectorError> {
+    ) -> CustomResult<VerifyWebhookSourceRouterData, errors::ConnectorError> {
         let response: paypal::PaypalSourceVerificationResponse = res
             .response
             .parse_struct("paypal PaypalSourceVerificationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1934,10 +1890,10 @@ impl
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Paypal {
+impl IncomingWebhook for Paypal {
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let payload: paypal::PaypalWebhooksBody =
             request
@@ -1984,8 +1940,8 @@ impl api::IncomingWebhook for Paypal {
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let payload: paypal::PaypalWebooksEventType = request
             .body
             .parse_struct("PaypalWebooksEventType")
@@ -2013,15 +1969,15 @@ impl api::IncomingWebhook for Paypal {
             | PaypalWebhookEventType::Unknown => None,
         };
 
-        Ok(api::IncomingWebhookEvent::foreign_from((
+        Ok(transformers::get_payapl_webhooks_event(
             payload.event_type,
             outcome,
-        )))
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: paypal::PaypalWebhooksBody =
             request
@@ -2044,8 +2000,8 @@ impl api::IncomingWebhook for Paypal {
 
     fn get_dispute_details(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let webhook_payload: paypal::PaypalWebhooksBody = request
             .body
             .parse_struct("PaypalWebhooksBody")
@@ -2058,7 +2014,7 @@ impl api::IncomingWebhook for Paypal {
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }
             transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
-                Ok(api::disputes::DisputePayload {
+                Ok(disputes::DisputePayload {
                     amount: connector_utils::to_currency_lower_unit(
                         payload.dispute_amount.value.get_amount_as_string(),
                         payload.dispute_amount.currency_code,
@@ -2080,18 +2036,18 @@ impl api::IncomingWebhook for Paypal {
     }
 }
 
-impl services::ConnectorRedirectResponse for Paypal {
+impl ConnectorRedirectResponse for Paypal {
     fn get_flow_type(
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
         action: PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
         match action {
             PaymentAction::PSync
             | PaymentAction::CompleteAuthorize
             | PaymentAction::PaymentAuthenticateCompleteAuthorize => {
-                Ok(payments::CallConnectorAction::Trigger)
+                Ok(CallConnectorAction::Trigger)
             }
         }
     }
