@@ -42,13 +42,9 @@ use hyperswitch_interfaces::{
 };
 use masking::{Mask, PeekInterface, Secret};
 use ring::hmac;
-use sha2::Sha256;
 use transformers as getnet;
 
-use crate::{
-    connectors::paybox::transformers::parse_url_encoded_to_struct, constants::headers,
-    types::ResponseRouterData, utils,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Getnet {
@@ -820,8 +816,8 @@ impl webhooks::IncomingWebhook for Getnet {
 
         let secret = connector_webhook_secrets.secret;
 
-        let key = hmac::Key::new(hmac::SHA256, &secret);
-        let result = hmac::sign(&key, message.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, &secret);
+        let result = hmac::sign(&key, &message);
 
         let computed_signature = BASE64_ENGINE.encode(result.as_ref());
 
