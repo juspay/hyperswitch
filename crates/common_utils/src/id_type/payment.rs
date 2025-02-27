@@ -86,3 +86,12 @@ impl From<PaymentId> for router_env::opentelemetry::Value {
         Self::from(val.0 .0 .0)
     }
 }
+
+impl std::str::FromStr for PaymentReferenceId {
+    type Err = error_stack::Report<ValidationError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cow_string = std::borrow::Cow::Owned(s.to_string());
+        Self::try_from(cow_string)
+    }
+}
