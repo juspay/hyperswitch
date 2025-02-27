@@ -1,14 +1,15 @@
+mod accounts;
 mod payments;
 mod ui;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use accounts::MerchantProductType;
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::RoutableConnectors;
-
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
