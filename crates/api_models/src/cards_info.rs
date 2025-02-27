@@ -76,23 +76,6 @@ pub struct CardInfoUpdateRequest {
 
 impl ApiEventMetric for CardInfoUpdateRequest {}
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
-pub struct CardInfoRecord {
-    pub card_iin: String,
-    pub card_issuer: Option<String>,
-    pub card_network: Option<storage_enums::CardNetwork>,
-    pub card_type: Option<String>,
-    pub card_sub_type: Option<String>,
-    pub card_issuing_country: Option<String>,
-    pub bank_code_id: Option<String>,
-    pub bank_code: Option<String>,
-    pub country_code: Option<String>,
-    pub last_updated_provider: Option<String>,
-    pub line_number: Option<i64>,
-}
-
-impl ApiEventMetric for CardInfoRecord {}
-
 #[derive(Debug, Default, serde::Serialize)]
 pub enum CardInfoMigrationStatus {
     Success,

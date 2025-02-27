@@ -1,7 +1,10 @@
+use actix_multipart::form::{bytes::Bytes, MultipartForm};
 use api_models::cards_info as cards_info_api_types;
 use common_utils::fp_utils::when;
+use csv::Reader;
 use diesel_models::cards_info as card_info_models;
 use error_stack::{report, ResultExt};
+use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -99,6 +102,38 @@ pub async fn update_card_info(
     .map(|card_info| ApplicationResponse::Json(card_info.foreign_into()))
 }
 
+#[derive(Debug, MultipartForm)]
+pub struct CardsInfoUpdateForm {
+    #[multipart(limit = "1MB")]
+    pub file: Bytes,
+}
+
+fn parse_cards_bin_csv(
+    data: &[u8],
+) -> csv::Result<Vec<cards_info_api_types::CardInfoUpdateRequest>> {
+    let mut csv_reader = Reader::from_reader(data);
+    let mut records = Vec::new();
+    let mut id_counter = 0;
+    for result in csv_reader.deserialize() {
+        let mut record: cards_info_api_types::CardInfoUpdateRequest = result?;
+        id_counter += 1;
+        record.line_number = Some(id_counter);
+        records.push(record);
+    }
+    Ok(records)
+}
+
+pub fn get_cards_bin_records(
+    form: CardsInfoUpdateForm,
+) -> Result<Vec<cards_info_api_types::CardInfoUpdateRequest>, errors::ApiErrorResponse> {
+    match parse_cards_bin_csv(form.file.data.to_bytes()) {
+        Ok(records) => Ok(records),
+        Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: e.to_string(),
+        }),
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn migrate_cards_info(
     state: routes::SessionState,
@@ -121,7 +156,6 @@ pub async fn migrate_cards_info(
 
 pub trait State {}
 pub trait TransitionTo<S: State> {}
-
 // Available states for card info migration
 pub struct CardInfoFetch;
 pub struct CardInfoAdd;

@@ -1,13 +1,11 @@
-use actix_multipart::form::{bytes::Bytes, MultipartForm};
+use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::cards_info as cards_info_api_types;
-use csv::Reader;
-use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, cards_info, errors},
+    core::{api_locking, cards_info},
     services::{api, authentication as auth},
 };
 
@@ -100,38 +98,6 @@ pub async fn update_cards_info(
     .await
 }
 
-#[derive(Debug, MultipartForm)]
-pub struct CardsInfoUpdateForm {
-    #[multipart(limit = "1MB")]
-    pub file: Bytes,
-}
-
-fn parse_cards_bin_csv(
-    data: &[u8],
-) -> csv::Result<Vec<cards_info_api_types::CardInfoUpdateRequest>> {
-    let mut csv_reader = Reader::from_reader(data);
-    let mut records = Vec::new();
-    let mut id_counter = 0;
-    for result in csv_reader.deserialize() {
-        let mut record: cards_info_api_types::CardInfoUpdateRequest = result?;
-        id_counter += 1;
-        record.line_number = Some(id_counter);
-        records.push(record);
-    }
-    Ok(records)
-}
-
-pub fn get_cards_bin_records(
-    form: CardsInfoUpdateForm,
-) -> Result<Vec<cards_info_api_types::CardInfoUpdateRequest>, errors::ApiErrorResponse> {
-    match parse_cards_bin_csv(form.file.data.to_bytes()) {
-        Ok(records) => Ok(records),
-        Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: e.to_string(),
-        }),
-    }
-}
-
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
     not(feature = "customer_v2")
@@ -140,10 +106,10 @@ pub fn get_cards_bin_records(
 pub async fn migrate_cards_info(
     state: web::Data<AppState>,
     req: HttpRequest,
-    MultipartForm(form): MultipartForm<CardsInfoUpdateForm>,
+    MultipartForm(form): MultipartForm<cards_info::CardsInfoUpdateForm>,
 ) -> HttpResponse {
     let flow = Flow::CardsInfoMigrate;
-    let records = match get_cards_bin_records(form) {
+    let records = match cards_info::get_cards_bin_records(form) {
         Ok(records) => records,
         Err(e) => return api::log_and_return_error_response(e.into()),
     };
