@@ -7279,9 +7279,7 @@ pub fn validate_overcapture_request(
     request_overcapture: Option<api_enums::OverCaptureRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
-        request_overcapture
-            .unwrap_or(api_enums::OverCaptureRequest::Skip)
-            .is_enabled()
+        request_overcapture.is_some_and(|request_overcapture| request_overcapture.is_enabled())
             && !(capture_method
                 .unwrap_or(api_enums::CaptureMethod::Automatic)
                 .is_manual()),
