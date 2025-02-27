@@ -480,7 +480,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
                 enums::Connector::Opennode => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Opennode::new())))
                 }
                 enums::Connector::Paybox => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
