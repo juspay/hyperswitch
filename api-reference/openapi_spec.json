@@ -5387,6 +5387,16 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "is_delivered",
+            "in": "query",
+            "description": "Only include Events which are ultimately delivered to the merchant.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -11653,7 +11663,7 @@
           },
           "is_delivery_successful": {
             "type": "boolean",
-            "description": "Indicates whether the webhook delivery attempt was successful."
+            "description": "Indicates whether the webhook was ultimately delivery."
           },
           "initial_attempt_id": {
             "type": "string",
