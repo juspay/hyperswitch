@@ -267,6 +267,8 @@ pub enum Flow {
     ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Recovery incoming webhook receive
+    RecoveryIncomingWebhookReceive,
     /// Validate payment method flow
     ValidatePaymentMethod,
     /// API Key create flow
@@ -543,12 +545,22 @@ pub enum Flow {
     RelayRetrieve,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
+    /// Generate Hypersense Token
+    HypersenseTokenRequest,
+    /// Verify Hypersense Token
+    HypersenseVerifyToken,
+    /// Signout Hypersense Token
+    HypersenseSignoutToken,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
     PaymentMethodSessionRetrieve,
+    // Payment Method Session Update
+    PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Confirm a payment method session with payment method data
+    PaymentMethodSessionConfirm,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -251,6 +251,11 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     )),
                     Some(PaymentSolution::GooglePay),
                 ),
+                WalletData::SamsungPay(samsung_pay_data) => (
+                    (get_samsung_pay_payment_information(&samsung_pay_data)
+                        .attach_printable("Failed to get samsung pay payment information")?),
+                    Some(PaymentSolution::SamsungPay),
+                ),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -269,7 +274,6 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | WalletData::PaypalRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
-                | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -1146,6 +1150,12 @@ impl
 //     })
 // }
 
+fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
+    let exposed = state.clone().expose();
+    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
+    Secret::new(truncated.to_string())
+}
+
 fn build_bill_to(
     address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
@@ -1167,11 +1177,12 @@ fn build_bill_to(
                 last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
-                administrative_area: addr
-                    .to_state_code_as_optional()
-                    .ok()
-                    .flatten()
-                    .remove_new_line(),
+                administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
+                    addr.state
+                        .remove_new_line()
+                        .as_ref()
+                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                }),
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
@@ -1270,13 +1281,13 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: Some(authn_data.threeds_server_transaction_id.clone()),
+                    xid: authn_data.threeds_server_transaction_id.clone(),
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
                     specification_version: None,
-                    pa_specification_version: Some(authn_data.message_version.clone()),
+                    pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                 }
             });
@@ -1353,13 +1364,13 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: Some(authn_data.threeds_server_transaction_id.clone()),
+                    xid: authn_data.threeds_server_transaction_id.clone(),
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
                     specification_version: None,
-                    pa_specification_version: Some(authn_data.message_version.clone()),
+                    pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                 }
             });
@@ -1434,13 +1445,13 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: Some(authn_data.threeds_server_transaction_id.clone()),
+                    xid: authn_data.threeds_server_transaction_id.clone(),
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
                     specification_version: None,
-                    pa_specification_version: Some(authn_data.message_version.clone()),
+                    pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                 }
             });
@@ -1859,25 +1870,8 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let samsung_pay_fluid_data_value =
-            get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
-
-        let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to serialize samsung pay fluid data")?;
-
-        let payment_information =
-            PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
-                fluid_data: FluidData {
-                    value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
-                    descriptor: Some(
-                        consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
-                    ),
-                },
-                tokenized_card: SamsungPayTokenizedCard {
-                    transaction_type: TransactionType::SamsungPay,
-                },
-            }));
+        let payment_information = get_samsung_pay_payment_information(&samsung_pay_data)
+            .attach_printable("Failed to get samsung pay payment information")?;
 
         let processing_information = ProcessingInformation::try_from((
             item,
@@ -1901,6 +1895,32 @@ impl
             merchant_defined_information,
         })
     }
+}
+
+fn get_samsung_pay_payment_information(
+    samsung_pay_data: &SamsungPayWalletData,
+) -> Result<PaymentInformation, error_stack::Report<errors::ConnectorError>> {
+    let samsung_pay_fluid_data_value =
+        get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
+
+    let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to serialize samsung pay fluid data")?;
+
+    let payment_information =
+        PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
+            fluid_data: FluidData {
+                value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
+                descriptor: Some(
+                    consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
+                ),
+            },
+            tokenized_card: SamsungPayTokenizedCard {
+                transaction_type: TransactionType::SamsungPay,
+            },
+        }));
+
+    Ok(payment_information)
 }
 
 fn get_samsung_pay_fluid_data_value(
@@ -3860,7 +3880,20 @@ impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
             last_name: billing_address.get_last_name()?.to_owned(),
             address1: billing_address.get_line1()?.to_owned(),
             locality: billing_address.get_city()?.to_owned(),
-            administrative_area: billing_address.get_state()?.to_owned(),
+            administrative_area: {
+                billing_address
+                    .to_state_code_as_optional()
+                    .unwrap_or_else(|_| {
+                        billing_address
+                            .state
+                            .remove_new_line()
+                            .as_ref()
+                            .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_address.state",
+                    })?
+            },
             postal_code: billing_address.get_zip()?.to_owned(),
             country: billing_address.get_country()?.to_owned(),
             phone_number: phone_address.number.clone(),

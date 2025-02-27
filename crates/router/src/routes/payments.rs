@@ -232,9 +232,6 @@ pub async fn payments_create_and_confirm_intent(
         }
     };
 
-    let global_payment_id =
-        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -248,7 +245,6 @@ pub async fn payments_create_and_confirm_intent(
                 auth.profile,
                 auth.key_store,
                 request,
-                global_payment_id.clone(),
                 header_payload.clone(),
                 auth.platform_merchant_account,
             )
@@ -1235,6 +1231,35 @@ pub async fn payments_list(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn payments_list(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::PaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn profile_payments_list(
     state: web::Data<app::AppState>,
@@ -1357,7 +1382,7 @@ pub async fn get_filters_for_payments(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 pub async fn get_payment_filters(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1373,6 +1398,33 @@ pub async fn get_payment_filters(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn get_payment_filters_profile(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PaymentsFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::get_payment_filters(
+                state,
+                auth.merchant_account,
+                Some(vec![auth.profile.get_id().clone()]),
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2398,7 +2450,7 @@ pub async fn payment_confirm_intent(
 
             Box::pin(payments::payments_core::<
                 api_types::Authorize,
-                api_models::payments::PaymentsConfirmIntentResponse,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,
@@ -2468,7 +2520,7 @@ pub async fn payment_status(
 
             Box::pin(payments::payments_core::<
                 api_types::PSync,
-                api_models::payments::PaymentsRetrieveResponse,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,
@@ -2566,7 +2618,7 @@ pub async fn payments_finish_redirection(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -2588,7 +2640,7 @@ pub async fn payments_finish_redirection(
             profile_id: profile_id.clone(),
         },
         locking_action,
-    )
+    ))
     .await
 }
 

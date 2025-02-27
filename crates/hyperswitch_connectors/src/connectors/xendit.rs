@@ -14,18 +14,22 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
+            Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData, SplitRefundsRequest,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -61,6 +65,7 @@ impl Xendit {
     }
 }
 impl api::Payment for Xendit {}
+impl api::PaymentsPreProcessing for Xendit {}
 impl api::PaymentSession for Xendit {}
 impl api::ConnectorAccessToken for Xendit {}
 impl api::MandateSetup for Xendit {}
@@ -121,6 +126,7 @@ impl ConnectorCommon for Xendit {
         let auth = xendit::XenditAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
+
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),
@@ -203,7 +209,46 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+
+        match &req.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::MultipleSplits(_),
+            )) => {
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    charges:
+                        Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                            common_types::payments::XenditChargeResponseData::MultipleSplits(
+                                xendit_response,
+                            ),
+                        )),
+                    ..
+                }) = req.response.as_ref()
+                {
+                    headers.push((
+                        xendit::auth_headers::WITH_SPLIT_RULE.to_string(),
+                        xendit_response.split_rule_id.clone().into(),
+                    ));
+                    if let Some(for_user_id) = &xendit_response.for_user_id {
+                        headers.push((
+                            xendit::auth_headers::FOR_USER_ID.to_string(),
+                            for_user_id.clone().into(),
+                        ))
+                    };
+                };
+            }
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::SingleSplit(single_split_data),
+            )) => {
+                headers.push((
+                    xendit::auth_headers::FOR_USER_ID.to_string(),
+                    single_split_data.for_user_id.clone().into(),
+                ));
+            }
+            _ => (),
+        };
+
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -280,13 +325,121 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Xendit
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/split_rules", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = xendit::XenditSplitRequestData::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: xendit::XenditSplitResponse = res
+            .response
+            .parse_struct("XenditSplitResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xendit {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+
+        match &req.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::MultipleSplits(xendit_request),
+            )) => {
+                if let Some(for_user_id) = &xendit_request.for_user_id {
+                    headers.push((
+                        xendit::auth_headers::FOR_USER_ID.to_string(),
+                        for_user_id.clone().into(),
+                    ))
+                };
+            }
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::SingleSplit(single_split_data),
+            )) => {
+                headers.push((
+                    xendit::auth_headers::FOR_USER_ID.to_string(),
+                    single_split_data.for_user_id.clone().into(),
+                ));
+            }
+            _ => (),
+        };
+
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -353,7 +506,31 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+
+        match &req.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::MultipleSplits(xendit_request),
+            )) => {
+                if let Some(for_user_id) = &xendit_request.for_user_id {
+                    headers.push((
+                        xendit::auth_headers::FOR_USER_ID.to_string(),
+                        for_user_id.clone().into(),
+                    ))
+                };
+            }
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::SingleSplit(single_split_data),
+            )) => {
+                headers.push((
+                    xendit::auth_headers::FOR_USER_ID.to_string(),
+                    single_split_data.for_user_id.clone().into(),
+                ));
+            }
+            _ => (),
+        };
+
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -453,7 +630,17 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Xendit 
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
+            &req.request.split_refunds
+        {
+            headers.push((
+                xendit::auth_headers::FOR_USER_ID.to_string(),
+                sub_merchant_data.for_user_id.clone().into(),
+            ));
+        };
+
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -539,7 +726,17 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Xendit {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
+            &req.request.split_refunds
+        {
+            headers.push((
+                xendit::auth_headers::FOR_USER_ID.to_string(),
+                sub_merchant_data.for_user_id.clone().into(),
+            ));
+        };
+
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
