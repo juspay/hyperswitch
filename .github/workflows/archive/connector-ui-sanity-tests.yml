@@ -31,8 +31,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_MIN_STACK: 10485760
 
 jobs:
@@ -77,7 +75,7 @@ jobs:
         if: (github.event_name == 'merge_group') || (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)
         shell: bash
         run: |
-          echo "Skipped tests as the event is merge_group or pull_request from external repository" 
+          echo "Skipped tests as the event is merge_group or pull_request from external repository"
           exit 0
 
       - name: Checkout repository
@@ -123,16 +121,16 @@ jobs:
 
       - name: Build and Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2.7.7
-        with: 
-            save-if: false
+        with:
+          save-if: false
 
       - name: Install Diesel CLI with Postgres Support
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.3.0
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         with:
           crate: diesel_cli
           features: postgres
-          args: "--no-default-features"
+          args: --no-default-features
 
       - name: Diesel migration run
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
