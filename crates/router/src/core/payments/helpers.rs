@@ -7280,9 +7280,7 @@ pub fn validate_overcapture_request(
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         request_overcapture.is_some_and(|request_overcapture| request_overcapture.is_enabled())
-            && !(capture_method
-                .unwrap_or(api_enums::CaptureMethod::Automatic)
-                .is_manual()),
+            && !(capture_method.is_some_and(|capture_method| capture_method.is_manual())),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
