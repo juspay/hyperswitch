@@ -14,6 +14,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
+use hyperswitch_connectors::connectors::chargebee;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -403,6 +404,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
                     is_platform_account: false,
+                    product_type: None,
                 },
             )
         }
@@ -671,6 +673,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
+                    product_type: None,
                 }),
             )
         }
@@ -1038,7 +1041,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant details")?,
-            metadata,
+            metadata: metadata.map(Box::new),
             publishable_key: None,
         })
     }
@@ -1308,6 +1311,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Chargebee => {
+                chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1492,6 +1499,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payone => {
                 payone::transformers::PayoneAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paystack => {
+                paystack::transformers::PaystackAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Payu => {
@@ -1838,6 +1849,8 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_authentication_connector(self.connector_name.to_string().as_str());
         let tax_connector =
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
+        let billing_connector =
+            api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1857,6 +1870,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if tax_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::TaxProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if billing_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::BillingProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }

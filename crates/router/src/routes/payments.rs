@@ -232,9 +232,6 @@ pub async fn payments_create_and_confirm_intent(
         }
     };
 
-    let global_payment_id =
-        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -248,7 +245,6 @@ pub async fn payments_create_and_confirm_intent(
                 auth.profile,
                 auth.key_store,
                 request,
-                global_payment_id.clone(),
                 header_payload.clone(),
                 auth.platform_merchant_account,
             )
@@ -2454,7 +2450,7 @@ pub async fn payment_confirm_intent(
 
             Box::pin(payments::payments_core::<
                 api_types::Authorize,
-                api_models::payments::PaymentsConfirmIntentResponse,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,
@@ -2524,7 +2520,7 @@ pub async fn payment_status(
 
             Box::pin(payments::payments_core::<
                 api_types::PSync,
-                api_models::payments::PaymentsRetrieveResponse,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,

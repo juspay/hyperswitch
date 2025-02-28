@@ -96,6 +96,7 @@ payeezy.base_url = "https://api.payeezy.com/"
 payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
 paypal.base_url = "https://api-m.paypal.com/"
+paystack.base_url = "https://api.paystack.co"
 payu.base_url = "https://secure.payu.com/api/"
 placetopay.base_url = "https://checkout.placetopay.com/rest/gateway"
 plaid.base_url = "https://production.plaid.com"
@@ -128,7 +129,7 @@ zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
 zsl.base_url = "https://apirh.prodoffalb.net/"
 threedsecureio.base_url = "https://service.3dsecure.io"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prod.netcetera-cloud-payment.ch"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"       # List of connectors which have delayed session response
