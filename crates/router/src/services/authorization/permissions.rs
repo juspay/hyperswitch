@@ -65,7 +65,7 @@ generate_permissions! {
         },
         WebhookEvent: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Profile, Merchant]
         },
         ReconToken: {
             scopes: [Read],
