@@ -25,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData, SplitRefundsRequest,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
@@ -43,6 +46,7 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as xendit;
 
@@ -169,22 +173,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
 }
 
 impl ConnectorValidation for Xendit {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic
-            | CaptureMethod::Manual
-            | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
@@ -825,7 +813,90 @@ impl webhooks::IncomingWebhook for Xendit {
     }
 }
 
-impl ConnectorSpecifications for Xendit {}
+lazy_static! {
+    static ref XENDIT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            CaptureMethod::Automatic,
+            CaptureMethod::Manual,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Interac,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::UnionPay,
+        ];
+
+        let mut xendit_supported_payment_methods = SupportedPaymentMethods::new();
+
+        xendit_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        xendit_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        xendit_supported_payment_methods
+    };
+
+    static ref XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Xendit",
+        description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref XENDIT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
+
+impl ConnectorSpecifications for Xendit {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*XENDIT_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*XENDIT_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*XENDIT_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
 
 impl ConnectorRedirectResponse for Xendit {
     fn get_flow_type(
