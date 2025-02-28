@@ -84,9 +84,10 @@ pub async fn create_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, req, _| async move {
+        |state, auth: auth::AuthenticationData, req, req_state| async move {
             Box::pin(payment_methods_routes::create_payment_method(
                 &state,
+                &req_state,
                 req,
                 &auth.merchant_account,
                 &auth.key_store,
@@ -586,6 +587,43 @@ pub async fn initiate_pm_collect_link_flow(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+pub async fn list_customer_payment_method_api(
+    state: web::Data<AppState>,
+    customer_id: web::Path<id_type::GlobalCustomerId>,
+    req: HttpRequest,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let customer_id = customer_id.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, _, _| {
+            payment_methods_routes::list_saved_payment_methods_for_customer(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                customer_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 /// Generate a form link for collecting payment methods for a customer
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
@@ -1048,6 +1086,41 @@ pub async fn payment_methods_session_create(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdate))]
+pub async fn payment_methods_session_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodsSessionUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionUpdate;
+    let payment_method_session_id = path.into_inner();
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let value = payment_method_session_id.clone();
+            async move {
+                payment_methods_routes::payment_methods_session_update(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    value.clone(),
+                    req,
+                )
+                .await
+            }
+        },
+        &auth::V2ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionRetrieve))]
 pub async fn payment_methods_session_retrieve(
     state: web::Data<AppState>,
@@ -1136,6 +1209,49 @@ impl<T: serde::Serialize> common_utils::events::ApiEventMetric
             payment_method_session_id: self.payment_method_session_id.clone(),
         })
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionConfirm))]
+pub async fn payment_method_session_confirm(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodSessionConfirmRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionConfirm;
+    let payload = json_payload.into_inner();
+    let payment_method_session_id = path.into_inner();
+
+    let request = PaymentMethodsSessionGenericRequest {
+        payment_method_session_id: payment_method_session_id.clone(),
+        request: payload,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        request,
+        |state, auth: auth::AuthenticationData, request, req_state| {
+            payment_methods_routes::payment_methods_session_confirm(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                request.payment_method_session_id,
+                request.request,
+            )
+        },
+        &auth::V2ClientAuth(
+            common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                payment_method_session_id,
+            ),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
