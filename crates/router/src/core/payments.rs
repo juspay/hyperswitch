@@ -4213,7 +4213,22 @@ where
                     }
                     _ => (router_data, should_continue_payment),
                 }
-            } else {
+            } else if connector.connector_name == router_types::Connector::Redsys && 
+            router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                // router_data = router_data.handle_threeds_authentication(state, connector).await?;
+                // let should_continue = match  router_data.response {
+                //     Ok(router_types::PaymentsResponseData::TransactionResponse {
+                //     redirection_data,
+                //         ..
+                //     }) => {redirection_data.is_none()},
+                //     Err(_) => false,
+                //     _ => true,
+                // };
+                (router_data, false)
+            }
+            else {
                 (router_data, should_continue_payment)
             }
         }

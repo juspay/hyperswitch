@@ -805,7 +805,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Multisafepay,
     connectors::Rapyd,
     connectors::Razorpay,
-    connectors::Redsys,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
