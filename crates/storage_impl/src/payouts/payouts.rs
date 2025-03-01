@@ -11,8 +11,14 @@ use common_utils::ext_traits::Encode;
     not(feature = "customer_v2")
 ))]
 use diesel::JoinOnDsl;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    feature = "olap",
+    not(feature = "customer_v2")
+))]
+use diesel::NullableExpressionMethods;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
@@ -905,8 +911,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        constraints: &PayoutFetchConstraints,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         todo!()
     }
