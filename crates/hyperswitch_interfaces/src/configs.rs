@@ -73,6 +73,7 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
+    pub paystack: ConnectorParams,
     pub payu: ConnectorParams,
     pub placetopay: ConnectorParams,
     pub plaid: ConnectorParams,
