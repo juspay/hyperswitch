@@ -255,6 +255,6 @@ where
         payment_method_data: None,
         payment_address,
         mandate_data: None,
-       };
+    };
     Ok(response)
 }
