@@ -210,6 +210,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PassiveRecoveryWorkflow,
 }
 
 #[cfg(test)]
@@ -265,4 +266,19 @@ pub mod business_status {
 
     /// Business status set for newly created tasks.
     pub const PENDING: &str = "Pending";
+
+    /// For the PCR Workflow
+    ///
+    /// This status indicates the completion of a execute task
+    pub const EXECUTE_WORKFLOW_COMPLETE: &str = "COMPLETED_EXECUTE_TASK";
+
+    /// This status indicates that the execute task was completed to trigger the psync task
+    pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
+
+    /// This status indicates that the execute task was completed to trigger the review task
+    pub const EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW: &str =
+        "COMPLETED_EXECUTE_TASK_TO_TRIGGER_REVIEW";
+
+    /// This status indicates the completion of a psync task
+    pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
 }
