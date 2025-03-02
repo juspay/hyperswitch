@@ -1650,7 +1650,7 @@ where
         &state,
         req_state,
         merchant_account.clone(),
-        profile,
+        profile.clone(),
         key_store,
         operation.clone(),
         req,
@@ -1666,6 +1666,7 @@ where
         None,
         header_payload.x_hs_latency,
         &merchant_account,
+        &profile,
     )
 }
 

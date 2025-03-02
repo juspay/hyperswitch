@@ -1811,6 +1811,7 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _merchant_account: &domain::MerchantAccount,
+        _profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
         let payment_attempt = self.payment_attempt;
         let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
@@ -4348,26 +4349,6 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
     }
 }
 
-
-#[cfg(feature = "v2")]
-impl
-    ForeignFrom<
-        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
-    > for api_models::payments::PaymentAttemptFeatureMetadata
-{
-    fn foreign_from(
-        feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
-    ) -> Self {
-        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|data| {
-            api_models::payments::PaymentAttemptRevenueRecoveryData {
-                attempt_triggered_by: data.attempt_triggered_by,
-            }
-        });
-
-        Self { revenue_recovery }
-    }
-}
-
 #[cfg(feature = "v2")]
 impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
     for api_models::payments::ErrorDetails
@@ -4381,6 +4362,25 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
             unified_code: error_details.unified_code.clone(),
             unified_message: error_details.unified_message.clone(),
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    ForeignFrom<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    > for api_models::payments::PaymentAttemptFeatureMetadata
+{
+    fn foreign_from(
+        feature_metadata: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    ) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|recovery| {
+            api_models::payments::PaymentAttemptRevenueRecoveryData {
+                attempt_triggered_by: recovery.attempt_triggered_by,
+            }
+        });
+
+        Self { revenue_recovery }
     }
 }
 
@@ -4403,6 +4403,24 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
         }
     }
 }
+
+// impl ForeignFrom<&api_models::payments::PaymentAttemptAmountDetails>
+//     for hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetailsSetter
+// {
+//     fn foreign_from(
+//         amount_details: &api_models::payments::PaymentAttemptAmountDetails,
+//     ) -> Self {
+//         Self{
+//             net_amount: amount_details.get_net_amount(),
+//             amount_to_capture: amount_details.get_amount_to_capture(),
+//             surcharge_amount: amount_details.get_surcharge_amount(),
+//             tax_on_surcharge: amount_details.get_tax_on_surcharge(),
+//             amount_capturable: amount_details.get_amount_capturable(),
+//             shipping_cost: amount_details.get_shipping_cost(),
+//             order_tax_amount: amount_details.get_order_tax_amount(),
+//         }
+//     }
+// }
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>

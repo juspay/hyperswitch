@@ -643,4 +643,13 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
+    pub revenue_recovery_data: RevenueRecoveryData,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct RevenueRecoveryData{
+    pub billing_connector_id : id_type::MerchantConnectorAccountId,
+    pub processor_payment_method_token: Option<String>,
+    pub connector_customer_id : Option<String>,
 }

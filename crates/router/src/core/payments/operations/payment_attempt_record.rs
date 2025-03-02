@@ -120,16 +120,28 @@ impl<F: Send + Clone + Sync>
 
         let storage_scheme = merchant_account.storage_scheme;
 
+        let billing_mca = db.find_merchant_connector_account_by_id(key_manager_state, &request.billing_connector_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request.billing_connector_id.get_string_repr().to_owned(),
+        })?;
+
+        let payment_merchant_connector_account_id = billing_mca.feature_metadata.as_ref().and_then(|metadata| metadata.revenue_recovery.as_ref().zip(request.merchant_connector_reference_id.clone()).and_then(|(recovery,reference_id)| recovery.mca_reference.billing_to_recovery.get(&reference_id)));
+
+        let payment_merchant_connector_account =payment_merchant_connector_account_id.async_map(|mca_id| db.find_merchant_connector_account_by_id(key_manager_state, mca_id, key_store)).await
+        .transpose()
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request.billing_connector_id.get_string_repr().to_owned(),
+        })?;
+
+        let connector_name = payment_merchant_connector_account.map(|connector| connector.connector_name.to_string());
+
         let payment_intent = db
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         self.validate_status_for_operation(payment_intent.status)?;
-        let client_secret = header_payload
-            .client_secret
-            .as_ref()
-            .get_required_value("client_secret header")?;
         let payment_method_billing_address = request
             .payment_method_data
             .as_ref()
@@ -173,9 +185,11 @@ impl<F: Send + Clone + Sync>
                 cell_id,
                 storage_scheme,
                 request,
-                encrypted_data
+                encrypted_data,
+                connector_name,
             )
             .await?;
+        println!("payment_attempt_domain_model : {:?}",payment_attempt_domain_model);
         let payment_attempt = db
             .insert_payment_attempt(
                 key_manager_state,
@@ -186,11 +200,17 @@ impl<F: Send + Clone + Sync>
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
+        let revenue_recovery_data = hyperswitch_domain_models::payments::RevenueRecoveryData{
+            billing_connector_id : billing_mca.id,
+            processor_payment_method_token : request.processor_payment_method_token.clone(),
+            connector_customer_id : request.connector_customer_id.clone()
+        };
 
         let payment_data = PaymentAttemptRecordData {
             flow: PhantomData,
             payment_intent,
             payment_attempt,
+            revenue_recovery_data,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -222,10 +242,34 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
     where
         F: 'b + Send,
     {
-        let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
+        let payment_intent_feature_metadata = payment_data.payment_intent.feature_metadata.clone();
+
+        let revenue_recovery = payment_intent_feature_metadata.as_ref().and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone());
+
+        let payment_revenue_recovery_metadata = Some(diesel_models::types::PaymentRevenueRecoveryMetadata
+            { 
+                total_retry_count: revenue_recovery.map_or(1,|data| (data.total_retry_count+1)),
+                payment_connector_transmission: common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                billing_connector_id: payment_data.revenue_recovery_data.billing_connector_id.clone(),
+                active_attempt_payment_connector_id: payment_data.payment_attempt.merchant_connector_id.clone() ,
+                billing_connector_payment_details:  diesel_models::types::BillingConnectorPaymentDetails{
+                    payment_processor_token: payment_data.revenue_recovery_data.processor_payment_method_token.clone(),
+                    connector_customer_id: payment_data.revenue_recovery_data.connector_customer_id.clone() 
+                },
+                payment_method_type: payment_data.payment_attempt.payment_method_type,
+                payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+            });
+        let feature_metadata = payment_intent_feature_metadata.as_ref().map(|data| 
+            diesel_models::types::FeatureMetadata{
+             redirect_response: data.redirect_response.clone() ,
+              search_tags: data.search_tags.clone(), 
+              apple_pay_recurring_details: data.apple_pay_recurring_details.clone(),
+               payment_revenue_recovery_metadata,
+             }
+        );
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
         { 
-            status: common_enums::IntentStatus::Failed, 
+            status: common_enums::IntentStatus::from(payment_data.payment_attempt.status), 
             feature_metadata: Box::new(feature_metadata),
             active_attempt_id: payment_data.payment_attempt.id.clone(),
             updated_by: storage_scheme.to_string(),

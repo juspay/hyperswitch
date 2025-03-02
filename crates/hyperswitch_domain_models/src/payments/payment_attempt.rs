@@ -579,6 +579,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        payment_merchant_connector_name: Option<String>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -592,22 +593,19 @@ impl PaymentAttempt {
             order_tax_amount: request.amount_details.order_tax_amount,
         };
 
-        let payment_method_data = request
-            .payment_method_data.as_ref().and_then(|data|
-            data.payment_method_data
-            .as_ref()
-            .map(|data| {
-                serde_json::to_value(data)
-                    .change_context(
-                        errors::api_error_response::ApiErrorResponse::InternalServerError,
-                    )
-                    .attach_printable(
-                        "Unable to serialize payment method data from record attempt request",
-                    )
-                    .map(Secret::new)
-            })).transpose()?;
-
         let now = common_utils::date_time::now();
+        let transaction_created_at = request
+            .transaction_created_at
+            .unwrap_or(common_utils::date_time::now());
+
+        // This function is called in the record attempt flow, which tells us that this is a payment attempt created by an external system.
+        let feature_metadata = PaymentAttemptFeatureMetadata {
+            revenue_recovery: Some({
+                PaymentAttemptRevenueRecoveryData {
+                    attempt_triggered_by: common_enums::TriggeredBy::External,
+                }
+            }),
+        };
 
         let payment_method_billing_address = encrypted_data
             .payment_method_billing_address
@@ -619,16 +617,24 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
+        let error = request.error.as_ref().map(|error| ErrorDetails {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: Some(error.message.clone()),
+            unified_code: None,
+            unified_message: None,
+        });
+        let connector_payment_id = request.connector_transaction_id.as_ref().map(|txn_id| txn_id.get_txn_id(None)).transpose().change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to decode billing address")?.cloned();
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
             amount_details,
             status: request.status,
-            //This field should be changed.
-            connector: None,
+            connector: payment_merchant_connector_name,
             authentication_type: storage_enums::AuthenticationType::NoThreeDs,
-            created_at: request.created_at,
+            created_at: transaction_created_at,
             modified_at: now,
             last_synced: None,
             cancellation_reason: None,
@@ -636,7 +642,7 @@ impl PaymentAttempt {
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
-            payment_method_data,
+            payment_method_data: None,
             routing_result: None,
             preprocessing_step_id: None,
             multiple_capture_count: None,
@@ -656,13 +662,13 @@ impl PaymentAttempt {
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
             payment_method_id: None,
-            connector_payment_id: request.connector_transaction_id.clone(),
+            connector_payment_id,
             payment_method_subtype: request.payment_method_subtype,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
-            error: None,
-            feature_metadata: None,
+            error,
+            feature_metadata: Some(feature_metadata),
             id,
             connector_token_details: None,
             card_discovery: None,

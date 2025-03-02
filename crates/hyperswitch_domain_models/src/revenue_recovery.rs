@@ -1,4 +1,6 @@
+use crate::merchant_connector_account;
 use api_models::webhooks;
+use common_utils::{id_type, transformers::ForeignFrom};
 use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
@@ -185,6 +187,21 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+        }
+    }
+}
+
+
+impl From<&RevenueRecoveryAttemptData> for api_models::payments::PaymentAttemptAmountDetails {
+    fn from(data: &RevenueRecoveryAttemptData) -> Self {
+        Self {
+            net_amount: data.amount,
+            amount_to_capture: None,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_capturable: data.amount,
+            shipping_cost: None,
+            order_tax_amount: None,
         }
     }
 }

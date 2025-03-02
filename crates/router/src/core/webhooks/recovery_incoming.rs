@@ -12,7 +12,7 @@ use crate::{
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface},
-    types::{api, domain},
+    types::{api, domain, transformers::ForeignFrom},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -29,6 +29,7 @@ pub async fn recovery_incoming_webhook_flow(
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     req_state: ReqState,
+    billing_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     // Source verification is necessary for revenue recovery webhooks flow since We don't have payment intent/attempt object created before in our system.
 
@@ -80,7 +81,7 @@ pub async fn recovery_incoming_webhook_flow(
                 .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)?,
             );
 
-            invoice_transaction_details
+            Some(invoice_transaction_details
                 .get_payment_attempt(
                     &state,
                     &req_state,
@@ -89,7 +90,22 @@ pub async fn recovery_incoming_webhook_flow(
                     &key_store,
                     payment_intent.payment_id.clone(),
                 )
-                .await?
+                .await
+                .transpose()
+                .async_unwrap_or_else(|| async {
+                    invoice_transaction_details
+                        .record_payment_attempt(
+                            &state,
+                            &req_state,
+                            &merchant_account,
+                            &business_profile,
+                            &key_store,
+                            payment_intent.payment_id.clone(),
+                            &billing_connector_account.id,
+                        )
+                        .await
+                })
+                .await?)
         }
         false => None,
     };
@@ -286,25 +302,70 @@ impl RevenueRecoveryAttempt {
                     });
                 Ok(payment_attempt)
             }
-            Ok(_) => Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+            Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
                 .attach_printable("Unexpected response from payment intent core"),
             error @ Err(_) => {
                 router_env::logger::error!(?error);
-                Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
-                    .attach_printable("failed to fetch payment intent recovery webhook flow")
+                Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+                    .attach_printable("failed to fetch payment attempt in recovery webhook flow")
             }
         }?;
         Ok(response)
     }
+    
+    #[allow(clippy::too_many_arguments)]
     async fn record_payment_attempt(
         &self,
-        _state: &SessionState,
-        _req_state: &ReqState,
-        _merchant_account: &domain::MerchantAccount,
-        _profile: &domain::Profile,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_id: common_utils::id_type::GlobalPaymentId,
+        state: &SessionState,
+        req_state: &ReqState,
+        merchant_account: &domain::MerchantAccount,
+        profile: &domain::Profile,
+        key_store: &domain::MerchantKeyStore,
+        payment_id: common_utils::id_type::GlobalPaymentId,
+        billing_connector_account_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<revenue_recovery::RecoveryPaymentAttempt, errors::RevenueRecoveryError> {
-        todo!()
+        let request_payload = api_models::payments::PaymentsAttemptRecordRequest::foreign_from((
+            &self.0,
+            billing_connector_account_id,
+        ));
+
+        let attempt_response = Box::pin(payments::record_attempt_core::<
+            hyperswitch_domain_models::router_flow_types::payments::RecordAttempt,
+            api_models::payments::PaymentAttemptResponse,
+            _,
+            _,
+            hyperswitch_domain_models::payments::PaymentAttemptRecordData<hyperswitch_domain_models::router_flow_types::payments::RecordAttempt>,
+        >(
+            state.clone(),
+            req_state.clone(),
+            merchant_account.clone(),
+            profile.clone(),
+            key_store.clone(),
+            &payments::operations::payment_attempt_record::PaymentAttemptRecord,
+            request_payload,
+            payment_id.clone(),
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+            None,
+        ))
+        .await;
+
+        let response = match attempt_response {
+            Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response,_))) => {
+                Ok(revenue_recovery::RecoveryPaymentAttempt {
+                    attempt_id: attempt_response.id,
+                    attempt_status: attempt_response.status,
+                    feature_metadata: attempt_response.feature_metadata
+                })
+            },
+            Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+                .attach_printable("Unexpected response from record attempt core"),
+            error @ Err(_) => {
+                router_env::logger::error!(?error);
+                Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+                    .attach_printable("failed to record attempt in recovery webhook flow")
+            }
+        }?;
+        Ok(response)
     }
 }
+

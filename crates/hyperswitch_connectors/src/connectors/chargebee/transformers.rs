@@ -452,7 +452,7 @@ impl From<ChargebeeTranasactionStatus> for enums::AttemptStatus {
             ChargebeeTranasactionStatus::Success => Self::Charged,
             ChargebeeTranasactionStatus::Failure
             | ChargebeeTranasactionStatus::Timeout
-            | ChargebeeTranasactionStatus::LateFailure => Self::Pending,
+            | ChargebeeTranasactionStatus::LateFailure => Self::Failure,
         }
     }
 }

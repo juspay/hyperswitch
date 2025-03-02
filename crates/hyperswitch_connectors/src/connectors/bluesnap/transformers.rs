@@ -706,7 +706,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let card_transaction_type = BluesnapTxnType::AuthReversal;
-        let transaction_id = item.request.connector_transaction_id.to_string();
+        let transaction_id = item.request.connector_transaction_id.clone();
         Ok(Self {
             card_transaction_type,
             transaction_id,
