@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.26.0-hotfix2
+
+### Features
+
+- **payments:** [Payment links] add configs for payment link ([#7410](https://github.com/juspay/hyperswitch/pull/7410)) ([`0960f3e`](https://github.com/juspay/hyperswitch/commit/0960f3ea94798438e976574076b171c6665391a8))
+
+**Full Changelog:** [`2025.02.26.0-hotfix1...2025.02.26.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.02.26.0-hotfix1...2025.02.26.0-hotfix2)
+
+
+- - -
+
 ## 2025.02.26.0-hotfix1
 
 ### Bug Fixes
