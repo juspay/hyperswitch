@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.26.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** GooglePay fixed in Ayden ([#7400](https://github.com/juspay/hyperswitch/pull/7400)) ([`5b67163`](https://github.com/juspay/hyperswitch/commit/5b671630cf509395d159cf26696c82fbe8067511))
+
+**Full Changelog:** [`2025.02.26.0...2025.02.26.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.02.26.0...2025.02.26.0-hotfix1)
+
+
+- - -
+
 ## 2025.02.26.0
 
 ### Features
