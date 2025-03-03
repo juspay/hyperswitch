@@ -1021,7 +1021,7 @@ lazy_static! {
     };
 
     static ref RAPYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Billwerk",
+        display_name: "Rapyd",
         description:
             "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
