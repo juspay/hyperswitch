@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+use serde_json::Value as Value;
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{pii, types::StringMajorUnit};
@@ -16,9 +18,10 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+use utils::ForeignTryFrom;
 
 use crate::{
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -267,6 +270,30 @@ impl
     }
 }
 
+impl ForeignTryFrom<Value> for BraintreeMeta {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
+        let hashmap: BTreeMap<String, Value> = serde_json::from_str(&metadata.to_string())
+            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to serialize request metadata".to_owned(),
+            ))
+            .attach_printable("")?;
+
+        if let (Some(merchant_account_id), Some(merchant_config_currency)) = (hashmap.get("merchant_account_id"), hashmap.get("merchant_config_currency"))
+        {
+            Ok(BraintreeMeta {
+                merchant_account_id: Secret::new(merchant_account_id.as_str().unwrap_or("").to_string()),
+                merchant_config_currency: serde_json::from_value(merchant_config_currency.clone()).unwrap(),
+            })
+        } else {
+            Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["merchant_account_id", "merchant_config_currency"],
+            }
+            .into())
+        }
+    }
+}
+
 impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
     for BraintreePaymentsRequest
 {
@@ -274,11 +301,24 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+        let metadata: BraintreeMeta = match item.router_data.request.metadata.clone() {
+            Some(metadata) => match BraintreeMeta::foreign_try_from(metadata) {
+                Ok(braintree_meta) => braintree_meta,
+                Err(_err) => utils::to_connector_meta_from_secret(
+                    item.router_data.connector_meta_data.clone(),
+                )
+                .change_context(
+                    errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+                )?,
+            },
+            None => {
+                utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                    .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
-                })?;
+                })?
+            }
+        };
+
         utils::validate_currency(
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
@@ -846,11 +886,23 @@ pub struct BraintreeRefundInput {
 impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: BraintreeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+        let metadata: BraintreeMeta = match item.router_data.request.connector_metadata.clone() {
+            Some(metadata) => match BraintreeMeta::foreign_try_from(metadata) {
+                Ok(braintree_meta) => braintree_meta,
+                Err(_err) => utils::to_connector_meta_from_secret(
+                    item.router_data.connector_meta_data.clone(),
+                )
+                .change_context(
+                    errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+                )?,
+            },
+            None => {
+                utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                    .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
-                })?;
+                })?
+            }
+        };
 
         utils::validate_currency(
             item.router_data.request.currency,
@@ -957,10 +1009,23 @@ pub struct RefundSearchInput {
 impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = utils::to_connector_meta_from_secret(
-            item.connector_meta_data.clone(),
-        )
-        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+        let metadata: BraintreeMeta = match item.connector_meta_data.clone() {
+            Some(metadata) => match BraintreeMeta::foreign_try_from(metadata.peek().clone()) {
+                Ok(braintree_meta) => braintree_meta,
+                Err(_err) => utils::to_connector_meta_from_secret(
+                    item.connector_meta_data.clone(),
+                )
+                .change_context(
+                    errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+                )?,
+            },
+            None => {
+                utils::to_connector_meta_from_secret(item.connector_meta_data.clone())
+                    .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                })?
+            }
+        };
         utils::validate_currency(
             item.request.currency,
             Some(metadata.merchant_config_currency),
@@ -1617,11 +1682,23 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
     fn try_from(
         item: &BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+        let metadata: BraintreeMeta = match item.router_data.request.metadata.clone() {
+            Some(metadata) => match BraintreeMeta::foreign_try_from(metadata) {
+                Ok(braintree_meta) => braintree_meta,
+                Err(_err) => utils::to_connector_meta_from_secret(
+                    item.router_data.connector_meta_data.clone(),
+                )
+                .change_context(
+                    errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+                )?,
+            },
+            None => {
+                utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                    .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
-                })?;
+                })?
+            }
+        };
         utils::validate_currency(
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
