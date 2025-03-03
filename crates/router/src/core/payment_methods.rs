@@ -1914,12 +1914,24 @@ pub async fn delete_payment_method(
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
-    let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    let response = delete_payment_method_core(state, pm_id, key_store, merchant_account).await?;
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_payment_method_core(
+    state: SessionState,
+    pm_id: id_type::GlobalPaymentMethodId,
+    key_store: domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+) -> RouterResult<api::PaymentMethodDeleteResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
 
     let payment_method = db
         .find_payment_method(
@@ -1975,9 +1987,12 @@ pub async fn delete_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
-    let response = api::PaymentMethodDeleteResponse { id: pm_id };
+    let response = api::PaymentMethodDeleteResponse {
+        id: pm_id,
+        deleted: true,
+    };
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(response)
 }
 
 #[cfg(feature = "v2")]
@@ -2306,6 +2321,32 @@ pub async fn payment_methods_session_update_payment_method(
     .attach_printable("Failed to update saved payment method")?;
 
     Ok(services::ApplicationResponse::Json(updated_payment_method))
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_methods_session_delete_payment_method(
+    state: SessionState,
+    key_store: domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+    pm_id: id_type::GlobalPaymentMethodId,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+) -> RouterResponse<api::PaymentMethodDeleteResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    // Validate if the session still exists
+    db.get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    let response = delete_payment_method_core(state, pm_id, key_store, merchant_account)
+        .await
+        .attach_printable("Failed to delete saved payment method")?;
+
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
