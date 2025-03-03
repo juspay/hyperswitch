@@ -25,7 +25,7 @@ use hyperswitch_interfaces::secrets_interface::secret_state::{
     RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
 use masking::Secret;
-use payment_methods::client::PaymentMethodsStorageInterface;
+use payment_methods::db::StorageInterface as PaymentMethodsStorageInterface;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;

@@ -645,6 +645,25 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
+impl crate::payment_methods::SurchargeInterface for PaymentAttempt {
+    #[cfg(feature = "v1")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        self.net_amount
+            .get_surcharge_amount()
+            .map(
+                |surcharge_amount| api_models::payments::RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: self.net_amount.get_tax_on_surcharge(),
+                },
+            )
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        todo!()
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct NetAmount {

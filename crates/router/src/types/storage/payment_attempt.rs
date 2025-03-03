@@ -17,7 +17,6 @@ pub trait PaymentAttemptExt {
 
     fn get_next_capture_id(&self) -> String;
     fn get_total_amount(&self) -> MinorUnit;
-    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
@@ -77,23 +76,6 @@ impl PaymentAttemptExt for PaymentAttempt {
 
     #[cfg(feature = "v2")]
     fn get_next_capture_id(&self) -> String {
-        todo!()
-    }
-
-    #[cfg(feature = "v1")]
-    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
-        self.net_amount
-            .get_surcharge_amount()
-            .map(
-                |surcharge_amount| api_models::payments::RequestSurchargeDetails {
-                    surcharge_amount,
-                    tax_amount: self.net_amount.get_tax_on_surcharge(),
-                },
-            )
-    }
-
-    #[cfg(feature = "v2")]
-    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
         todo!()
     }
 

@@ -5,7 +5,7 @@ use router_env::{
     tracing::{field::Empty, Instrument},
 };
 
-use crate::headers;
+use common_utils::consts::headers;
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 

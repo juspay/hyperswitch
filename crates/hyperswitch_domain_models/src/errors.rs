@@ -1,6 +1,6 @@
 pub mod api_error_response;
+use crate::errors::api_error_response::ApiErrorResponse;
 use diesel_models::errors::DatabaseError;
-
 pub type StorageResult<T> = error_stack::Result<T, StorageError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -47,5 +47,44 @@ impl StorageError {
             Self::ValueNotFound(_) => true,
             _ => false,
         }
+    }
+}
+
+pub trait StorageErrorExt<T, E> {
+    #[track_caller]
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
+
+    #[track_caller]
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
+}
+
+impl<T> StorageErrorExt<T, ApiErrorResponse> for error_stack::Result<T, StorageError> {
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: ApiErrorResponse,
+    ) -> error_stack::Result<T, ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                StorageError::ValueNotFound(_) => not_found_response,
+                StorageError::CustomerRedacted => ApiErrorResponse::CustomerRedacted,
+                _ => ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: ApiErrorResponse,
+    ) -> error_stack::Result<T, ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                StorageError::DuplicateValue { .. } => duplicate_response,
+                _ => ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
     }
 }

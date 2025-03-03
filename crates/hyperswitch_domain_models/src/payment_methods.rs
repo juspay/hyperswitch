@@ -977,3 +977,12 @@ mod tests {
         assert!(common_mandate.payouts.is_some());
     }
 }
+
+
+pub trait SurchargeInterface {
+    #[cfg(feature = "v1")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
+
+    #[cfg(feature = "v2")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
+}

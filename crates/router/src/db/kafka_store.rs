@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ::payment_methods::client::PaymentMethodsStorageInterface;
+use ::payment_methods::db::StorageInterface as PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
