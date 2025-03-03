@@ -27,7 +27,6 @@ use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
-
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},

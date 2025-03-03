@@ -178,7 +178,6 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
     ) -> RouterResult<Option<MerchantRecipientData>> {
         Ok(None)
     }
-
 }
 
 #[async_trait]

@@ -69,7 +69,6 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
     }
-  
 }
 
 #[async_trait]

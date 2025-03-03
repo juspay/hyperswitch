@@ -86,7 +86,6 @@ impl
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
     }
-   
 }
 
 #[async_trait]

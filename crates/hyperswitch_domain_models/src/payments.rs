@@ -37,8 +37,9 @@ use diesel_models::{
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, errors, merchant_account, payment_address,
-    payment_method_data, ApiModelToDieselModelConvertor, customer, merchant_connector_account,
+    address::Address, business_profile, customer, errors, merchant_account,
+    merchant_connector_account, payment_address, payment_method_data,
+    ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -645,18 +646,20 @@ impl<F: Clone> PaymentConfirmData<F> {
         if let Some(customer) = customer {
             // Example: If you have a method on Customer to fetch the connector ID
             // (or store it in a map keyed by merchant_connector_account.gid, etc.)
-            if let Some(connector_cust_id) = customer.get_connector_customer_id(&merchant_connector_account.get_id()) {
+            if let Some(connector_cust_id) =
+                customer.get_connector_customer_id(&merchant_connector_account.get_id())
+            {
                 return Some(connector_cust_id.to_string());
             }
         }
 
         // 2) If we didn’t find anything in the Customer, fallback to PaymentIntent’s feature metadata.
         self.payment_intent
-             .feature_metadata
-             .as_ref()
-             .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-             .map(|rrm| rrm.billing_connector_payment_details.clone())
-             .map(|details| details.connector_customer_id)
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rrm| rrm.billing_connector_payment_details.clone())
+            .map(|details| details.connector_customer_id)
     }
 }
 

@@ -69,7 +69,6 @@ impl
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
     }
- 
 }
 
 #[cfg(feature = "v1")]

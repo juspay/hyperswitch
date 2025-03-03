@@ -146,7 +146,6 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
     ) -> RouterResult<Option<MerchantRecipientData>> {
         Ok(None)
     }
-
 }
 
 #[async_trait]
