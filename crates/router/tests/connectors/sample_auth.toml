@@ -316,5 +316,8 @@ api_key= "API Key"
 [moneris]
 api_key= "API Key"
 
+[stripebilling]
+api_key= "API Key"
+
 [paystack]
 api_key = "API Key"
