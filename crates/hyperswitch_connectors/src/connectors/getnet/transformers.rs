@@ -85,7 +85,7 @@ pub struct Card {
     #[serde(rename = "card-security-code")]
     pub card_security_code: Secret<String>,
     #[serde(rename = "card-type")]
-    pub card_type: Option<String>,
+    pub card_type: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -236,7 +236,8 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                     card_type: req_card
                         .card_network
                         .as_ref()
-                        .map(|network| network.to_string().to_lowercase()),
+                        .map(|network| network.to_string().to_lowercase())
+                        .unwrap_or_default(),
                 };
 
                 let pmt = item.router_data.request.get_payment_method_type()?;
@@ -380,7 +381,7 @@ pub struct PaymentsResponse {
 #[serde(untagged)]
 pub enum GetnetPaymentsResponse {
     PaymentsResponse(Box<PaymentsResponse>),
-    GetnetWebhookNotificationResponse(Box<GetnetWebhookNotificationResponse>),
+    GetnetWebhookNotificationResponse(Box<GetnetWebhookNotificationResponseBody>),
 }
 
 pub fn authorization_attempt_status_from_transaction_state(
@@ -486,9 +487,28 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                 ..item.data
             }),
 
-            _ => Err(error_stack::Report::new(
-                errors::ConnectorError::ResponseHandlingFailed,
-            )),
+            GetnetPaymentsResponse::GetnetWebhookNotificationResponse(ref webhook_response) => {
+                Ok(Self {
+                    status: psync_attempt_status_from_transaction_state(
+                        webhook_response.payment.transaction_state.clone(),
+                        item.data.request.is_auto_capture()?,
+                        webhook_response.payment.transaction_type.clone(),
+                    ),
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            webhook_response.payment.transaction_id.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
