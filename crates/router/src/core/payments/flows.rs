@@ -2541,6 +2541,7 @@ default_imp_for_additional_revenue_recovery_call!(
     connector::Payme,
     connector::Payone,
     connector::Paypal,
+    connector::Paystack,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
