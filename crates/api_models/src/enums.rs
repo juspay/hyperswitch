@@ -54,13 +54,14 @@ pub enum PayoutConnectors {
     Wise,
 }
 
+#[cfg(feature = "v2")]
 /// Whether active attempt is to be set/unset
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum UpdateActiveAttempt {
     /// Request to set the active attempt id
+    #[schema(value_type = Option<String>)]
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
-    #[default]
     Unset,
 }
 

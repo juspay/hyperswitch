@@ -423,6 +423,7 @@ pub struct PaymentsUpdateIntentRequest {
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
 
+    #[schema(value_type = Option<UpdateActiveAttempt>)]
     /// Whether to set / unset the active attempt id
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
 }
