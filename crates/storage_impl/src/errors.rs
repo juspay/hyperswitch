@@ -299,3 +299,15 @@ pub enum HealthCheckGRPCServiceError {
     #[error("Failed to establish connection with gRPC service")]
     FailedToCallService,
 }
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum RecoveryError {
+    #[error("Failed to make a recovery payment")]
+    PaymentCallFailed,
+    #[error("Encountered a Process Tracker Task Failure")]
+    ProcessTrackerFailure,
+    #[error("The encountered task is invalid")]
+    InvalidTask,
+    #[error("The Intended data was not found")]
+    ValueNotFound,
+}
