@@ -18,7 +18,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utils::ForeignTryFrom;
@@ -1009,8 +1009,8 @@ pub struct RefundSearchInput {
 impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = match item.connector_meta_data.clone() {
-            Some(metadata) => match BraintreeMeta::foreign_try_from(metadata.peek().clone()) {
+        let metadata: BraintreeMeta = match item.request.connector_metadata.clone() {
+            Some(metadata) => match BraintreeMeta::foreign_try_from(metadata.clone()) {
                 Ok(braintree_meta) => braintree_meta,
                 Err(_err) => utils::to_connector_meta_from_secret(
                     item.connector_meta_data.clone(),
