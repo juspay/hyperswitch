@@ -1,2 +1,2 @@
-ALTER TABLE merchant_connector_account
+ALTER TABLE payment_attempt
 DROP COLUMN IF EXISTS feature_metadata;

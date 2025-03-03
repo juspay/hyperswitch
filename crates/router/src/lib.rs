@@ -144,6 +144,7 @@ pub fn mk_app(
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
+            .service(routes::Hypersense::server(state.clone()))
             .service(routes::Relay::server(state.clone()));
 
         #[cfg(feature = "oltp")]
@@ -153,7 +154,7 @@ pub fn mk_app(
 
         #[cfg(all(feature = "v2", feature = "oltp"))]
         {
-            server_app = server_app.service(routes::PaymentMethodsSession::server(state.clone()));
+            server_app = server_app.service(routes::PaymentMethodSession::server(state.clone()));
         }
 
         #[cfg(feature = "v1")]

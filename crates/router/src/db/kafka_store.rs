@@ -1735,6 +1735,34 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<api_models::enums::Connector>,
+        payment_method_type: Option<common_enums::PaymentMethod>,
+        payment_method_subtype: Option<common_enums::PaymentMethodType>,
+        authentication_type: Option<common_enums::AuthenticationType>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        card_network: Option<common_enums::CardNetwork>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::DataStorageError> {
+        self.diesel_store
+            .get_total_count_of_filtered_payment_attempts(
+                merchant_id,
+                active_attempt_ids,
+                connector,
+                payment_method_type,
+                payment_method_subtype,
+                authentication_type,
+                merchant_connector_id,
+                card_network,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
@@ -1914,6 +1942,32 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    async fn get_filtered_payment_intents_attempt(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<
+        Vec<(
+            hyperswitch_domain_models::payments::PaymentIntent,
+            Option<hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt>,
+        )>,
+        errors::DataStorageError,
+    > {
+        self.diesel_store
+            .get_filtered_payment_intents_attempt(
+                state,
+                merchant_id,
+                constraints,
+                key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
@@ -1948,6 +2002,21 @@ impl PaymentIntentInterface for KafkaStore {
                 merchant_reference_id,
                 profile_id,
                 merchant_key_store,
+                storage_scheme,
+            )
+            .await
+    }
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<Option<String>>, errors::DataStorageError> {
+        self.diesel_store
+            .get_filtered_active_attempt_ids_for_total_count(
+                merchant_id,
+                constraints,
                 storage_scheme,
             )
             .await
@@ -3952,7 +4021,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity: i64,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
@@ -3966,11 +4035,33 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         errors::StorageError,
     > {
         self.diesel_store
             .get_payment_methods_session(state, key_store, id)
+            .await
+    }
+
+    async fn update_payment_method_session(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodSessionId,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    ) -> CustomResult<
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .update_payment_method_session(
+                state,
+                key_store,
+                id,
+                payment_methods_session,
+                current_session,
+            )
             .await
     }
 }

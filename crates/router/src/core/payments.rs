@@ -131,7 +131,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    profile: domain::Profile,
+    profile: &domain::Profile,
     operation: Op,
     req: Req,
     get_tracker_response: operations::GetTrackerResponse<D>,
@@ -178,7 +178,7 @@ where
 
     operation
         .to_domain()?
-        .run_decision_manager(state, &mut payment_data, &profile)
+        .run_decision_manager(state, &mut payment_data, profile)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to run decision manager")?;
@@ -187,7 +187,7 @@ where
         .to_domain()?
         .perform_routing(
             &merchant_account,
-            &profile,
+            profile,
             state,
             &mut payment_data,
             &key_store,
@@ -212,12 +212,24 @@ where
                 None,
                 #[cfg(not(feature = "frm"))]
                 None,
-                &profile,
+                profile,
                 false,
             )
             .await?;
 
             let payments_response_operation = Box::new(PaymentResponse);
+
+            payments_response_operation
+                .to_post_update_tracker()?
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &merchant_account,
+                    &key_store,
+                    &mut payment_data,
+                    profile,
+                )
+                .await?;
 
             payments_response_operation
                 .to_post_update_tracker()?
@@ -301,6 +313,12 @@ where
             platform_merchant_account.as_ref(),
         )
         .await?;
+
+    operation
+        .to_get_tracker()?
+        .validate_request_with_state(state, &req, &mut payment_data, &business_profile)
+        .await?;
+
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
@@ -388,9 +406,12 @@ where
             should_continue_capture,
         );
 
-        if helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
-            .await?
-        {
+        let is_eligible_for_uas =
+            helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
+                .await?;
+
+        if is_eligible_for_uas {
+            let should_do_uas_confirmation_call = false;
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -401,6 +422,7 @@ where
                     &business_profile,
                     &key_store,
                     mandate_type,
+                    &should_do_uas_confirmation_call,
                 )
                 .await?;
         } else {
@@ -459,7 +481,7 @@ where
                 _ => (),
             };
             payment_data = match connector_details {
-                ConnectorCallType::PreDetermined(connector) => {
+                ConnectorCallType::PreDetermined(ref connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
                         convert_connector_data_to_routable_connectors(&[connector.clone()])
@@ -499,6 +521,23 @@ where
                         false,
                     )
                     .await?;
+
+                    if is_eligible_for_uas {
+                        let should_do_uas_confirmation_call = true;
+                        operation
+                            .to_domain()?
+                            .call_unified_authentication_service_if_eligible(
+                                state,
+                                &mut payment_data,
+                                &mut should_continue_transaction,
+                                &connector_details,
+                                &business_profile,
+                                &key_store,
+                                mandate_type,
+                                &should_do_uas_confirmation_call,
+                            )
+                            .await?;
+                    }
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -545,7 +584,7 @@ where
                             &key_store,
                             &customer,
                             &mca,
-                            &connector,
+                            connector,
                             &mut payment_data,
                             op_ref,
                             Some(header_payload.clone()),
@@ -556,14 +595,14 @@ where
                     payment_data
                 }
 
-                ConnectorCallType::Retryable(connectors) => {
+                ConnectorCallType::Retryable(ref connectors) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&connectors)
+                        convert_connector_data_to_routable_connectors(connectors)
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
-                    let mut connectors = connectors.into_iter();
+                    let mut connectors = connectors.clone().into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
 
@@ -640,6 +679,23 @@ where
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+                    if is_eligible_for_uas {
+                        let should_do_uas_confirmation_call = true;
+                        operation
+                            .to_domain()?
+                            .call_unified_authentication_service_if_eligible(
+                                state,
+                                &mut payment_data,
+                                &mut should_continue_transaction,
+                                &connector_details,
+                                &business_profile,
+                                &key_store,
+                                mandate_type,
+                                &should_do_uas_confirmation_call,
+                            )
+                            .await?;
+                    }
 
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
@@ -1676,7 +1732,7 @@ where
             req_state,
             merchant_account.clone(),
             key_store,
-            profile,
+            &profile,
             operation.clone(),
             req,
             get_tracker_response,
@@ -1691,6 +1747,7 @@ where
         external_latency,
         header_payload.x_hs_latency,
         &merchant_account,
+        &profile,
     )
 }
 
@@ -1703,16 +1760,14 @@ pub(crate) async fn payments_create_and_confirm_intent(
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     request: payments_api::PaymentsRequest,
-    payment_id: id_type::GlobalPaymentId,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
-    use actix_http::body::MessageBody;
-    use common_utils::ext_traits::BytesExt;
     use hyperswitch_domain_models::{
-        payments::{PaymentConfirmData, PaymentIntentData},
-        router_flow_types::{Authorize, PaymentCreateIntent, SetupMandate},
+        payments::PaymentIntentData, router_flow_types::PaymentCreateIntent,
     };
+
+    let payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
 
     let payload = payments_api::PaymentsCreateIntentRequest::from(&request);
 
@@ -1737,7 +1792,11 @@ pub(crate) async fn payments_create_and_confirm_intent(
     .await?;
 
     logger::info!(?create_intent_response);
-    let create_intent_response = handle_payments_intent_response(create_intent_response)?;
+
+    let create_intent_response = create_intent_response
+        .get_json_body()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unexpected response from payments core")?;
 
     // Adding client secret to ensure client secret validation passes during confirm intent step
     header_payload.client_secret = Some(create_intent_response.client_secret.clone());
@@ -1758,63 +1817,8 @@ pub(crate) async fn payments_create_and_confirm_intent(
     .await?;
 
     logger::info!(?confirm_intent_response);
-    let confirm_intent_response = handle_payments_intent_response(confirm_intent_response)?;
 
-    construct_payments_response(create_intent_response, confirm_intent_response)
-}
-
-#[cfg(feature = "v2")]
-#[inline]
-fn handle_payments_intent_response<T>(
-    response: hyperswitch_domain_models::api::ApplicationResponse<T>,
-) -> CustomResult<T, errors::ApiErrorResponse> {
-    match response {
-        hyperswitch_domain_models::api::ApplicationResponse::Json(body)
-        | hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((body, _)) => {
-            Ok(body)
-        }
-        hyperswitch_domain_models::api::ApplicationResponse::StatusOk
-        | hyperswitch_domain_models::api::ApplicationResponse::TextPlain(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::Form(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::PaymentLinkForm(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::FileData(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::GenericLinkForm(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unexpected response from payment intent core")
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-#[inline]
-fn construct_payments_response(
-    create_intent_response: payments_api::PaymentsIntentResponse,
-    confirm_intent_response: payments_api::PaymentsConfirmIntentResponse,
-) -> RouterResponse<payments_api::PaymentsResponse> {
-    let response = payments_api::PaymentsResponse {
-        id: confirm_intent_response.id,
-        status: confirm_intent_response.status,
-        amount: confirm_intent_response.amount,
-        customer_id: confirm_intent_response.customer_id,
-        connector: confirm_intent_response.connector,
-        client_secret: confirm_intent_response.client_secret,
-        created: confirm_intent_response.created,
-        payment_method_data: confirm_intent_response.payment_method_data,
-        payment_method_type: confirm_intent_response.payment_method_type,
-        payment_method_subtype: confirm_intent_response.payment_method_subtype,
-        next_action: confirm_intent_response.next_action,
-        connector_transaction_id: confirm_intent_response.connector_transaction_id,
-        connector_reference_id: confirm_intent_response.connector_reference_id,
-        connector_token_details: confirm_intent_response.connector_token_details,
-        merchant_connector_id: confirm_intent_response.merchant_connector_id,
-        browser_info: confirm_intent_response.browser_info,
-        error: confirm_intent_response.error,
-    };
-
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
-    ))
+    Ok(confirm_intent_response)
 }
 
 #[cfg(feature = "v2")]
@@ -1829,7 +1833,7 @@ async fn decide_authorize_or_setup_intent_flow(
     confirm_intent_request: payments_api::PaymentsConfirmIntentRequest,
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
-) -> RouterResponse<payments_api::PaymentsConfirmIntentResponse> {
+) -> RouterResponse<payments_api::PaymentsResponse> {
     use hyperswitch_domain_models::{
         payments::PaymentConfirmData,
         router_flow_types::{Authorize, SetupMandate},
@@ -1838,7 +1842,7 @@ async fn decide_authorize_or_setup_intent_flow(
     if create_intent_response.amount_details.order_amount == MinorUnit::zero() {
         Box::pin(payments_core::<
             SetupMandate,
-            api_models::payments::PaymentsConfirmIntentResponse,
+            api_models::payments::PaymentsResponse,
             _,
             _,
             _,
@@ -1859,7 +1863,7 @@ async fn decide_authorize_or_setup_intent_flow(
     } else {
         Box::pin(payments_core::<
             Authorize,
-            api_models::payments::PaymentsConfirmIntentResponse,
+            api_models::payments::PaymentsResponse,
             _,
             _,
             _,
@@ -2414,7 +2418,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 req_state,
                 merchant_account,
                 merchant_key_store.clone(),
-                profile.clone(),
+                &profile,
                 operation,
                 payment_sync_request,
                 get_tracker_response,
@@ -4164,6 +4168,17 @@ where
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
+            } else if connector.connector_name == router_types::Connector::Xendit {
+                match payment_data.get_payment_intent().split_payments {
+                    Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                        common_types::payments::XenditSplitRequest::MultipleSplits(_),
+                    )) => {
+                        router_data = router_data.preprocessing_steps(state, connector).await?;
+                        let is_error_in_response = router_data.response.is_err();
+                        (router_data, !is_error_in_response)
+                    }
+                    _ => (router_data, should_continue_payment),
+                }
             } else {
                 (router_data, should_continue_payment)
             }
@@ -4933,6 +4948,8 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
+    pub card_testing_guard_data:
+        Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -5214,6 +5231,82 @@ pub async fn list_payments(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn list_payments(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    constraints: api::PaymentListConstraints,
+) -> RouterResponse<payments_api::PaymentListResponse> {
+    common_utils::metrics::utils::record_operation_time(
+        async {
+            let limit = &constraints.limit;
+            helpers::validate_payment_list_request_for_joins(*limit)?;
+            let db: &dyn StorageInterface = state.store.as_ref();
+            let fetch_constraints = constraints.clone().into();
+            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
+                .get_filtered_payment_intents_attempt(
+                    &(&state).into(),
+                    merchant.get_id(),
+                    &fetch_constraints,
+                    &key_store,
+                    merchant.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let data: Vec<api_models::payments::PaymentsListResponseItem> =
+                list.into_iter().map(ForeignFrom::foreign_from).collect();
+
+            let active_attempt_ids = db
+                .get_filtered_active_attempt_ids_for_total_count(
+                    merchant.get_id(),
+                    &fetch_constraints,
+                    merchant.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while retrieving active_attempt_ids for merchant")?;
+
+            let total_count = if constraints.has_no_attempt_filters() {
+                i64::try_from(active_attempt_ids.len())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while converting from usize to i64")
+            } else {
+                let active_attempt_ids = active_attempt_ids
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<String>>();
+
+                db.get_total_count_of_filtered_payment_attempts(
+                    merchant.get_id(),
+                    &active_attempt_ids,
+                    constraints.connector,
+                    constraints.payment_method_type,
+                    constraints.payment_method_subtype,
+                    constraints.authentication_type,
+                    constraints.merchant_connector_id,
+                    constraints.card_network,
+                    merchant.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while retrieving total count of payment attempts")
+            }?;
+
+            Ok(services::ApplicationResponse::Json(
+                api_models::payments::PaymentListResponse {
+                    count: data.len(),
+                    total_count,
+                    data,
+                },
+            ))
+        },
+        &metrics::PAYMENT_LIST_LATENCY,
+        router_env::metric_attributes!(("merchant_id", merchant.get_id().clone())),
+    )
+    .await
+}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn apply_filters_on_payments(
     state: SessionState,
@@ -5326,7 +5419,7 @@ pub async fn get_filters_for_payments(
     ))
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 pub async fn get_payment_filters(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -5356,12 +5449,12 @@ pub async fn get_payment_filters(
                 .as_ref()
                 .map(|label| {
                     let info = merchant_connector_account.to_merchant_connector_info(label);
-                    (merchant_connector_account.connector_name.clone(), info)
+                    (merchant_connector_account.get_connector_name(), info)
                 })
         })
         .for_each(|(connector_name, info)| {
             connector_map
-                .entry(connector_name.clone())
+                .entry(connector_name.to_string())
                 .or_default()
                 .push(info);
         });
@@ -5377,22 +5470,30 @@ pub async fn get_payment_filters(
                 .iter()
                 .filter_map(|payment_method_enabled| {
                     payment_method_enabled
-                        .payment_method_types
-                        .as_ref()
-                        .map(|types_vec| (payment_method_enabled.payment_method, types_vec.clone()))
+                        .get_payment_method_type()
+                        .map(|types_vec| {
+                            (
+                                payment_method_enabled.get_payment_method(),
+                                types_vec.clone(),
+                            )
+                        })
                 })
         })
         .for_each(|payment_methods_enabled| {
-            payment_methods_enabled.for_each(|(payment_method, payment_method_types_vec)| {
-                payment_method_types_map
-                    .entry(payment_method)
-                    .or_default()
-                    .extend(
-                        payment_method_types_vec
-                            .iter()
-                            .map(|p| p.payment_method_type),
-                    );
-            });
+            payment_methods_enabled.for_each(
+                |(payment_method_option, payment_method_types_vec)| {
+                    if let Some(payment_method) = payment_method_option {
+                        payment_method_types_map
+                            .entry(payment_method)
+                            .or_default()
+                            .extend(payment_method_types_vec.iter().filter_map(
+                                |req_payment_method_types| {
+                                    req_payment_method_types.get_payment_method_type()
+                                },
+                            ));
+                    }
+                },
+            );
         });
 
     Ok(services::ApplicationResponse::Json(
