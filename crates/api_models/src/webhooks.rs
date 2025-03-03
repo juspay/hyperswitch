@@ -57,6 +57,14 @@ pub enum IncomingWebhookEvent {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentFailure,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentSuccess,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentPending,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryInvoiceCancel,
 }
 
 pub enum WebhookFlow {
@@ -71,6 +79,8 @@ pub enum WebhookFlow {
     Mandate,
     ExternalAuthentication,
     FraudCheck,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    Recovery,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -197,6 +207,11 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+            IncomingWebhookEvent::RecoveryInvoiceCancel
+            | IncomingWebhookEvent::RecoveryPaymentFailure
+            | IncomingWebhookEvent::RecoveryPaymentPending
+            | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
         }
     }
 }
@@ -236,6 +251,14 @@ pub enum ObjectReferenceId {
     ExternalAuthenticationID(AuthenticationIdType),
     #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    InvoiceId(InvoiceIdType),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Clone)]
+pub enum InvoiceIdType {
+    ConnectorInvoiceId(String),
 }
 
 pub struct IncomingWebhookDetails {
@@ -243,7 +266,7 @@ pub struct IncomingWebhookDetails {
     pub resource_object: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
     #[schema(value_type = String)]
@@ -281,12 +304,12 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
     #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
-    PaymentDetails(Box<payments::PaymentsRetrieveResponse>),
+    PaymentDetails(Box<payments::PaymentsResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
     #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
@@ -302,4 +325,16 @@ pub enum OutgoingWebhookContent {
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<masking::Secret<String>>,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl IncomingWebhookEvent {
+    pub fn is_recovery_transaction_event(&self) -> bool {
+        matches!(
+            self,
+            Self::RecoveryPaymentFailure
+                | Self::RecoveryPaymentSuccess
+                | Self::RecoveryPaymentPending
+        )
+    }
 }

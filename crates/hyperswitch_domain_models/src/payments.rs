@@ -11,7 +11,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -35,13 +35,13 @@ use diesel_models::{
 };
 
 use self::payment_attempt::PaymentAttempt;
-#[cfg(feature = "v1")]
-use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, errors, merchant_account, payment_address,
     payment_method_data, ApiModelToDieselModelConvertor,
 };
+#[cfg(feature = "v1")]
+use crate::{payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -108,6 +108,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
 }
@@ -351,7 +352,7 @@ pub struct PaymentIntent {
     /// Capture method for the payment
     pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.
-    pub authentication_type: common_enums::AuthenticationType,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
     pub prerouting_algorithm: Option<Value>,
     /// The organization id for the payment. This is derived from the merchant account
@@ -368,6 +369,8 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    /// Split Payment Data
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -498,7 +501,7 @@ impl PaymentIntent {
                 .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to decode shipping address")?,
             capture_method: request.capture_method.unwrap_or_default(),
-            authentication_type: request.authentication_type.unwrap_or_default(),
+            authentication_type: request.authentication_type,
             prerouting_algorithm: None,
             organization_id: merchant_account.organization_id.clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
@@ -510,6 +513,7 @@ impl PaymentIntent {
             routing_algorithm_id: request.routing_algorithm_id,
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
+            split_payments: None,
         })
     }
 }
@@ -603,6 +607,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: Option<PaymentAttempt>,
     pub payment_address: payment_address::PaymentAddress,
+    pub attempts: Option<Vec<PaymentAttempt>>,
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
@@ -626,5 +631,82 @@ where
 {
     pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
         &self.payment_intent.id
+    }
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultOperation {
+    ExistingVaultData(VaultData),
+}
+
+impl VaultOperation {
+    pub fn get_updated_vault_data(
+        existing_vault_data: Option<&Self>,
+        payment_method_data: &payment_method_data::PaymentMethodData,
+    ) -> Option<Self> {
+        match (existing_vault_data, payment_method_data) {
+            (None, payment_method_data::PaymentMethodData::Card(card)) => {
+                Some(Self::ExistingVaultData(VaultData::Card(card.clone())))
+            }
+            (None, payment_method_data::PaymentMethodData::NetworkToken(nt_data)) => Some(
+                Self::ExistingVaultData(VaultData::NetworkToken(nt_data.clone())),
+            ),
+            (Some(Self::ExistingVaultData(vault_data)), payment_method_data) => {
+                match (vault_data, payment_method_data) {
+                    (
+                        VaultData::Card(card),
+                        payment_method_data::PaymentMethodData::NetworkToken(nt_data),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    (
+                        VaultData::NetworkToken(nt_data),
+                        payment_method_data::PaymentMethodData::Card(card),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    _ => Some(Self::ExistingVaultData(vault_data.clone())),
+                }
+            }
+            //payment_method_data is not card or network token
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultData {
+    Card(payment_method_data::Card),
+    NetworkToken(payment_method_data::NetworkTokenData),
+    CardAndNetworkToken(Box<CardAndNetworkTokenData>),
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardAndNetworkTokenData {
+    pub card_data: payment_method_data::Card,
+    pub network_token_data: payment_method_data::NetworkTokenData,
+}
+
+impl VaultData {
+    pub fn get_card_vault_data(&self) -> Option<payment_method_data::Card> {
+        match self {
+            Self::Card(card_data) => Some(card_data.clone()),
+            Self::NetworkToken(_network_token_data) => None,
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
+        }
+    }
+
+    pub fn get_network_token_data(&self) -> Option<payment_method_data::NetworkTokenData> {
+        match self {
+            Self::Card(_card_data) => None,
+            Self::NetworkToken(network_token_data) => Some(network_token_data.clone()),
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
+        }
     }
 }

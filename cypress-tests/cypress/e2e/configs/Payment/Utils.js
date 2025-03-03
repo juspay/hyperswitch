@@ -4,10 +4,8 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
-import {
-  connectorDetails as CommonConnectorDetails,
-  updateDefaultStatusCode,
-} from "./Commons.js";
+import { connectorDetails as commonConnectorDetails } from "./Commons.js";
+import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
@@ -16,6 +14,7 @@ import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
@@ -34,13 +33,14 @@ const connectorDetails = {
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   checkout: checkoutConnectorDetails,
-  commons: CommonConnectorDetails,
+  commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  moneris: monerisConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
@@ -227,12 +227,10 @@ function getConnectorConfig(
   const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
 
   return {
-    config: {
-      CONNECTOR_CREDENTIAL:
-        multipleConnector?.nextConnector && multipleConnectors?.status
-          ? multipleConnector
-          : mcaConfig?.multi_credential_config || multipleConnector,
-    },
+    CONNECTOR_CREDENTIAL:
+      multipleConnector?.nextConnector && multipleConnectors?.status
+        ? multipleConnector
+        : mcaConfig?.multi_credential_config || multipleConnector,
     multipleConnectors,
   };
 }
@@ -243,13 +241,12 @@ export function createBusinessProfile(
   globalState,
   multipleConnector = { nextConnector: false }
 ) {
-  const { config, multipleConnectors } = getConnectorConfig(
-    globalState,
-    multipleConnector
-  );
+  const config = getConnectorConfig(globalState, multipleConnector);
   const { profilePrefix } = execConfig(config);
 
-  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
     cy.createBusinessProfileTest(
       createBusinessProfileBody,
       globalState,
@@ -266,13 +263,12 @@ export function createMerchantConnectorAccount(
   paymentMethodsEnabled,
   multipleConnector = { nextConnector: false }
 ) {
-  const { config, multipleConnectors } = getConnectorConfig(
-    globalState,
-    multipleConnector
-  );
+  const config = getConnectorConfig(globalState, multipleConnector);
   const { profilePrefix, merchantConnectorPrefix } = execConfig(config);
 
-  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
     cy.createConnectorCallTest(
       paymentType,
       createMerchantConnectorAccountBody,
@@ -313,3 +309,26 @@ export function updateBusinessProfile(
     profilePrefix
   );
 }
+
+export const CONNECTOR_LISTS = {
+  // Exclusion lists (skip these connectors)
+  EXCLUDE: {
+    CONNECTOR_AGNOSTIC_NTID: ["paypal"],
+    // Add more exclusion lists
+  },
+
+  // Inclusion lists (only run for these connectors)
+  INCLUDE: {
+    MANDATES_USING_NTID_PROXY: ["cybersource"],
+    // Add more inclusion lists
+  },
+};
+
+// Helper functions
+export const shouldExcludeConnector = (connectorId, list) => {
+  return list.includes(connectorId);
+};
+
+export const shouldIncludeConnector = (connectorId, list) => {
+  return !list.includes(connectorId);
+};

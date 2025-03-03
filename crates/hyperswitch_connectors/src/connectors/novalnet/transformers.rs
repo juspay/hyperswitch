@@ -28,7 +28,7 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
+        self, AddressData, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
         PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
@@ -86,8 +86,8 @@ pub struct NovalnetPaymentsRequestBilling {
 
 #[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestCustomer {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     email: Email,
     mobile: Option<Secret<String>>,
     billing: Option<NovalnetPaymentsRequestBilling>,
@@ -215,8 +215,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         };
 
         let customer = NovalnetPaymentsRequestCustomer {
-            first_name: item.router_data.get_billing_first_name()?,
-            last_name: item.router_data.get_billing_last_name()?,
+            first_name: item.router_data.get_optional_billing_first_name(),
+            last_name: item.router_data.get_optional_billing_last_name(),
             email: item
                 .router_data
                 .get_billing_email()
@@ -341,6 +341,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     WalletDataPaymentMethod::AliPayQr(_)
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                    | WalletDataPaymentMethod::AmazonPayRedirect(_)
                     | WalletDataPaymentMethod::MomoRedirect(_)
                     | WalletDataPaymentMethod::KakaoPayRedirect(_)
                     | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -671,7 +672,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1073,7 +1074,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1157,7 +1158,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1326,7 +1327,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1466,7 +1467,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             enums::AuthenticationType::NoThreeDs => None,
         };
         let test_mode = get_test_mode(item.test_mode);
-        let req_address = item.get_billing_address()?.to_owned();
+        let req_address = item.get_optional_billing();
 
         let billing = NovalnetPaymentsRequestBilling {
             house_no: item.get_optional_billing_line1(),
@@ -1476,10 +1477,12 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             country_code: item.get_optional_billing_country(),
         };
 
+        let email = item.get_billing_email().or(item.request.get_email())?;
+
         let customer = NovalnetPaymentsRequestCustomer {
-            first_name: req_address.get_first_name()?.clone(),
-            last_name: req_address.get_last_name()?.clone(),
-            email: item.request.get_email()?.clone(),
+            first_name: req_address.and_then(|addr| addr.get_optional_first_name()),
+            last_name: req_address.and_then(|addr| addr.get_optional_last_name()),
+            email,
             mobile: item.get_optional_billing_phone_number(),
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
@@ -1503,7 +1506,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                     card_expiry_month: req_card.card_exp_month.clone(),
                     card_expiry_year: req_card.card_exp_year.clone(),
                     card_cvc: req_card.card_cvc.clone(),
-                    card_holder: req_address.get_full_name()?.clone(),
+                    card_holder: item.get_billing_address()?.get_full_name()?,
                 });
 
                 let transaction = NovalnetPaymentsRequestTransaction {
@@ -1586,6 +1589,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 WalletDataPaymentMethod::AliPayQr(_)
                 | WalletDataPaymentMethod::AliPayRedirect(_)
                 | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                | WalletDataPaymentMethod::AmazonPayRedirect(_)
                 | WalletDataPaymentMethod::MomoRedirect(_)
                 | WalletDataPaymentMethod::KakaoPayRedirect(_)
                 | WalletDataPaymentMethod::GoPayRedirect(_)

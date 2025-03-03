@@ -1,6 +1,10 @@
 pub mod transformers;
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    any::type_name,
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+};
 
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
@@ -53,6 +57,40 @@ use crate::{
     utils::{self, PaymentMethodDataType},
 };
 
+pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
+    match std::str::from_utf8(data) {
+        Ok(query_str) => {
+            let loggable_keys = [
+                "status",
+                "orderid",
+                "tranID",
+                "nbcb",
+                "amount",
+                "currency",
+                "paydate",
+                "channel",
+                "error_desc",
+                "error_code",
+                "extraP",
+            ];
+            let keys: Vec<(Cow<'_, str>, String)> =
+                url::form_urlencoded::parse(query_str.as_bytes())
+                    .map(|(key, value)| {
+                        if loggable_keys.contains(&key.to_string().as_str()) {
+                            (key, value.to_string())
+                        } else {
+                            (key, "SECRET".to_string())
+                        }
+                    })
+                    .collect();
+            router_env::logger::info!("Keys in {} response\n{:?}", type_name::<T>(), keys);
+        }
+        Err(err) => {
+            router_env::logger::error!("Failed to convert bytes to string: {:?}", err);
+        }
+    }
+}
+
 fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
 where
     T: for<'de> Deserialize<'de>,
@@ -86,6 +124,27 @@ where
         })?;
         json.insert("miscellaneous".to_string(), misc_value);
     }
+
+    // TODO: Remove this after debugging
+    let loggable_keys = [
+        "StatCode",
+        "StatName",
+        "TranID",
+        "ErrorCode",
+        "ErrorDesc",
+        "miscellaneous",
+    ];
+    let keys: Vec<(&str, Value)> = json
+        .iter()
+        .map(|(key, value)| {
+            if loggable_keys.contains(&key.as_str()) {
+                (key.as_str(), value.to_owned())
+            } else {
+                (key.as_str(), Value::String("SECRET".to_string()))
+            }
+        })
+        .collect();
+    router_env::logger::info!("Keys in response for type {}\n{:?}", type_name::<T>(), keys);
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
         router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
@@ -747,6 +806,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
         } else {
@@ -776,6 +836,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
         } else {
@@ -805,7 +866,9 @@ impl webhooks::IncomingWebhook for Fiuu {
                     webhooks_payment_response.paydate,
                     webhooks_payment_response.domain.peek(),
                     md5_key0,
-                    webhooks_payment_response.appcode.peek(),
+                    webhooks_payment_response
+                        .appcode
+                        .map_or("".to_string(), |appcode| appcode.expose()),
                     String::from_utf8_lossy(&connector_webhook_secrets.secret)
                 );
                 key1
@@ -833,6 +896,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
         } else {
@@ -866,6 +930,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
         } else {
@@ -891,6 +956,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         } else {
@@ -921,6 +987,9 @@ impl webhooks::IncomingWebhook for Fiuu {
         Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
         errors::ConnectorError,
     > {
+        parse_and_log_keys_in_url_encoded_response::<transformers::FiuuWebhooksPaymentResponse>(
+            request.body,
+        );
         let webhook_payment_response: transformers::FiuuWebhooksPaymentResponse =
             serde_urlencoded::from_bytes::<transformers::FiuuWebhooksPaymentResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;

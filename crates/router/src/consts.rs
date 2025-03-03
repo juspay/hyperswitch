@@ -6,7 +6,9 @@ pub mod user_role;
 use std::collections::HashSet;
 
 use common_utils::consts;
+pub use hyperswitch_domain_models::consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
 pub(crate) const MAX_ID_LENGTH: usize = 64;
@@ -40,7 +42,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
@@ -87,6 +88,12 @@ pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
     "Approval of Recon Request - Access Granted to Recon Dashboard";
 
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
+
+pub const CARD_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "CARD_IP_BLOCKING";
+
+pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLOCKING";
+
+pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -135,9 +142,6 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
-
-// Length of the unique reference ID generated for connector mandate requests
-pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
 
 /// Default allowed domains for payment links
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
@@ -216,3 +220,15 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
+
+/// Default payment method session expiry
+pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
+
+/// Authorize flow identifier used for performing GSM operations
+pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";

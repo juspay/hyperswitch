@@ -63,6 +63,8 @@ impl PaymentAttemptExt for PaymentAttempt {
             capture_sequence,
             connector_capture_id: None,
             connector_response_reference_id: None,
+            processor_capture_data: None,
+            // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         })
     }
@@ -210,13 +212,16 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
-            charge_id: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_extended_authorization: Default::default(),
+            extended_authorization_applied: Default::default(),
+            capture_before: Default::default(),
+            card_discovery: Default::default(),
         };
 
         let store = state
@@ -294,13 +299,16 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
-            charge_id: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_extended_authorization: Default::default(),
+            extended_authorization_applied: Default::default(),
+            capture_before: Default::default(),
+            card_discovery: Default::default(),
         };
         let store = state
             .stores
@@ -391,13 +399,16 @@ mod tests {
             mandate_data: Default::default(),
             payment_method_billing_address_id: Default::default(),
             fingerprint_id: Default::default(),
-            charge_id: Default::default(),
             client_source: Default::default(),
             client_version: Default::default(),
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_extended_authorization: Default::default(),
+            extended_authorization_applied: Default::default(),
+            capture_before: Default::default(),
+            card_discovery: Default::default(),
         };
         let store = state
             .stores
