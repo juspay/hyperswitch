@@ -616,12 +616,17 @@ impl Payments {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
             .service(
-                web::resource("")
-                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
-            )
-            .service(
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
+            )
+            .service(web::resource("/filter").route(web::get().to(payments::get_payment_filters)))
+            .service(
+                web::resource("/profile/filter")
+                    .route(web::get().to(payments::get_payment_filters_profile)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
@@ -1330,10 +1335,10 @@ impl PaymentMethods {
 }
 
 #[cfg(all(feature = "v2", feature = "oltp"))]
-pub struct PaymentMethodsSession;
+pub struct PaymentMethodSession;
 
 #[cfg(all(feature = "v2", feature = "oltp"))]
-impl PaymentMethodsSession {
+impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
         route = route.service(
@@ -1341,23 +1346,27 @@ impl PaymentMethodsSession {
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
         );
 
-        route = route.service(
-            web::scope("/{payment_method_session_id}")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(payment_methods::payment_methods_session_retrieve)),
-                )
-                .service(web::resource("/list-payment-methods").route(
-                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
-                ))
-                .service(
-                    web::resource("/update-saved-payment-method").route(
+        route =
+            route.service(
+                web::scope("/{payment_method_session_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(payment_methods::payment_methods_session_retrieve))
+                            .route(web::put().to(payment_methods::payment_methods_session_update)),
+                    )
+                    .service(web::resource("/list-payment-methods").route(
+                        web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                    ))
+                    .service(
+                        web::resource("/confirm")
+                            .route(web::post().to(payment_methods::payment_method_session_confirm)),
+                    )
+                    .service(web::resource("/update-saved-payment-method").route(
                         web::put().to(
                             payment_methods::payment_method_session_update_saved_payment_method,
                         ),
-                    ),
-                ),
-        );
+                    )),
+            );
 
         route
     }
