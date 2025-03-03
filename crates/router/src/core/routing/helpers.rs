@@ -905,7 +905,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("dynamic_routing_stats entry not found")?;
 
-            if let Some(_) = duplicate_stats {
+            if duplicate_stats.is_some() {
                 let dynamic_routing_update = DynamicRoutingStatsUpdate {
                     amount: payment_attempt.get_total_amount(),
                     success_based_routing_connector: first_merchant_success_based_connector_label
