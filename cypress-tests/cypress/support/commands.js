@@ -1275,6 +1275,7 @@ Cypress.Commands.add(
     createPaymentBody.profile_id = profile_id;
 
     globalState.set("paymentAmount", createPaymentBody.amount);
+    globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
 
     cy.request({
       method: "POST",
@@ -3054,6 +3055,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
 
 Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
   const clientSecret = globalState.get("clientSecret");
+  const setupFutureUsage = globalState.get("setupFutureUsage");
 
   cy.request({
     method: "GET",
@@ -3078,6 +3080,18 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
           response.body.customer_payment_methods[0].payment_method_id,
           "payment_method_id"
         ).to.not.be.null;
+
+        if (setupFutureUsage === "off_session") {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.be.false;
+        } else if (setupFutureUsage === "on_session") {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.be.true;
+        }
       } else {
         // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
         expect(response.body)
@@ -3159,6 +3173,49 @@ Cypress.Commands.add(
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/create`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: createConfirmPayoutBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("payoutAmount", createConfirmPayoutBody.amount);
+          globalState.set("payoutID", response.body.payout_id);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createConfirmWithPayoutMethodIdTest",
+  (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    for (const key in reqData) {
+      createConfirmPayoutBody[key] = reqData[key];
+    }
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+    createConfirmPayoutBody.confirm = confirm;
+    createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
+    delete createConfirmPayoutBody.payout_token;
 
     cy.request({
       method: "POST",

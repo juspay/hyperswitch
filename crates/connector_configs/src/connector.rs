@@ -118,6 +118,7 @@ pub struct ConfigMetadata {
     pub locale: Option<InputData>,
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
+    pub merchant_configuration_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -171,6 +172,7 @@ pub struct ConnectorConfig {
     pub boku: Option<ConnectorTomlConfig>,
     pub braintree: Option<ConnectorTomlConfig>,
     pub cashtocode: Option<ConnectorTomlConfig>,
+    pub chargebee: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
@@ -208,6 +210,7 @@ pub struct ConnectorConfig {
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
+    pub nomupay_payout: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
     pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
@@ -218,6 +221,7 @@ pub struct ConnectorConfig {
     pub paypal: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
+    pub paystack: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -280,6 +284,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Nomupay => Ok(connector_data.nomupay_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
@@ -338,6 +343,7 @@ impl ConnectorConfig {
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Cashtocode => Ok(connector_data.cashtocode),
+            Connector::Chargebee => Ok(connector_data.chargebee),
             Connector::Checkout => Ok(connector_data.checkout),
             Connector::Coinbase => Ok(connector_data.coinbase),
             Connector::Coingate => Ok(connector_data.coingate),
@@ -374,6 +380,7 @@ impl ConnectorConfig {
             Connector::Nexixpay => Ok(connector_data.nexixpay),
             Connector::Prophetpay => Ok(connector_data.prophetpay),
             Connector::Nmi => Ok(connector_data.nmi),
+            Connector::Nomupay => Err("Use get_payout_connector_config".to_string()),
             Connector::Novalnet => Ok(connector_data.novalnet),
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
@@ -381,6 +388,7 @@ impl ConnectorConfig {
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
+            Connector::Paystack => Ok(connector_data.paystack),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),
             Connector::Plaid => Ok(connector_data.plaid),

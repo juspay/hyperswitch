@@ -1,5 +1,7 @@
 #[cfg(feature = "v1")]
-pub use api_models::payments::{PaymentListResponse, PaymentListResponseV2};
+pub use api_models::payments::{
+    PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2,
+};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
     PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
@@ -14,9 +16,8 @@ pub use api_models::{
         CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
         MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
         OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType,
-        PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
-        PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
-        PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+        PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentMethodData,
+        PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
         PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse, PaymentsApproveRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,

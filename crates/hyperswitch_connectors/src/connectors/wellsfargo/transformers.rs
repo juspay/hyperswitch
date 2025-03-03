@@ -941,13 +941,13 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: Some(authn_data.threeds_server_transaction_id.clone()),
+                    xid: authn_data.threeds_server_transaction_id.clone(),
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
                         .map(Secret::new),
                     specification_version: None,
-                    pa_specification_version: Some(authn_data.message_version.clone()),
+                    pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
                 }
             });

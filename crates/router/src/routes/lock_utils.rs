@@ -39,7 +39,8 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
-    PaymentMethodsSession,
+    Hypersense,
+    PaymentMethodSession,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -177,7 +178,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::IncomingRelayWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
-            | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
+            | Flow::WebhookEventDeliveryRetry
+            | Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -311,9 +313,15 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FeatureMatrix => Self::Documentation,
 
+            Flow::HypersenseTokenRequest
+            | Flow::HypersenseVerifyToken
+            | Flow::HypersenseSignoutToken => Self::Hypersense,
+
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
-            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
+            | Flow::PaymentMethodSessionConfirm
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
         }
     }
 }

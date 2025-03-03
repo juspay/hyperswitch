@@ -16,6 +16,7 @@ pub mod ephemeral_key;
 #[cfg(feature = "errors")]
 pub mod errors;
 pub mod events;
+pub mod external_service_auth;
 pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
