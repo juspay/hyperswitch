@@ -172,7 +172,6 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
         body: {
           status: "pending",
         },
@@ -234,6 +233,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "johndoe@gmail.com",
+          },
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -250,6 +252,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "johndoe@gmail.com",
+          },
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -296,6 +301,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "johndoe@gmail.com",
+          },
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -571,7 +579,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
@@ -582,7 +591,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "failed",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
@@ -698,6 +708,78 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "The currency not allow for the RecordType",
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          setup_future_usage: "off_session",
         },
       },
     },
