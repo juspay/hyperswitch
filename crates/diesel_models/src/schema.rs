@@ -219,6 +219,7 @@ diesel::table! {
         authentication_product_ids -> Nullable<Jsonb>,
         card_testing_guard_config -> Nullable<Jsonb>,
         card_testing_secret_key -> Nullable<Bytea>,
+        is_clear_pan_retries_enabled -> Bool,
     }
 }
 
@@ -565,6 +566,7 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
+        clear_pan_possible -> Bool,
     }
 }
 

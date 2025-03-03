@@ -1960,6 +1960,9 @@ pub struct ProfileCreate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2081,6 +2084,9 @@ pub struct ProfileCreate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2225,6 +2231,9 @@ pub struct ProfileResponse {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2352,6 +2361,9 @@ pub struct ProfileResponse {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2486,6 +2498,9 @@ pub struct ProfileUpdate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2601,6 +2616,9 @@ pub struct ProfileUpdate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
