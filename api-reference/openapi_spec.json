@@ -9581,6 +9581,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "chargebee",
           "checkout",
           "coinbase",
           "coingate",
@@ -9624,6 +9625,7 @@
           "payme",
           "payone",
           "paypal",
+          "paystack",
           "payu",
           "placetopay",
           "powertranz",
@@ -9830,7 +9832,8 @@
           "payout_processor",
           "payment_method_auth",
           "authentication_processor",
-          "tax_processor"
+          "tax_processor",
+          "billing_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -12827,7 +12830,8 @@
           "message",
           "status",
           "decision",
-          "step_up_possible"
+          "step_up_possible",
+          "clear_pan_possible"
         ],
         "properties": {
           "connector": {
@@ -12882,6 +12886,10 @@
               }
             ],
             "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
           }
         }
       },
@@ -12966,7 +12974,8 @@
           "message",
           "status",
           "decision",
-          "step_up_possible"
+          "step_up_possible",
+          "clear_pan_possible"
         ],
         "properties": {
           "connector": {
@@ -13023,6 +13032,10 @@
               }
             ],
             "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
           }
         }
       },
@@ -13126,6 +13139,11 @@
                 "$ref": "#/components/schemas/ErrorCategory"
               }
             ],
+            "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible",
             "nullable": true
           }
         }
@@ -16502,6 +16520,21 @@
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
             "nullable": true
+          },
+          "skip_status_screen": {
+            "type": "boolean",
+            "description": "Skip the status screen after payment completion",
+            "nullable": true
+          },
+          "payment_button_text_colour": {
+            "type": "string",
+            "description": "Custom text colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "background_colour": {
+            "type": "string",
+            "description": "Custom background colour for the payment link",
+            "nullable": true
           }
         }
       },
@@ -16601,6 +16634,21 @@
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "skip_status_screen": {
+            "type": "boolean",
+            "description": "Skip the status screen after payment completion",
+            "nullable": true
+          },
+          "payment_button_text_colour": {
+            "type": "string",
+            "description": "Custom text colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "background_colour": {
+            "type": "string",
+            "description": "Custom background colour for the payment link",
             "nullable": true
           }
         }
@@ -23109,6 +23157,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23142,7 +23195,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "is_clear_pan_retries_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -23363,6 +23417,10 @@
               }
             ],
             "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not."
           }
         }
       },
@@ -23919,7 +23977,7 @@
             ],
             "properties": {
               "refund": {
-                "$ref": "#/components/schemas/RelayRefundRequest"
+                "$ref": "#/components/schemas/RelayRefundRequestData"
               }
             }
           }
@@ -23942,7 +24000,7 @@
           }
         }
       },
-      "RelayRefundRequest": {
+      "RelayRefundRequestData": {
         "type": "object",
         "required": [
           "amount",
@@ -24507,6 +24565,7 @@
           "boku",
           "braintree",
           "cashtocode",
+          "chargebee",
           "checkout",
           "coinbase",
           "coingate",
@@ -24547,6 +24606,7 @@
           "payme",
           "payone",
           "paypal",
+          "paystack",
           "payu",
           "placetopay",
           "powertranz",

@@ -35,7 +35,7 @@ pub use hyperswitch_connectors::connectors::{
     mollie::Mollie, moneris, moneris::Moneris, multisafepay, multisafepay::Multisafepay, nexinets,
     nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, noon, noon::Noon,
     novalnet, novalnet::Novalnet, nuvei, nuvei::Nuvei, opayo, opayo::Opayo, opennode,
-    opennode::Opennode, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payme, payme::Payme,
+    opennode::Opennode, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, paystack, paystack::Paystack, payme, payme::Payme,
     payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz,
     prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys,
     redsys::Redsys, shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar,
