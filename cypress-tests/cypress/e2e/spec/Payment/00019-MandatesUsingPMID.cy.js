@@ -269,7 +269,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "manual",
           globalState
         );
-                
+
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
       });

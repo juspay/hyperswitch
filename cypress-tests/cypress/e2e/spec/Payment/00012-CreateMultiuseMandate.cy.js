@@ -130,7 +130,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           "manual",
           globalState
         );
-        
+
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
       });
