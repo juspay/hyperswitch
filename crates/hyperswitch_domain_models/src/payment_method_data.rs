@@ -2002,3 +2002,37 @@ impl SingleUseTokenKey {
         &self.0
     }
 }
+
+#[cfg(feature = "v1")]
+impl From<Card> for payment_methods::CardDetail {
+    fn from(card_data: Card) -> Self {
+        Self {
+            card_number: card_data.card_number.clone(),
+            card_exp_month: card_data.card_exp_month.clone(),
+            card_exp_year: card_data.card_exp_year.clone(),
+            card_holder_name: None,
+            nick_name: None,
+            card_issuing_country: None,
+            card_network: card_data.card_network.clone(),
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<NetworkTokenData> for payment_methods::CardDetail {
+    fn from(network_token_data: NetworkTokenData) -> Self {
+        Self {
+            card_number: network_token_data.token_number.clone(),
+            card_exp_month: network_token_data.token_exp_month.clone(),
+            card_exp_year: network_token_data.token_exp_year.clone(),
+            card_holder_name: None,
+            nick_name: None,
+            card_issuing_country: None,
+            card_network: network_token_data.card_network.clone(),
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}

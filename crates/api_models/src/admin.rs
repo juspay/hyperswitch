@@ -2002,6 +2002,9 @@ pub struct ProfileCreate {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+    
+    /// Indicates if pre network tokenization is enabled or not
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2302,6 +2305,10 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2602,6 +2609,10 @@ pub struct ProfileUpdate {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+    
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
