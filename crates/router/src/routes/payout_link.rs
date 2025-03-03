@@ -1,7 +1,11 @@
+#[cfg(feature = "v1")]
 use actix_web::{web, Responder};
+#[cfg(feature = "v1")]
 use api_models::payouts::PayoutLinkInitiateRequest;
+#[cfg(feature = "v1")]
 use router_env::Flow;
 
+#[cfg(feature = "v1")]
 use crate::{
     core::{api_locking, payout_link::*},
     services::{

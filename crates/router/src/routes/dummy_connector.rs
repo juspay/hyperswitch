@@ -1,7 +1,11 @@
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use actix_web::web;
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use router_env::{instrument, tracing};
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use super::app;
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use crate::{
     core::api_locking,
     services::{api, authentication as auth},

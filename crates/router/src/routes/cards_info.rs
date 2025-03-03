@@ -1,7 +1,11 @@
+#[cfg(feature = "v1")]
 use actix_web::{web, HttpRequest, Responder};
+#[cfg(feature = "v1")]
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(feature = "v1")]
 use super::app::AppState;
+#[cfg(feature = "v1")]
 use crate::{
     core::{api_locking, cards_info},
     services::{api, authentication as auth},

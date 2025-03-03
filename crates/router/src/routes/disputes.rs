@@ -1,3 +1,4 @@
+#[cfg(feature = "v1")]
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
@@ -7,10 +8,11 @@ use crate::{core::api_locking, services::authorization::permissions::Permission}
 pub mod utils;
 
 use super::app::AppState;
+#[cfg(feature = "v1")]
+use crate::types::api::disputes as dispute_types;
 use crate::{
     core::disputes,
     services::{api, authentication as auth},
-    types::api::disputes as dispute_types,
 };
 
 #[cfg(feature = "v1")]

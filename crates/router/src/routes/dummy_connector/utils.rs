@@ -13,6 +13,7 @@ use super::{
 };
 use crate::{configs::settings, routes::SessionState};
 
+#[allow(dead_code)]
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
     // TODO: change this to `Uniform::try_from`
@@ -25,6 +26,7 @@ pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     .await
 }
 
+#[allow(dead_code)]
 pub async fn store_data_in_redis(
     state: &SessionState,
     key: String,
@@ -45,6 +47,7 @@ pub async fn store_data_in_redis(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn get_payment_data_from_payment_id(
     state: &SessionState,
     payment_id: String,
@@ -64,6 +67,7 @@ pub async fn get_payment_data_from_payment_id(
         .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
 
+#[allow(dead_code)]
 pub async fn get_payment_data_by_attempt_id(
     state: &SessionState,
     attempt_id: String,
@@ -89,6 +93,7 @@ pub async fn get_payment_data_by_attempt_id(
         .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
 
+#[allow(dead_code)]
 pub fn get_authorize_page(
     payment_data: types::DummyConnectorPaymentData,
     return_url: String,
@@ -166,6 +171,7 @@ pub fn get_authorize_page(
     .into_string()
 }
 
+#[allow(dead_code)]
 pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> String {
     html! {
         head {
