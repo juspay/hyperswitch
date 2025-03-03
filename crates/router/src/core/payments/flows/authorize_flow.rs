@@ -93,33 +93,7 @@ impl
 
         Ok(data)
     }
-
-    #[cfg(feature = "v2")]
-    fn get_connector_customer_id(
-        &self,
-        customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
-    ) -> Option<String> {
-        // First, try to get it from the customer object
-        if let Some(customer) = customer {
-            if let Some(connector_customer_id) =
-                customer.get_connector_customer_id(&merchant_connector_account.get_id())
-            {
-                return Some(connector_customer_id.to_string());
-            }
-        }
-
-        // If not found, fall back to feature metadata
-        self.payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rrm| {
-                rrm.billing_connector_payment_details
-                    .connector_customer_id
-                    .clone()
-            })
-    }
+  
 }
 
 #[cfg(feature = "v1")]

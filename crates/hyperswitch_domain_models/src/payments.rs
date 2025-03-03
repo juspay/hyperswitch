@@ -40,7 +40,7 @@ use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, errors, merchant_account, payment_address,
-    payment_method_data, ApiModelToDieselModelConvertor,
+    payment_method_data, ApiModelToDieselModelConvertor, customer, merchant_connector_account,
 };
 
 #[cfg(feature = "v1")]
@@ -632,6 +632,32 @@ where
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> PaymentConfirmData<F> {
+    pub fn get_connector_customer_id(
+        &self,
+        customer: Option<&customer::Customer>,
+        merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> Option<String> {
+        // 1) If a `Customer` is provided, see if we can pull a matching connector customer ID out of it.
+        if let Some(customer) = customer {
+            // Example: If you have a method on Customer to fetch the connector ID
+            // (or store it in a map keyed by merchant_connector_account.gid, etc.)
+            if let Some(connector_cust_id) = customer.get_connector_customer_id(&merchant_connector_account.get_id()) {
+                return Some(connector_cust_id.to_string());
+            }
+        }
+
+        // 2) If we didn’t find anything in the Customer, fallback to PaymentIntent’s feature metadata.
+        self.payment_intent
+             .feature_metadata
+             .as_ref()
+             .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+             .map(|rrm| rrm.billing_connector_payment_details.clone())
+             .map(|details| details.connector_customer_id)
+    }
 }
 
 #[cfg(feature = "v2")]

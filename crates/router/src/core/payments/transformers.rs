@@ -27,8 +27,7 @@ use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
-#[cfg(feature = "v2")]
-use crate::core::payments::flows::ConstructFlowSpecificData;
+
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
@@ -214,7 +213,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         )?;
 
     let connector_customer_id =
-        payment_data.get_connector_customer_id(customer, merchant_connector_account);
+        payment_data.get_connector_customer_id(customer.as_ref(), merchant_connector_account);
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
