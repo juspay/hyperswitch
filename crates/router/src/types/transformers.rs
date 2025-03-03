@@ -225,7 +225,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Cashtocode => Self::Cashtocode,
-            // api_enums::Connector::Chargebee => Self::Chargebee,
+            api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
@@ -2158,8 +2158,11 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            skip_status_screen: item.skip_status_screen,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
             payment_button_colour: item.payment_button_colour,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
         }
     }
 }
@@ -2183,8 +2186,11 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            skip_status_screen: item.skip_status_screen,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
             payment_button_colour: item.payment_button_colour,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
         }
     }
 }
