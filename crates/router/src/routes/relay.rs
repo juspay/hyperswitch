@@ -22,7 +22,7 @@ pub async fn relay(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            relay::relay(
+            relay::relay_flow_decider(
                 state,
                 auth.merchant_account,
                 #[cfg(feature = "v1")]
