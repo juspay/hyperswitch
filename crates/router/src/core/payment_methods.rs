@@ -914,7 +914,7 @@ pub async fn create_payment_method_core(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
-    let mut payment_method = create_payment_method_for_intent(
+    let payment_method = create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
@@ -964,9 +964,6 @@ pub async fn create_payment_method_core(
 
     let (response, payment_method) = match vaulting_result {
         Ok((vaulting_resp, fingerprint_id)) => {
-            payment_method.set_payment_method_type(req.payment_method_type);
-            payment_method.set_payment_method_subtype(req.payment_method_subtype);
-
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
@@ -976,6 +973,8 @@ pub async fn create_payment_method_core(
                 &payment_method,
                 None,
                 network_tokenization_resp,
+                Some(req.payment_method_type),
+                Some(req.payment_method_subtype),
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -1546,6 +1545,8 @@ pub async fn create_pm_additional_data_update(
     payment_method: &domain::PaymentMethod,
     connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
+    payment_method_type: Option<common_enums::PaymentMethod>,
+    payment_method_subtype: Option<common_enums::PaymentMethodType>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = payment_method_vaulting_data
         .map(
@@ -1585,9 +1586,8 @@ pub async fn create_pm_additional_data_update(
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
         status: Some(enums::PaymentMethodStatus::Active),
         locker_id: vault_id,
-        // Payment method type remains the same, only card details are updated
-        payment_method_type_v2: None,
-        payment_method_subtype: None,
+        payment_method_type_v2: payment_method_type,
+        payment_method_subtype,
         payment_method_data: encrypted_payment_method_data,
         network_token_requestor_reference_id: nt_data
             .clone()
@@ -1896,6 +1896,8 @@ pub async fn update_payment_method_core(
         fingerprint_id,
         &payment_method,
         request.connector_token_details,
+        None,
+        None,
         None,
     )
     .await
