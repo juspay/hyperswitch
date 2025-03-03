@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-pub use super::connector_enums::Connector;
 pub use common_enums::*;
 use utoipa::ToSchema;
+
+pub use super::connector_enums::Connector;
 
 #[derive(
     Clone,
