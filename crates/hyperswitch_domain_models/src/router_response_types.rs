@@ -226,7 +226,7 @@ impl PaymentsResponseData {
 
                 diesel_models::ConnectorTokenDetails {
                     connector_mandate_id,
-                    connector_mandate_request_reference_id,
+                    connector_token_request_reference_id: connector_mandate_request_reference_id,
                 }
             })
         } else {
