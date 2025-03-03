@@ -1380,6 +1380,17 @@ export const connectorDetails = {
         },
       },
     }),
+    MITWithoutBillingAddress: getCustomExchange({
+      Request: {
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PaymentWithoutBilling: {
       Request: {
         currency: "USD",
