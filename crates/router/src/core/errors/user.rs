@@ -110,6 +110,10 @@ pub enum UserErrors {
     MissingEmailConfig,
     #[error("Invalid Auth Method Operation: {0}")]
     InvalidAuthMethodOperationWithMessage(String),
+    #[error("Couldn't create platform account")]
+    PlatformAccountCreationFailed,
+    #[error("Requested Merchant is already a platform account")]
+    MerchantAlreadyPlatformAccount,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -285,6 +289,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidAuthMethodOperationWithMessage(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 57, self.get_error_message(), None))
             }
+            Self::PlatformAccountCreationFailed => AER::InternalServerError(ApiError::new(
+                sub_code,
+                58,
+                self.get_error_message(),
+                None,
+            )),
+            Self::MerchantAlreadyPlatformAccount => {
+                AER::BadRequest(ApiError::new(sub_code, 60, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -354,6 +367,10 @@ impl UserErrors {
             Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
             Self::InvalidAuthMethodOperationWithMessage(operation) => {
                 format!("Invalid Auth Method Operation: {}", operation)
+            }
+            Self::PlatformAccountCreationFailed => "Couldn't create platform account".to_string(),
+            Self::MerchantAlreadyPlatformAccount => {
+                "Merchant already has a platform account".to_string()
             }
         }
     }

@@ -13,7 +13,7 @@ use common_utils::{type_name, types::keymanager::Identifier};
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
-    organization::OrganizationBridge,
+    organization::{OrganizationBridge, OrganizationUpdate},
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
 };
@@ -37,11 +37,15 @@ use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
     db::{
-        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
+        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD, storage,
         user_role::ListUserRolesByUserIdPayload,
     },
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication as auth,
+        authorization::roles::{self},
+        openidconnect, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
@@ -1478,6 +1482,58 @@ pub async fn create_org_merchant_for_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+pub async fn set_platform_account(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<()> {
+    let kms = (&state).into();
+    let db = state.store.as_ref();
+    let requested_merchant_id = &user_from_token.merchant_id;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &kms,
+            requested_merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let organization_account = db
+        .find_organization_by_org_id(&user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    if organization_account.platform_merchant_id.is_some() {
+        return Err(UserErrors::MerchantAlreadyPlatformAccount)?;
+    }
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&kms, requested_merchant_id, &key_store)
+        .await
+        .change_context(UserErrors::MerchantIdNotFound)?;
+
+    db.update_merchant(
+        &kms,
+        merchant_account,
+        storage::MerchantAccountUpdate::ToPlatformAccount,
+        &key_store,
+    )
+    .await
+    .change_context(UserErrors::PlatformAccountCreationFailed)
+    .attach_printable("Error while enabling platform merchant account")?;
+
+    let update = OrganizationUpdate::ToPlatformAccount {
+        platform_merchant_id: requested_merchant_id.clone(),
+    };
+
+    db.update_organization_by_org_id(&user_from_token.org_id, update)
+        .await
+        .change_context(UserErrors::PlatformAccountCreationFailed)
+        .attach_printable("Error while enabling platform merchant account")?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
 pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
@@ -2845,6 +2901,7 @@ pub async fn list_orgs_for_user(
     .map(|org| user_api::ListOrgsForUserResponse {
         org_id: org.get_organization_id(),
         org_name: org.get_organization_name(),
+        is_platform_account: org.get_platform_merchant_id().is_some(),
     })
     .collect::<Vec<_>>();
 
@@ -2928,6 +2985,7 @@ pub async fn list_merchants_for_user_in_org(
                 |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
                     merchant_name: merchant_account.merchant_name.clone(),
                     merchant_id: merchant_account.get_id().to_owned(),
+                    is_platform_account: merchant_account.is_platform_account.to_owned(),
                 },
             )
             .collect::<Vec<_>>(),
