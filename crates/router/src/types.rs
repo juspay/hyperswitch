@@ -523,6 +523,9 @@ impl PollConfig {
     pub fn get_poll_config_key(connector: String) -> String {
         format!("poll_config_external_three_ds_{connector}")
     }
+    pub fn get_poll_config_key_for_threeds_payment_connector(connector: String) -> String {
+        format!("poll_config_three_ds_{connector}")
+    }
 }
 
 impl Default for PollConfig {

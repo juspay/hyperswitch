@@ -54,6 +54,11 @@ impl PaymentId {
         format!("external_authentication_{}", self.get_string_repr())
     }
 
+        /// Get threeds authentication request poll id
+    pub fn get_threeds_authentication_request_poll_id(&self) -> String {
+        format!("threeds_authentication_{}", self.get_string_repr())
+    }
+
     /// Generate a test payment id with prefix test_
     pub fn generate_test_payment_id_for_sample_data() -> Self {
         let id = generate_id_with_default_len("test");

@@ -2210,6 +2210,8 @@ where
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_three_ds_invoke =  next_action_three_ds_invoke(&payment_attempt)?;
+
         if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
             || bank_transfer_next_steps.is_some()
             || next_action_voucher.is_some()
@@ -2302,7 +2304,16 @@ where
                                 }
                             },
                             None => None
-                        });
+                        })
+                        .or(match next_action_three_ds_invoke{
+                            Some(threeds_invoke_data) => Some(construct_connector_three_ds_invoke_data(
+                                &payment_attempt,
+                                threeds_invoke_data,
+                                base_url,
+                            )?),
+                            None => None
+
+        });
         };
 
         // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
@@ -2640,6 +2651,59 @@ pub fn wait_screen_next_steps_check(
     let display_info_with_timer_instructions =
         display_info_with_timer_steps.transpose().ok().flatten();
     Ok(display_info_with_timer_instructions)
+}
+
+pub fn next_action_three_ds_invoke(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::PaymentConnectorThreeDsInvokeData>> {
+    let connector_three_ds_invoke_data: Option<
+        Result<api_models::payments::PaymentConnectorThreeDsInvokeData, _>,
+    > = payment_attempt
+        .connector_metadata.clone()
+        .map(|metadata| metadata.parse_value("PaymentConnectorThreeDsInvokeData"));
+
+    let three_ds_invoke_data =
+    connector_three_ds_invoke_data.transpose().ok().flatten();
+    Ok(three_ds_invoke_data)
+}
+
+pub fn construct_connector_three_ds_invoke_data(
+    payment_attempt: &storage::PaymentAttempt,
+    connector_three_ds_invoke_data: api_models::payments::PaymentConnectorThreeDsInvokeData,
+    base_url: &str,
+) -> RouterResult<api_models::payments::NextActionData> {
+    let poll_id = payment_attempt.payment_id.get_threeds_authentication_request_poll_id();
+    let payment_connector = payment_attempt.connector.clone().ok_or(   errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Connector name not found",
+    )?;
+    let three_ds_authorize_url =  helpers::create_authorize_url(
+        base_url,
+        &payment_attempt,
+        payment_connector.clone(),
+    );
+
+    let three_ds_method_details = api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData{
+            three_ds_method_data_submission: connector_three_ds_invoke_data.three_ds_method_data_submission,
+            three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
+            three_ds_method_url: Some(connector_three_ds_invoke_data.three_ds_method_url),
+    };
+    let default_poll_config = types::PollConfig::default();
+    let poll_config = api_models::payments::PollConfigResponse {poll_id: payment_attempt.payment_id.get_threeds_authentication_request_poll_id(), 
+        delay_in_secs: default_poll_config.delay_in_secs, frequency: default_poll_config.frequency};
+
+    let three_ds_data = api_models::payments::ThreeDsData {
+        three_ds_authentication_url:  helpers::create_authentication_url(base_url, &payment_attempt),
+        three_ds_authorize_url,
+        three_ds_method_details,
+        poll_config,
+        message_version: connector_three_ds_invoke_data.message_version,
+        directory_server_id: Some(connector_three_ds_invoke_data.directory_server_id),
+    };
+
+    Ok(api_models::payments::NextActionData::ThreeDsInvoke {
+        three_ds_data,
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -4093,7 +4157,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                 field_name: "browser_info",
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
-
         Ok(Self {
             payment_method_data: payment_method_data.map(From::from),
             email: payment_data.email,

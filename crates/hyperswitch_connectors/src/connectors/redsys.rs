@@ -17,13 +17,13 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData, PaymentsPreProcessingData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, PaymentsPreProcessingRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -34,7 +34,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response, PaymentsPreProcessingType},
+    types::{self, PaymentsPreProcessingType, Response},
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
@@ -101,7 +101,7 @@ impl ConnectorCommon for Redsys {
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.redsys.base_url.as_ref()
-    } 
+    }
 
     // fn get_auth_header(
     //     &self,
@@ -115,28 +115,28 @@ impl ConnectorCommon for Redsys {
     //     )])
     // }
 
-    // fn build_error_response(
-    //     &self,
-    //     res: Response,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    // ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    //     let response: redsys::RedsysErrorResponse = res
-    //         .response
-    //         .parse_struct("RedsysErrorResponse")
-    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: redsys::RedsysErrorResponse = res
+            .response
+            .parse_struct("RedsysErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-    //     event_builder.map(|i| i.set_response_body(&response));
-    //     router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
-    //     Ok(ErrorResponse {
-    //         status_code: res.status_code,
-    //         code: response.code,
-    //         message: response.message,
-    //         reason: response.reason,
-    //         attempt_status: None,
-    //         connector_transaction_id: None,
-    //     })
-    // }
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code.clone(),
+            message: response.error_code.clone(),
+            reason: Some(response.error_code.clone()),
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
+    }
 }
 
 impl ConnectorValidation for Redsys {}
@@ -155,37 +155,33 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _req: &PaymentsPreProcessingRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/iniciaPeticionREST",
-            self.base_url(connectors)
-        ))
+        Ok(format!("{}/iniciaPeticionREST", self.base_url(connectors)))
     }
     fn get_request_body(
         &self,
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> { 
-        let minor_amount=  req.request
-            .minor_amount
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "minor_amount",
-            })?;
-    let currency =
-        req.request
-            .currency
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            })?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
 
-        let amount = connector_utils::convert_amount(
-            self.amount_converter,
-            minor_amount,
-            currency,
-        )?;
+        let amount =
+            connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = redsys::RedsysRouterData::from((amount, req, currency));
         let auth = redsys::RedsysAuthType::try_from(&req.connector_auth_type)?;
-        let connector_req_data = redsys::IniciaPeticionRequest::try_from((&connector_router_data, &auth))?;
-        let connector_req = redsys::RedsysRequest::try_from((&connector_req_data, &auth))?;
+        let connector_req_data =
+            redsys::IniciaPeticionRequest::try_from((&connector_router_data, &auth))?;
+        let connector_req = redsys::RedsysTransaction::try_from((&connector_req_data, &auth))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -205,24 +201,24 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         ))
     }
 
-    // fn handle_response(
-    //     &self,
-    //     data: &PaymentsPreProcessingRouterData,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    //     res: Response,
-    // ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-    //     let response: cybersource::CybersourcePreProcessingResponse = res
-    //         .response
-    //         .parse_struct("Cybersource AuthEnrollmentResponse")
-    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-    //     event_builder.map(|i| i.set_response_body(&response));
-    //     router_env::logger::info!(connector_response=?response);
-    //     RouterData::try_from(ResponseRouterData {
-    //         response,
-    //         data: data.clone(),
-    //         http_code: res.status_code,
-    //     })
-    // }
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: redsys::RedsysPreProcessingResponse = res
+            .response
+            .parse_struct("RedsysPreProcessingResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 
     fn get_error_response(
         &self,
@@ -233,28 +229,22 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     }
 }
 
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Redsys {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Redsys {
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Redsys {}
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Redsys {
-}
-
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Redsys {
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Redsys {}
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Redsys {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys {
-}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys {}
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Redsys
-{}
-
+{
+}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Redsys {

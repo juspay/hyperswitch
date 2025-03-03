@@ -4484,6 +4484,15 @@ pub struct WaitScreenInstructions {
     pub display_to_timestamp: Option<i128>,
 }
 
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct PaymentConnectorThreeDsInvokeData {
+    pub directory_server_id: String,
+    pub three_ds_method_url: String,
+    pub three_ds_method_data: String,
+    pub message_version: Option<String>,
+    pub three_ds_method_data_submission: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferInstructions {
