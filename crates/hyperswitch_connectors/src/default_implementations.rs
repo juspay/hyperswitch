@@ -3319,6 +3319,7 @@ default_imp_for_additional_revenue_recovery_call!(
     connectors::Multisafepay,
     connectors::Paybox,
     connectors::Placetopay,
+    connectors::Paystack,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Redsys,
