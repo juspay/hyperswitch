@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use serde_json::Value as Value;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{pii, types::StringMajorUnit};
@@ -20,6 +20,7 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use time::PrimitiveDateTime;
 use utils::ForeignTryFrom;
 
@@ -279,11 +280,16 @@ impl ForeignTryFrom<Value> for BraintreeMeta {
             ))
             .attach_printable("")?;
 
-        if let (Some(merchant_account_id), Some(merchant_config_currency)) = (hashmap.get("merchant_account_id"), hashmap.get("merchant_config_currency"))
-        {
+        if let (Some(merchant_account_id), Some(merchant_config_currency)) = (
+            hashmap.get("merchant_account_id"),
+            hashmap.get("merchant_config_currency"),
+        ) {
             Ok(BraintreeMeta {
-                merchant_account_id: Secret::new(merchant_account_id.as_str().unwrap_or("").to_string()),
-                merchant_config_currency: serde_json::from_value(merchant_config_currency.clone()).unwrap(),
+                merchant_account_id: Secret::new(
+                    merchant_account_id.as_str().unwrap_or("").to_string(),
+                ),
+                merchant_config_currency: serde_json::from_value(merchant_config_currency.clone())
+                    .unwrap(),
             })
         } else {
             Err(errors::ConnectorError::MissingRequiredFields {
@@ -1012,19 +1018,15 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
         let metadata: BraintreeMeta = match item.request.connector_metadata.clone() {
             Some(metadata) => match BraintreeMeta::foreign_try_from(metadata.clone()) {
                 Ok(braintree_meta) => braintree_meta,
-                Err(_err) => utils::to_connector_meta_from_secret(
-                    item.connector_meta_data.clone(),
-                )
-                .change_context(
-                    errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
-                )?,
-            },
-            None => {
-                utils::to_connector_meta_from_secret(item.connector_meta_data.clone())
+                Err(_err) => utils::to_connector_meta_from_secret(item.connector_meta_data.clone())
                     .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                        config: "metadata",
+                    })?,
+            },
+            None => utils::to_connector_meta_from_secret(item.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
-                })?
-            }
+                })?,
         };
         utils::validate_currency(
             item.request.currency,
