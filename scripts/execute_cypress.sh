@@ -51,6 +51,8 @@ function read_service_arrays() {
   # Loop through the associative array and check if each service is exported
   for var in "${!services[@]}"; do
     if [[ -n "${!var+x}" ]]; then
+      # Ensure the variable is split correctly into an array
+      eval "${services[$var]}=($(echo "${!var}" | tr ' ' '\n'))"
       connector_map+=("${services[$var]}")
     else
       print_color "yellow" "Environment variable ${var} is not set. Skipping..."
