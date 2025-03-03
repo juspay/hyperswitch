@@ -883,5 +883,5 @@ foreground_color = "#000000"                     # Foreground color of email tex
 primary_color = "#006DF9"                        # Primary color of email body
 background_color = "#FFFFFF"                     # Background color of email body
 
-[additonal_revenue_recovery_details_call]
+[additional_revenue_recovery_details_call]
 connectors_with_additional_revenue_recovery_details_call = "" # List of connectors which has additional revenue recovery details api-call
