@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
-        webhooks::{VerifyWebhookSource,GetAdditionalRevenueRecoveryDetails},
+        webhooks::{GetAdditionalRevenueRecoveryDetails, VerifyWebhookSource},
     },
     router_request_types::{
         unified_authentication_service::{
@@ -25,7 +25,8 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        AcceptDisputeRequestData, AccessTokenRequestData,
+        AdditionalRevenueRecoveryDetailsRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
@@ -33,13 +34,12 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
-        AdditionalRevenueRecoveryDetailsRequestData
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        AdditionalRevenueRecoveryDetailsResponseData
+        AcceptDisputeResponse, AdditionalRevenueRecoveryDetailsResponseData, DefendDisputeResponse,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -229,5 +229,5 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
 pub type AdditionalRevenueRecoveryCallType = dyn ConnectorIntegration<
     GetAdditionalRevenueRecoveryDetails,
     AdditionalRevenueRecoveryDetailsRequestData,
-    AdditionalRevenueRecoveryDetailsResponseData
+    AdditionalRevenueRecoveryDetailsResponseData,
 >;

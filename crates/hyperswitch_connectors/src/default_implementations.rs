@@ -33,7 +33,8 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, GetAdditionalRevenueRecoveryDetails
+        Authenticate, AuthenticationConfirmation, GetAdditionalRevenueRecoveryDetails,
+        PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -41,19 +42,19 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        AcceptDisputeRequestData, AdditionalRevenueRecoveryDetailsRequestData,
+        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
+        DefendDisputeRequestData, MandateRevokeRequestData, PaymentsApproveData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
-        AdditionalRevenueRecoveryDetailsRequestData
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        AdditionalRevenueRecoveryDetailsResponseData
+        AcceptDisputeResponse, AdditionalRevenueRecoveryDetailsResponseData, DefendDisputeResponse,
+        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -79,7 +80,7 @@ use hyperswitch_interfaces::{
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
         UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
-        UnifiedAuthenticationService
+        UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };
@@ -3224,7 +3225,6 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Zen,
     connectors::Zsl
 );
-
 
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {

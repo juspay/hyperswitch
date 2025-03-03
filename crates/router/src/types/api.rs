@@ -46,9 +46,10 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
-    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
+    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorAdditionalRevenueRecoveryDetailsCall,
+    ConnectorAdditionalRevenueRecoveryDetailsCallV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
-    ConnectorVerifyWebhookSourceV2, CurrencyUnit, ConnectorAdditionalRevenueRecoveryDetailsCall,ConnectorAdditionalRevenueRecoveryDetailsCallV2
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
 use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 
@@ -129,8 +130,7 @@ impl<
             + ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + ConnectorAdditionalRevenueRecoveryDetailsCall
-            
+            + ConnectorAdditionalRevenueRecoveryDetailsCall,
     > Connector for T
 {
 }
@@ -170,7 +170,7 @@ impl<
             + ConnectorMandateRevokeV2
             + ExternalAuthenticationV2
             + UnifiedAuthenticationServiceV2
-            +ConnectorAdditionalRevenueRecoveryDetailsCallV2,
+            + ConnectorAdditionalRevenueRecoveryDetailsCallV2,
     > ConnectorV2 for T
 {
 }
