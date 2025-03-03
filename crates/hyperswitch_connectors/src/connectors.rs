@@ -92,8 +92,9 @@ pub use self::{
     noon::Noon, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
     payeezy::Payeezy, payme::Payme, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes,
-    trustpay::Trustpay, tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService,
-    volt::Volt, wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit,
-    zen::Zen, zsl::Zsl,
+    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling,
+    taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
+    zsl::Zsl,
 };
