@@ -1,5 +1,8 @@
 use common_enums::enums;
-use common_utils::pii::{Email, IpAddress};
+use common_utils::{
+    pii::{Email, IpAddress},
+    types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
@@ -15,10 +18,7 @@ use hyperswitch_domain_models::{
         RefundsRouterData, SetupMandateRouterData,
     },
 };
-use hyperswitch_interfaces::{
-    api::{self},
-    errors,
-};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -33,16 +33,13 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct HelcimRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for HelcimRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for HelcimRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = crate::utils::get_amount_as_f64(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -77,7 +74,7 @@ pub struct HelcimVerifyRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: enums::Currency,
     ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
@@ -115,8 +112,8 @@ pub struct HelcimInvoice {
 pub struct HelcimLineItems {
     description: String,
     quantity: u8,
-    price: f64,
-    total: f64,
+    price: FloatMajorUnit,
+    total: FloatMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -514,7 +511,7 @@ impl<F>
 #[serde(rename_all = "camelCase")]
 pub struct HelcimCaptureRequest {
     pre_auth_transaction_id: u64,
-    amount: f64,
+    amount: FloatMajorUnit,
     ip_address: Secret<String, IpAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce: Option<bool>,
@@ -637,7 +634,7 @@ impl<F>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimRefundRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     original_transaction_id: u64,
     ip_address: Secret<String, IpAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
