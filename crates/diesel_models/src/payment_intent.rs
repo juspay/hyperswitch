@@ -556,7 +556,7 @@ pub struct PaymentIntentUpdateInternal {
     pub status: Option<storage_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
-    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
+    pub active_attempt_id: Option<Option<common_utils::id_type::GlobalAttemptId>>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,

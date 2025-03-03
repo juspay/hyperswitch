@@ -1,9 +1,8 @@
 use std::str::FromStr;
 
+pub use super::connector_enums::Connector;
 pub use common_enums::*;
 use utoipa::ToSchema;
-
-pub use super::connector_enums::Connector;
 
 #[derive(
     Clone,
@@ -53,6 +52,17 @@ pub enum PayoutConnectors {
     Paypal,
     Stripe,
     Wise,
+}
+
+/// Whether active attempt is to be set/unset
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum UpdateActiveAttempt {
+    /// Request to set the active attempt id
+    Set(common_utils::id_type::GlobalAttemptId),
+    /// To unset the active attempt id
+    #[default]
+    Unset,
 }
 
 #[cfg(feature = "payouts")]
