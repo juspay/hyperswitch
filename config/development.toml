@@ -681,7 +681,7 @@ connectors_with_delayed_session_response = "trustpay,payme"
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 
-[additonal_recovery_details_call]
+[additonal_revenue_recovery_details_call]
 connectors_with_additional_revenue_recovery_details_call = ""
 
 [mandates.supported_payment_methods]
