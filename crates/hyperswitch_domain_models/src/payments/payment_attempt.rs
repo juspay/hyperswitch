@@ -440,12 +440,12 @@ pub struct PaymentAttempt {
     pub card_discovery: Option<common_enums::CardDiscovery>,
     /// Split payment data
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
-    /// Additional data that might be required by hyperswitch, to enable some specific features.
-    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     /// Whether to request for overcapture
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     /// Whether overcapture was applied
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 impl PaymentAttempt {

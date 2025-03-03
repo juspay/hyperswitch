@@ -62,6 +62,7 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -80,7 +81,6 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]

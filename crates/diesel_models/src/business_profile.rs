@@ -327,6 +327,7 @@ pub struct Profile {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub always_request_overcapture: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -336,7 +337,6 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
-    pub always_request_overcapture: Option<bool>,
 }
 
 impl Profile {

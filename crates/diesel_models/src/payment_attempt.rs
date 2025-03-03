@@ -89,6 +89,8 @@ pub struct PaymentAttempt {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
@@ -102,8 +104,6 @@ pub struct PaymentAttempt {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub id: id_type::GlobalAttemptId,
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
-    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
