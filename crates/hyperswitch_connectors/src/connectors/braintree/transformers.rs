@@ -274,11 +274,33 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
+        let metadata: BraintreeMeta = if item.router_data.request.merchant_account_id.is_some()
+            && item.router_data.request.merchant_config_currency.is_some()
+        {
+            router_env::logger::info!(
+                "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
+            );
+            BraintreeMeta {
+                merchant_account_id: item.router_data.request.merchant_account_id.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "merchant_account_id",
+                    },
+                )?,
+                merchant_config_currency: item
+                    .router_data
+                    .request
+                    .merchant_config_currency
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "merchant_config_currency",
+                    })?,
+            }
+        } else {
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
-                })?;
+                })?
+        };
         utils::validate_currency(
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
