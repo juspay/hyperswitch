@@ -1016,25 +1016,25 @@ pub async fn retrieve_default_routing_config(
         .iter()
         .map(|mca| merchant_connector_details.insert(mca.get_id(), mca.clone()));
 
-    let mut connectors = Vec::new();
-    let conn_choice = helpers::get_merchant_default_config(db, &id, transaction_type).await?;
-    for connector in conn_choice.iter() {
-        connector.merchant_connector_id.clone().map(|mca_id| {
-            if let Some(mca) = merchant_connector_details.get(&mca_id) {
-                if *transaction_type == common_enums::TransactionType::Payment
-                    && mca.connector_type == common_enums::ConnectorType::PaymentProcessor
-                {
-                    connectors.push(connector.clone());
-                }
-
-                if *transaction_type == common_enums::TransactionType::Payout
-                    && mca.connector_type == common_enums::ConnectorType::PayoutProcessor
-                {
-                    connectors.push(connector.clone());
-                }
-            }
-        });
-    }
+    let connectors = helpers::get_merchant_default_config(db, &id, transaction_type)
+        .await?
+        .iter()
+        .filter(|connector| {
+            connector
+                .merchant_connector_id
+                .as_ref()
+                .is_some_and(|mca_id| {
+                    merchant_connector_details.get(mca_id).is_some_and(|mca| {
+                        (*transaction_type == common_enums::TransactionType::Payment
+                            && mca.connector_type == common_enums::ConnectorType::PaymentProcessor)
+                            || (*transaction_type == common_enums::TransactionType::Payout
+                                && mca.connector_type
+                                    == common_enums::ConnectorType::PayoutProcessor)
+                    })
+                })
+        })
+        .cloned()
+        .collect::<Vec<routing_types::RoutableConnectorChoice>>();
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(connectors))
 }
