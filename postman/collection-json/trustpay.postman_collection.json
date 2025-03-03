@@ -632,12 +632,7 @@
                       "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                       "    },",
                       "  );",
-                      "}",
-                      "",
-                      "// Add a delay of 10 seconds after the last",
-                      "setTimeout(function () {",
-                      "  console.log(\"Delay of 10 seconds completed.\");",
-                      "}, 10000);"
+                      "}"
                     ],
                     "type": "text/javascript"
                   }
@@ -675,6 +670,18 @@
             {
               "name": "Refunds - Create",
               "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Add a delay of 10 seconds",
+                      "setTimeout(function () {",
+                      "  console.log(\"Delay of 10 seconds completed.\");",
+                      "}, 10000);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
                 {
                   "listen": "test",
                   "script": {
@@ -2901,12 +2908,7 @@
                           "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
-                          "}",
-                          "",
-                          "// Add a delay of 10 seconds after the last",
-                          "setTimeout(function () {",
-                          "  console.log(\"Delay of 10 seconds completed.\");",
-                          "}, 10000);"
+                          "}"
                         ],
                         "type": "text/javascript"
                       }
@@ -2950,6 +2952,18 @@
                 {
                   "name": "Refunds - Create",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "// Add a delay of 10 seconds",
+                          "setTimeout(function () {",
+                          "  console.log(\"Delay of 10 seconds completed.\");",
+                          "}, 10000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
