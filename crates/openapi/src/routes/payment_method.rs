@@ -444,7 +444,6 @@ pub fn payment_method_session_list_payment_methods() {}
 )]
 pub fn payment_method_session_update_saved_payment_method() {}
 
-
 /// Payment Method Session - Delete a saved payment method
 ///
 /// Delete a saved payment method from the given payment method session.
