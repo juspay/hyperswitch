@@ -422,6 +422,9 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    /// Whether to set / unset the active attempt id
+    pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
