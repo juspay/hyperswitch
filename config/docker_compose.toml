@@ -316,7 +316,7 @@ connectors_with_delayed_session_response = "trustpay,payme"
 connectors_with_webhook_source_verification_call = "paypal"
 
 [additional_revenue_recovery_details_call]
-connectors_with_additional_revenue_recovery_details_call = ""
+connectors_with_additional_revenue_recovery_details_call = "stripebilling"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
