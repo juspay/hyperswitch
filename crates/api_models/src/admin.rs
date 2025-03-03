@@ -1961,6 +1961,9 @@ pub struct ProfileCreate {
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
+
     /// Indicates if the overcapture is always requested or not.
     #[serde(default)]
     pub always_request_overcapture: Option<bool>,
@@ -2085,6 +2088,9 @@ pub struct ProfileCreate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2230,6 +2236,9 @@ pub struct ProfileResponse {
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
+
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
     pub always_request_overcapture: Option<bool>,
@@ -2360,6 +2369,9 @@ pub struct ProfileResponse {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2495,6 +2507,9 @@ pub struct ProfileUpdate {
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
+
     /// Indicates if the overcapture is always requested or not.
     #[schema(example = false)]
     pub always_request_overcapture: Option<bool>,
@@ -2613,6 +2628,9 @@ pub struct ProfileUpdate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

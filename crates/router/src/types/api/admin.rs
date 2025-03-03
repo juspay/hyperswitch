@@ -187,6 +187,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             card_testing_guard_config: item
                 .card_testing_guard_config
                 .map(ForeignInto::foreign_into),
+            is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             always_request_overcapture: item.always_request_overcapture,
         })
     }
@@ -262,6 +263,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             card_testing_guard_config: item
                 .card_testing_guard_config
                 .map(ForeignInto::foreign_into),
+            is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
         })
     }
 }
@@ -436,6 +438,7 @@ pub async fn create_profile_from_merchant_account(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating card testing secret key")?,
+        is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
         always_request_overcapture: request.always_request_overcapture,
     }))
 }
