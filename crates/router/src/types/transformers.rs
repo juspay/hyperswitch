@@ -14,7 +14,9 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payments::payment_intent::CustomerData, revenue_recovery};
+use hyperswitch_domain_models::{payments::payment_intent::CustomerData};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::revenue_recovery;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -2267,6 +2269,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
     }
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ForeignFrom<(
         &revenue_recovery::RevenueRecoveryAttemptData,
