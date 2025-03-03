@@ -157,8 +157,10 @@ mod id_type {
                 serde::Serialize,
                 serde::Deserialize,
                 diesel::expression::AsExpression,
+                utoipa::ToSchema,
             )]
             #[diesel(sql_type = $diesel_type)]
+            #[schema(value_type = String)]
             pub struct $type($crate::id_type::LengthId<$max_length, $min_length>);
         };
         ($type:ident, $doc:literal) => {
