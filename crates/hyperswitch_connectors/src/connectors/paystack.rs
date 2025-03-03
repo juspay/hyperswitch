@@ -1,6 +1,5 @@
 pub mod transformers;
 
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -8,8 +7,6 @@ use common_utils::{
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -39,17 +36,17 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use transformers as chargebee;
+use masking::{ExposeInterface, Mask};
+use transformers as paystack;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Chargebee {
+pub struct Paystack {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Chargebee {
+impl Paystack {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -57,26 +54,26 @@ impl Chargebee {
     }
 }
 
-impl api::Payment for Chargebee {}
-impl api::PaymentSession for Chargebee {}
-impl api::ConnectorAccessToken for Chargebee {}
-impl api::MandateSetup for Chargebee {}
-impl api::PaymentAuthorize for Chargebee {}
-impl api::PaymentSync for Chargebee {}
-impl api::PaymentCapture for Chargebee {}
-impl api::PaymentVoid for Chargebee {}
-impl api::Refund for Chargebee {}
-impl api::RefundExecute for Chargebee {}
-impl api::RefundSync for Chargebee {}
-impl api::PaymentToken for Chargebee {}
+impl api::Payment for Paystack {}
+impl api::PaymentSession for Paystack {}
+impl api::ConnectorAccessToken for Paystack {}
+impl api::MandateSetup for Paystack {}
+impl api::PaymentAuthorize for Paystack {}
+impl api::PaymentSync for Paystack {}
+impl api::PaymentCapture for Paystack {}
+impl api::PaymentVoid for Paystack {}
+impl api::Refund for Paystack {}
+impl api::RefundExecute for Paystack {}
+impl api::RefundSync for Paystack {}
+impl api::PaymentToken for Paystack {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Chargebee
+    for Paystack
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Chargebee
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Paystack
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -95,9 +92,9 @@ where
     }
 }
 
-impl ConnectorCommon for Chargebee {
+impl ConnectorCommon for Paystack {
     fn id(&self) -> &'static str {
-        "chargebee"
+        "paystack"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -109,14 +106,14 @@ impl ConnectorCommon for Chargebee {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.chargebee.base_url.as_ref()
+        connectors.paystack.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = chargebee::ChargebeeAuthType::try_from(auth_type)
+        let auth = paystack::PaystackAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -129,9 +126,9 @@ impl ConnectorCommon for Chargebee {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: chargebee::ChargebeeErrorResponse = res
+        let response: paystack::PaystackErrorResponse = res
             .response
-            .parse_struct("ChargebeeErrorResponse")
+            .parse_struct("PaystackErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -148,22 +145,22 @@ impl ConnectorCommon for Chargebee {
     }
 }
 
-impl ConnectorValidation for Chargebee {
+impl ConnectorValidation for Paystack {
     //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Chargebee {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Paystack {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Chargebee {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Paystack {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Chargebee
+    for Paystack
 {
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Chargebee {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Paystack {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -195,8 +192,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = chargebee::ChargebeeRouterData::from((amount, req));
-        let connector_req = chargebee::ChargebeePaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = paystack::PaystackRouterData::from((amount, req));
+        let connector_req = paystack::PaystackPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -228,9 +225,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: chargebee::ChargebeePaymentsResponse = res
+        let response: paystack::PaystackPaymentsResponse = res
             .response
-            .parse_struct("Chargebee PaymentsAuthorizeResponse")
+            .parse_struct("Paystack PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -250,7 +247,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Chargebee {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Paystack {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -292,9 +289,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cha
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: chargebee::ChargebeePaymentsResponse = res
+        let response: paystack::PaystackPaymentsResponse = res
             .response
-            .parse_struct("chargebee PaymentsSyncResponse")
+            .parse_struct("paystack PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -314,7 +311,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cha
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Chargebee {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Paystack {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -369,9 +366,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: chargebee::ChargebeePaymentsResponse = res
+        let response: paystack::PaystackPaymentsResponse = res
             .response
-            .parse_struct("Chargebee PaymentsCaptureResponse")
+            .parse_struct("Paystack PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -391,9 +388,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Chargebee {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Paystack {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chargebee {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paystack {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -425,8 +422,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chargeb
             req.request.currency,
         )?;
 
-        let connector_router_data = chargebee::ChargebeeRouterData::from((refund_amount, req));
-        let connector_req = chargebee::ChargebeeRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = paystack::PaystackRouterData::from((refund_amount, req));
+        let connector_req = paystack::PaystackRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -455,9 +452,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chargeb
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: chargebee::RefundResponse = res
+        let response: paystack::RefundResponse = res
             .response
-            .parse_struct("chargebee RefundResponse")
+            .parse_struct("paystack RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -477,7 +474,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chargeb
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paystack {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -522,9 +519,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: chargebee::RefundResponse = res
+        let response: paystack::RefundResponse = res
             .response
-            .parse_struct("chargebee RefundSyncResponse")
+            .parse_struct("paystack RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -545,89 +542,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Chargebee {
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = utils::get_header_key_value("authorization", request.headers)?;
-        let signature = base64_signature.as_bytes().to_owned();
-        Ok(signature)
-    }
-    async fn verify_webhook_source(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
-        connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        let connector_webhook_secrets = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_label,
-                connector_webhook_details,
-            )
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let signature = self
-            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let password = connector_webhook_secrets
-            .additional_secret
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to get additional secrets")?;
-        let username = String::from_utf8(connector_webhook_secrets.secret.to_vec())
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Could not convert secret to UTF-8")?;
-        let secret_auth = format!(
-            "Basic {}",
-            base64::engine::general_purpose::STANDARD.encode(format!(
-                "{}:{}",
-                username,
-                password.peek()
-            ))
-        );
-        let signature_auth = String::from_utf8(signature.to_vec())
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Could not convert secret to UTF-8")?;
-        Ok(signature_auth == secret_auth)
-    }
-
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-    fn get_webhook_object_reference_id(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook =
-            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
-            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
-        ))
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+impl webhooks::IncomingWebhook for Paystack {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-    fn get_webhook_event_type(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let webhook =
-            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
-        Ok(event)
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -637,31 +559,10 @@ impl webhooks::IncomingWebhook for Chargebee {
 
     fn get_webhook_resource_object(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook =
-            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(Box::new(webhook))
-    }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-    fn get_revenue_recovery_attempt_details(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
-        let webhook =
-            transformers::ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
-        revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)
-    }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-    fn get_revenue_recovery_invoice_details(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<revenue_recovery::RevenueRecoveryInvoiceData, errors::ConnectorError> {
-        let webhook =
-            transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
-        revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
-impl ConnectorSpecifications for Chargebee {}
+impl ConnectorSpecifications for Paystack {}

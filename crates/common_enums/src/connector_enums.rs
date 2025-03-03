@@ -65,7 +65,7 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
-    // Chargebee,
+    Chargebee,
     Checkout,
     Coinbase,
     Coingate,
@@ -109,6 +109,7 @@ pub enum RoutableConnectors {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
@@ -203,7 +204,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
-    // Chargebee,
+    Chargebee,
     Checkout,
     Coinbase,
     Coingate,
@@ -250,6 +251,7 @@ pub enum Connector {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
@@ -360,7 +362,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
-            // | Self::Chargebee
+            | Self::Chargebee
             | Self::Coinbase
             |Self::Coingate
             | Self::Cryptopay
@@ -398,6 +400,7 @@ impl Connector {
             | Self::Payme
             | Self::Payone
             | Self::Paypal
+            | Self::Paystack
             | Self::Payu
             | Self::Placetopay
             | Self::Powertranz
@@ -491,6 +494,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Chargebee => Self::Chargebee,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -529,6 +533,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
+            RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,
