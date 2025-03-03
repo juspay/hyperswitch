@@ -275,7 +275,7 @@ pub async fn retry_delivery_attempt(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
-        is_overall_delivery_successful: false,
+        is_overall_delivery_successful: Some(false),
     };
 
     let event = store

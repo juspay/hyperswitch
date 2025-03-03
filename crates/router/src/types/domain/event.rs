@@ -70,7 +70,7 @@ pub struct Event {
     pub metadata: Option<EventMetadata>,
 
     /// Indicates whether the event was ultimately delivered.
-    pub is_overall_delivery_successful: bool,
+    pub is_overall_delivery_successful: Option<bool>,
 }
 
 #[derive(Debug)]

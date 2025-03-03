@@ -72,8 +72,8 @@ pub struct EventListItemResponse {
     /// Specifies the class of event (the type of object: Payment, Refund, etc.)
     pub event_class: EventClass,
 
-    /// Indicates whether the webhook was ultimately delivered.
-    pub is_delivery_successful: bool,
+    /// Indicates whether the webhook was ultimately delivered, since this takes value from is_overall_delivery_column, the value may not be present for old data, hence this field is kept optional.
+    pub is_delivery_successful: Option<bool>,
 
     /// The identifier for the initial delivery attempt. This will be the same as `event_id` for
     /// the initial delivery attempt.

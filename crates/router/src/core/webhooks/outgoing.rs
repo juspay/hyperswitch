@@ -12,7 +12,6 @@ use common_utils::{
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
-use http::StatusCode;
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
@@ -134,7 +133,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
-        is_overall_delivery_successful: false,
+        is_overall_delivery_successful: Some(false),
     };
 
     let event_insert_result = state
@@ -324,12 +323,11 @@ async fn trigger_webhook_to_merchant(
                 .await?;
 
                 if status_code.is_success() {
-                    update_overall_delivery_status(
+                    update_overall_delivery_status_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
                         updated_event,
-                        status_code
                     )
                     .await?;
 
@@ -340,7 +338,6 @@ async fn trigger_webhook_to_merchant(
                         business_status::INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL,
                     )
                     .await?;
-
                 } else {
                     error_response_handler(
                         state.clone(),
@@ -384,12 +381,11 @@ async fn trigger_webhook_to_merchant(
                     .await?;
 
                     if status_code.is_success() {
-                        update_overall_delivery_status(
+                        update_overall_delivery_status_in_storage(
                             state.clone(),
                             merchant_key_store.clone(),
                             &business_profile.merchant_id,
                             updated_event,
-                            status_code
                         )
                         .await?;
 
@@ -400,7 +396,6 @@ async fn trigger_webhook_to_merchant(
                             "COMPLETED_BY_PT",
                         )
                         .await?;
-
                     } else {
                         error_response_handler(
                             state.clone(),
@@ -859,21 +854,20 @@ async fn update_event_in_storage(
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
 
-async fn update_overall_delivery_status(
+async fn update_overall_delivery_status_in_storage(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
     merchant_id: &common_utils::id_type::MerchantId,
     updated_event: domain::Event,
-    status_code: StatusCode,
-) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::WebhooksFlowError> {
     let key_manager_state = &(&state).into();
 
-    let parent_update = domain::EventUpdate::OverallDeliveryStatusUpdate {
-        is_overall_delivery_successful: status_code.is_success(),
+    let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
+        is_overall_delivery_successful: true,
     };
 
     let parent_event_id = updated_event.initial_attempt_id.clone();
-    let delivery_attempt: Option<common_enums::WebhookDeliveryAttempt> = updated_event.delivery_attempt;
+    let delivery_attempt = updated_event.delivery_attempt;
 
     if let Some((
         parent_event_id,
@@ -887,7 +881,7 @@ async fn update_overall_delivery_status(
                 key_manager_state,
                 merchant_id,
                 parent_event_id.as_str(),
-                parent_update,
+                update_overall_delivery_status,
                 &merchant_key_store,
             )
             .await
@@ -895,8 +889,7 @@ async fn update_overall_delivery_status(
             .attach_printable("Failed to update parent event")?;
     }
 
-    unimplemented!()
-
+    Ok(())
 }
 
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {

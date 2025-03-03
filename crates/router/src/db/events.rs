@@ -497,14 +497,11 @@ impl EventInterface for MockDb {
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
-            let mut check = event.merchant_id == Some(merchant_id.to_owned())
+            let check = event.merchant_id == Some(merchant_id.to_owned())
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
-                && (event.created_at <= created_before);
-
-            if let Some(is_delivered) = is_delivered {
-                check = check && (event.is_overall_delivery_successful == is_delivered);
-            }
+                && (event.created_at <= created_before)
+                && (event.is_overall_delivery_successful == is_delivered);
 
             check
         });
@@ -634,14 +631,11 @@ impl EventInterface for MockDb {
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
-            let mut check = event.business_profile_id == Some(profile_id.to_owned())
+            let check = event.business_profile_id == Some(profile_id.to_owned())
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
-                && (event.created_at <= created_before);
-
-            if let Some(is_delivered) = is_delivered {
-                check = check && (event.is_overall_delivery_successful == is_delivered);
-            }
+                && (event.created_at <= created_before)
+                && (event.is_overall_delivery_successful == is_delivered);
 
             check
         });
@@ -716,7 +710,10 @@ impl EventInterface for MockDb {
             }
             domain::EventUpdate::OverallDeliveryStatusUpdate {
                 is_overall_delivery_successful,
-            } => event_to_update.is_overall_delivery_successful = is_overall_delivery_successful,
+            } => {
+                event_to_update.is_overall_delivery_successful =
+                    Some(is_overall_delivery_successful)
+            }
         }
 
         event_to_update
@@ -741,15 +738,12 @@ impl EventInterface for MockDb {
         let locked_events = self.events.lock().await;
 
         let iter_events = locked_events.iter().filter(|event| {
-            let mut check = event.initial_attempt_id.as_ref() == Some(&event.event_id)
+            let check = event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.merchant_id == Some(merchant_id.to_owned()))
                 && (event.business_profile_id == profile_id)
                 && (event.created_at >= created_after)
-                && (event.created_at <= created_before);
-
-            if let Some(is_delivered) = is_delivered {
-                check = check && (event.is_overall_delivery_successful == is_delivered);
-            }
+                && (event.created_at <= created_before)
+                && (event.is_overall_delivery_successful == is_delivered);
 
             check
         });
@@ -871,7 +865,7 @@ mod tests {
                         )
                         .unwrap(),
                     }),
-                    is_overall_delivery_successful: false,
+                    is_overall_delivery_successful: Some(false),
                 },
                 &merchant_key_store,
             )
