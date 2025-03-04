@@ -78,6 +78,7 @@ use hyperswitch_interfaces::{
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
+        revenue_recovery::{AdditionalRevenueRecovery,RevenueRecovery},
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
         UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
         UnifiedAuthenticationService,
@@ -3492,7 +3493,8 @@ default_imp_for_uas_authentication_confirmation!(
 
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::AdditionalRevenueRecovery for $path::$connector {}
+        $(  impl RevenueRecovery for $path::$connector {}
+            impl AdditionalRevenueRecovery for $path::$connector {}
             impl
                 ConnectorIntegration<
                 GetAdditionalRevenueRecoveryDetails,
