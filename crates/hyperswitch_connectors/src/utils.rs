@@ -36,6 +36,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
+    mandates,
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
@@ -5042,6 +5043,62 @@ pub fn is_mandate_supported(
             .into()),
         }
     }
+}
+
+pub fn get_mandate_details(
+    setup_mandate_details: Option<mandates::MandateData>,
+) -> Result<Option<mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
+    setup_mandate_details
+        .map(|mandate_data| match &mandate_data.mandate_type {
+            Some(mandates::MandateDataType::SingleUse(mandate))
+            | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate.clone()),
+            Some(mandates::MandateDataType::MultiUse(None)) => {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                }
+                .into())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "setup_future_usage.mandate_data.mandate_type",
+            }
+            .into()),
+        })
+        .transpose()
+}
+
+pub fn collect_values_by_removing_signature(value: &Value, signature: &String) -> Vec<String> {
+    match value {
+        Value::Null => vec!["null".to_owned()],
+        Value::Bool(b) => vec![b.to_string()],
+        Value::Number(n) => match n.as_f64() {
+            Some(f) => vec![format!("{f:.2}")],
+            None => vec![n.to_string()],
+        },
+        Value::String(s) => {
+            if signature == s {
+                vec![]
+            } else {
+                vec![s.clone()]
+            }
+        }
+        Value::Array(arr) => arr
+            .iter()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+        Value::Object(obj) => obj
+            .values()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+    }
+}
+
+pub fn collect_and_sort_values_by_removing_signature(
+    value: &Value,
+    signature: &String,
+) -> Vec<String> {
+    let mut values = collect_values_by_removing_signature(value, signature);
+    values.sort();
+    values
 }
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
