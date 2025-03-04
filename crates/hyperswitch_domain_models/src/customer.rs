@@ -56,7 +56,7 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<diesel_models::ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -334,7 +334,7 @@ pub struct CustomerGeneralUpdate {
     pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Box<Option<diesel_models::ConnectorCustomerMap>>,
+    pub connector_customer: Box<Option<common_types::customers::ConnectorCustomerMap>>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
@@ -346,7 +346,7 @@ pub struct CustomerGeneralUpdate {
 pub enum CustomerUpdate {
     Update(Box<CustomerGeneralUpdate>),
     ConnectorCustomer {
-        connector_customer: Option<diesel_models::ConnectorCustomerMap>,
+        connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     },
     UpdateDefaultPaymentMethod {
         default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
