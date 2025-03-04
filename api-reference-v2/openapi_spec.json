@@ -12587,14 +12587,6 @@
                 "type": "string",
                 "description": "The url for Qr code given by the connector"
               },
-              "display_text": {
-                "type": "string",
-                "nullable": true
-              },
-              "border_color": {
-                "type": "string",
-                "nullable": true
-              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -15309,28 +15301,12 @@
             "description": "The return url to which the user should be redirected to",
             "nullable": true
           },
-          "next_action": {
+          "associated_payment": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/NextActionData"
+                "$ref": "#/components/schemas/PaymentsResponse"
               }
             ],
-            "nullable": true
-          },
-          "authentication_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "associated_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/id_type.GlobalPaymentMethodId"
-            },
-            "description": "The payment method that was created using this payment method session",
             "nullable": true
           }
         }
@@ -15565,6 +15541,60 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodsSessionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "expires_at",
+          "client_secret"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer id for which the payment methods session is to be created",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The iso timestamp when the session will expire\nTrying to retrieve the session or any operations on the session after this time will result in an error",
+            "example": "2023-01-18T11:04:09.922Z"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          }
+        }
       },
       "PaymentMethodsSessionUpdateRequest": {
         "type": "object",
