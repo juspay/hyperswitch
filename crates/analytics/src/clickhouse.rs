@@ -136,6 +136,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::Refund
             | AnalyticsCollection::RefundSessionized
             | AnalyticsCollection::FraudCheck
+            | AnalyticsCollection::Authentications
             | AnalyticsCollection::PaymentIntent
             | AnalyticsCollection::PaymentIntentSessionized
             | AnalyticsCollection::Dispute => {
@@ -457,6 +458,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::Dispute => Ok("dispute".to_string()),
             Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
+            Self::Authentications => Ok("authentications".to_string()),
         }
     }
 }

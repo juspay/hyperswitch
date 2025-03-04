@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::analytics::{
-    auth_events::AuthEventMetricsBucketIdentifier, sdk_events::SdkEventNames, Granularity,
-    TimeRange,
+    auth_events::AuthEventMetricsBucketIdentifier, Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -36,7 +35,7 @@ where
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::Authentications);
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -52,23 +51,11 @@ where
         }
 
         query_builder
-            .add_filter_clause("merchant_id", publishable_key)
+            .add_filter_clause("merchant_id", _merchant_id)
             .switch()?;
 
         query_builder
-            .add_bool_filter_clause("first_event", 1)
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("event_name", SdkEventNames::AuthenticationCall)
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("log_type", "INFO")
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("category", "API")
+            .add_filter_clause("authentication_status", "success")
             .switch()?;
 
         time_range
