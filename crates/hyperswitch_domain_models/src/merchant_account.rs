@@ -654,7 +654,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             version: crate::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
-            product_type: self.product_type,
+            product_type: self
+                .product_type
+                .or(Some(common_enums::MerchantProductType::Orchestration)),
         })
     }
 }
@@ -815,7 +817,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             pm_collect_link_config: self.pm_collect_link_config,
             version: crate::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
-            product_type: self.product_type,
+            product_type: self
+                .product_type
+                .or(Some(common_enums::MerchantProductType::Orchestration)),
         })
     }
 }
