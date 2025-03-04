@@ -6,6 +6,7 @@ pub mod mandate_revoke;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
+pub mod revenue_recovery;
 pub mod unified_authentication_service;
 pub mod webhooks;
 
