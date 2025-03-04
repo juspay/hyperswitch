@@ -7,7 +7,7 @@ use crate::{
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        SetupMandate, Void, revenue_recovery::RevenueRecoveryRecordBack,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -20,11 +20,11 @@ use crate::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
+        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,RevenueRecoveryRecordBackRequest
     },
     router_response_types::{
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData,
+        TaxCalculationResponseData,RevenueRecoveryRecordBackResponse
     },
 };
 #[cfg(feature = "payouts")]
@@ -78,6 +78,12 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
+
+pub type RevenueRecoveryRecordBackData = RouterData<
+    RevenueRecoveryRecordBack,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;

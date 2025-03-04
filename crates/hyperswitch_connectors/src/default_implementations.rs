@@ -34,6 +34,7 @@ use hyperswitch_domain_models::{
         },
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        revenue_recovery::RevenueRecoveryRecordBack,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -47,11 +48,13 @@ use hyperswitch_domain_models::{
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        RevenueRecoveryRecordBackRequest,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        RevenueRecoveryRecordBackResponse,
     },
 };
 #[cfg(feature = "frm")]
@@ -3204,6 +3207,93 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_revenue_recovery_record_back {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::RevenueRecoveryRecordBack for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            RevenueRecoveryRecordBack,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse
+            > for $path::$connector
+            {}
+        )*
+    };
+}
+
+default_imp_for_revenue_recovery_record_back!(
+    connectors::Aci,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Klarna,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Placetopay,
+    connectors::Paystack,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Wellsfargo,

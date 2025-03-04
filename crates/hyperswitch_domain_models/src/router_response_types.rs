@@ -577,6 +577,10 @@ pub struct ConnectorInfo {
     pub connector_type: common_enums::PaymentConnectorCategory,
 }
 
+#[derive(Debug, Clone)]
+pub struct RevenueRecoveryRecordBackResponse{
+    merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+}
 pub trait SupportedPaymentMethodsExt {
     fn add(
         &mut self,

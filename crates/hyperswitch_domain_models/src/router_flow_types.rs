@@ -8,6 +8,7 @@ pub mod payouts;
 pub mod refunds;
 pub mod unified_authentication_service;
 pub mod webhooks;
+pub mod revenue_recovery;
 
 pub use access_token_auth::*;
 pub use dispute::*;

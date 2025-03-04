@@ -104,6 +104,13 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
+pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::RevenueRecoveryRecordBackData,
+        Req,
+        Res,
+    >;
 
 pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;

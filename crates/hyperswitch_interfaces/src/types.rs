@@ -18,6 +18,7 @@ use hyperswitch_domain_models::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
         webhooks::VerifyWebhookSource,
+        revenue_recovery::RevenueRecoveryRecordBack,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -33,11 +34,13 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        RevenueRecoveryRecordBackRequest
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        RevenueRecoveryRecordBackResponse
     },
 };
 #[cfg(feature = "payouts")]
@@ -221,4 +224,11 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     Authenticate,
     UasAuthenticationRequestData,
     UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<RevenueRecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
+    RevenueRecoveryRecordBack,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
 >;

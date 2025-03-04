@@ -48,7 +48,7 @@ pub use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_interfaces::api::{
     ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
-    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,RevenueRecoveryRecordBack, RevenueRecoveryRecordBackV2
 };
 use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 
@@ -108,6 +108,7 @@ pub trait Connector:
     + ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
+    + RevenueRecoveryRecordBack
 {
 }
 
@@ -127,7 +128,8 @@ impl<
             + ConnectorMandateRevoke
             + ExternalAuthentication
             + TaxCalculation
-            + UnifiedAuthenticationService,
+            + UnifiedAuthenticationService
+            + RevenueRecoveryRecordBack
     > Connector for T
 {
 }
@@ -148,6 +150,7 @@ pub trait ConnectorV2:
     + ConnectorMandateRevokeV2
     + ExternalAuthenticationV2
     + UnifiedAuthenticationServiceV2
+    + RevenueRecoveryRecordBackV2
 {
 }
 impl<
@@ -165,7 +168,8 @@ impl<
             + FraudCheckV2
             + ConnectorMandateRevokeV2
             + ExternalAuthenticationV2
-            + UnifiedAuthenticationServiceV2,
+            + UnifiedAuthenticationServiceV2
+            + RevenueRecoveryRecordBackV2,
     > ConnectorV2 for T
 {
 }
