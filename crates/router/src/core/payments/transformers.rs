@@ -308,6 +308,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
+        merchant_account_id: None,
+        merchant_config_currency: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
