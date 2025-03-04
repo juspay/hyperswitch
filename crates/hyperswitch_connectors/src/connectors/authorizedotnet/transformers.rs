@@ -376,8 +376,66 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                     },
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(_) => {
+                    let merchant_authentication =
+                        AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+                    let validation_mode = match item.test_mode {
+                        Some(true) | None => ValidationMode::TestMode,
+                        Some(false) => ValidationMode::LiveMode,
+                    };
+                    Ok(Self {
+                        create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
+                            merchant_authentication,
+                            profile: Profile {
+                                // The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                                description: item.payment_id.clone(),
+                                payment_profiles: PaymentProfiles {
+                                    customer_type: CustomerType::Individual,
+                                    payment: PaymentDetails::OpaqueData(WalletDetails {
+                                        data_descriptor: WalletMethod::Googlepay,
+                                        data_value: Secret::new(
+                                            wallet_data.get_encoded_wallet_token()?,
+                                        ),
+                                    }),
+                                },
+                            },
+                            validation_mode,
+                        },
+                    })
+                }
+                WalletData::ApplePay(_)
+                | WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?,
+            },
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -841,6 +899,40 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
+        let (profile, customer) =
+            if item
+                .router_data
+                .request
+                .setup_future_usage
+                .is_some_and(|future_usage| {
+                    matches!(future_usage, common_enums::FutureUsage::OffSession)
+                })
+                && (item.router_data.request.customer_acceptance.is_some()
+                    || item
+                        .router_data
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .is_some_and(|mandate_details| {
+                            mandate_details.customer_acceptance.is_some()
+                        }))
+            {
+                (
+                    Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                        create_profile: true,
+                    })),
+                    Some(CustomerDetails {
+                        id: if item.router_data.payment_id.len() <= 20 {
+                            item.router_data.payment_id.clone()
+                        } else {
+                            Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                        },
+                    }),
+                )
+            } else {
+                (None, None)
+            };
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -849,11 +941,11 @@ impl
                 wallet_data,
                 &item.router_data.request.complete_authorize_url,
             )?),
-            profile: None,
+            profile,
             order: Order {
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: None,
+            customer,
             bill_to: item
                 .router_data
                 .get_optional_billing()
