@@ -279,22 +279,7 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData
 #[serde(rename_all = "camelCase")]
 pub struct NetceteraPreAuthenticationRequest {
     cardholder_account_number: cards::CardNumber,
-    scheme_id: Option<SchemeId>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum SchemeId {
-    Visa,
-    Mastercard,
-    #[serde(rename = "JCB")]
-    Jcb,
-    #[serde(rename = "American Express")]
-    AmericanExpress,
-    Diners,
-    // For Cartes Bancaires and UnionPay, it is recommended to send the scheme ID
-    #[serde(rename = "CB")]
-    CartesBancaires,
-    UnionPay,
+    scheme_id: Option<netcetera_types::SchemeId>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -325,7 +310,7 @@ impl NetceteraPreAuthenticationResponseData {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CardRange {
-    pub scheme_id: SchemeId,
+    pub scheme_id: netcetera_types::SchemeId,
     pub directory_server_id: Option<String>,
     pub acs_protocol_versions: Vec<AcsProtocolVersion>,
     #[serde(rename = "threeDSMethodDataForm")]
@@ -387,31 +372,14 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::PreAuthNRouterData>>
                 .clone()
                 .map(|card_network| {
                     is_cobadged_card().map(|is_cobadged_card| {
-                        is_cobadged_card.then_some(SchemeId::try_from(card_network))
+                        is_cobadged_card
+                            .then_some(netcetera_types::SchemeId::try_from(card_network))
                     })
                 })
                 .transpose()?
                 .flatten()
                 .transpose()?,
         })
-    }
-}
-
-impl TryFrom<common_enums::CardNetwork> for SchemeId {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
-        match network {
-            common_enums::CardNetwork::Visa => Ok(Self::Visa),
-            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
-            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
-            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
-            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
-            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
-            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
-            _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
-                "Invalid card network".to_string(),
-            ))?,
-        }
     }
 }
 
@@ -496,6 +464,14 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let now = common_utils::date_time::now();
         let request = item.router_data.request.clone();
         let pre_authn_data = request.pre_authentication_data.clone();
+        let ip_address = request
+            .browser_details
+            .as_ref()
+            .and_then(|browser| browser.ip_address);
+        let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
+            ip_address,
+            item.router_data.psd2_sca_exemption_type,
+        );
         let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
             ip_address,
             item.router_data.psd2_sca_exemption_type,
@@ -507,12 +483,24 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
                 .clone(),
         );
         let card = utils::get_card_details(request.payment_method_data, "netcetera")?;
+        let is_cobadged_card = card
+            .card_number
+            .clone()
+            .is_cobadged_card()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("error while checking is_cobadged_card")?;
         let cardholder_account = netcetera_types::CardholderAccount {
             acct_type: None,
             card_expiry_date: Some(card.get_expiry_date_as_yymm()?),
             acct_info: None,
             acct_number: card.card_number,
-            scheme_id: None,
+            scheme_id: card
+                .card_network
+                .clone()
+                .and_then(|card_network| {
+                    is_cobadged_card.then_some(netcetera_types::SchemeId::try_from(card_network))
+                })
+                .transpose()?,
             acct_id: None,
             pay_token_ind: None,
             pay_token_info: None,
@@ -543,7 +531,8 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             ),
             recurring_expiry: None,
             recurring_frequency: None,
-            trans_type: None,
+            // 01 -> Goods and Services, hardcoding this as we serve this usecase only for now
+            trans_type: Some("01".to_string()),
             recurring_amount: None,
             recurring_currency: None,
             recurring_exponent: None,
@@ -605,7 +594,11 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         };
         Ok(Self {
             preferred_protocol_version: Some(pre_authn_data.message_version),
-            enforce_preferred_protocol_version: None,
+            // For Device channel App, we should enforce the preferred protocol version
+            enforce_preferred_protocol_version: Some(matches!(
+                request.device_channel,
+                api_models::payments::DeviceChannel::App
+            )),
             device_channel: netcetera_types::NetceteraDeviceChannel::from(request.device_channel),
             message_category: netcetera_types::NetceteraMessageCategory::from(
                 request.message_category,
