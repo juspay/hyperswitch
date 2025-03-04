@@ -36,7 +36,7 @@ pub use hyperswitch_connectors::connectors::{
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,
     fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte,
     getnet, getnet::Getnet, globalpay, globalpay::Globalpay, globepay, globepay::Globepay,
-    gocardless, gocardless::Gocardless, helcim, helcim::Helcim, iatapay, iatapay::Iatapay, inespay,
+    gocardless, gocardless::Gocardless, helcim, helcim::Helcim,hipay, hipay::Hipay, iatapay, iatapay::Iatapay, inespay,
     inespay::Inespay, itaubank, itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, klarna,
     klarna::Klarna, mifinity, mifinity::Mifinity, mollie, mollie::Mollie, moneris,
     moneris::Moneris, multisafepay, multisafepay::Multisafepay, nexinets, nexinets::Nexinets,
