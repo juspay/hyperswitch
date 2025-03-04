@@ -8385,7 +8385,6 @@
           "object_id",
           "event_type",
           "event_class",
-          "is_delivery_successful",
           "initial_attempt_id",
           "created"
         ],
@@ -8422,7 +8421,8 @@
           },
           "is_delivery_successful": {
             "type": "boolean",
-            "description": "Indicates whether the webhook delivery attempt was successful."
+            "description": "Indicates whether the webhook was ultimately delivered, since this takes value from is_overall_delivery_column, the value may not be present for old data, hence this field is kept optional.",
+            "nullable": true
           },
           "initial_attempt_id": {
             "type": "string",
