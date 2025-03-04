@@ -364,6 +364,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             &request_details,
                             event_type,
                             req_state,
+                            merchant_connector_account,
                         ))
                         .await
                         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)

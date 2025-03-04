@@ -1,4 +1,6 @@
+use crate::merchant_connector_account;
 use api_models::webhooks;
+use common_utils::{id_type, transformers::ForeignFrom};
 use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
@@ -17,11 +19,11 @@ pub struct RevenueRecoveryAttemptData {
     /// error message sent by billing connector.
     pub error_message: Option<String>,
     /// mandate token at payment processor end.
-    pub processor_payment_method_token: Option<String>,
+    pub processor_payment_method_token: String,
     /// customer id at payment connector for which mandate is attached.
-    pub connector_customer_id: Option<String>,
+    pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
-    pub connector_account_reference_id: Option<String>,
+    pub connector_account_reference_id: String,
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
     /// transaction status at billing connector equivalent to payment attempt status.
@@ -186,5 +188,33 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
             frm_metadata: None,
             request_external_three_ds_authentication: None,
         }
+    }
+}
+
+impl From<&RevenueRecoveryAttemptData> for api_models::payments::PaymentAttemptAmountDetails {
+    fn from(data: &RevenueRecoveryAttemptData) -> Self {
+        Self {
+            net_amount: data.amount,
+            amount_to_capture: None,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_capturable: data.amount,
+            shipping_cost: None,
+            order_tax_amount: None,
+        }
+    }
+}
+
+impl From<&RevenueRecoveryAttemptData> for Option<api_models::payments::RecordAttemptErrorDetails> {
+    fn from(data: &RevenueRecoveryAttemptData) -> Self {
+        data.error_code
+            .as_ref()
+            .zip(data.error_message.clone())
+            .map(
+                |(code, message)| api_models::payments::RecordAttemptErrorDetails {
+                    code: code.to_string(),
+                    message: message.to_string(),
+                },
+            )
     }
 }
