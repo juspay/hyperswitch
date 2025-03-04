@@ -19,6 +19,20 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_subtypes: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
+impl PaymentMethodsEnabled {
+    /// Get payment_method_type
+    #[cfg(feature = "v2")]
+    pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
+        Some(self.payment_method_type)
+    }
+
+    /// Get payment_method_subtypes
+    #[cfg(feature = "v2")]
+    pub fn get_payment_method_type(&self) -> Option<&Vec<RequestPaymentMethodTypes>> {
+        self.payment_method_subtypes.as_ref()
+    }
+}
+
 /// Details of a specific payment method subtype enabled for the connector for the given merchant account
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
@@ -67,6 +81,13 @@ pub struct RequestPaymentMethodTypes {
     /// Boolean to enable installment / EMI / BNPL payments. Default is true.
     #[schema(default = true, example = false)]
     pub installment_payment_enabled: bool,
+}
+
+impl RequestPaymentMethodTypes {
+    ///Get payment_method_subtype
+    pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        Some(self.payment_method_subtype)
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
@@ -141,6 +162,6 @@ pub struct PspTokenization {
     pub tokenization_type: common_enums::TokenizationType,
 
     /// The merchant connector id to be used for tokenization
-    #[schema(value_type = String)]
-    pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    #[schema(value_type = Option<String>)]
+    pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }

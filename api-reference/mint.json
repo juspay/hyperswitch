@@ -5,6 +5,17 @@
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
+  "topbarLinks": [
+    {
+      "name": "Contact Us",
+      "url": "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw"
+    }
+  ], 
+  "topbarCtaButton": {
+    "type": "link",
+    "url": "https://docs.hyperswitch.io/hyperswitch-open-source/overview",
+    "name": "Self-Deploy"
+  },
   "favicon": "/favicon.png",
   "colors": {
     "primary": "#006DF9",
@@ -13,6 +24,9 @@
     "background": {
       "dark": "#242F48"
     }
+  },
+  "sidebar": {
+    "items": "card"
   },
   "tabs": [
     {
@@ -39,6 +53,7 @@
         {
           "group": "Payments",
           "pages": [
+            "api-reference/payments/Introduction--to--payments",
             "api-reference/payments/payments--create",
             "api-reference/payments/payments--update",
             "api-reference/payments/payments--confirm",
@@ -102,6 +117,72 @@
           ]
         },
         {
+          "group": "Payouts",
+          "pages": [
+            "api-reference/payouts/payouts--create",
+            "api-reference/payouts/payouts--update",
+            "api-reference/payouts/payouts--cancel",
+            "api-reference/payouts/payouts--fulfill",
+            "api-reference/payouts/payouts--confirm",
+            "api-reference/payouts/payouts--retrieve",
+            "api-reference/payouts/payouts--list",
+            "api-reference/payouts/payouts--list-filters",
+            "api-reference/payouts/payouts--filter"
+          ]
+        },
+        {
+          "group": "Event",
+          "pages": [
+            "api-reference/event/events--list",
+            "api-reference/event/events--delivery-attempt-list",
+            "api-reference/event/events--manual-retry"
+          ]
+        },
+        {
+          "group": "Poll",
+          "pages": ["api-reference/poll/poll--retrieve-poll-status"]
+        },
+        {
+          "group": "Blocklist",
+          "pages": [
+            "api-reference/blocklist/get-blocklist",
+            "api-reference/blocklist/post-blocklist",
+            "api-reference/blocklist/delete-blocklist",
+            "api-reference/blocklist/post-blocklisttoggle"
+          ]
+        },
+        {
+          "group": "Routing",
+          "pages": [
+            "api-reference/routing/routing--list",
+            "api-reference/routing/routing--create",
+            "api-reference/routing/routing--retrieve-config",
+            "api-reference/routing/routing--deactivate",
+            "api-reference/routing/routing--retrieve-default-config",
+            "api-reference/routing/routing--update-default-config",
+            "api-reference/routing/routing--retrieve-default-for-profile",
+            "api-reference/routing/routing--update-default-for-profile",
+            "api-reference/routing/routing--retrieve",
+            "api-reference/routing/routing--activate-config"
+          ]
+        },
+        {
+          "group": "Relay",
+          "pages": [
+            "api-reference/relay/relay",
+            "api-reference/relay/relay--retrieve"
+          ]
+        },
+        {
+          "group": "Schemas",
+          "pages": ["api-reference/schemas/outgoing--webhook"]
+        }
+      ]
+    },
+    {
+      "group": "Admin API based",
+      "pages": [
+        {
           "group": "Organization",
           "pages": [
             "api-reference/organization/organization--create",
@@ -150,28 +231,6 @@
           ]
         },
         {
-          "group": "Payouts",
-          "pages": [
-            "api-reference/payouts/payouts--create",
-            "api-reference/payouts/payouts--update",
-            "api-reference/payouts/payouts--cancel",
-            "api-reference/payouts/payouts--fulfill",
-            "api-reference/payouts/payouts--confirm",
-            "api-reference/payouts/payouts--retrieve",
-            "api-reference/payouts/payouts--list",
-            "api-reference/payouts/payouts--list-filters",
-            "api-reference/payouts/payouts--filter"
-          ]
-        },
-        {
-          "group": "Event",
-          "pages": [
-            "api-reference/event/events--list",
-            "api-reference/event/events--delivery-attempt-list",
-            "api-reference/event/events--manual-retry"
-          ]
-        },
-        {
           "group": "GSM (Global Status Mapping)",
           "pages": [
             "api-reference/gsm/gsm--create",
@@ -181,43 +240,12 @@
           ]
         },
         {
-          "group": "Poll",
-          "pages": ["api-reference/poll/poll--retrieve-poll-status"]
-        },
-        {
-          "group": "Blocklist",
+          "group": "Event",
           "pages": [
-            "api-reference/blocklist/get-blocklist",
-            "api-reference/blocklist/post-blocklist",
-            "api-reference/blocklist/delete-blocklist",
-            "api-reference/blocklist/post-blocklisttoggle"
+            "api-reference/event/events--list",
+            "api-reference/event/events--delivery-attempt-list",
+            "api-reference/event/events--manual-retry"
           ]
-        },
-        {
-          "group": "Routing",
-          "pages": [
-            "api-reference/routing/routing--list",
-            "api-reference/routing/routing--create",
-            "api-reference/routing/routing--retrieve-config",
-            "api-reference/routing/routing--deactivate",
-            "api-reference/routing/routing--retrieve-default-config",
-            "api-reference/routing/routing--update-default-config",
-            "api-reference/routing/routing--retrieve-default-for-profile",
-            "api-reference/routing/routing--update-default-for-profile",
-            "api-reference/routing/routing--retrieve",
-            "api-reference/routing/routing--activate-config"
-          ]
-        },
-        {
-          "group": "Relay",
-          "pages": [
-            "api-reference/relay/relay",
-            "api-reference/relay/relay--retrieve"
-          ]
-        },
-        {
-          "group": "Schemas",
-          "pages": ["api-reference/schemas/outgoing--webhook"]
         }
       ]
     },
@@ -263,9 +291,7 @@
   "analytics": {
     "gtm": {
       "tagId": "GTM-PLBNKQFQ"
-    }
-  },
-  "analytics": {
+    },
     "mixpanel": {
       "projectToken": "b00355f29d9548d1333608df71d5d53d"
     }

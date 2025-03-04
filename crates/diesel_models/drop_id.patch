@@ -1,0 +1,66 @@
+diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schema.rs
+index b35e809a0..749a5dd47 100644
+--- a/crates/diesel_models/src/schema.rs
++++ b/crates/diesel_models/src/schema.rs
+@@ -142,14 +142,13 @@ diesel::table! {
+ }
+ 
+ diesel::table! {
+     use diesel::sql_types::*;
+     use crate::enums::diesel_exports::*;
+ 
+-    blocklist_fingerprint (id) {
+-        id -> Int4,
++    blocklist_fingerprint (merchant_id, fingerprint_id) {
+         #[max_length = 64]
+         merchant_id -> Varchar,
+         #[max_length = 64]
+         fingerprint_id -> Varchar,
+         data_kind -> BlocklistDataKind,
+         encrypted_fingerprint -> Text,
+@@ -158,14 +157,13 @@ diesel::table! {
+ }
+ 
+ diesel::table! {
+     use diesel::sql_types::*;
+     use crate::enums::diesel_exports::*;
+ 
+-    blocklist_lookup (id) {
+-        id -> Int4,
++    blocklist_lookup (merchant_id, fingerprint) {
+         #[max_length = 64]
+         merchant_id -> Varchar,
+         fingerprint -> Text,
+     }
+ }
+ 
+@@ -300,13 +298,12 @@ diesel::table! {
+ 
+ diesel::table! {
+     use diesel::sql_types::*;
+     use crate::enums::diesel_exports::*;
+ 
+     configs (key) {
+-        id -> Int4,
+         #[max_length = 255]
+         key -> Varchar,
+         config -> Text,
+     }
+ }
+ 
+@@ -615,14 +612,13 @@ diesel::table! {
+ }
+ 
+ diesel::table! {
+     use diesel::sql_types::*;
+     use crate::enums::diesel_exports::*;
+ 
+-    locker_mock_up (id) {
+-        id -> Int4,
++    locker_mock_up (card_id) {
+         #[max_length = 255]
+         card_id -> Varchar,
+         #[max_length = 255]
+         external_id -> Varchar,
+         #[max_length = 255]
+         card_fingerprint -> Varchar,

@@ -360,7 +360,7 @@ pub async fn list_customer_payment_method_api() {}
         )))
     ),
     responses(
-        (status = 200, description = "Create the payment method session", body = PaymentMethodsSessionResponse),
+        (status = 200, description = "Create the payment method session", body = PaymentMethodSessionResponse),
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -380,7 +380,7 @@ pub fn payment_method_session_create() {}
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodsSessionResponse),
+        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -443,3 +443,48 @@ pub fn payment_method_session_list_payment_methods() {}
     security(("ephemeral_key" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method() {}
+
+/// Payment Method Session - Confirm a payment method session
+///
+/// **Confirms a payment method session object with the payment method data**
+#[utoipa::path(
+  post,
+  path = "/v2/payment-method-session/:id/confirm",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = "pro_abcdefghijklmnop"
+      )
+    ),
+  request_body(
+      content = PaymentMethodSessionConfirmRequest,
+      examples(
+          (
+              "Confirm the payment method session with card details" = (
+                  value = json!({
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment Method created", body = PaymentMethodResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payment Method Session",
+  operation_id = "Confirm the payment method session",
+  security(("publishable_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payment_method_session_confirm() {}

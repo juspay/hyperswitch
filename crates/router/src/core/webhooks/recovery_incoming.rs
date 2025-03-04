@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use crate::{
     core::{
         errors::{self, CustomResult},
-        payments::{self, operations},
+        payments,
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface},
@@ -215,8 +215,11 @@ impl RevenueRecoveryInvoice {
         ))
         .await
         .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)?;
-        let response = payments::handle_payments_intent_response(create_intent_response)
-            .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)?;
+
+        let response = create_intent_response
+            .get_json_body()
+            .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)
+            .attach_printable("expected json response")?;
 
         Ok(revenue_recovery::RecoveryPaymentIntent {
             payment_id: response.id,
@@ -239,7 +242,7 @@ impl RevenueRecoveryAttempt {
     {
         let attempt_response = Box::pin(payments::payments_core::<
             hyperswitch_domain_models::router_flow_types::payments::PSync,
-            api_models::payments::PaymentsRetrieveResponse,
+            api_models::payments::PaymentsResponse,
             _,
             _,
             _,

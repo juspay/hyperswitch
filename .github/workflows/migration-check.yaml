@@ -17,8 +17,6 @@ env:
   # from transient network timeouts or other issues.
   CARGO_NET_RETRY: 10
   RUSTUP_MAX_RETRIES: 10
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
   migration_verify:
@@ -34,7 +32,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: "postgres:alpine"
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -45,7 +43,6 @@ jobs:
         ports:
           - 5432:5432
 
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,16 +52,17 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
           features: postgres
-          args: "--no-default-features"
+          args: --no-default-features
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: taiki-e/install-action@v2
         with:
-          crate: just
-        
+          tool: just
+          checksum: true
+
       - name: Create database
         shell: bash
         run: just resurrect hyperswitch_db
@@ -76,7 +74,7 @@ jobs:
       - name: Verify `diesel migration redo for v1`
         shell: bash
         run: just migrate redo --locked-schema --all
-      
+
       - name: Drop `DB for v2 column ordering mismatch`
         shell: bash
         run: just resurrect hyperswitch_db
@@ -88,4 +86,3 @@ jobs:
       - name: Verify `diesel migration redo for v2`
         shell: bash
         run: just migrate_v2 redo --locked-schema --all
-

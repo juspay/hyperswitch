@@ -3,6 +3,7 @@ pub mod api;
 pub mod behaviour;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod card_testing_guard_data;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -408,6 +409,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text: item.payment_button_text,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
             payment_button_colour: item.payment_button_colour,
+            skip_status_screen: item.skip_status_screen,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -426,6 +430,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text,
             custom_message_for_card_terms,
             payment_button_colour,
+            skip_status_screen,
+            background_colour,
+            payment_button_text_colour,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -448,6 +455,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text,
             custom_message_for_card_terms,
             payment_button_colour,
+            skip_status_screen,
+            background_colour,
+            payment_button_text_colour,
         }
     }
 }

@@ -108,7 +108,7 @@ pub fn construct_post_authentication_router_data(
 pub fn construct_pre_authentication_router_data<F: Clone>(
     state: &SessionState,
     authentication_connector: String,
-    card_holder_account_number: cards::CardNumber,
+    card: hyperswitch_domain_models::payment_method_data::Card,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     merchant_id: common_utils::id_type::MerchantId,
 ) -> RouterResult<
@@ -118,9 +118,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
         types::authentication::AuthenticationResponseData,
     >,
 > {
-    let router_request = types::authentication::PreAuthNRequestData {
-        card_holder_account_number,
-    };
+    let router_request = types::authentication::PreAuthNRequestData { card };
     construct_router_data(
         state,
         authentication_connector,

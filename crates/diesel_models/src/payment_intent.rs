@@ -58,6 +58,10 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -76,10 +80,6 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
-    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
-    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -177,10 +177,16 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Skip the status screen after payment completion
+    pub skip_status_screen: Option<bool>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
+    /// Custom text colour for payment link's handle confirm button
+    pub payment_button_text_colour: Option<String>,
+    /// Custom background colour for the payment link
+    pub background_colour: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -380,8 +386,8 @@ pub struct PaymentIntentNew {
     pub skip_external_tax_calculation: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]

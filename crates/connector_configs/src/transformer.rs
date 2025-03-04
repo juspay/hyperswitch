@@ -66,7 +66,7 @@ impl DashboardRequestPayload {
                 (_, PaymentMethodType::DirectCarrierBilling) => {
                     Some(api_models::enums::PaymentExperience::CollectOtp)
                 }
-                (_, PaymentMethodType::Cashapp)
+                (_, PaymentMethodType::Cashapp) 
                 | (_, PaymentMethodType::Swish) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
