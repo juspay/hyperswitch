@@ -1,3 +1,4 @@
+use common_enums::ApiVersion;
 use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
@@ -38,6 +39,7 @@ pub struct ProcessTracker {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
 }
 
 impl ProcessTracker {
@@ -63,6 +65,7 @@ pub struct ProcessTrackerNew {
     pub event: Vec<String>,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
 }
 
 impl ProcessTrackerNew {
@@ -73,6 +76,7 @@ impl ProcessTrackerNew {
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,
+        api_version: ApiVersion,
     ) -> StorageResult<Self>
     where
         T: Serialize + std::fmt::Debug,
@@ -95,6 +99,7 @@ impl ProcessTrackerNew {
             event: vec![],
             created_at: current_time,
             updated_at: current_time,
+            version: api_version,
         })
     }
 }
