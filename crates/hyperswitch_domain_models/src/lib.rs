@@ -412,6 +412,10 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             skip_status_screen: item.skip_status_screen,
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
+            sdk_ui_rules: item.sdk_ui_rules,
+            payment_button_text_weight: item.payment_button_text_weight,
+            payment_button_text_size: item.payment_button_text_size,
+            payment_button_padding: item.payment_button_padding,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -433,6 +437,10 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             skip_status_screen,
             background_colour,
             payment_button_text_colour,
+            sdk_ui_rules,
+            payment_button_text_weight,
+            payment_button_text_size,
+            payment_button_padding,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -458,6 +466,10 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             skip_status_screen,
             background_colour,
             payment_button_text_colour,
+            sdk_ui_rules,
+            payment_button_text_weight,
+            payment_button_text_size,
+            payment_button_padding,
         }
     }
 }

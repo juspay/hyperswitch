@@ -187,6 +187,15 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules:
+        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    /// Payment button font weight
+    pub payment_button_text_weight: Option<String>,
+    /// Payment button font size
+    pub payment_button_text_size: Option<String>,
+    /// Payment button padding
+    pub payment_button_padding: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);

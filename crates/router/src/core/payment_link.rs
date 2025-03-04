@@ -135,6 +135,10 @@ pub async fn form_payment_link_data(
                 skip_status_screen: None,
                 background_colour: None,
                 payment_button_text_colour: None,
+                sdk_ui_rules: None,
+                payment_button_text_weight: None,
+                payment_button_text_size: None,
+                payment_button_padding: None,
             }
         };
 
@@ -286,6 +290,10 @@ pub async fn form_payment_link_data(
         skip_status_screen: payment_link_config.skip_status_screen,
         background_colour: payment_link_config.background_colour.clone(),
         payment_button_text_colour: payment_link_config.payment_button_text_colour.clone(),
+        sdk_ui_rules: payment_link_config.sdk_ui_rules.clone(),
+        payment_button_text_weight: payment_link_config.payment_button_text_weight.clone(),
+        payment_button_text_size: payment_link_config.payment_button_text_size.clone(),
+        payment_button_padding: payment_link_config.payment_button_padding.clone(),
     };
 
     Ok((
@@ -342,6 +350,10 @@ pub async fn initiate_secure_payment_link_flow(
                 skip_status_screen: payment_link_config.skip_status_screen,
                 background_colour: payment_link_config.background_colour,
                 payment_button_text_colour: payment_link_config.payment_button_text_colour,
+                sdk_ui_rules: payment_link_config.sdk_ui_rules,
+                payment_button_text_weight: payment_link_config.payment_button_text_weight,
+                payment_button_text_size: payment_link_config.payment_button_text_size,
+                payment_button_padding: payment_link_config.payment_button_padding,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -653,6 +665,10 @@ pub fn get_payment_link_config_based_on_priority(
         skip_status_screen,
         background_colour,
         payment_button_text_colour,
+        sdk_ui_rules,
+        payment_button_text_weight,
+        payment_button_text_size,
+        payment_button_padding,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -664,7 +680,11 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_button_colour),
         (skip_status_screen),
         (background_colour),
-        (payment_button_text_colour)
+        (payment_button_text_colour),
+        (sdk_ui_rules),
+        (payment_button_text_weight),
+        (payment_button_text_size),
+        (payment_button_padding),
     );
 
     let payment_link_config =
@@ -690,6 +710,10 @@ pub fn get_payment_link_config_based_on_priority(
             payment_button_colour,
             background_colour,
             payment_button_text_colour,
+            sdk_ui_rules,
+            payment_button_text_weight,
+            payment_button_text_size,
+            payment_button_padding,
         };
 
     Ok((payment_link_config, domain_name))
@@ -798,6 +822,10 @@ pub async fn get_payment_link_status(
             skip_status_screen: None,
             background_colour: None,
             payment_button_text_colour: None,
+            sdk_ui_rules: None,
+            payment_button_text_weight: None,
+            payment_button_text_size: None,
+            payment_button_padding: None,
         }
     };
 

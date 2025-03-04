@@ -310,6 +310,15 @@ function initializeEventListeners(paymentDetails) {
     var chosenColor = paymentDetails.payment_button_colour || primaryColor;
     submitButtonNode.style.color = paymentDetails.payment_button_text_colour || invert(chosenColor, true);
     submitButtonNode.style.backgroundColor = chosenColor;
+    if (paymentDetails.payment_button_text_weight) {
+      submitButtonNode.style.fontWeight = paymentDetails.payment_button_text_weight;
+    }
+    if (paymentDetails.payment_button_text_size) {
+      submitButtonNode.style.fontSize = paymentDetails.payment_button_text_size;
+    }
+    if (paymentDetails.payment_button_padding) {
+      submitButtonNode.style.padding = paymentDetails.payment_button_padding;
+    }
   }
 
   if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
@@ -461,7 +470,7 @@ function handleSubmit(e) {
         window.top.location.href = url.toString();
       } else {
         redirectToStatus();
-    }
+      }
     })
     .catch(function (error) {
       console.error("Error confirming payment_intent", error);
@@ -801,7 +810,7 @@ function renderBranding(paymentDetails) {
  *    - Renders background image in the payment details section
  * @param {PaymentDetails} paymentDetails 
  */
-function renderBackgroundImage(paymentDetails)  {
+function renderBackgroundImage(paymentDetails) {
   var backgroundImage = paymentDetails.background_image;
   if (typeof backgroundImage === "object" && backgroundImage !== null) {
     var paymentDetailsNode = document.getElementById("hyper-checkout-details");

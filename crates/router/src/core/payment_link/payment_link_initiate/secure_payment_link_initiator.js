@@ -31,7 +31,8 @@ if (!isFramed) {
   function initializeSDK() {
     // @ts-ignore
     var paymentDetails = window.__PAYMENT_DETAILS;
-    var client_secret = paymentDetails.client_secret;
+    var clientSecret = paymentDetails.client_secret;
+    var sdkUiRules = paymentDetails.sdk_ui_rules;
     var appearance = {
       variables: {
         colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -45,6 +46,9 @@ if (!isFramed) {
         colorBackground: "rgb(255, 255, 255)",
       },
     };
+    if (typeof sdkUiRules === "object") {
+      appearance.rules = sdkUiRules;
+    }
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
@@ -58,12 +62,12 @@ if (!isFramed) {
     // @ts-ignore
     widgets = hyper.widgets({
       appearance: appearance,
-      clientSecret: client_secret,
+      clientSecret: clientSecret,
       locale: paymentDetails.locale,
     });
     var type =
       paymentDetails.sdk_layout === "spaced_accordion" ||
-      paymentDetails.sdk_layout === "accordion"
+        paymentDetails.sdk_layout === "accordion"
         ? "accordion"
         : paymentDetails.sdk_layout;
 
