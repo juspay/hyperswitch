@@ -123,7 +123,7 @@ impl MerchantAccount {
         >(
             conn,
             dsl::merchant_id
-                .eq_any(merchant_ids)
+                .eq_any(merchant_ids.clone())
                 .or(dsl::id.eq_any(merchant_ids)),
             None,
             None,

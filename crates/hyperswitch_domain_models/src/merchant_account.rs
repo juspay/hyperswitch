@@ -786,7 +786,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::merchant_account::MerchantAccountNew {
-            id: Some(self.merchant_id),
+            id: Some(self.merchant_id.clone()),
             merchant_id: self.merchant_id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
