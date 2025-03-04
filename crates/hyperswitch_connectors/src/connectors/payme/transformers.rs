@@ -1,33 +1,40 @@
 use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
+use common_enums::enums;
 use common_utils::{
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_flow_types::{Execute, Void},
+    router_request_types::{PaymentsCancelData, PaymentsPreProcessingData, ResponseId},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, PreprocessingResponseId, RedirectForm,
+        RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
+    },
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{
-        self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
-        CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSyncRequestData,
-        RouterData,
-    },
-    consts,
-    core::errors,
-    services,
-    types::{
-        self, api, domain,
-        domain::PaymentMethodData,
-        storage::enums,
-        transformers::{ForeignFrom, ForeignTryFrom},
-        MandateReference,
-    },
+    types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
+    utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSyncRequestData, RouterData as OtherRouterData,
+    },
 };
 
 const LANGUAGE: &str = "en";
@@ -155,18 +162,17 @@ pub struct GenerateSaleResponse {
     payme_sale_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PaymePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PaymePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             // To handle webhook response
             PaymePaymentsResponse::PaymePaySaleResponse(response) => {
-                Self::try_from(types::ResponseRouterData {
+                Self::try_from(ResponseRouterData {
                     response,
                     data: item.data,
                     http_code: item.http_code,
@@ -174,7 +180,7 @@ impl<F, T>
             }
             // To handle PSync response
             PaymePaymentsResponse::SaleQueryResponse(response) => {
-                Self::try_from(types::ResponseRouterData {
+                Self::try_from(ResponseRouterData {
                     response,
                     data: item.data,
                     http_code: item.http_code,
@@ -184,23 +190,22 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PaymePaySaleResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PaymePaySaleResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
-        let response = if is_payment_failure(status) {
+        let response = if utils::is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::foreign_from((
+            Err(get_pay_sale_error_response((
                 &item.response,
                 item.http_code,
             )))
         } else {
-            Ok(types::PaymentsResponseData::try_from(&item.response)?)
+            Ok(PaymentsResponseData::try_from(&item.response)?)
         };
         Ok(Self {
             status,
@@ -210,42 +215,39 @@ impl<F, T>
     }
 }
 
-impl ForeignFrom<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
-    fn foreign_from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
-        let code = pay_sale_response
-            .status_error_code
-            .map(|error_code| error_code.to_string())
-            .unwrap_or(consts::NO_ERROR_CODE.to_string());
-        Self {
-            code,
-            message: pay_sale_response
-                .status_error_details
-                .clone()
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: pay_sale_response.status_error_details.to_owned(),
-            status_code: http_code,
-            attempt_status: None,
-            connector_transaction_id: Some(pay_sale_response.payme_sale_id.clone()),
-        }
+fn get_pay_sale_error_response(
+    (pay_sale_response, http_code): (&PaymePaySaleResponse, u16),
+) -> ErrorResponse {
+    let code = pay_sale_response
+        .status_error_code
+        .map(|error_code| error_code.to_string())
+        .unwrap_or(consts::NO_ERROR_CODE.to_string());
+    ErrorResponse {
+        code,
+        message: pay_sale_response
+            .status_error_details
+            .clone()
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+        reason: pay_sale_response.status_error_details.to_owned(),
+        status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: Some(pay_sale_response.payme_sale_id.clone()),
     }
 }
 
-impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
+impl TryFrom<&PaymePaySaleResponse> for PaymentsResponseData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &PaymePaySaleResponse) -> Result<Self, Self::Error> {
         let redirection_data = match value.sale_3ds {
-            Some(true) => value
-                .redirect_url
-                .clone()
-                .map(|url| services::RedirectForm::Form {
-                    endpoint: url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: HashMap::<String, String>::new(),
-                }),
+            Some(true) => value.redirect_url.clone().map(|url| RedirectForm::Form {
+                endpoint: url.to_string(),
+                method: common_utils::request::Method::Get,
+                form_fields: HashMap::<String, String>::new(),
+            }),
             _ => None,
         };
         Ok(Self::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
+            resource_id: ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(value.buyer_key.clone().map(|buyer_key| {
                 MandateReference {
@@ -264,12 +266,12 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, SaleQueryResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, SaleQueryResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         // Only one element would be present since we are passing one transaction id in the PSync request
         let transaction_response = item
@@ -279,14 +281,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
             .cloned()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         let status = enums::AttemptStatus::from(transaction_response.sale_status.clone());
-        let response = if is_payment_failure(status) {
+        let response = if utils::is_payment_failure(status) {
             // To populate error message in case of failure
-            Err(types::ErrorResponse::foreign_from((
+            Err(get_sale_query_error_response((
                 &transaction_response,
                 item.http_code,
             )))
         } else {
-            Ok(types::PaymentsResponseData::from(&transaction_response))
+            Ok(PaymentsResponseData::from(&transaction_response))
         };
         Ok(Self {
             status,
@@ -296,29 +298,29 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
     }
 }
 
-impl ForeignFrom<(&SaleQuery, u16)> for types::ErrorResponse {
-    fn foreign_from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
-        Self {
-            code: sale_query_response
-                .sale_error_code
-                .clone()
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: sale_query_response
-                .sale_error_text
-                .clone()
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: sale_query_response.sale_error_text.clone(),
-            status_code: http_code,
-            attempt_status: None,
-            connector_transaction_id: Some(sale_query_response.sale_payme_id.clone()),
-        }
+fn get_sale_query_error_response(
+    (sale_query_response, http_code): (&SaleQuery, u16),
+) -> ErrorResponse {
+    ErrorResponse {
+        code: sale_query_response
+            .sale_error_code
+            .clone()
+            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+        message: sale_query_response
+            .sale_error_text
+            .clone()
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+        reason: sale_query_response.sale_error_text.clone(),
+        status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: Some(sale_query_response.sale_payme_id.clone()),
     }
 }
 
-impl From<&SaleQuery> for types::PaymentsResponseData {
+impl From<&SaleQuery> for PaymentsResponseData {
     fn from(value: &SaleQuery) -> Self {
         Self::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(value.sale_payme_id.clone()),
+            resource_id: ResponseId::ConnectorTransactionId(value.sale_payme_id.clone()),
             redirection_data: Box::new(None),
             // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
             mandate_reference: Box::new(None),
@@ -346,10 +348,10 @@ pub enum SalePaymentMethod {
     ApplePay,
 }
 
-impl TryFrom<&PaymeRouterData<&types::PaymentsPreProcessingRouterData>> for GenerateSaleRequest {
+impl TryFrom<&PaymeRouterData<&PaymentsPreProcessingRouterData>> for GenerateSaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &PaymeRouterData<&types::PaymentsPreProcessingRouterData>,
+        item: &PaymeRouterData<&PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
         let sale_type = SaleType::try_from(item.router_data)?;
         let seller_payme_id =
@@ -358,7 +360,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsPreProcessingRouterData>> for Gene
         let services = get_services(item.router_data);
         let product_name = order_details
             .first()
-            .ok_or_else(missing_field_err("order_details"))?
+            .ok_or_else(utils::missing_field_err("order_details"))?
             .product_name
             .clone();
         let pmd = item
@@ -366,7 +368,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsPreProcessingRouterData>> for Gene
             .request
             .payment_method_data
             .to_owned()
-            .ok_or_else(missing_field_err("payment_method_data"))?;
+            .ok_or_else(utils::missing_field_err("payment_method_data"))?;
         Ok(Self {
             seller_payme_id,
             sale_price: item.amount.to_owned(),
@@ -389,35 +391,35 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
-                domain::WalletData::AliPayQr(_)
-                | domain::WalletData::AliPayRedirect(_)
-                | domain::WalletData::AliPayHkRedirect(_)
-                | domain::WalletData::AmazonPayRedirect(_)
-                | domain::WalletData::MomoRedirect(_)
-                | domain::WalletData::KakaoPayRedirect(_)
-                | domain::WalletData::GoPayRedirect(_)
-                | domain::WalletData::GcashRedirect(_)
-                | domain::WalletData::ApplePayRedirect(_)
-                | domain::WalletData::DanaRedirect {}
-                | domain::WalletData::GooglePay(_)
-                | domain::WalletData::GooglePayRedirect(_)
-                | domain::WalletData::GooglePayThirdPartySdk(_)
-                | domain::WalletData::MbWayRedirect(_)
-                | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
-                | domain::WalletData::Paze(_)
-                | domain::WalletData::SamsungPay(_)
-                | domain::WalletData::TwintRedirect {}
-                | domain::WalletData::VippsRedirect {}
-                | domain::WalletData::TouchNGoRedirect(_)
-                | domain::WalletData::WeChatPayRedirect(_)
-                | domain::WalletData::WeChatPayQr(_)
-                | domain::WalletData::CashappQr(_)
-                | domain::WalletData::ApplePay(_)
-                | domain::WalletData::SwishQr(_)
-                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePay(_)
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::ApplePay(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
                     connector: "payme",
                 }
@@ -446,10 +448,10 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
     }
 }
 
-impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for PaymePaymentRequest {
+impl TryFrom<&PaymeRouterData<&PaymentsAuthorizeRouterData>> for PaymePaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: &PaymeRouterData<&types::PaymentsAuthorizeRouterData>,
+        value: &PaymeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let payme_request = if value.router_data.request.mandate_id.is_some() {
             Self::MandateRequest(MandateRequest::try_from(value)?)
@@ -460,9 +462,9 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for PaymePay
     }
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for PaymeQuerySaleRequest {
+impl TryFrom<&PaymentsSyncRouterData> for PaymeQuerySaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
         Ok(Self {
             sale_payme_id: value.request.get_connector_transaction_id()?,
@@ -471,9 +473,9 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PaymeQuerySaleRequest {
     }
 }
 
-impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
+impl TryFrom<&RefundSyncRouterData> for PaymeQueryTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &RefundSyncRouterData) -> Result<Self, Self::Error> {
         let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
         Ok(Self {
             payme_transaction_id: value
@@ -487,24 +489,24 @@ impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
 }
 
 impl<F>
-    ForeignTryFrom<(
-        types::ResponseRouterData<
+    utils::ForeignTryFrom<(
+        ResponseRouterData<
             F,
             GenerateSaleResponse,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
         >,
         StringMajorUnit,
-    )> for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    )> for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
         (item, apple_pay_amount): (
-            types::ResponseRouterData<
+            ResponseRouterData<
                 F,
                 GenerateSaleResponse,
-                types::PaymentsPreProcessingData,
-                types::PaymentsResponseData,
+                PaymentsPreProcessingData,
+                PaymentsResponseData,
             >,
             StringMajorUnit,
         ),
@@ -518,11 +520,10 @@ impl<F>
                             // then move to authorize flow
                             status: enums::AttemptStatus::Pending,
                             preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
-                            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
-                                pre_processing_id:
-                                    types::PreprocessingResponseId::ConnectorTransactionId(
-                                        item.response.payme_sale_id,
-                                    ),
+                            response: Ok(PaymentsResponseData::PreProcessingResponse {
+                                pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
+                                    item.response.payme_sale_id,
+                                ),
                                 connector_metadata: None,
                                 session_token: None,
                                 connector_response_reference_id: None,
@@ -537,11 +538,11 @@ impl<F>
                         // status is made authentication_pending to show redirection
                         status: enums::AttemptStatus::AuthenticationPending,
                         preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
-                        response: Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
                                 item.response.payme_sale_id.to_owned(),
                             ),
-                            redirection_data: Box::new(Some(services::RedirectForm::Payme)),
+                            redirection_data: Box::new(Some(RedirectForm::Payme)),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
@@ -559,7 +560,7 @@ impl<F>
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
                 let session_token = match pmd {
-                    Some(PaymentMethodData::Wallet(domain::WalletData::ApplePayThirdPartySdk(
+                    Some(PaymentMethodData::Wallet(WalletData::ApplePayThirdPartySdk(
                         _,
                     ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
@@ -603,8 +604,8 @@ impl<F>
                     // We don't get any status from payme, so defaulting it to pending
                     status: enums::AttemptStatus::Pending,
                     preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
-                    response: Ok(types::PaymentsResponseData::PreProcessingResponse {
-                        pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
+                    response: Ok(PaymentsResponseData::PreProcessingResponse {
+                        pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
                             item.response.payme_sale_id,
                         ),
                         connector_metadata: None,
@@ -618,17 +619,15 @@ impl<F>
     }
 }
 
-impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for MandateRequest {
+impl TryFrom<&PaymeRouterData<&PaymentsAuthorizeRouterData>> for MandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PaymeRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymeRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         let seller_payme_id =
             PaymeAuthType::try_from(&item.router_data.connector_auth_type)?.seller_payme_id;
         let order_details = item.router_data.request.get_order_details()?;
         let product_name = order_details
             .first()
-            .ok_or_else(missing_field_err("order_details"))?
+            .ok_or_else(utils::missing_field_err("order_details"))?
             .product_name
             .clone();
         Ok(Self {
@@ -645,9 +644,9 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for MandateR
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
+impl TryFrom<&PaymentsAuthorizeRouterData> for PayRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = PaymeCard {
@@ -701,9 +700,9 @@ pub struct PaymeRedirectResponseData {
     meta_data: String,
 }
 
-impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
+impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             Some(PaymentMethodData::Card(_)) => {
                 let buyer_email = item.request.get_email()?;
@@ -722,18 +721,19 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     .clone()
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
                 let pm_token = item.get_payment_method_token()?;
-                let buyer_key = match pm_token {
-                    types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                        unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
-                    )?,
-                    types::PaymentMethodToken::PazeDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Paze", "Payme"))?
-                    }
-                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Google Pay", "Payme"))?
-                    }
-                };
+                let buyer_key =
+                    match pm_token {
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Payme"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Payme"))?
+                        }
+                    };
                 Ok(Self {
                     buyer_email,
                     buyer_key,
@@ -767,9 +767,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     }
 }
 
-impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
+impl TryFrom<&TokenizationRouterData> for CaptureBuyerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let seller_payme_id =
@@ -817,16 +817,16 @@ pub struct PaymeAuthType {
     pub(super) payme_merchant_id: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
+impl TryFrom<&ConnectorAuthType> for PaymeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 seller_payme_id: api_key.to_owned(),
                 payme_public_key: key1.to_owned(),
                 payme_merchant_id: None,
             }),
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -840,9 +840,9 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     }
 }
 
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for SaleType {
+impl TryFrom<&PaymentsPreProcessingRouterData> for SaleType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let sale_type = if value.request.setup_mandate_details.is_some() {
             // First mandate
             Self::Token
@@ -922,19 +922,16 @@ pub struct PaymeMetadata {
     payme_transaction_id: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, CaptureBuyerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, CaptureBuyerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone(),
-            )),
-            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+            payment_method_token: Some(PaymentMethodToken::Token(item.response.buyer_key.clone())),
+            response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key.expose(),
             }),
             ..item.data
@@ -948,11 +945,9 @@ pub struct PaymentCaptureRequest {
     sale_price: MinorUnit,
 }
 
-impl TryFrom<&PaymeRouterData<&types::PaymentsCaptureRouterData>> for PaymentCaptureRequest {
+impl TryFrom<&PaymeRouterData<&PaymentsCaptureRouterData>> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PaymeRouterData<&types::PaymentsCaptureRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymeRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
         if item.router_data.request.minor_amount_to_capture
             != item.router_data.request.minor_payment_amount
         {
@@ -978,9 +973,9 @@ pub struct PaymeRefundRequest {
     language: String,
 }
 
-impl<F> TryFrom<&PaymeRouterData<&types::RefundsRouterData<F>>> for PaymeRefundRequest {
+impl<F> TryFrom<&PaymeRouterData<&RefundsRouterData<F>>> for PaymeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymeRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             payme_sale_id: item.router_data.request.connector_transaction_id.clone(),
@@ -1014,20 +1009,20 @@ pub struct PaymeRefundResponse {
     status_error_code: Option<u32>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, PaymeRefundResponse>>
+    for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>,
+        item: RefundsResponseRouterData<Execute, PaymeRefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::try_from(item.response.sale_status.clone())?;
-        let response = if is_refund_failure(refund_status) {
+        let response = if utils::is_refund_failure(refund_status) {
             let payme_response = &item.response;
             let status_error_code = payme_response
                 .status_error_code
                 .map(|error_code| error_code.to_string());
-            Err(types::ErrorResponse {
+            Err(ErrorResponse {
                 code: status_error_code
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -1040,7 +1035,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
             })
         } else {
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 connector_refund_id: item
                     .response
                     .payme_transaction_id
@@ -1063,18 +1058,12 @@ pub struct PaymeVoidRequest {
     language: String,
 }
 
-impl
-    TryFrom<
-        &PaymeRouterData<
-            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
-        >,
-    > for PaymeVoidRequest
+impl TryFrom<&PaymeRouterData<&RouterData<Void, PaymentsCancelData, PaymentsResponseData>>>
+    for PaymeVoidRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &PaymeRouterData<
-            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
-        >,
+        item: &PaymeRouterData<&RouterData<Void, PaymentsCancelData, PaymentsResponseData>>,
     ) -> Result<Self, Self::Error> {
         let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
@@ -1093,20 +1082,18 @@ pub struct PaymeVoidResponse {
     status_error_code: Option<u32>,
 }
 
-impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
-    for types::PaymentsCancelRouterData
-{
+impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsCancelResponseRouterData<PaymeVoidResponse>,
+        item: PaymentsCancelResponseRouterData<PaymeVoidResponse>,
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
-        let response = if is_payment_failure(status) {
+        let response = if utils::is_payment_failure(status) {
             let payme_response = &item.response;
             let status_error_code = payme_response
                 .status_error_code
                 .map(|error_code| error_code.to_string());
-            Err(types::ErrorResponse {
+            Err(ErrorResponse {
                 code: status_error_code
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -1120,8 +1107,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
             })
         } else {
             // Since we are not receiving payme_sale_id, we are not populating the transaction response
-            Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -1150,19 +1137,12 @@ pub struct TransactionQuery {
     payme_transaction_id: String,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>,
-    > for types::RouterData<F, T, types::RefundsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PaymeQueryTransactionResponse, T, RefundsResponseData>>
+    for RouterData<F, T, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PaymeQueryTransactionResponse,
-            T,
-            types::RefundsResponseData,
-        >,
+        item: ResponseRouterData<F, PaymeQueryTransactionResponse, T, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
         let pay_sale_response = item
             .response
@@ -1170,8 +1150,8 @@ impl<F, T>
             .first()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
         let refund_status = enums::RefundStatus::try_from(pay_sale_response.sale_status.clone())?;
-        let response = if is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+        let response = if utils::is_refund_failure(refund_status) {
+            Err(ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_CODE.to_string(),
                 reason: None,
@@ -1180,7 +1160,7 @@ impl<F, T>
                 connector_transaction_id: Some(pay_sale_response.payme_transaction_id.clone()),
             })
         } else {
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 refund_status,
                 connector_refund_id: pay_sale_response.payme_transaction_id.clone(),
             })
@@ -1192,7 +1172,7 @@ impl<F, T>
     }
 }
 
-fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDs> {
+fn get_services(item: &PaymentsPreProcessingRouterData) -> Option<ThreeDs> {
     match item.auth_type {
         AuthenticationType::ThreeDs => {
             let settings = ThreeDsSettings { active: true };
@@ -1275,7 +1255,7 @@ impl From<WebhookEventDataResource> for PaymeQueryTransactionResponse {
     }
 }
 
-impl From<NotifyType> for api::IncomingWebhookEvent {
+impl From<NotifyType> for api_models::webhooks::IncomingWebhookEvent {
     fn from(value: NotifyType) -> Self {
         match value {
             NotifyType::SaleComplete => Self::PaymentIntentSuccess,

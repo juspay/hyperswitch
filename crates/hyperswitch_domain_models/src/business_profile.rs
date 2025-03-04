@@ -64,6 +64,7 @@ pub struct Profile {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -110,6 +111,7 @@ pub struct ProfileSetter {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -162,6 +164,7 @@ impl From<ProfileSetter> for Profile {
             authentication_product_ids: value.authentication_product_ids,
             card_testing_guard_config: value.card_testing_guard_config,
             card_testing_secret_key: value.card_testing_secret_key,
+            is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
         }
     }
 }
@@ -216,6 +219,7 @@ pub struct ProfileGeneralUpdate {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -285,6 +289,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     authentication_product_ids,
                     card_testing_guard_config,
                     card_testing_secret_key,
+                    is_clear_pan_retries_enabled,
                 } = *update;
 
                 Self {
@@ -327,6 +332,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     authentication_product_ids,
                     card_testing_guard_config,
                     card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                    is_clear_pan_retries_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -371,6 +377,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -413,6 +420,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -455,6 +463,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -497,6 +506,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -539,6 +549,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -581,6 +592,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 authentication_product_ids: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                is_clear_pan_retries_enabled: None,
             },
         }
     }
@@ -642,6 +654,7 @@ impl super::behaviour::Conversion for Profile {
             authentication_product_ids: self.authentication_product_ids,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
         })
     }
 
@@ -728,6 +741,7 @@ impl super::behaviour::Conversion for Profile {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             })
         }
         .await
@@ -784,6 +798,7 @@ impl super::behaviour::Conversion for Profile {
             authentication_product_ids: self.authentication_product_ids,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
         })
     }
 }
@@ -834,6 +849,7 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -880,6 +896,7 @@ pub struct ProfileSetter {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -932,6 +949,7 @@ impl From<ProfileSetter> for Profile {
             three_ds_decision_manager_config: value.three_ds_decision_manager_config,
             card_testing_guard_config: value.card_testing_guard_config,
             card_testing_secret_key: value.card_testing_secret_key,
+            is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
         }
     }
 }
@@ -1100,6 +1118,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     three_ds_decision_manager_config,
                     card_testing_guard_config,
                     card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                    is_clear_pan_retries_enabled: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1146,6 +1165,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1190,6 +1210,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1234,6 +1255,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1278,6 +1300,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1322,6 +1345,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1366,6 +1390,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1410,6 +1435,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: Some(three_ds_decision_manager_config),
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1454,6 +1480,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                is_clear_pan_retries_enabled: None,
             },
         }
     }
@@ -1519,6 +1546,7 @@ impl super::behaviour::Conversion for Profile {
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
         })
     }
 
@@ -1605,6 +1633,7 @@ impl super::behaviour::Conversion for Profile {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             })
         }
         .await
@@ -1665,6 +1694,7 @@ impl super::behaviour::Conversion for Profile {
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
+            is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
         })
     }
 }
