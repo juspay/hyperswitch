@@ -2165,9 +2165,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
             sdk_ui_rules: item.sdk_ui_rules,
-            payment_button_text_weight: item.payment_button_text_weight,
-            payment_button_text_size: item.payment_button_text_size,
-            payment_button_padding: item.payment_button_padding,
+            payment_link_ui_rules: item.payment_link_ui_rules,
         }
     }
 }
@@ -2197,9 +2195,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
             sdk_ui_rules: item.sdk_ui_rules,
-            payment_button_text_weight: item.payment_button_text_weight,
-            payment_button_text_size: item.payment_button_text_size,
-            payment_button_padding: item.payment_button_padding,
+            payment_link_ui_rules: item.payment_link_ui_rules,
         }
     }
 }

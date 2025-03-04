@@ -2812,12 +2812,8 @@ pub struct PaymentLinkConfigRequest {
     pub background_colour: Option<String>,
     /// SDK configuration rules
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    /// Payment button font weight
-    pub payment_button_text_weight: Option<String>,
-    /// Payment button font size
-    pub payment_button_text_size: Option<String>,
-    /// Payment button padding
-    pub payment_button_padding: Option<String>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2901,12 +2897,8 @@ pub struct PaymentLinkConfig {
     pub background_colour: Option<String>,
     /// SDK configuration rules
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    /// Payment button font weight
-    pub payment_button_text_weight: Option<String>,
-    /// Payment button font size
-    pub payment_button_text_size: Option<String>,
-    /// Payment button padding
-    pub payment_button_padding: Option<String>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

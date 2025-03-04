@@ -25,7 +25,7 @@ function initializeSDK() {
       colorBackground: "rgb(255, 255, 255)",
     },
   };
-  if (typeof sdkUiRules === "object") {
+  if (sdkUiRules !== null && typeof sdkUiRules === "object" && Object.getPrototypeOf(sdkUiRules) === Object.prototype) {
     appearance.rules = sdkUiRules;
   }
   // @ts-ignore

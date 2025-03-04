@@ -645,9 +645,7 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    pub payment_button_text_weight: Option<String>,
-    pub payment_button_text_size: Option<String>,
-    pub payment_button_padding: Option<String>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

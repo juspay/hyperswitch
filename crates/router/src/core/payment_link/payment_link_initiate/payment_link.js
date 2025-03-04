@@ -231,8 +231,8 @@ function boot() {
     link.type = "image/x-icon";
     document.head.appendChild(link);
   }
-  // Render UI
 
+  // Render UI
   if (paymentDetails.display_sdk_only) {
     renderSDKHeader(paymentDetails);
     renderBranding(paymentDetails);
@@ -247,7 +247,6 @@ function boot() {
     renderSDKHeader(paymentDetails);
   }
 
-
   // Deal w loaders
   show("#sdk-spinner");
   hide("#page-spinner");
@@ -255,6 +254,12 @@ function boot() {
 
   // Add event listeners
   initializeEventListeners(paymentDetails);
+
+  // Update payment link styles
+  var paymentLinkUiRules = paymentDetails.payment_link_ui_rules;
+  if (paymentLinkUiRules !== null && typeof paymentLinkUiRules === "object" && Object.getPrototypeOf(paymentLinkUiRules) === Object.prototype) {
+    updatePaymentLinkUi(paymentLinkUiRules);
+  }
 
   // Initialize SDK
   // @ts-ignore
@@ -310,15 +315,6 @@ function initializeEventListeners(paymentDetails) {
     var chosenColor = paymentDetails.payment_button_colour || primaryColor;
     submitButtonNode.style.color = paymentDetails.payment_button_text_colour || invert(chosenColor, true);
     submitButtonNode.style.backgroundColor = chosenColor;
-    if (paymentDetails.payment_button_text_weight) {
-      submitButtonNode.style.fontWeight = paymentDetails.payment_button_text_weight;
-    }
-    if (paymentDetails.payment_button_text_size) {
-      submitButtonNode.style.fontSize = paymentDetails.payment_button_text_size;
-    }
-    if (paymentDetails.payment_button_padding) {
-      submitButtonNode.style.padding = paymentDetails.payment_button_padding;
-    }
   }
 
   if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
@@ -1112,4 +1108,21 @@ function renderSDKHeader(paymentDetails) {
     // sdkHeaderNode.append(sdkHeaderLogoNode);
     sdkHeaderNode.append(sdkHeaderItemNode);
   }
+}
+
+/**
+ * Trigger - post UI render
+ * Use - add CSS rules for the payment link
+ * @param {Object} paymentLinkUiRules
+ */
+function updatePaymentLinkUi(paymentLinkUiRules) {
+  Object.keys(paymentLinkUiRules).forEach(function (selector) {
+    var node = document.querySelector(selector);
+    if (node instanceof HTMLElement) {
+      var styles = paymentLinkUiRules[selector];
+      Object.keys(styles).forEach(function (property) {
+        node.style[property] = styles[property];
+      });
+    }
+  })
 }
