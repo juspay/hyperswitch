@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::pii::Email;
+use common_utils::{pii::Email, types::SemanticVersion};
 use hyperswitch_connectors::utils::AddressDetailsData;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,16 @@ use crate::{connector::utils::PhoneDetailsData, errors, types::api::MessageCateg
 pub enum SingleOrListElement<T> {
     Single(T),
     List(Vec<T>),
+}
+
+impl<T> SingleOrListElement<T> {
+    fn get_version_checked(message_version: SemanticVersion, value: T) -> Self {
+        if message_version.get_major() >= 2 && message_version.get_minor() >= 3 {
+            Self::List(vec![value])
+        } else {
+            Self::Single(value)
+        }
+    }
 }
 
 impl<T> SingleOrListElement<T> {
@@ -167,6 +177,44 @@ pub enum ThreeDSRequestorAuthenticationIndicator {
     CardholderVerification,
     #[serde(rename = "07")]
     BillingAgreement,
+}
+
+impl ThreeDSRequestor {
+    pub fn new(
+        app_ip: Option<std::net::IpAddr>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        force_3ds_challenge: Option<bool>,
+        message_version: SemanticVersion,
+    ) -> Self {
+        // if sca exemption is provided, we need to set the challenge indicator to NoChallengeRequestedTransactionalRiskAnalysis
+        let three_ds_requestor_challenge_ind = if force_3ds_challenge == Some(true) {
+            Some(SingleOrListElement::get_version_checked(
+                message_version,
+                ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate,
+            ))
+        } else if let Some(common_enums::ScaExemptionType::TransactionRiskAnalysis) =
+            psd2_sca_exemption_type
+        {
+            Some(SingleOrListElement::get_version_checked(
+                message_version,
+                ThreeDSRequestorChallengeIndicator::NoChallengeRequestedTransactionalRiskAnalysis,
+            ))
+        } else {
+            None
+        };
+
+        Self {
+            three_ds_requestor_authentication_ind: ThreeDSRequestorAuthenticationIndicator::Payment,
+            three_ds_requestor_authentication_info: None,
+            three_ds_requestor_challenge_ind,
+            three_ds_requestor_prior_authentication_info: None,
+            three_ds_requestor_dec_req_ind: None,
+            three_ds_requestor_dec_max_time: None,
+            app_ip,
+            three_ds_requestor_spc_support: None,
+            spc_incomp_ind: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
