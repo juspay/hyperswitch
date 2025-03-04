@@ -19,7 +19,7 @@ use diesel_models::{
 };
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    mandates::{MandateDetails},
+    mandates::MandateDetails,
     payments::{
         payment_attempt::PaymentAttempt, payment_intent::CustomerData,
         FromRequestEncryptablePaymentIntent,
