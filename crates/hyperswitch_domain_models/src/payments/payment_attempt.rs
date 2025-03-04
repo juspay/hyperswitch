@@ -605,17 +605,9 @@ impl PaymentAttempt {
                 consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
             )),
         });
-        let payment_method_type_data = payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rrm| rrm.payment_method_type);
+        let payment_method_type_data = payment_intent.get_payment_method_type();
 
-        let payment_method_subtype_data = payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rrm| rrm.payment_method_subtype);
+        let payment_method_subtype_data = payment_intent.get_payment_method_sub_type();
 
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
         Ok(Self {

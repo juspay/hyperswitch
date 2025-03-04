@@ -56,6 +56,32 @@ pub struct FeatureMetadata {
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
 }
 
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn get_payment_method_sub_type(
+        &self,
+    ) -> Option<common_enums::PaymentMethodType> {
+        self
+            .payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|rrm| rrm.payment_method_subtype)
+    }
+
+    pub fn get_payment_method_type(
+        &self,
+    ) -> Option<common_enums::PaymentMethod> {
+        self
+            .payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|rrm| rrm.payment_method_type)
+    }
+
+    // TODO: Check search_tags for relevant payment method type
+    // TODO: Check redirect_response metadata if applicable
+    // TODO: Check apple_pay_recurring_details metadata if applicable
+}
+
+
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]

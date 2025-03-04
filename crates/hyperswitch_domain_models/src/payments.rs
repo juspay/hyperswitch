@@ -412,6 +412,42 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+    fn get_payment_method_sub_type(
+        &self,
+    ) -> Option<common_enums::PaymentMethodType> {
+        self
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get_payment_method_sub_type())
+    }
+
+    fn get_payment_method_type(
+        &self,
+    ) -> Option<common_enums::PaymentMethod> {
+        self
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get_payment_method_type())
+    }
+
+    pub fn set_payment_connector_transmission(
+        &self,
+        feature_metadata: Option<&FeatureMetadata>,
+        status: bool,
+    ) -> Option<Box<FeatureMetadata>> {
+        feature_metadata.map(|fm| {
+            let mut updated_metadata = fm.clone();
+            if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
+                rrm.payment_connector_transmission = if status {
+                    common_enums::PaymentConnectorTransmission::ConnectorCallFailed
+                } else {
+                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                };
+            }
+            Box::new(updated_metadata)
+        })
+    }
+    
     fn get_request_incremental_authorization_value(
         request: &api_models::payments::PaymentsCreateIntentRequest,
     ) -> CustomResult<
@@ -642,24 +678,14 @@ impl<F: Clone> PaymentConfirmData<F> {
         customer: Option<&customer::Customer>,
         merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
     ) -> Option<String> {
-        // 1) If a `Customer` is provided, see if we can pull a matching connector customer ID out of it.
-        if let Some(customer) = customer {
-            // Example: If you have a method on Customer to fetch the connector ID
-            // (or store it in a map keyed by merchant_connector_account.gid, etc.)
-            if let Some(connector_cust_id) =
-                customer.get_connector_customer_id(&merchant_connector_account.get_id())
-            {
-                return Some(connector_cust_id.to_string());
-            }
+        match customer.and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id())) {
+            Some(id) => Some(id.to_string()),
+            None => self.payment_intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+                .map(|rrm| rrm.billing_connector_payment_details.connector_customer_id.clone()),
         }
-
-        // 2) If we didn’t find anything in the Customer, fallback to PaymentIntent’s feature metadata.
-        self.payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rrm| rrm.billing_connector_payment_details.clone())
-            .map(|details| details.connector_customer_id)
     }
 }
 

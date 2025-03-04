@@ -1,8 +1,4 @@
-use api_models::{
-    enums::FrmSuggestion,
-    payments::{ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsRequest},
-};
-// use diesel_models::payment_attempt::ConnectorMandateReferenceId;
+use api_models::payments::ProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
 use common_utils::types::keymanager::ToEncryptable;
@@ -12,7 +8,7 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-
+use crate::core::payments::OperationSessionGetters;
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
@@ -229,10 +225,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .map(|address| address.into_inner()),
             Some(true),
         );
-        let mandate_data_input = MandateIds {
+        let mandate_data_input = api_models::payments::MandateIds {
             mandate_id: None,
-            mandate_reference_id: Some(MandateReferenceId::ConnectorMandateId(
-                ConnectorMandateReferenceId::new(
+            mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                api_models::payments::ConnectorMandateReferenceId::new(
                     Some(processor_payment_token),
                     None,
                     None,
@@ -297,8 +293,6 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         payment_data: &mut PaymentConfirmData<F>,
         _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        use crate::core::payments::OperationSessionGetters;
-
         let connector_name = payment_data.get_payment_attempt_connector();
         if let Some(connector_name) = connector_name {
             let merchant_connector_id = payment_data.get_merchant_connector_id_in_attempt();
@@ -331,7 +325,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
-        _frm_suggestion: Option<FrmSuggestion>,
+        _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
