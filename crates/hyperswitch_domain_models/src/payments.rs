@@ -412,20 +412,14 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
-    fn get_payment_method_sub_type(
-        &self,
-    ) -> Option<common_enums::PaymentMethodType> {
-        self
-            .feature_metadata
+    fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.feature_metadata
             .as_ref()
             .and_then(|metadata| metadata.get_payment_method_sub_type())
     }
 
-    fn get_payment_method_type(
-        &self,
-    ) -> Option<common_enums::PaymentMethod> {
-        self
-            .feature_metadata
+    fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
+        self.feature_metadata
             .as_ref()
             .and_then(|metadata| metadata.get_payment_method_type())
     }
@@ -447,7 +441,7 @@ impl PaymentIntent {
             Box::new(updated_metadata)
         })
     }
-    
+
     fn get_request_incremental_authorization_value(
         request: &api_models::payments::PaymentsCreateIntentRequest,
     ) -> CustomResult<
@@ -678,13 +672,20 @@ impl<F: Clone> PaymentConfirmData<F> {
         customer: Option<&customer::Customer>,
         merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
     ) -> Option<String> {
-        match customer.and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id())) {
+        match customer
+            .and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id()))
+        {
             Some(id) => Some(id.to_string()),
-            None => self.payment_intent
+            None => self
+                .payment_intent
                 .feature_metadata
                 .as_ref()
                 .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-                .map(|rrm| rrm.billing_connector_payment_details.connector_customer_id.clone()),
+                .map(|rrm| {
+                    rrm.billing_connector_payment_details
+                        .connector_customer_id
+                        .clone()
+                }),
         }
     }
 }

@@ -8,12 +8,15 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use crate::core::payments::OperationSessionGetters;
+
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::operations::{self, ValidateStatusForOperation},
+        payments::{
+            operations::{self, ValidateStatusForOperation},
+            OperationSessionGetters,
+        },
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -227,15 +230,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
         );
         let mandate_data_input = api_models::payments::MandateIds {
             mandate_id: None,
-            mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                api_models::payments::ConnectorMandateReferenceId::new(
-                    Some(processor_payment_token),
-                    None,
-                    None,
-                    None,
-                    None,
+            mandate_reference_id: Some(
+                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    api_models::payments::ConnectorMandateReferenceId::new(
+                        Some(processor_payment_token),
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
                 ),
-            )),
+            ),
         };
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
