@@ -233,14 +233,13 @@ migrate_v2_compatible:
 
     # Run only first 5 migrations from v2_migrations directory
     migrations_to_revert=$((v2_migrations_count - 5))
-
     echo "reverting the last $migrations_to_revert migrations"
     just run_migration revert {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} --number $migrations_to_revert || EXIT_CODE=$?
 
     echo "reverting the changes made to schema_v2"
     git restore crates/diesel_models/src/schema_v2.rs || EXIT_CODE=$?
 
-    # manually run the 081838_update_v2_primary_key_constraints/down.sql migration since diesel doesn not support tables without primary keys 
+    # manually run the 081838_update_v2_primary_key_constraints/down.sql migration since diesel does not support tables without primary keys 
     psql -d {{db_name}} -U {{db_user}} -f {{v2_migration_dir}}/2024-08-28-081838_update_v2_primary_key_constraints/down.sql || EXIT_CODE=$?
 
     just delete_dir_if_exists
