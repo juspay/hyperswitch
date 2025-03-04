@@ -11675,7 +11675,7 @@ impl Default for settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.voucher.boleto.social_security_number".to_string(),
                                                     display_name: "social_security_number".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserSocialSecurityNumber,
                                                     value: None,
                                                 }
                                             ),
