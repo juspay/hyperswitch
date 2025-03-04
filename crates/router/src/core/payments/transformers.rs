@@ -2293,7 +2293,7 @@ where
                                                     three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
-                                            poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
+                                            poll_config: Some(api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency}),
                                             message_version: authentication.message_version.as_ref()
                                             .map(|version| version.to_string()),
                                             directory_server_id: authentication.directory_server_id.clone(),
@@ -2672,7 +2672,6 @@ pub fn construct_connector_three_ds_invoke_data(
     connector_three_ds_invoke_data: api_models::payments::PaymentConnectorThreeDsInvokeData,
     base_url: &str,
 ) -> RouterResult<api_models::payments::NextActionData> {
-    let poll_id = payment_attempt.payment_id.get_threeds_authentication_request_poll_id();
     let payment_connector = payment_attempt.connector.clone().ok_or(   errors::ApiErrorResponse::InternalServerError)
     .attach_printable(
         "Connector name not found",
@@ -2688,15 +2687,12 @@ pub fn construct_connector_three_ds_invoke_data(
             three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
             three_ds_method_url: Some(connector_three_ds_invoke_data.three_ds_method_url),
     };
-    let default_poll_config = types::PollConfig::default();
-    let poll_config = api_models::payments::PollConfigResponse {poll_id: payment_attempt.payment_id.get_threeds_authentication_request_poll_id(), 
-        delay_in_secs: default_poll_config.delay_in_secs, frequency: default_poll_config.frequency};
 
     let three_ds_data = api_models::payments::ThreeDsData {
         three_ds_authentication_url:  helpers::create_authentication_url(base_url, &payment_attempt),
         three_ds_authorize_url,
         three_ds_method_details,
-        poll_config,
+        poll_config: None,
         message_version: connector_three_ds_invoke_data.message_version,
         directory_server_id: Some(connector_three_ds_invoke_data.directory_server_id),
     };

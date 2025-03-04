@@ -213,14 +213,14 @@ impl
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum RedsysPreProcessingResponse {
     RedsysResponse(RedsysTransaction),
     RedsysErrorResponse(RedsysErrorResponse),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RedsysErrorResponse {
     pub error_code: String,
@@ -282,7 +282,7 @@ pub struct ThreeDsNoDDCData {
     pub message_version: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RedsysTransaction {
     #[serde(rename = "Ds_SignatureVersion")]
     ds_signature_version: String,
@@ -292,140 +292,167 @@ pub struct RedsysTransaction {
     ds_signature: Secret<String>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            RedsysPreProcessingResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>>
+    for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            RedsysPreProcessingResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            RedsysPreProcessingResponse::RedsysResponse(response) => {
+        match item.response.clone() {
+            RedsysPreProcessingResponse::RedsysResponse( response) => {
                 let response_data: IniciaPeticionResponse = get_merchant_parameters(
-                    &response.ds_merchant_parameters.expose(),
+                    &response.ds_merchant_parameters.clone().expose(),
                 )?;
 
-                match (
-                    response_data.ds_emv3ds.three_d_s_method_u_r_l,
-                    response_data.ds_emv3ds.three_d_s_server_trans_i_d,
-                ) {
-                    (Some(three_d_s_method_u_r_l), Some(three_d_s_server_trans_i_d)) => {
-                        let three_d_s_method_notification_u_r_l =
-                            item.data.request.get_webhook_url()?;
-
-                        let threeds_invoke_data = ThreedsInvokeRequest {
-                            three_d_s_server_trans_i_d: three_d_s_method_u_r_l.clone(),
-                            three_d_s_method_notification_u_r_l,
-                        };
-
-                        let three_ds_data_string = serde_json::to_string(&threeds_invoke_data)
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                        let three_ds_method_data = encode(&three_ds_data_string);
-
-                        let three_ds_data = ThreeDsDataForDDC {
-                            three_ds_method_url: three_d_s_method_u_r_l.clone(),
-                            three_ds_method_data: three_ds_method_data,
-                            message_version: response_data.ds_emv3ds.protocol_version,
-                            directory_server_id: three_d_s_server_trans_i_d,
-                            three_ds_method_data_submission: true,
-                        };
-
-                        let connector_metadata = Some(
-                            serde_json::to_value(&three_ds_data)
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)
-                                .attach_printable("Failed to serialize ThreeDsData")?,
-                        );
-
-                        Ok(Self {
-                            status:  common_enums::enums::AttemptStatus::AuthenticationPending,
-                            response: Ok(PaymentsResponseData::TransactionResponse {
-                                resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
-                                redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
-                                connector_metadata,
-                                network_txn_id: None,
-                                connector_response_reference_id: Some(response_data.ds_order.clone()),
-                                incremental_authorization_allowed: None,
-                                charges: None,
-                            }),
-                            ..item.data
-                        })
-                    }
-                    (None, Some(three_d_s_server_trans_i_d)) => {
-                        let three_ds_data = ThreeDsNoDDCData {
-                            message_version: response_data.ds_emv3ds.protocol_version,
-                            three_d_s_server_trans_i_d,
-                        };
-                        let connector_metadata = Some(
-                            serde_json::to_value(&three_ds_data)
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)
-                                .attach_printable("Failed to serialize ThreeDsData")?,
-                        );
-
-                        Ok(Self {
-                            status: common_enums::enums::AttemptStatus::AuthenticationPending,
-                            response: Ok(PaymentsResponseData::TransactionResponse {
-                                resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
-                                redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
-                                connector_metadata,
-                                network_txn_id: None,
-                                connector_response_reference_id: Some(response_data.ds_order.clone()),
-                                incremental_authorization_allowed: None,
-                                charges: None,
-                            }),
-                            ..item.data
-                        })
-                    },
-                    (Some(_), None) | (None, None) =>  {
-                        //Incase of Non 3Ds cards for authtype threeds
-                        Ok(Self {
-                            status: common_enums::enums::AttemptStatus::AuthenticationPending,
-                            response: Ok(PaymentsResponseData::TransactionResponse {
-                                resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
-                                redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
-                                connector_metadata: None,
-                                network_txn_id: None,
-                                connector_response_reference_id: Some(response_data.ds_order.clone()),
-                                incremental_authorization_allowed: None,
-                                charges: None,
-                            }),
-                            ..item.data
-                        })
-                    }
-                }
+                handle_redsys_response(item, &response_data)
             }
             RedsysPreProcessingResponse::RedsysErrorResponse(response) => {
-                let response = Err(ErrorResponse {
-                    code: response.error_code.clone(),
-                    message: response.error_code.clone(),
-                    reason: Some(response.error_code.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                });
-                Ok(Self {
-                    status: common_enums::enums::AttemptStatus::Failure,
-                    response,
-                    ..item.data
-                })
+                handle_redsys_error_response(item, &response)
             }
         }
     }
+}
+
+fn handle_redsys_response<F>(
+    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    response_data: &IniciaPeticionResponse,
+) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    match (
+        response_data.ds_emv3ds.three_d_s_method_u_r_l.clone(),
+        response_data.ds_emv3ds.three_d_s_server_trans_i_d.clone(),
+    ) {
+        (Some(three_d_s_method_u_r_l), Some(three_d_s_server_trans_i_d)) => {
+            handle_ddc_case(item, response_data, three_d_s_method_u_r_l, three_d_s_server_trans_i_d)
+        }
+        (None, Some(three_d_s_server_trans_i_d)) => {
+            handle_no_ddc_case(item, response_data, three_d_s_server_trans_i_d)
+        }
+        (Some(_), None) | (None, None) => {
+            handle_non_3ds_case(item, response_data)
+        }
+    }
+}
+
+fn handle_ddc_case<F>(
+    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    response_data: &IniciaPeticionResponse,
+    three_d_s_method_u_r_l: String,
+    three_d_s_server_trans_i_d: String,
+) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    let three_d_s_method_notification_u_r_l = item.data.request.get_webhook_url()?;
+
+    let threeds_invoke_data = ThreedsInvokeRequest {
+        three_d_s_server_trans_i_d: three_d_s_method_u_r_l.clone(),
+        three_d_s_method_notification_u_r_l,
+    };
+
+    let three_ds_data_string = serde_json::to_string(&threeds_invoke_data)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+    let three_ds_method_data = encode(&three_ds_data_string);
+
+    let three_ds_data = ThreeDsDataForDDC {
+        three_ds_method_url: three_d_s_method_u_r_l,
+        three_ds_method_data,
+        message_version: response_data.ds_emv3ds.protocol_version.clone(),
+        directory_server_id: three_d_s_server_trans_i_d,
+        three_ds_method_data_submission: true,
+    };
+
+    let connector_metadata = Some(
+        serde_json::to_value(&three_ds_data)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize ThreeDsData")?,
+    );
+
+    Ok(RouterData {
+        status: common_enums::enums::AttemptStatus::AuthenticationPending,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata,
+            network_txn_id: None,
+            connector_response_reference_id: Some(response_data.ds_order.clone()),
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..item.data
+    })
+}
+
+fn handle_no_ddc_case<F>(
+    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    response_data: &IniciaPeticionResponse,
+    three_d_s_server_trans_i_d: String,
+) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    let three_ds_data = ThreeDsNoDDCData {
+        message_version: response_data.ds_emv3ds.protocol_version.clone(),
+        three_d_s_server_trans_i_d,
+    };
+
+    let connector_metadata = Some(
+        serde_json::to_value(&three_ds_data)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize ThreeDsData")?,
+    );
+
+    Ok(RouterData {
+        status: common_enums::enums::AttemptStatus::AuthenticationPending,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata,
+            network_txn_id: None,
+            connector_response_reference_id: Some(response_data.ds_order.clone()),
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..item.data
+    })
+}
+
+fn handle_non_3ds_case<F>(
+    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    response_data: &IniciaPeticionResponse,
+) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    Ok(RouterData {
+        status: common_enums::enums::AttemptStatus::AuthenticationPending,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(response_data.ds_order.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(response_data.ds_order.clone()),
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..item.data
+    })
+}
+
+fn handle_redsys_error_response<F>(
+    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    response: &RedsysErrorResponse,
+) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    let response = Err(ErrorResponse {
+        code: response.error_code.clone(),
+        message: response.error_code.clone(),
+        reason: Some(response.error_code.clone()),
+        status_code: item.http_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+    });
+
+    Ok(RouterData {
+        status: common_enums::enums::AttemptStatus::Failure,
+        response,
+        ..item.data
+    })
 }
 
 pub const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";

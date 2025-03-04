@@ -4373,7 +4373,7 @@ pub struct ThreeDsData {
     /// ThreeDS method details
     pub three_ds_method_details: ThreeDsMethodData,
     /// Poll config for a connector
-    pub poll_config: PollConfigResponse,
+    pub poll_config: Option<PollConfigResponse>,
     /// Message Version
     pub message_version: Option<String>,
     /// Directory Server ID
