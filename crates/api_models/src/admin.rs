@@ -111,6 +111,10 @@ pub struct MerchantAccountCreate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<api_enums::ProductType>)]
+    pub product_type: Option<api_enums::ProductType>,
 }
 
 #[cfg(feature = "v1")]
@@ -205,6 +209,8 @@ pub struct MerchantAccountCreate {
     pub merchant_details: Option<MerchantDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub organization_id: id_type::OrganizationId,
+    /// Product Type of this merchant account
+    pub product_type: Option<api_enums::ProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -550,6 +556,10 @@ pub struct MerchantAccountResponse {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<api_enums::ProductType>)]
+    pub product_type: Option<api_enums::ProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -582,6 +592,10 @@ pub struct MerchantAccountResponse {
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: api_enums::ReconStatus,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<api_enums::ProductType>)]
+    pub product_type: Option<api_enums::ProductType>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
