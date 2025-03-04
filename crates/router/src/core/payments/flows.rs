@@ -2286,18 +2286,12 @@ impl<const T: u8>
 }
 
 default_imp_for_additional_revenue_recovery_call!(
-    connector::Adyen,
     connector::Adyenplatform,
-    connector::Authorizedotnet,
-    connector::Checkout,
+    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
-    connector::Noon,
-    connector::Opayo,
-    connector::Opennode,
-    connector::Payme,
     connector::Payone,
     connector::Paypal,
     connector::Plaid,
@@ -2305,7 +2299,6 @@ default_imp_for_additional_revenue_recovery_call!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );
