@@ -1018,11 +1018,17 @@ impl ContractBasedRoutingConfig {
         if let Some(new_label_info) = new.label_info {
             new_label_info.iter().for_each(|new_label_info| {
                 if let Some(existing_label_infos) = &mut self.label_info {
-                    for existing_label_info in existing_label_infos {
+                    let mut updated = false;
+                    for existing_label_info in &mut *existing_label_infos {
                         if existing_label_info.mca_id == new_label_info.mca_id {
                             existing_label_info.update_target_time(new_label_info);
                             existing_label_info.update_target_count(new_label_info);
+                            updated = true;
                         }
+                    }
+
+                    if !updated {
+                        existing_label_infos.push(new_label_info.clone());
                     }
                 } else {
                     self.label_info = Some(vec![new_label_info.clone()]);
