@@ -562,6 +562,12 @@ pub enum Flow {
     PaymentMethodSessionUpdateSavedPaymentMethod,
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
+    /// Create Cards Info flow
+    CardsInfoCreate,
+    /// Update Cards Info flow
+    CardsInfoUpdate,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
 }
 
 /// Trait for providing generic behaviour to flow metric

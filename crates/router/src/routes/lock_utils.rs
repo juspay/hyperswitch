@@ -197,7 +197,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
-            Flow::CardsInfo => Self::CardsInfo,
+            Flow::CardsInfo
+            | Flow::CardsInfoCreate
+            | Flow::CardsInfoUpdate
+            | Flow::CardsInfoMigrate => Self::CardsInfo,
 
             Flow::CreateFile | Flow::DeleteFile | Flow::RetrieveFile => Self::Files,
 
