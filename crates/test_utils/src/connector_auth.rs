@@ -87,6 +87,7 @@ pub struct ConnectorAuthentication {
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub stripebilling: Option<HeaderKey>,
     pub taxjar: Option<HeaderKey>,
     pub threedsecureio: Option<HeaderKey>,
     pub thunes: Option<HeaderKey>,
