@@ -286,14 +286,11 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                         field_name: "merchant_account_id",
                     },
                 )?,
-                merchant_config_currency: item
-                    .router_data
-                    .request
-                    .merchant_config_currency
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                merchant_config_currency: item.router_data.request.merchant_config_currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
                         field_name: "merchant_config_currency",
-                    })?,
+                    },
+                )?,
             }
         } else {
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
@@ -497,6 +494,7 @@ impl<F>
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
+                        item.data.request.get_complete_authorize_url()?,
                     )?)),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -673,6 +671,7 @@ impl<F>
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
+                        item.data.request.get_complete_authorize_url()?,
                     )?)),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -868,11 +867,30 @@ pub struct BraintreeRefundInput {
 impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: BraintreeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
+        let metadata: BraintreeMeta = if item.router_data.request.merchant_account_id.is_some()
+            && item.router_data.request.merchant_config_currency.is_some()
+        {
+            router_env::logger::info!(
+                "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
+            );
+            BraintreeMeta {
+                merchant_account_id: item.router_data.request.merchant_account_id.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "merchant_account_id",
+                    },
+                )?,
+                merchant_config_currency: item.router_data.request.merchant_config_currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "merchant_config_currency",
+                    },
+                )?,
+            }
+        } else {
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "metadata",
-                })?;
+                })?
+        };
 
         utils::validate_currency(
             item.router_data.request.currency,
@@ -979,10 +997,29 @@ pub struct RefundSearchInput {
 impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = utils::to_connector_meta_from_secret(
-            item.connector_meta_data.clone(),
-        )
-        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+        let metadata: BraintreeMeta = if item.request.merchant_account_id.is_some()
+            && item.request.merchant_config_currency.is_some()
+        {
+            router_env::logger::info!(
+                "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
+            );
+            BraintreeMeta {
+                merchant_account_id: item.request.merchant_account_id.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "merchant_account_id",
+                    },
+                )?,
+                merchant_config_currency: item.request.merchant_config_currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "merchant_config_currency",
+                    },
+                )?,
+            }
+        } else {
+            utils::to_connector_meta_from_secret(item.connector_meta_data.clone()).change_context(
+                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+            )?
+        };
         utils::validate_currency(
             item.request.currency,
             Some(metadata.merchant_config_currency),
@@ -1651,14 +1688,11 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                         field_name: "merchant_account_id",
                     },
                 )?,
-                merchant_config_currency: item
-                    .router_data
-                    .request
-                    .merchant_config_currency
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                merchant_config_currency: item.router_data.request.merchant_config_currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
                         field_name: "merchant_config_currency",
-                    })?,
+                    },
+                )?,
             }
         } else {
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
@@ -1730,6 +1764,7 @@ fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
     payment_method_token: PaymentMethodToken,
     card_details: PaymentMethodData,
+    complete_authorize_url: String,
 ) -> Result<RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(RedirectForm::Braintree {
         client_token: client_token_data
@@ -1774,6 +1809,7 @@ fn get_braintree_redirect_form(
                 errors::ConnectorError::NotImplemented("given payment method".to_owned()),
             )?,
         },
+        acs_url: complete_authorize_url,
     })
 }
 
