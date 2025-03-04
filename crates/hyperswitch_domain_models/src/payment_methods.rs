@@ -23,7 +23,7 @@ use time::PrimitiveDateTime;
 use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
     errors,
-    mandates::{self, CommonMandateReference, PaymentsMandateReference},
+    mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };

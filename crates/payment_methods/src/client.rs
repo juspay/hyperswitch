@@ -24,16 +24,16 @@ impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for RouterStore<
 impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for KVRouterStore<T> {}
 
 #[derive(Clone)]
-pub struct PaymentMethodsClient {
-    pub state: Box<dyn PaymentMethodsStorageInterface>,
+pub struct PaymentMethodsState {
+    pub store: Box<dyn PaymentMethodsStorageInterface>,
     pub key_store: Option<MerchantKeyStore>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub limit: Option<i64>,
     pub key_manager_state: KeyManagerState,
 }
-impl From<&PaymentMethodsClient> for KeyManagerState {
-    fn from(state: &PaymentMethodsClient) -> Self {
+impl From<&PaymentMethodsState> for KeyManagerState {
+    fn from(state: &PaymentMethodsState) -> Self {
         state.key_manager_state.clone()
     }
 }
@@ -41,14 +41,14 @@ impl From<&PaymentMethodsClient> for KeyManagerState {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-impl PaymentMethodsClient {
+impl PaymentMethodsState {
     pub async fn find_payment_method(
         &self,
         key_store: &MerchantKeyStore,
         merchant_account: &MerchantAccount,
         payment_method_id: String,
     ) -> CustomResult<PaymentMethod, errors::StorageError> {
-        let db = &*self.state;
+        let db = &*self.store;
         let key_manager_state = &(self.key_manager_state).clone();
 
         match db

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use ::payment_methods::client::{PaymentMethodsClient, PaymentMethodsStorageInterface};
+use ::payment_methods::client::{PaymentMethodsState, PaymentMethodsStorageInterface};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
@@ -121,7 +121,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
-    pub payment_methods_client: PaymentMethodsClient,
+    pub payment_methods_state: PaymentMethodsState,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -518,8 +518,8 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
-            payment_methods_client: PaymentMethodsClient {
-                state: pm_store.clone(),
+            payment_methods_state: PaymentMethodsState {
+                store: pm_store.clone(),
                 key_store: None,
                 customer_id: None,
                 merchant_id: None,
