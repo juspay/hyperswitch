@@ -583,17 +583,10 @@ impl PaymentAttempt {
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
-        let amount_details = AttemptAmountDetails {
-            net_amount: request.amount_details.net_amount,
-            amount_to_capture: request.amount_details.amount_to_capture,
-            surcharge_amount: request.amount_details.surcharge_amount,
-            tax_on_surcharge: request.amount_details.tax_on_surcharge,
-            amount_capturable: request.amount_details.amount_capturable,
-            shipping_cost: request.amount_details.shipping_cost,
-            order_tax_amount: request.amount_details.order_tax_amount,
-        };
+        let amount_details = AttemptAmountDetailsSetter::from(&request.amount_details);
 
         let now = common_utils::date_time::now();
+        // we consume transaction_created_at from webhook request, if it is not present we take store current time as transaction_created_at.
         let transaction_created_at = request
             .transaction_created_at
             .unwrap_or(common_utils::date_time::now());
@@ -617,20 +610,23 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
-        let error = request.error.as_ref().map(|error| ErrorDetails {
-            code: error.code.clone(),
-            message: error.message.clone(),
-            reason: Some(error.message.clone()),
-            unified_code: None,
-            unified_message: None,
-        });
-        let connector_payment_id = request.connector_transaction_id.as_ref().map(|txn_id| txn_id.get_txn_id(None)).transpose().change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to decode billing address")?.cloned();
+        let error = request
+            .error
+            .as_ref()
+            .map(ErrorDetails::from);
+        let connector_payment_id = request
+            .connector_transaction_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_txn_id(None))
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?
+            .cloned();
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
-            amount_details,
+            amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
             connector: payment_merchant_connector_name,
             authentication_type: storage_enums::AuthenticationType::NoThreeDs,
@@ -670,7 +666,10 @@ impl PaymentAttempt {
             error,
             feature_metadata: Some(feature_metadata),
             id,
-            connector_token_details: None,
+            connector_token_details: Some(diesel_models::ConnectorTokenDetails {
+                connector_mandate_id: Some(request.processor_payment_method_token.clone()),
+                connector_token_request_reference_id: None,
+            }),
             card_discovery: None,
             charges: None,
         })

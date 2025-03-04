@@ -648,10 +648,10 @@ where
 
 #[cfg(feature = "v2")]
 #[derive(Clone)]
-pub struct RevenueRecoveryData{
-    pub billing_connector_id : id_type::MerchantConnectorAccountId,
-    pub processor_payment_method_token: Option<String>,
-    pub connector_customer_id : Option<String>,
+pub struct RevenueRecoveryData {
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+    pub processor_payment_method_token: String,
+    pub connector_customer_id: String,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

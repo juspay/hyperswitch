@@ -285,7 +285,7 @@ pub struct ChargebeeTransactionData {
     status: ChargebeeTranasactionStatus,
     error_code: Option<String>,
     error_text: Option<String>,
-    gateway_account_id: Option<String>,
+    gateway_account_id: String,
     currency_code: enums::Currency,
     amount: MinorUnit,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
@@ -373,9 +373,14 @@ impl ChargebeeInvoiceBody {
     }
 }
 
+pub struct ChargebeeMandateDetails {
+    pub customer_id: String,
+    pub mandate_id: String,
+}
+
 impl ChargebeeCustomer {
     // the logic to find connector customer id & mandate id is different for different gateways, reference : https://apidocs.chargebee.com/docs/api/customers?prod_cat_ver=2#customer_payment_method_reference_id .
-    pub fn find_connector_ids(&self) -> Result<(String, String), errors::ConnectorError> {
+    pub fn find_connector_ids(&self) -> Result<ChargebeeMandateDetails, errors::ConnectorError> {
         match self.payment_method.gateway {
             ChargebeeGateway::Stripe | ChargebeeGateway::Braintree => {
                 let mut parts = self.payment_method.reference_id.split('/');
@@ -387,7 +392,10 @@ impl ChargebeeCustomer {
                     .last()
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
-                Ok((customer_id, mandate_id))
+                Ok(ChargebeeMandateDetails {
+                    customer_id,
+                    mandate_id,
+                })
             }
         }
     }
@@ -409,13 +417,15 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .map(common_utils::types::ConnectorTransactionId::TxnId);
         let error_code = item.content.transaction.error_code.clone();
         let error_message = item.content.transaction.error_text.clone();
-        let (connector_customer_id, processor_payment_method_token) = match &item.content.customer {
-            Some(customer) => {
-                let (customer_id, mandate_id) = customer.find_connector_ids()?;
-                (Some(customer_id), Some(mandate_id))
-            }
-            None => (None, None),
-        };
+        let connector_mandate_details = item
+            .content
+            .customer
+            .as_ref()
+            .map(|customer| customer.find_connector_ids())
+            .transpose()?
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_mandate_details",
+            })?;
         let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
         let transaction_created_at = item.content.transaction.date;
         let status = enums::AttemptStatus::from(item.content.transaction.status);
@@ -433,8 +443,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             connector_transaction_id,
             error_code,
             error_message,
-            processor_payment_method_token,
-            connector_customer_id,
+            processor_payment_method_token: connector_mandate_details.mandate_id,
+            connector_customer_id: connector_mandate_details.customer_id,
             connector_account_reference_id,
             transaction_created_at,
             status,

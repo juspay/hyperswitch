@@ -133,7 +133,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Billing Connector Id to update the invoices
     pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// Payment Connector Id to retry the payments
-    pub active_attempt_payment_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub active_attempt_payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
@@ -146,7 +146,7 @@ pub struct PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: Option<String>,
+    pub payment_processor_token: String,
     /// Billing Connector's Customer Id
-    pub connector_customer_id: Option<String>,
+    pub connector_customer_id: String,
 }

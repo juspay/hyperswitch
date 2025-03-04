@@ -14,7 +14,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payments::payment_intent::CustomerData};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::revenue_recovery;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -2326,16 +2326,11 @@ impl
         let amount_details = payments::PaymentAttemptAmountDetails::from(request);
         let feature_metadata = payments::PaymentAttemptFeatureMetadata {
             revenue_recovery: Some(payments::PaymentAttemptRevenueRecoveryData {
+                // Since we are recording the external payment attempt, this is hardcoded to External
                 attempt_triggered_by: common_enums::TriggeredBy::External,
             }),
         };
-        let error = request
-            .error_code
-            .clone()
-            .zip(request.error_message.clone())
-            .map(
-                |(code, message)| payments::RecordAttemptErrorDetails { code, message },
-            );
+        let error = Option::<payments::RecordAttemptErrorDetails>::from(request);
         Self {
             amount_details,
             status: request.status,

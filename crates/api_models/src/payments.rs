@@ -8306,7 +8306,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
     /// Payment Connector Id to retry the payments
     #[schema(value_type = String, example = "mca_1234567890")]
-    pub active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
     /// Billing Connector Payment Details
     #[schema(value_type = BillingConnectorPaymentDetails)]
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
@@ -8321,9 +8321,9 @@ pub struct PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: Option<String>,
+    pub payment_processor_token: String,
     /// Billing Connector's Customer Id
-    pub connector_customer_id: Option<String>,
+    pub connector_customer_id: String,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented
@@ -8358,7 +8358,8 @@ pub struct PaymentsAttemptRecordRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// A unique reference identifier for a connector provided by the external system to identify payment connector.
-    pub merchant_connector_reference_id: Option<String>,
+    #[schema(value_type = String, example = "1234567890")]
+    pub merchant_connector_reference_id: String,
 
     /// Billing Connector Id to update the invoices
     #[schema(value_type = String, example = "mca_1234567890")]
@@ -8384,11 +8385,11 @@ pub struct PaymentsAttemptRecordRequest {
 
     /// payment method token at payment processor end.
     #[schema(value_type = String, example = "1234567890")]
-    pub processor_payment_method_token: Option<String>,
+    pub processor_payment_method_token: String,
 
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
-    pub connector_customer_id: Option<String>,
+    pub connector_customer_id: String,
 }
 
 /// Error details for the payment
