@@ -478,9 +478,9 @@ impl
         let updated_feature_metadata = payment_data
             .payment_intent
             .set_payment_connector_transmission(
-                payment_data.payment_intent.feature_metadata.as_ref(),
-                status,
-            );
+            payment_data.payment_intent.feature_metadata.clone(),
+            status,
+        );
 
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
