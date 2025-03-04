@@ -165,7 +165,7 @@ impl From<diesel_models::role::Role> for RoleInfo {
         Self {
             role_id: role.role_id,
             role_name: role.role_name,
-            groups: role.groups.into_iter().collect(),
+            groups: role.groups,
             scope: role.scope,
             entity_type: role.entity_type,
             is_invitable: true,
