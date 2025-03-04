@@ -151,4 +151,4 @@ pub struct UasFlowData {
 }
 
 #[derive(Debug, Clone)]
-pub struct AdditionalRevenueRecoveryCallFlowCommonData;
+pub struct GetAdditionalRevenueRecoveryFlowCommonData;

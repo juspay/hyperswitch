@@ -606,7 +606,7 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct AdditionalRevenueRecoveryDetailsResponseData {
+pub struct GetAdditionalRevenueRecoveryResponseData {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: MinorUnit,
     /// currency of the transaction

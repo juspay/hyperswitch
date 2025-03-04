@@ -42,7 +42,7 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AdditionalRevenueRecoveryDetailsRequestData,
+        AcceptDisputeRequestData, GetAdditionalRevenueRecoveryRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         DefendDisputeRequestData, MandateRevokeRequestData, PaymentsApproveData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
@@ -51,7 +51,7 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, AdditionalRevenueRecoveryDetailsResponseData, DefendDisputeResponse,
+        AcceptDisputeResponse, GetAdditionalRevenueRecoveryResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
         VerifyWebhookSourceResponseData,
@@ -3254,12 +3254,12 @@ default_imp_for_uas_authentication_confirmation!(
 
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::ConnectorAdditionalRevenueRecoveryDetailsCall for $path::$connector {}
+        $( impl api::AdditionalRevenueRecovery for $path::$connector {}
             impl
                 ConnectorIntegration<
                 GetAdditionalRevenueRecoveryDetails,
-                AdditionalRevenueRecoveryDetailsRequestData,
-                AdditionalRevenueRecoveryDetailsResponseData
+                GetAdditionalRevenueRecoveryRequestData,
+                GetAdditionalRevenueRecoveryResponseData
             > for $path::$connector
             {}
         )*

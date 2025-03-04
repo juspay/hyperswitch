@@ -15,7 +15,7 @@ use crate::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AdditionalRevenueRecoveryDetailsRequestData,
+        AccessTokenRequestData, GetAdditionalRevenueRecoveryRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
@@ -23,7 +23,7 @@ use crate::{
         PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AdditionalRevenueRecoveryDetailsResponseData, MandateRevokeResponseData,
+        GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
     },
 };
@@ -84,6 +84,6 @@ pub type UasAuthenticationRouterData =
 
 pub type AdditionalRevenueRecoveryDetailsRouterData = RouterData<
     GetAdditionalRevenueRecoveryDetails,
-    AdditionalRevenueRecoveryDetailsRequestData,
-    AdditionalRevenueRecoveryDetailsResponseData,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
 >;

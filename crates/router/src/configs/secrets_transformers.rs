@@ -506,7 +506,7 @@ pub(crate) async fn fetch_raw_secrets(
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
-        additional_revenue_recovery_details_call: conf.additional_revenue_recovery_details_call,
+        // additional_revenue_recovery_details_call: conf.additional_revenue_recovery_details_call,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]

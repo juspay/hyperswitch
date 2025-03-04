@@ -915,6 +915,6 @@ pub struct SetupMandateRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct AdditionalRevenueRecoveryDetailsRequestData {
+pub struct GetAdditionalRevenueRecoveryRequestData {
     pub transaction_id: String,
 }

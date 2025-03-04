@@ -111,7 +111,7 @@ pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
 pub type BoxedGetAdditionalRecoveryRecoveryDetailsIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
-        common_types::AdditionalRevenueRecoveryCallFlowCommonData,
+        common_types::GetAdditionalRevenueRecoveryFlowCommonData,
         Req,
         Res,
     >;

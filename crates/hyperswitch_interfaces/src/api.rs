@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
-        flow_common_types::{AdditionalRevenueRecoveryCallFlowCommonData, WebhookSourceVerifyData},
+        flow_common_types::{GetAdditionalRevenueRecoveryFlowCommonData, WebhookSourceVerifyData},
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
@@ -44,11 +44,11 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AdditionalRevenueRecoveryDetailsRequestData,
+        AccessTokenRequestData, GetAdditionalRevenueRecoveryRequestData,
         MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AdditionalRevenueRecoveryDetailsResponseData, ConnectorInfo, MandateRevokeResponseData,
+        GetAdditionalRevenueRecoveryResponseData, ConnectorInfo, MandateRevokeResponseData,
         PaymentMethodDetails, SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };
@@ -372,23 +372,23 @@ pub trait ConnectorVerifyWebhookSourceV2:
 {
 }
 
-/// trait ConnectorAdditionalRevenueRecoveryDetailsCall
-pub trait ConnectorAdditionalRevenueRecoveryDetailsCall:
+/// trait AdditionalRevenueRecovery
+pub trait AdditionalRevenueRecovery:
     ConnectorIntegration<
     GetAdditionalRevenueRecoveryDetails,
-    AdditionalRevenueRecoveryDetailsRequestData,
-    AdditionalRevenueRecoveryDetailsResponseData,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
 >
 {
 }
 
-/// trait ConnectorAdditionalRevenueRecoveryDetailsCallV2
-pub trait ConnectorAdditionalRevenueRecoveryDetailsCallV2:
+/// trait AdditionalRevenueRecoveryV2
+pub trait AdditionalRevenueRecoveryV2:
     ConnectorIntegrationV2<
     GetAdditionalRevenueRecoveryDetails,
-    AdditionalRevenueRecoveryCallFlowCommonData,
-    AdditionalRevenueRecoveryDetailsRequestData,
-    AdditionalRevenueRecoveryDetailsResponseData,
+    GetAdditionalRevenueRecoveryFlowCommonData,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
 >
 {
 }

@@ -63,7 +63,7 @@ pub use hyperswitch_domain_models::{
             UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData,
-        AdditionalRevenueRecoveryDetailsRequestData, AuthorizeSessionTokenData, BrowserInformation,
+        GetAdditionalRevenueRecoveryRequestData, AuthorizeSessionTokenData, BrowserInformation,
         ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
         DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
@@ -77,7 +77,7 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, AdditionalRevenueRecoveryDetailsResponseData, CaptureSyncResponse,
+        AcceptDisputeResponse, GetAdditionalRevenueRecoveryResponseData, CaptureSyncResponse,
         DefendDisputeResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
         PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
