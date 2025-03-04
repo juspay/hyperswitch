@@ -908,8 +908,8 @@ mod tests {
         mandate_data: Option<serde_json::Value>,
     ) -> PaymentMethod {
         let payment_method = PaymentMethod {
-            customer_id: common_utils::id_type::CustomerId::default(),
-            merchant_id: common_utils::id_type::MerchantId::default(),
+            customer_id: id_type::CustomerId::default(),
+            merchant_id: id_type::MerchantId::default(),
             payment_method_id: String::from("abc"),
             accepted_currency: None,
             scheme: None,
