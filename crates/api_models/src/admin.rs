@@ -1960,6 +1960,9 @@ pub struct ProfileCreate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2225,6 +2228,9 @@ pub struct ProfileResponse {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2486,6 +2492,9 @@ pub struct ProfileUpdate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
