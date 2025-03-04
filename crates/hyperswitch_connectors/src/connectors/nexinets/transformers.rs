@@ -1,7 +1,7 @@
 use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus};
-use common_utils::{consts, errors::CustomResult, request::Method};
+use common_utils::{consts, errors::CustomResult, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -31,9 +31,25 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
+pub struct NexinetsRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(MinorUnit, T)> for NexinetsRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentsRequest {
-    initial_amount: i64,
+    initial_amount: MinorUnit,
     currency: enums::Currency,
     channel: NexinetsChannel,
     product: NexinetsProduct,
@@ -175,24 +191,30 @@ pub struct ApplepayPaymentMethod {
     token_type: String,
 }
 
-impl TryFrom<&PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
+impl TryFrom<&NexinetsRouterData<&PaymentsAuthorizeRouterData>> for NexinetsPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let return_url = item.request.router_return_url.clone();
+    fn try_from(
+        item: &NexinetsRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let return_url = request.router_return_url.clone();
         let nexinets_async = NexinetsAsyncDetails {
             success_url: return_url.clone(),
             cancel_url: return_url.clone(),
             failure_url: return_url,
         };
-        let (payment, product) = get_payment_details_and_product(item)?;
-        let merchant_order_id = match item.payment_method {
+        let (payment, product) = get_payment_details_and_product(item.router_data)?;
+        let merchant_order_id = match item.router_data.payment_method {
             // Merchant order id is sent only in case of card payment
-            enums::PaymentMethod::Card => Some(item.connector_request_reference_id.clone()),
+            enums::PaymentMethod::Card => {
+                Some(item.router_data.connector_request_reference_id.clone())
+            }
             _ => None,
         };
+
         Ok(Self {
-            initial_amount: item.request.amount,
-            currency: item.request.currency,
+            initial_amount: item.amount,
+            currency: request.currency,
             channel: NexinetsChannel::Ecom,
             product,
             payment,
@@ -381,7 +403,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsCaptureOrVoidRequest {
-    pub initial_amount: i64,
+    pub initial_amount: MinorUnit,
     pub currency: enums::Currency,
 }
 
@@ -391,22 +413,24 @@ pub struct NexinetsOrder {
     pub order_id: String,
 }
 
-impl TryFrom<&PaymentsCaptureRouterData> for NexinetsCaptureOrVoidRequest {
+impl TryFrom<&NexinetsRouterData<&PaymentsCaptureRouterData>> for NexinetsCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &NexinetsRouterData<&PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.request.amount_to_capture,
-            currency: item.request.currency,
+            initial_amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency,
         })
     }
 }
 
-impl TryFrom<&PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest {
+impl TryFrom<&NexinetsRouterData<&PaymentsCancelRouterData>> for NexinetsCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &NexinetsRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.request.get_amount()?,
-            currency: item.request.get_currency()?,
+            initial_amount: item.amount.to_owned(),
+            currency: item.router_data.request.get_currency()?,
         })
     }
 }
@@ -463,16 +487,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundRequest {
-    pub initial_amount: i64,
+    pub initial_amount: MinorUnit,
     pub currency: enums::Currency,
 }
 
-impl<F> TryFrom<&RefundsRouterData<F>> for NexinetsRefundRequest {
+impl<F> TryFrom<&NexinetsRouterData<&RefundsRouterData<F>>> for NexinetsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &NexinetsRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.request.refund_amount,
-            currency: item.request.currency,
+            initial_amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency,
         })
     }
 }
