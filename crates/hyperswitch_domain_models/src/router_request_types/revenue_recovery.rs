@@ -1,5 +1,5 @@
 #[derive(Debug, Clone)]
 pub struct GetAdditionalRevenueRecoveryRequestData {
-    // stripe charge id for additional call
-    pub charge_id: Option<String>,
+    /// unique id for making additional revenue recovery call
+    pub additional_revenue_recovery_id: String,
 }
