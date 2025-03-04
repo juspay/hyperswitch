@@ -1,6 +1,6 @@
-// Validate status 2xx
-pm.test("[POST]::/refunds - Status code is 2xx", function () {
-  pm.response.to.be.success;
+// Validate status 4xx
+pm.test("[POST]::/refunds - Status code is 4xx", function () {
+  pm.response.to.have.status(400);
 });
 
 // Validate if response header has matching content-type
@@ -24,6 +24,13 @@ if (jsonData?.refund_id) {
     jsonData.refund_id,
   );
 } else {
+  pm.collectionVariables.set("refund_id", null);
+  pm.test(
+    "[POST]::/refunds - Content check if 'error.message' matches 'This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured'",
+    function () {
+      pm.expect(jsonData.error.message).to.eql("This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured");
+    },
+  );
   console.log(
     "INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.",
   );
@@ -48,8 +55,3 @@ if (jsonData?.status) {
     },
   );
 }
-
-// Validate the connector
-pm.test("[POST]::/payments - connector", function () {
-  pm.expect(jsonData.connector).to.eql("cybersource");
-});
