@@ -19,4 +19,3 @@ impl ConnectorNetworkTxnId {
         &self.0
     }
 }
-

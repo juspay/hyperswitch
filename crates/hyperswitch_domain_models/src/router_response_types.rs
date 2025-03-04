@@ -604,4 +604,3 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
         }
     }
 }
-

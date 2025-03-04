@@ -45,12 +45,12 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData,
-        MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, ConnectorInfo, MandateRevokeResponseData,
-        PaymentMethodDetails, SupportedPaymentMethods, VerifyWebhookSourceResponseData,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, ConnectorInfo,
+        MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
