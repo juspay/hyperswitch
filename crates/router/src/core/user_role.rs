@@ -127,6 +127,7 @@ pub async fn update_user_role(
         &req.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
         user_from_token
             .tenant_id
             .as_ref()
@@ -551,6 +552,7 @@ pub async fn delete_user_role(
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            &user_from_token.profile_id,
             user_from_token
                 .tenant_id
                 .as_ref()
@@ -625,6 +627,7 @@ pub async fn delete_user_role(
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            &user_from_token.profile_id,
             user_from_token
                 .tenant_id
                 .as_ref()
@@ -985,7 +988,7 @@ pub async fn list_invitations_for_user(
 
     let org_name_map = futures::future::try_join_all(org_ids.into_iter().map(|org_id| async {
         let org_name = state
-            .store
+            .accounts_store
             .find_organization_by_org_id(&org_id)
             .await
             .change_context(UserErrors::InternalServerError)?

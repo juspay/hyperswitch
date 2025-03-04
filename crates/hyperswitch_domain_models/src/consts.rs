@@ -29,3 +29,6 @@ pub static ROUTING_ENABLED_PAYMENT_METHOD_TYPES: Lazy<HashSet<common_enums::Paym
         set.insert(common_enums::PaymentMethodType::SamsungPay);
         set
     });
+
+/// Length of the unique reference ID generated for connector mandate requests
+pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;

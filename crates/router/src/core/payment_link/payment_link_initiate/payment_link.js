@@ -307,7 +307,9 @@ function initializeEventListeners(paymentDetails) {
   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {
-    submitButtonNode.style.color = contrastBWColor;
+    var chosenColor = paymentDetails.payment_button_colour || primaryColor;
+    submitButtonNode.style.color = paymentDetails.payment_button_text_colour || invert(chosenColor, true);
+    submitButtonNode.style.backgroundColor = chosenColor;
   }
 
   if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
@@ -441,9 +443,25 @@ function handleSubmit(e) {
         } else {
           showMessage(translations.unexpectedError);
         }
+      } else if (paymentDetails.skip_status_screen) {
+        // Form query params
+        var queryParams = {
+          payment_id: paymentDetails.payment_id,
+          status: result.status
+        };
+        var url = new URL(paymentDetails.return_url);
+        var params = new URLSearchParams(url.search);
+        // Attach query params to return_url
+        for (var key in queryParams) {
+          if (queryParams.hasOwnProperty(key)) {
+            params.set(key, queryParams[key]);
+          }
+        }
+        url.search = params.toString();
+        window.top.location.href = url.toString();
       } else {
         redirectToStatus();
-      }
+    }
     })
     .catch(function (error) {
       console.error("Error confirming payment_intent", error);

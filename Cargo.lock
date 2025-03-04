@@ -1529,6 +1529,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64-serde"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c6d128af408d8ebd08331f0331cf2cf20d19e6c44a7aec58791641ecc8c0b5"
+
+[[package]]
 name = "base64-simd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2033,8 +2039,10 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
+ "euclid",
  "serde",
  "serde_json",
+ "strum 0.26.3",
  "utoipa",
 ]
 
@@ -2044,6 +2052,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "base64-serde",
  "blake3",
  "bytes 1.7.1",
  "common_enums",
@@ -3060,6 +3069,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "common_types",
  "connector_configs",
  "currency_conversion",
  "euclid",
@@ -3995,6 +4005,7 @@ dependencies = [
  "bytes 1.7.1",
  "cards",
  "common_enums",
+ "common_types",
  "common_utils",
  "encoding_rs",
  "error-stack",
@@ -4003,6 +4014,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "josekit 0.8.6",
  "lazy_static",
  "masking",
  "mime",
@@ -4020,6 +4032,7 @@ dependencies = [
  "serde_qs",
  "serde_urlencoded",
  "serde_with",
+ "sha1",
  "strum 0.26.3",
  "time",
  "url",
@@ -4479,6 +4492,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48d1dbcbbeb6a7fec7e059840aa538bd62aaccf972c7346c4d9d2059312853d0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "josekit"
+version = "0.8.6"
+source = "git+https://github.com/sumanmaji4/josekit-rs.git?rev=5ab54876c29a84f86aef8c169413a46026883efe#5ab54876c29a84f86aef8c169413a46026883efe"
+dependencies = [
+ "anyhow",
+ "base64 0.21.7",
+ "flate2",
+ "once_cell",
+ "openssl",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
 ]
 
 [[package]]
@@ -5335,9 +5365,9 @@ dependencies = [
 
 [[package]]
 name = "openssl"
-version = "0.10.66"
+version = "0.10.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9529f4786b70a3e8c61e11179af17ab6188ad8d0ded78c5529441ed39d4bd9c1"
+checksum = "61cfb4e166a8bb8c9b55c500bc2308550148ece889be90f609377e58140f42c6"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if 1.0.0",
@@ -5367,9 +5397,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.103"
+version = "0.9.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f9e8deee91df40a943c71b917e5874b951d32a802526c85721ce3b776c929d6"
+checksum = "8b22d5b84be05a8d6947c7cb71f7c849aa0f112acd4bf51c2a7c1c988ac0a9dc"
 dependencies = [
  "cc",
  "libc",
@@ -6580,6 +6610,7 @@ dependencies = [
  "external_services",
  "futures 0.3.30",
  "hex",
+ "hkdf",
  "http 0.2.12",
  "hyper 0.14.30",
  "hyperswitch_connectors",
@@ -6589,7 +6620,7 @@ dependencies = [
  "infer",
  "iso_currency",
  "isocountry",
- "josekit",
+ "josekit 0.8.7",
  "jsonwebtoken",
  "kgraph_utils",
  "masking",
@@ -6628,6 +6659,7 @@ dependencies = [
  "serde_with",
  "serial_test",
  "sha1",
+ "sha2",
  "storage_impl",
  "strum 0.26.3",
  "tera",

@@ -11,7 +11,8 @@ ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN frm_routing_algorithm_id,
     DROP COLUMN payout_routing_algorithm_id,
     DROP COLUMN default_fallback_routing,
-    DROP COLUMN should_collect_cvv_during_payment;
+    DROP COLUMN should_collect_cvv_during_payment,
+    DROP COLUMN three_ds_decision_manager_config;
 
 DROP TYPE "OrderFulfillmentTimeOrigin";
 
@@ -42,7 +43,13 @@ ALTER TABLE payment_attempt DROP COLUMN payment_method_type_v2,
     DROP COLUMN tax_on_surcharge,
     DROP COLUMN payment_method_billing_address,
     DROP COLUMN redirection_data,
-    DROP COLUMN connector_payment_data;
+    DROP COLUMN connector_payment_data,
+    DROP COLUMN connector_token_details;
 
 ALTER TABLE merchant_connector_account
-ALTER COLUMN payment_methods_enabled TYPE JSON [ ];
+    DROP COLUMN IF EXISTS feature_metadata;
+
+ALTER TABLE payment_methods
+    DROP COLUMN IF EXISTS locker_fingerprint_id,
+    DROP COLUMN IF EXISTS payment_method_type_v2,
+    DROP COLUMN IF EXISTS payment_method_subtype;
