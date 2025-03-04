@@ -232,8 +232,8 @@ impl super::behaviour::Conversion for Customer {
             connector_customer: self.connector_customer,
             default_payment_method_id: self.default_payment_method_id,
             updated_by: self.updated_by,
-            default_billing_address: self.default_billing_address.map(Encryption::from),
-            default_shipping_address: self.default_shipping_address.map(Encryption::from),
+            default_billing_address: self.default_billing_address,
+            default_shipping_address: self.default_shipping_address,
             version: self.version,
             status: self.status,
         })
