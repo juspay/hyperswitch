@@ -1426,7 +1426,7 @@ impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData
                 .and_then(get_stripe_card_network),
             payment_method_data_card_request_overcapture: match is_request_overcapture {
                 Some(true) => Some(StripeOvercaptureRequest::IfAvailable),
-                Some(false) => Some(StripeOvercaptureRequest::Never),
+                Some(false) |
                 None => None,
             },
         }))
