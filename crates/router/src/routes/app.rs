@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use ::payment_methods::client::{PaymentMethodsState, PaymentMethodsStorageInterface};
+use ::payment_methods::state::{PaymentMethodsState, PaymentMethodsStorageInterface};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
