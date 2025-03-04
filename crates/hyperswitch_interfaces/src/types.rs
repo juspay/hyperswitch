@@ -3,31 +3,24 @@
 use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        dispute::{Accept, Defend, Evidence},
-        files::{Retrieve, Upload},
-        mandate_revoke::MandateRevoke,
-        payments::{
+        access_token_auth::AccessTokenAuth, dispute::{Accept, Defend, Evidence}, files::{Retrieve, Upload}, mandate_revoke::MandateRevoke, payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
             Session, SetupMandate, Void,
-        },
-        refunds::{Execute, RSync},
-        unified_authentication_service::{
+        }, refunds::{Execute, RSync}, unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        },
-        webhooks::{GetAdditionalRevenueRecoveryDetails, VerifyWebhookSource},
+        }, webhooks:: VerifyWebhookSource,revenue_recovery::GetAdditionalRevenueRecoveryDetails,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData, 
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
-        GetAdditionalRevenueRecoveryRequestData, MandateRevokeRequestData,
+        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
@@ -36,7 +29,8 @@ use hyperswitch_domain_models::{
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, GetAdditionalRevenueRecoveryResponseData,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+        AcceptDisputeResponse, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
         VerifyWebhookSourceResponseData,

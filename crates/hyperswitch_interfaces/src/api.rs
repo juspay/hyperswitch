@@ -39,16 +39,17 @@ use hyperswitch_domain_models::{
         VerifyWebhookSource,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, GetAdditionalRevenueRecoveryRequestData, MandateRevokeRequestData,
-        VerifyWebhookSourceRequestData,
+        AccessTokenRequestData,
+        MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        ConnectorInfo, GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, ConnectorInfo, MandateRevokeResponseData,
         PaymentMethodDetails, SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };

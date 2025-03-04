@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod unified_authentication_service;
+pub mod revenue_recovery;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -914,7 +915,3 @@ pub struct SetupMandateRequestData {
     pub shipping_cost: Option<MinorUnit>,
 }
 
-#[derive(Debug, Clone)]
-pub struct GetAdditionalRevenueRecoveryRequestData {
-    pub transaction_id: String,
-}
