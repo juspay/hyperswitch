@@ -1,29 +1,39 @@
 use std::collections::BTreeMap;
 
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{Encode, ValueExt},
+    ext_traits::{Encode, OptionExt, ValueExt},
+    request::Method,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{Card, PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::RSync,
+    router_request_types::ResponseId,
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
+    },
+};
+use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    connector::utils::{
-        self, CardData, PaymentsSyncRequestData, RefundsRequestData, RouterData, WalletData,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, CardData, ForeignTryFrom, PaymentsSyncRequestData, RefundsRequestData,
+        RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
-    core::errors,
-    services,
-    types::{
-        self,
-        api::{self, enums as api_enums},
-        domain,
-        storage::enums,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
-    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -70,11 +80,11 @@ pub struct AuthorizedotnetAuthType {
     transaction_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AuthorizedotnetAuthType {
+impl TryFrom<&ConnectorAuthType> for AuthorizedotnetAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 name: api_key.to_owned(),
                 transaction_key: key1.to_owned(),
@@ -214,7 +224,7 @@ pub struct BillTo {
     city: Option<String>,
     state: Option<Secret<String>>,
     zip: Option<Secret<String>>,
-    country: Option<api_enums::CountryAlpha2>,
+    country: Option<enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize)]
@@ -336,11 +346,11 @@ impl ForeignTryFrom<Value> for Vec<UserField> {
     }
 }
 
-impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
+impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ccard) => {
+            PaymentMethodData::Card(ccard) => {
                 let merchant_authentication =
                     AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
                 let validation_mode = match item.test_mode {
@@ -366,24 +376,24 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     },
                 })
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -403,32 +413,21 @@ pub struct AuthorizedotnetSetupMandateResponse {
 
 // zero dollar response
 impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            AuthorizedotnetSetupMandateResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, AuthorizedotnetSetupMandateResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetSetupMandateResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, AuthorizedotnetSetupMandateResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.messages.result_code {
             ResultCode::Ok => Ok(Self {
                 status: enums::AttemptStatus::Charged,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(item.response.customer_profile_id.map(
-                        |customer_profile_id| types::MandateReference {
+                        |customer_profile_id| MandateReference {
                             connector_mandate_id:
                                 item.response.customer_payment_profile_id_list.first().map(
                                     |payment_profile_id| {
@@ -451,7 +450,7 @@ impl<F, T>
             ResultCode::Error => {
                 let error_code = match item.response.messages.message.first() {
                     Some(first_error_message) => first_error_message.code.clone(),
-                    None => crate::consts::NO_ERROR_CODE.to_string(),
+                    None => hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
                 };
                 let error_reason = item
                     .response
@@ -461,7 +460,7 @@ impl<F, T>
                     .map(|error: &ResponseMessage| error.text.clone())
                     .collect::<Vec<String>>()
                     .join(" ");
-                let response = Err(types::ErrorResponse {
+                let response = Err(ErrorResponse {
                     code: error_code,
                     message: item.response.messages.result_code.to_string(),
                     reason: Some(error_reason),
@@ -515,12 +514,12 @@ impl TryFrom<enums::CaptureMethod> for AuthorizationType {
     }
 }
 
-impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
+impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
     for CreateTransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -551,29 +550,27 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             }
             None => {
                 match &item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::Card(ccard) => {
-                        TransactionRequest::try_from((item, ccard))
-                    }
-                    domain::PaymentMethodData::Wallet(wallet_data) => {
+                    PaymentMethodData::Card(ccard) => TransactionRequest::try_from((item, ccard)),
+                    PaymentMethodData::Wallet(wallet_data) => {
                         TransactionRequest::try_from((item, wallet_data))
                     }
-                    domain::PaymentMethodData::CardRedirect(_)
-                    | domain::PaymentMethodData::PayLater(_)
-                    | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
-                    | domain::PaymentMethodData::BankTransfer(_)
-                    | domain::PaymentMethodData::Crypto(_)
-                    | domain::PaymentMethodData::MandatePayment
-                    | domain::PaymentMethodData::Reward
-                    | domain::PaymentMethodData::RealTimePayment(_)
-                    | domain::PaymentMethodData::MobilePayment(_)
-                    | domain::PaymentMethodData::Upi(_)
-                    | domain::PaymentMethodData::Voucher(_)
-                    | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_)
-                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    PaymentMethodData::CardRedirect(_)
+                    | PaymentMethodData::PayLater(_)
+                    | PaymentMethodData::BankRedirect(_)
+                    | PaymentMethodData::BankDebit(_)
+                    | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::Crypto(_)
+                    | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::Reward
+                    | PaymentMethodData::RealTimePayment(_)
+                    | PaymentMethodData::MobilePayment(_)
+                    | PaymentMethodData::Upi(_)
+                    | PaymentMethodData::Voucher(_)
+                    | PaymentMethodData::GiftCard(_)
+                    | PaymentMethodData::OpenBanking(_)
+                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -595,14 +592,14 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
 
 impl
     TryFrom<(
-        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
         String,
     )> for TransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, network_trans_id): (
-            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+            &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
             String,
         ),
     ) -> Result<Self, Self::Error> {
@@ -611,31 +608,31 @@ impl
             amount: item.amount,
             currency_code: item.router_data.request.currency,
             payment: Some(match item.router_data.request.payment_method_data {
-                domain::PaymentMethodData::Card(ref ccard) => {
+                PaymentMethodData::Card(ref ccard) => {
                     PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
                     })
                 }
-                domain::PaymentMethodData::CardRedirect(_)
-                | domain::PaymentMethodData::Wallet(_)
-                | domain::PaymentMethodData::PayLater(_)
-                | domain::PaymentMethodData::BankRedirect(_)
-                | domain::PaymentMethodData::BankDebit(_)
-                | domain::PaymentMethodData::BankTransfer(_)
-                | domain::PaymentMethodData::Crypto(_)
-                | domain::PaymentMethodData::MandatePayment
-                | domain::PaymentMethodData::Reward
-                | domain::PaymentMethodData::RealTimePayment(_)
-                | domain::PaymentMethodData::MobilePayment(_)
-                | domain::PaymentMethodData::Upi(_)
-                | domain::PaymentMethodData::Voucher(_)
-                | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_)
-                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::Wallet(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::BankRedirect(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Reward
+                | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::MobilePayment(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -684,14 +681,14 @@ impl
 
 impl
     TryFrom<(
-        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
         api_models::payments::ConnectorMandateReferenceId,
     )> for TransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, connector_mandate_id): (
-            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+            &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
             api_models::payments::ConnectorMandateReferenceId,
         ),
     ) -> Result<Self, Self::Error> {
@@ -740,15 +737,15 @@ impl
 
 impl
     TryFrom<(
-        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::Card,
+        &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
+        &Card,
     )> for TransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, ccard): (
-            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::Card,
+            &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
+            &Card,
         ),
     ) -> Result<Self, Self::Error> {
         let (profile, customer) =
@@ -833,15 +830,15 @@ impl
 
 impl
     TryFrom<(
-        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::WalletData,
+        &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
+        &WalletData,
     )> for TransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, wallet_data): (
-            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::WalletData,
+            &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
+            &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -888,9 +885,9 @@ impl
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for CancelOrCaptureTransactionRequest {
+impl TryFrom<&PaymentsCancelRouterData> for CancelOrCaptureTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let transaction_request = TransactionVoidOrCaptureRequest {
             amount: None, //amount is not required for void
             transaction_type: TransactionType::Void,
@@ -908,12 +905,12 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelOrCaptureTransactionReq
     }
 }
 
-impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>>
+impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCaptureRouterData>>
     for CancelOrCaptureTransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>,
+        item: &AuthorizedotnetRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         let transaction_request = TransactionVoidOrCaptureRequest {
             amount: Some(item.amount),
@@ -964,22 +961,22 @@ pub enum AuthorizedotnetRefundStatus {
     HeldForReview,
 }
 
-impl ForeignFrom<(AuthorizedotnetPaymentStatus, bool)> for enums::AttemptStatus {
-    fn foreign_from((item, auto_capture): (AuthorizedotnetPaymentStatus, bool)) -> Self {
-        match item {
-            AuthorizedotnetPaymentStatus::Approved => {
-                if auto_capture {
-                    Self::Charged
-                } else {
-                    Self::Authorized
-                }
+fn get_payment_status(
+    (item, auto_capture): (AuthorizedotnetPaymentStatus, bool),
+) -> enums::AttemptStatus {
+    match item {
+        AuthorizedotnetPaymentStatus::Approved => {
+            if auto_capture {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::Authorized
             }
-            AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
-                Self::Failure
-            }
-            AuthorizedotnetPaymentStatus::RequiresAction => Self::AuthenticationPending,
-            AuthorizedotnetPaymentStatus::HeldForReview => Self::Pending,
         }
+        AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
+            enums::AttemptStatus::Failure
+        }
+        AuthorizedotnetPaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
+        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Pending,
     }
 }
 
@@ -1113,35 +1110,25 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
 
 impl<F, T>
     ForeignTryFrom<(
-        types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        ResponseRouterData<F, AuthorizedotnetPaymentsResponse, T, PaymentsResponseData>,
         bool,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    )> for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
         (item, is_auto_capture): (
-            types::ResponseRouterData<
-                F,
-                AuthorizedotnetPaymentsResponse,
-                T,
-                types::PaymentsResponseData,
-            >,
+            ResponseRouterData<F, AuthorizedotnetPaymentsResponse, T, PaymentsResponseData>,
             bool,
         ),
     ) -> Result<Self, Self::Error> {
         match &item.response.transaction_response {
             Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
-                let status = enums::AttemptStatus::foreign_from((
+                let status = get_payment_status((
                     transaction_response.response_code.clone(),
                     is_auto_capture,
                 ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| types::ErrorResponse {
+                    errors.iter().next().map(|error| ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
                         reason: Some(error.error_text.clone()),
@@ -1164,15 +1151,14 @@ impl<F, T>
                     .secure_acceptance
                     .as_ref()
                     .and_then(|x| x.secure_acceptance_url.to_owned());
-                let redirection_data =
-                    url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
+                let redirection_data = url.map(|url| RedirectForm::from((url, Method::Get)));
                 let mandate_reference = item.response.profile_response.map(|profile_response| {
                     let payment_profile_id = profile_response
                         .customer_payment_profile_id_list
                         .and_then(|customer_payment_profile_id_list| {
                             customer_payment_profile_id_list.first().cloned()
                         });
-                    types::MandateReference {
+                    MandateReference {
                         connector_mandate_id: profile_response.customer_profile_id.and_then(
                             |customer_profile_id| {
                                 payment_profile_id.map(|payment_profile_id| {
@@ -1190,8 +1176,8 @@ impl<F, T>
                     status,
                     response: match error {
                         Some(err) => Err(err),
-                        None => Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
+                        None => Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
                             redirection_data: Box::new(redirection_data),
@@ -1222,25 +1208,18 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, AuthorizedotnetVoidResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetVoidResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, AuthorizedotnetVoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match &item.response.transaction_response {
             Some(transaction_response) => {
                 let status = enums::AttemptStatus::from(transaction_response.response_code.clone());
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| types::ErrorResponse {
+                    errors.iter().next().map(|error| ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
                         reason: Some(error.error_text.clone()),
@@ -1263,8 +1242,8 @@ impl<F, T>
                     status,
                     response: match error {
                         Some(err) => Err(err),
-                        None => Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
+                        None => Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
                             redirection_data: Box::new(None),
@@ -1318,10 +1297,10 @@ pub struct CreateRefundRequest {
     create_transaction_request: AuthorizedotnetRefundRequest,
 }
 
-impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>> for CreateRefundRequest {
+impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &AuthorizedotnetRouterData<&types::RefundsRouterData<F>>,
+        item: &AuthorizedotnetRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         let payment_details = item
             .router_data
@@ -1378,17 +1357,17 @@ pub struct AuthorizedotnetRefundResponse {
     pub messages: ResponseMessages,
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
-    for types::RefundsRouterData<F>
+impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
+    for RefundsRouterData<F>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>,
+        item: RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>,
     ) -> Result<Self, Self::Error> {
         let transaction_response = &item.response.transaction_response;
         let refund_status = enums::RefundStatus::from(transaction_response.response_code.clone());
         let error = transaction_response.errors.clone().and_then(|errors| {
-            errors.first().map(|error| types::ErrorResponse {
+            errors.first().map(|error| ErrorResponse {
                 code: error.error_code.clone(),
                 message: error.error_text.clone(),
                 reason: Some(error.error_text.clone()),
@@ -1401,7 +1380,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
         Ok(Self {
             response: match error {
                 Some(err) => Err(err),
-                None => Ok(types::RefundsResponseData {
+                None => Ok(RefundsResponseData {
                     connector_refund_id: transaction_response.transaction_id.clone(),
                     refund_status,
                 }),
@@ -1424,13 +1403,13 @@ pub struct AuthorizedotnetCreateSyncRequest {
     get_transaction_details_request: TransactionDetails,
 }
 
-impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>>
+impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>>
     for AuthorizedotnetCreateSyncRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: &AuthorizedotnetRouterData<&types::RefundsRouterData<F>>,
+        item: &AuthorizedotnetRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = item.router_data.request.get_connector_refund_id()?;
         let merchant_authentication =
@@ -1446,10 +1425,10 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>>
     }
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncRequest {
+impl TryFrom<&PaymentsSyncRouterData> for AuthorizedotnetCreateSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let transaction_id = Some(
             item.request
                 .get_connector_transaction_id()
@@ -1548,19 +1527,19 @@ impl From<RSyncStatus> for enums::RefundStatus {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, AuthorizedotnetRSyncResponse>>
+    for RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>,
+        item: RefundsResponseRouterData<RSync, AuthorizedotnetRSyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.transaction {
             Some(transaction) => {
                 let refund_status = enums::RefundStatus::from(transaction.transaction_status);
                 Ok(Self {
-                    response: Ok(types::RefundsResponseData {
+                    response: Ok(RefundsResponseData {
                         connector_refund_id: transaction.transaction_id,
                         refund_status,
                     }),
@@ -1575,27 +1554,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncRe
     }
 }
 
-impl<F, Req>
-    TryFrom<
-        types::ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, types::PaymentsResponseData>,
-    > for types::RouterData<F, Req, types::PaymentsResponseData>
+impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, PaymentsResponseData>>
+    for RouterData<F, Req, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetSyncResponse,
-            Req,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.transaction {
             Some(transaction) => {
                 let payment_status = enums::AttemptStatus::from(transaction.transaction_status);
                 Ok(Self {
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
                             transaction.transaction_id.clone(),
                         ),
                         redirection_data: Box::new(None),
@@ -1667,12 +1639,12 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
 fn get_err_response(
     status_code: u16,
     message: ResponseMessages,
-) -> Result<types::ErrorResponse, errors::ConnectorError> {
+) -> Result<ErrorResponse, errors::ConnectorError> {
     let response_message = message
         .message
         .first()
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-    Ok(types::ErrorResponse {
+    Ok(ErrorResponse {
         code: response_message.code.clone(),
         message: response_message.text.clone(),
         reason: Some(response_message.text.clone()),
@@ -1735,7 +1707,7 @@ pub enum AuthorizedotnetIncomingWebhookEventType {
     Unknown,
 }
 
-impl From<AuthorizedotnetIncomingWebhookEventType> for api::IncomingWebhookEvent {
+impl From<AuthorizedotnetIncomingWebhookEventType> for IncomingWebhookEvent {
     fn from(event_type: AuthorizedotnetIncomingWebhookEventType) -> Self {
         match event_type {
             AuthorizedotnetIncomingWebhookEventType::AuthorizationCreated
@@ -1789,50 +1761,48 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
 }
 
 fn get_wallet_data(
-    wallet_data: &domain::WalletData,
+    wallet_data: &WalletData,
     return_url: &Option<String>,
 ) -> CustomResult<PaymentDetails, errors::ConnectorError> {
     match wallet_data {
-        domain::WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
+        WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
             data_descriptor: WalletMethod::Googlepay,
             data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
         })),
-        domain::WalletData::ApplePay(applepay_token) => {
-            Ok(PaymentDetails::OpaqueData(WalletDetails {
-                data_descriptor: WalletMethod::Applepay,
-                data_value: Secret::new(applepay_token.payment_data.clone()),
-            }))
-        }
-        domain::WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
+        WalletData::ApplePay(applepay_token) => Ok(PaymentDetails::OpaqueData(WalletDetails {
+            data_descriptor: WalletMethod::Applepay,
+            data_value: Secret::new(applepay_token.payment_data.clone()),
+        })),
+        WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
             success_url: return_url.to_owned(),
             cancel_url: return_url.to_owned(),
         })),
-        domain::WalletData::AliPayQr(_)
-        | domain::WalletData::AliPayRedirect(_)
-        | domain::WalletData::AliPayHkRedirect(_)
-        | domain::WalletData::AmazonPayRedirect(_)
-        | domain::WalletData::MomoRedirect(_)
-        | domain::WalletData::KakaoPayRedirect(_)
-        | domain::WalletData::GoPayRedirect(_)
-        | domain::WalletData::GcashRedirect(_)
-        | domain::WalletData::ApplePayRedirect(_)
-        | domain::WalletData::ApplePayThirdPartySdk(_)
-        | domain::WalletData::DanaRedirect {}
-        | domain::WalletData::GooglePayRedirect(_)
-        | domain::WalletData::GooglePayThirdPartySdk(_)
-        | domain::WalletData::MbWayRedirect(_)
-        | domain::WalletData::MobilePayRedirect(_)
-        | domain::WalletData::PaypalSdk(_)
-        | domain::WalletData::Paze(_)
-        | domain::WalletData::SamsungPay(_)
-        | domain::WalletData::TwintRedirect {}
-        | domain::WalletData::VippsRedirect {}
-        | domain::WalletData::TouchNGoRedirect(_)
-        | domain::WalletData::WeChatPayRedirect(_)
-        | domain::WalletData::WeChatPayQr(_)
-        | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_)
-        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        WalletData::AliPayQr(_)
+        | WalletData::AliPayRedirect(_)
+        | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
+        | WalletData::MomoRedirect(_)
+        | WalletData::KakaoPayRedirect(_)
+        | WalletData::GoPayRedirect(_)
+        | WalletData::GcashRedirect(_)
+        | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayThirdPartySdk(_)
+        | WalletData::DanaRedirect {}
+        | WalletData::GooglePayRedirect(_)
+        | WalletData::GooglePayThirdPartySdk(_)
+        | WalletData::MbWayRedirect(_)
+        | WalletData::MobilePayRedirect(_)
+        | WalletData::PaypalSdk(_)
+        | WalletData::Paze(_)
+        | WalletData::SamsungPay(_)
+        | WalletData::TwintRedirect {}
+        | WalletData::VippsRedirect {}
+        | WalletData::TouchNGoRedirect(_)
+        | WalletData::WeChatPayRedirect(_)
+        | WalletData::WeChatPayQr(_)
+        | WalletData::CashappQr(_)
+        | WalletData::SwishQr(_)
+        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
         ))?,
     }
@@ -1883,12 +1853,12 @@ pub struct PaypalQueryParams {
     payer_id: Option<Secret<String>>,
 }
 
-impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
+impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>>
     for PaypalConfirmRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
+        item: &AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let params = item
             .router_data
