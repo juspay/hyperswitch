@@ -46,11 +46,11 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
-    revenue_recovery::{RevenueRecovery,AdditionalRevenueRecovery},
-    revenue_recovery_v2::RevenueRecoveryV2, ConnectorAccessToken,
-    ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt, ConnectorMandateRevoke,
-    ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource, ConnectorVerifyWebhookSourceV2,
-    CurrencyUnit,
+    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
+    revenue_recovery_v2::RevenueRecoveryV2,
+    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
+    ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
 use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 

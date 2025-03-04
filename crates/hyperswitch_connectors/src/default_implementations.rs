@@ -78,7 +78,7 @@ use hyperswitch_interfaces::{
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
-        revenue_recovery::{AdditionalRevenueRecovery,RevenueRecovery},
+        revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
         UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
         UnifiedAuthenticationService,
