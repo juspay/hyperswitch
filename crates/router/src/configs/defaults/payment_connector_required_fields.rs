@@ -3566,9 +3566,9 @@ impl Default for settings::RequiredFields {
                                             }
                                             ),
                                             (
-                                                "payment_method_data.billing.phone.number".to_string(),
+                                                "billing.phone.number".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.phone.number".to_string(),
+                                                    required_field: "payment_method_data.billing.phone.number".to_string(),
                                                     display_name: "phone_number".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
                                                     value: None,
@@ -7072,9 +7072,9 @@ impl Default for settings::RequiredFields {
                                             }
                                             ),
                                             (
-                                                "payment_method_data.billing.phone.number".to_string(),
+                                                "billing.phone.number".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.phone.number".to_string(),
+                                                    required_field: "payment_method_data.billing.phone.number".to_string(),
                                                     display_name: "phone_number".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
                                                     value: None,
@@ -9850,9 +9850,9 @@ impl Default for settings::RequiredFields {
                                         common: HashMap::new(),
                                         non_mandate: HashMap::from([
                                             (
-                                                "payment_method_data.billing.phone.number".to_string(),
+                                                "billing.phone.number".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "billing.phone.number".to_string(),
+                                                    required_field: "payment_method_data.billing.phone.number".to_string(),
                                                     display_name: "phone_number".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
                                                     value: None,
@@ -11195,7 +11195,7 @@ impl Default for settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
-                                                    "payment_method_data.billing.phone.number".to_string(),
+                                                    "billing.phone.number".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
@@ -11425,9 +11425,9 @@ impl Default for settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
-                                                    "payment_method_data.billing.phone.number".to_string(),
+                                                    "billing.phone.number".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.phone.number".to_string(),
+                                                        required_field: "payment_method_data.billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
                                                         value: None,
@@ -11547,9 +11547,9 @@ impl Default for settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
-                                                    "payment_method_data.billing.phone.number".to_string(),
+                                                    "billing.phone.number".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.phone.number".to_string(),
+                                                        required_field: "payment_method_data.billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
                                                         value: None,
@@ -13299,7 +13299,7 @@ impl Default for settings::RequiredFields {
                                                     (
                                                         "payment_method_data.gift_card.number".to_string(),
                                                         RequiredFieldInfo {
-                                                            required_field: "payment_method_data.gift_card.number".to_string(),
+                                                            required_field: "payment_method_data.gift_card.givex.number".to_string(),
                                                             display_name: "gift_card_number".to_string(),
                                                             field_type: enums::FieldType::UserCardNumber,
                                                             value: None,
@@ -13308,7 +13308,7 @@ impl Default for settings::RequiredFields {
                                                     (
                                                         "payment_method_data.gift_card.cvc".to_string(),
                                                         RequiredFieldInfo {
-                                                            required_field: "payment_method_data.gift_card.cvc".to_string(),
+                                                            required_field: "payment_method_data.gift_card.givex.cvc".to_string(),
                                                             display_name: "gift_card_cvc".to_string(),
                                                             field_type: enums::FieldType::UserCardCvc,
                                                             value: None,
