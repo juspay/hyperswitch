@@ -1,5 +1,11 @@
+#[cfg(feature = "v2")]
+use std::str::FromStr;
+
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
+use error_stack::ResultExt;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -11,17 +17,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use error_stack::ResultExt;
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use hyperswitch_domain_models::revenue_recovery;
-#[cfg(feature="v2")]
-use std::str::FromStr;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{PaymentsAuthorizeRequestData,convert_uppercase},
+    utils::{convert_uppercase, PaymentsAuthorizeRequestData},
 };
-use common_utils::{errors::CustomResult,ext_traits::ByteSliceExt};
 
 //TODO: Fill the struct with respective fields
 pub struct StripebillingRouterData<T> {
@@ -237,111 +237,105 @@ pub struct StripebillingErrorResponse {
     pub reason: Option<String>,
 }
 
-
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StripebillingWebhookBody {
     #[serde(rename = "type")]
-    pub event_type : StripebillingEventType,
-    pub data : StripebillingWebhookData
+    pub event_type: StripebillingEventType,
+    pub data: StripebillingWebhookData,
 }
 
-#[derive(Debug,Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StripebillingInvoiceBody {
     #[serde(rename = "type")]
-    pub event_type : StripebillingEventType,
-    pub data : StripebillingInvoiceData
+    pub event_type: StripebillingEventType,
+    pub data: StripebillingInvoiceData,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripebillingEventType {
-    #[serde(rename="invoice.paid")]
+    #[serde(rename = "invoice.paid")]
     PaymentSucceeded,
-    #[serde(rename="invoice.payment_failed")]
+    #[serde(rename = "invoice.payment_failed")]
     PaymentFailed,
-    #[serde(rename="invoice.voided")]
-    InvoiceDeleted
+    #[serde(rename = "invoice.voided")]
+    InvoiceDeleted,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StripebillingWebhookData {
-    pub object : StripebillingWebhookObject
+    pub object: StripebillingWebhookObject,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StripebillingInvoiceData {
-    pub object : StripebillingWebhookObject
+    pub object: StripebillingWebhookObject,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StripebillingWebhookObject{
-    #[serde(rename="id")]
-    pub invoice_id : String,
-    #[serde(deserialize_with="convert_uppercase")]
-    pub currency : enums::Currency,
-    pub customer : String,
-    #[serde(rename="amount_remaining")]
-    pub amount :  common_utils::types::MinorUnit,
-    pub charge : String
+pub struct StripebillingWebhookObject {
+    #[serde(rename = "id")]
+    pub invoice_id: String,
+    #[serde(deserialize_with = "convert_uppercase")]
+    pub currency: enums::Currency,
+    pub customer: String,
+    #[serde(rename = "amount_remaining")]
+    pub amount: common_utils::types::MinorUnit,
+    pub charge: String,
 }
 
-#[derive(Debug,Serialize,Deserialize)]
-pub struct StripebillingInvoiceObject{
-    #[serde(rename="id")]
-    pub invoice_id : String,
-    #[serde(deserialize_with="convert_uppercase")]
-    pub currency : enums::Currency,
-    #[serde(rename="amount_remaining")]
-    pub amount :  common_utils::types::MinorUnit,
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripePaymentMethodDetails{
-    #[serde(rename="type")]
-    pub type_of_payment_method : StripebillingPaymentMethod,
-    #[serde(rename="card")]
-    pub card_funding_type : StripeCardFundingTypeDetails,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StripebillingInvoiceObject {
+    #[serde(rename = "id")]
+    pub invoice_id: String,
+    #[serde(deserialize_with = "convert_uppercase")]
+    pub currency: enums::Currency,
+    #[serde(rename = "amount_remaining")]
+    pub amount: common_utils::types::MinorUnit,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all="snake_case")]
+pub struct StripePaymentMethodDetails {
+    #[serde(rename = "type")]
+    pub type_of_payment_method: StripebillingPaymentMethod,
+    #[serde(rename = "card")]
+    pub card_funding_type: StripeCardFundingTypeDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum StripebillingPaymentMethod {
     Card,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripeCardFundingTypeDetails{
-    pub funding : StripebillingFundingTypes
+pub struct StripeCardFundingTypeDetails {
+    pub funding: StripebillingFundingTypes,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename="snake_case")]
+#[serde(rename = "snake_case")]
 pub enum StripebillingFundingTypes {
-    #[serde(rename="credit")]
+    #[serde(rename = "credit")]
     Credit,
-    #[serde(rename="debit")]
+    #[serde(rename = "debit")]
     Debit,
-    #[serde(rename="prepaid")]
+    #[serde(rename = "prepaid")]
     Prepaid,
-    #[serde(rename="unknown")]
-    Unknown
+    #[serde(rename = "unknown")]
+    Unknown,
 }
 
-#[derive(Serialize, Deserialize, Debug,Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum StripebillingChargeStatus{
+pub enum StripebillingChargeStatus {
     Succeeded,
     Failed,
-    Pending
+    Pending,
 }
 
-
 impl StripebillingWebhookBody {
-    pub fn get_webhook_object_from_body(
-        body: &[u8],
-    ) -> CustomResult<Self, errors::ConnectorError> {
+    pub fn get_webhook_object_from_body(body: &[u8]) -> CustomResult<Self, errors::ConnectorError> {
         let webhook_body: Self = body
             .parse_struct::<Self>("StripebillingWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -349,7 +343,6 @@ impl StripebillingWebhookBody {
         Ok(webhook_body)
     }
 }
-
 
 impl StripebillingInvoiceBody {
     pub fn get_invoice_webhook_data_from_body(
@@ -376,4 +369,3 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
         })
     }
 }
-

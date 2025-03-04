@@ -1,12 +1,13 @@
 pub mod transformers;
 
+use std::collections::HashMap;
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use std::collections::HashMap;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -552,7 +553,8 @@ impl webhooks::IncomingWebhook for Stripebilling {
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, errors::ConnectorError>
+    {
         Ok(Box::new(common_utils::crypto::HmacSha256))
     }
 
@@ -564,23 +566,28 @@ impl webhooks::IncomingWebhook for Stripebilling {
         //signature contains the timestamp and the signature and signature will have the versions we need only v1
         //handled where the signature is needed
         let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
-        let signature = header_hashmap.remove("v1").ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let signature = header_hashmap
+            .remove("v1")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
         &self,
-        request : &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id : &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets : &api_models::webhooks::ConnectorWebhookSecrets
-    )->CustomResult<Vec<u8>,errors::ConnectorError>{
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
-        let timestamp = header_hashmap.remove("t").ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let timestamp = header_hashmap
+            .remove("t")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(format!(
             "{}.{}",
             String::from_utf8_lossy(&timestamp),
             String::from_utf8_lossy(request.body)
-        ).into_bytes())
+        )
+        .into_bytes())
     }
 
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -589,12 +596,11 @@ impl webhooks::IncomingWebhook for Stripebilling {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         // for stripebilling we need an additional call to fetch the recovery required data . So instead of Invoice Id we sent ChargeId
-        let webhook = stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let webhook =
+            stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook.data.object.charge,
-            ),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.data.object.charge),
         ))
     }
 
@@ -610,9 +616,9 @@ impl webhooks::IncomingWebhook for Stripebilling {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-
-        let webhook = stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let webhook =
+            stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         let event = match webhook.event_type {
             stripebilling::StripebillingEventType::PaymentSucceeded => {
@@ -636,7 +642,6 @@ impl webhooks::IncomingWebhook for Stripebilling {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
-
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_resource_object(
         &self,
@@ -650,24 +655,31 @@ impl webhooks::IncomingWebhook for Stripebilling {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook =
-            stripebilling::StripebillingInvoiceBody::get_invoice_webhook_data_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let webhook = stripebilling::StripebillingInvoiceBody::get_invoice_webhook_data_from_body(
+            request.body,
+        )
+        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(webhook))
     }
 }
 
 fn get_signature_elements_from_header(
-    headers : &actix_web::http::header::HeaderMap
-) -> CustomResult<HashMap<String, Vec<u8>>, errors::ConnectorError>{
-    let security_header = headers.get("stripe-signature").ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
-    let security_header_str = security_header.to_str().change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+    headers: &actix_web::http::header::HeaderMap,
+) -> CustomResult<HashMap<String, Vec<u8>>, errors::ConnectorError> {
+    let security_header = headers
+        .get("stripe-signature")
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+    let security_header_str = security_header
+        .to_str()
+        .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
     let header_parts = security_header_str.split(',').collect::<Vec<&str>>();
-    let mut header_hashmap : HashMap<String, Vec<u8>> = HashMap::with_capacity(header_parts.len());
+    let mut header_hashmap: HashMap<String, Vec<u8>> = HashMap::with_capacity(header_parts.len());
 
-    for header_part in header_parts{
-        let (header_key,header_value) = header_part.split_once('=').ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
-        header_hashmap.insert(header_key.to_string(),header_value.bytes().collect());
+    for header_part in header_parts {
+        let (header_key, header_value) = header_part
+            .split_once('=')
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        header_hashmap.insert(header_key.to_string(), header_value.bytes().collect());
     }
 
     Ok(header_hashmap)

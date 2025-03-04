@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::payments;
 #[cfg(feature = "payouts")]
@@ -57,10 +60,9 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
-use serde::{Serializer,Deserialize};
+use serde::{Deserialize, Serializer};
 use serde_json::Value;
 use time::PrimitiveDateTime;
-use std::str::FromStr;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
