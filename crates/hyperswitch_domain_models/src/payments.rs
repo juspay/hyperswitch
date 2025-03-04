@@ -153,31 +153,40 @@ impl PaymentIntent {
         payment_method_optional: Option<common_enums::PaymentMethod>,
         payment_method_type_optional: Option<common_enums::PaymentMethodType>,
     ) -> Option<RequestExtendedAuthorizationBool> {
-        let intent_request_extended_authorization_optional = self.request_extended_authorization;
-        if always_request_extended_authorization_optional.is_some_and(
-            |always_request_extended_authorization| *always_request_extended_authorization,
-        ) {
-            Some(true)
-        } else if intent_request_extended_authorization_optional.is_some_and(
-            |intent_request_extended_authorization| *intent_request_extended_authorization,
-        ) {
+        use router_env::logger;
+
+        let is_extended_authorization_supported_by_connector = || {
             let supported_pms = connector.get_payment_methods_supporting_extended_authorization();
             let supported_pmts =
                 connector.get_payment_method_types_supporting_extended_authorization();
             // check if payment method or payment method type is supported by the connector
-            Some(
-                match (payment_method_optional, payment_method_type_optional) {
-                    (Some(payment_method), Some(payment_method_type)) => {
-                        supported_pms.contains(&payment_method)
-                            && supported_pmts.contains(&payment_method_type)
-                    }
-                    (Some(payment_method), None) => supported_pms.contains(&payment_method),
-                    (None, Some(payment_method_type)) => {
-                        supported_pmts.contains(&payment_method_type)
-                    }
-                    (None, None) => false,
-                },
-            )
+            logger::info!(
+                "Extended Authentication Connector:{:?}, Supported payment methods: {:?}, Supported payment method types: {:?}, Payment method Selected: {:?}, Payment method type Selected: {:?}",
+                connector
+                supported_pms,
+                supported_pmts,
+                payment_method_optional,
+                payment_method_type_optional
+            );
+            match (payment_method_optional, payment_method_type_optional) {
+                (Some(payment_method), Some(payment_method_type)) => {
+                    supported_pms.contains(&payment_method)
+                        && supported_pmts.contains(&payment_method_type)
+                }
+                (Some(payment_method), None) => supported_pms.contains(&payment_method),
+                (None, Some(payment_method_type)) => supported_pmts.contains(&payment_method_type),
+                (None, None) => false,
+            }
+        };
+        let intent_request_extended_authorization_optional = self.request_extended_authorization;
+        if always_request_extended_authorization_optional.is_some_and(
+            |always_request_extended_authorization| *always_request_extended_authorization,
+        ) {
+            Some(is_extended_authorization_supported_by_connector())
+        } else if intent_request_extended_authorization_optional.is_some_and(
+            |intent_request_extended_authorization| *intent_request_extended_authorization,
+        ) {
+            Some(is_extended_authorization_supported_by_connector())
         } else {
             None
         }

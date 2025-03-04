@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use utoipa::ToSchema;
 
 pub use super::enums::{PaymentMethod, PayoutType};
@@ -437,13 +439,13 @@ impl Connector {
         matches!(self, Self::Airwallex)
     }
 
-    pub fn get_payment_methods_supporting_extended_authorization(self) -> Vec<PaymentMethod> {
-        vec![]
+    pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
+        HashSet::new()
     }
     pub fn get_payment_method_types_supporting_extended_authorization(
         self,
-    ) -> Vec<crate::PaymentMethodType> {
-        vec![]
+    ) -> HashSet<crate::PaymentMethodType> {
+        HashSet::new()
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
