@@ -2512,10 +2512,7 @@ macro_rules! default_imp_for_additional_revenue_recovery_call {
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::AdditionalRevenueRecovery
-    for connector::DummyConnector<T>
-{
-}
+impl<const T: u8> api::AdditionalRevenueRecovery for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<

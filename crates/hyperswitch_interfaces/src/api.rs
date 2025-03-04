@@ -44,11 +44,11 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, GetAdditionalRevenueRecoveryRequestData,
-        MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+        AccessTokenRequestData, GetAdditionalRevenueRecoveryRequestData, MandateRevokeRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        GetAdditionalRevenueRecoveryResponseData, ConnectorInfo, MandateRevokeResponseData,
+        ConnectorInfo, GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
         PaymentMethodDetails, SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };
