@@ -434,9 +434,9 @@ impl ConnectorData {
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
-                // enums::Connector::Getnet => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
-                // }
+                enums::Connector::Getnet => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }

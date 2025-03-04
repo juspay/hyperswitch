@@ -107,6 +107,7 @@ pub async fn construct_relay_refund_router_data<F>(
             split_refunds: None,
             integrity_object: None,
             refund_status: common_enums::RefundStatus::from(relay_record.status),
+            capture_method: None,
         },
 
         response: Err(ErrorResponse::default()),
