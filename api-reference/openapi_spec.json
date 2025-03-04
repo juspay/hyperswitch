@@ -11623,7 +11623,6 @@
           "object_id",
           "event_type",
           "event_class",
-          "is_delivery_successful",
           "initial_attempt_id",
           "created"
         ],
