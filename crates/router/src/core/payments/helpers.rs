@@ -2845,6 +2845,11 @@ pub(crate) fn validate_amount_to_capture(
     utils::when(
         amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
         || {
+            logger::debug!(
+                "amount_to_capture({:?}) is greater than amount_capturable({})",
+                amount_to_capture,
+                amount
+            );
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "amount_to_capture is greater than amount".to_string()
             }))
