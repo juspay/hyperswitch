@@ -150,4 +150,5 @@ pub struct UasFlowData {
     pub source_authentication_id: String,
 }
 
-pub struct AdditionalRevenueRecoveryCallFlowCommonData;
+#[derive(Debug, Clone)]
+pub struct GetAdditionalRevenueRecoveryFlowCommonData;

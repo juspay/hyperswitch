@@ -57,30 +57,33 @@ pub use hyperswitch_domain_models::{
         WebhookSourceVerifyData,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
+        AcceptDisputeRequestData, AccessTokenRequestData,
+        AuthorizeSessionTokenData, BrowserInformation,
+        ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
-        DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
-        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        DestinationChargeRefund, DirectChargeRefund,
+        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, ResponseId,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VerifyWebhookSourceRequestData, AdditionalRevenueRecoveryDetailsRequestData
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
-        MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+        AcceptDisputeResponse, CaptureSyncResponse,
+        DefendDisputeResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
+        PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        VerifyWebhookStatus, AdditionalRevenueRecoveryDetailsResponseData
+        VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]

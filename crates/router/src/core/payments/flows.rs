@@ -15,7 +15,8 @@ use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, GetAdditionalRevenueRecoveryDetails
+        Authenticate, AuthenticationConfirmation, GetAdditionalRevenueRecoveryDetails,
+        PostAuthenticate, PreAuthenticate,
     },
     router_request_types::PaymentsCaptureData,
 };
@@ -2498,12 +2499,12 @@ fn handle_post_capture_response(
 
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::ConnectorAdditionalRevenueRecoveryDetailsCall for $path::$connector {}
+        $( impl api::AdditionalRevenueRecovery for $path::$connector {}
             impl
             services::ConnectorIntegration<
                 GetAdditionalRevenueRecoveryDetails,
-                types::AdditionalRevenueRecoveryDetailsRequestData,
-                types::AdditionalRevenueRecoveryDetailsResponseData,
+                types::GetAdditionalRevenueRecoveryRequestData,
+                types::GetAdditionalRevenueRecoveryResponseData,
         > for $path::$connector
         {}
     )*
@@ -2511,13 +2512,13 @@ macro_rules! default_imp_for_additional_revenue_recovery_call {
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ConnectorAdditionalRevenueRecoveryDetailsCall for connector::DummyConnector<T> {}
+impl<const T: u8> api::AdditionalRevenueRecovery for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
         GetAdditionalRevenueRecoveryDetails,
-        types::AdditionalRevenueRecoveryDetailsRequestData,
-        types::AdditionalRevenueRecoveryDetailsResponseData,
+        types::GetAdditionalRevenueRecoveryRequestData,
+        types::GetAdditionalRevenueRecoveryResponseData,
     > for connector::DummyConnector<T>
 {
 }
@@ -2546,4 +2547,3 @@ default_imp_for_additional_revenue_recovery_call!(
     connector::Wellsfargopayout,
     connector::Wise
 );
-

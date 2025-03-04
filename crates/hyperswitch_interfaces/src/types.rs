@@ -3,43 +3,37 @@
 use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        dispute::{Accept, Defend, Evidence},
-        files::{Retrieve, Upload},
-        mandate_revoke::MandateRevoke,
-        payments::{
+        access_token_auth::AccessTokenAuth, dispute::{Accept, Defend, Evidence}, files::{Retrieve, Upload}, mandate_revoke::MandateRevoke, payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
             Session, SetupMandate, Void,
-        },
-        refunds::{Execute, RSync},
-        unified_authentication_service::{
+        }, refunds::{Execute, RSync}, unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        },
-        webhooks::{VerifyWebhookSource,GetAdditionalRevenueRecoveryDetails},
+        }, webhooks:: VerifyWebhookSource,revenue_recovery::GetAdditionalRevenueRecoveryDetails,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData, 
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
-        AdditionalRevenueRecoveryDetailsRequestData
+        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        AdditionalRevenueRecoveryDetailsResponseData
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+        AcceptDisputeResponse, DefendDisputeResponse,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -225,9 +219,9 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
-///Type alias for `ConnectorIntegration<GetAdditionalRevenueRecoveryDetails, AdditionalRevenueRecoveryDetailsRequestData, AdditionalRevenueRecoveryDetailsResponseData>`
+/// Type alias for `ConnectorIntegration<GetAdditionalRevenueRecoveryDetails, GetAdditionalRevenueRecoveryRequestData, GetAdditionalRevenueRecoveryResponseData>`
 pub type AdditionalRevenueRecoveryCallType = dyn ConnectorIntegration<
     GetAdditionalRevenueRecoveryDetails,
-    AdditionalRevenueRecoveryDetailsRequestData,
-    AdditionalRevenueRecoveryDetailsResponseData
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
 >;
