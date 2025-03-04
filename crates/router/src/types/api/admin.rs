@@ -187,6 +187,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             card_testing_guard_config: item
                 .card_testing_guard_config
                 .map(ForeignInto::foreign_into),
+            force_3ds_challenge: item.force_3ds_challenge,
         })
     }
 }
@@ -435,5 +436,6 @@ pub async fn create_profile_from_merchant_account(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating card testing secret key")?,
+        force_3ds_challenge: request.force_3ds_challenge,
     }))
 }

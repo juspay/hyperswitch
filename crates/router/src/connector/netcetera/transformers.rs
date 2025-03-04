@@ -471,6 +471,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
             ip_address,
             item.router_data.psd2_sca_exemption_type,
+            item.router_data.request.force_3ds_challenge,
         );
         let card = utils::get_card_details(request.payment_method_data, "netcetera")?;
         let is_cobadged_card = card

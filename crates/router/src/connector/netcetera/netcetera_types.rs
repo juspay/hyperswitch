@@ -173,18 +173,22 @@ impl ThreeDSRequestor {
     pub fn new(
         app_ip: Option<std::net::IpAddr>,
         psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        force_3ds_challenge: Option<bool>,
     ) -> Self {
         // if sca exemption is provided, we need to set the challenge indicator to NoChallengeRequestedTransactionalRiskAnalysis
-        let three_ds_requestor_challenge_ind =
-            if let Some(common_enums::ScaExemptionType::TransactionRiskAnalysis) =
-                psd2_sca_exemption_type
-            {
-                Some(SingleOrListElement::Single(
+        let three_ds_requestor_challenge_ind = if force_3ds_challenge == Some(true) {
+            Some(SingleOrListElement::Single(
+                ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate,
+            ))
+        } else if let Some(common_enums::ScaExemptionType::TransactionRiskAnalysis) =
+            psd2_sca_exemption_type
+        {
+            Some(SingleOrListElement::Single(
                 ThreeDSRequestorChallengeIndicator::NoChallengeRequestedTransactionalRiskAnalysis,
             ))
-            } else {
-                None
-            };
+        } else {
+            None
+        };
 
         Self {
             three_ds_requestor_authentication_ind: ThreeDSRequestorAuthenticationIndicator::Payment,

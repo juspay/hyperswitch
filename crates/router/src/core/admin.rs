@@ -3786,6 +3786,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            force_3ds_challenge: self.force_3ds_challenge,
         }))
     }
 
@@ -4227,6 +4228,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
+                force_3ds_challenge: self.force_3ds_challenge,
             },
         )))
     }
