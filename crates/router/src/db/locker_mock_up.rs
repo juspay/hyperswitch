@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -88,8 +88,6 @@ impl LockerMockUpInterface for MockDb {
         }
 
         let created_locker = storage::LockerMockUp {
-            id: i32::try_from(locked_lockers.len())
-                .change_context(errors::StorageError::MockDbError)?,
             card_id: new.card_id,
             external_id: new.external_id,
             card_fingerprint: new.card_fingerprint,

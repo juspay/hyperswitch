@@ -447,7 +447,7 @@ async fn payments_incoming_webhook_flow(
                     req_state,
                     merchant_account.clone(),
                     key_store.clone(),
-                    profile,
+                    &profile,
                     payments::operations::PaymentGet,
                     api::PaymentsRetrieveRequest {
                         force_sync: true,
@@ -466,6 +466,7 @@ async fn payments_incoming_webhook_flow(
                 external_latency,
                 None,
                 &merchant_account,
+                &profile,
             );
 
             lock_action

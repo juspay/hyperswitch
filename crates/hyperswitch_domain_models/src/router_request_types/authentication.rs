@@ -1,10 +1,11 @@
-use cards::CardNumber;
 use common_utils::{ext_traits::OptionExt, pii::Email};
 use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address, errors::api_error_response::ApiErrorResponse, payment_method_data::PaymentMethodData,
+    address,
+    errors::api_error_response::ApiErrorResponse,
+    payment_method_data::{Card, PaymentMethodData},
     router_request_types::BrowserInformation,
 };
 
@@ -70,8 +71,8 @@ impl AuthNFlowType {
 
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
-    // card number
-    pub card_holder_account_number: CardNumber,
+    // card data
+    pub card: Card,
 }
 
 #[derive(Clone, Debug)]

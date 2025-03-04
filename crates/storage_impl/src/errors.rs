@@ -111,6 +111,7 @@ impl StorageError {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
             Self::ValueNotFound(_) => true,
+            Self::RedisError(err) => matches!(err.current_context(), RedisError::NotFound),
             _ => false,
         }
     }
@@ -297,4 +298,16 @@ pub enum HealthCheckLockerError {
 pub enum HealthCheckGRPCServiceError {
     #[error("Failed to establish connection with gRPC service")]
     FailedToCallService,
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum RecoveryError {
+    #[error("Failed to make a recovery payment")]
+    PaymentCallFailed,
+    #[error("Encountered a Process Tracker Task Failure")]
+    ProcessTrackerFailure,
+    #[error("The encountered task is invalid")]
+    InvalidTask,
+    #[error("The Intended data was not found")]
+    ValueNotFound,
 }

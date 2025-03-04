@@ -62,7 +62,7 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-router:standalone
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
@@ -87,7 +87,7 @@ services:
       timeout: 5s
 
   hyperswitch-producer:
-    image: juspaydotin/hyperswitch-producer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-producer:standalone
     pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
@@ -105,7 +105,7 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: juspaydotin/hyperswitch-consumer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-consumer:standalone
     pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
@@ -129,7 +129,7 @@ services:
       timeout: 10s
 
   hyperswitch-drainer:
-    image: juspaydotin/hyperswitch-drainer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-drainer:standalone
     pull_policy: always
     command: /local/bin/drainer -f /local/config/docker_compose.toml
     deploy:
@@ -176,7 +176,7 @@ services:
 
   ### Control Center
   hyperswitch-control-center:
-    image: juspaydotin/hyperswitch-control-center:latest
+    image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
     pull_policy: always
     ports:
       - "9000:9000"

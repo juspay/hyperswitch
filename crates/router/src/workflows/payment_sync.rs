@@ -31,8 +31,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
     #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a SessionState,
-        process: storage::ProcessTracker,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         todo!()
     }

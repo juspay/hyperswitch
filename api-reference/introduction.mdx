@@ -1,15 +1,32 @@
 ---
 tags: [Getting Started]
+title: "👋 Welcome to Hyperswitch API Reference"
+sidebarTitle: "Introduction"
 stoplight-id: 3lmsk7ocvq21v
+icon: "rectangle-code"
+iconType: "solid"
 ---
-
-# 👋 Welcome to Hyperswitch API Reference
 
 Hyperswitch provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body and return standard HTTP response codes. You can consume the APIs directly using your favorite HTTP/REST library.
 
+<CardGroup horizontal cols={2} row={3}> 
+  <Card horizontal title="Try a Payment" href="api-reference/payments/Introduction--to--payments" icon="money-bill">
+    Explore the versatile payments endpoint, through multiple test scenarios
+  </Card>
+  <Card horizontal title="Refund" href="api-reference/refunds/refunds--create" icon="receipt">
+    Process refunds for completed payments using our API
+  </Card>
+  <Card horizontal title="Save a payment method" href="api-reference/payment-methods/paymentmethods--create" icon="vault">
+    Save customer payment methods securely for future transactions
+  </Card>
+  <Card horizontal title="Self Hosted?" href="api-reference/organization/organization--create" icon="circle-down">
+    Host Hyperswitch on-premise? Utilize our full API suite.
+  </Card>
+</CardGroup>
+
 ## Environment
 
-We have a testing environment referred to "sandbox," which you can set up to test API calls without affecting production data. You can sign up on our Dashboard to get API keys to access Hyperswitch API.
+We have a testing environment referred to <Tooltip tip="Testing environment!">"sandbox</Tooltip>," which you can set up to test API calls without affecting production data. You can sign up on our Dashboard to get API keys to access Hyperswitch API.
 
 Use the following base URLs when making requests to the APIs:
 

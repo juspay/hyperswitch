@@ -266,7 +266,7 @@ pub struct IncomingWebhookDetails {
     pub resource_object: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
     #[schema(value_type = String)]
@@ -304,12 +304,12 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsRetrieveResponse, title = "PaymentsResponse")]
-    PaymentDetails(Box<payments::PaymentsRetrieveResponse>),
+    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    PaymentDetails(Box<payments::PaymentsResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
     #[schema(value_type = DisputeResponse, title = "DisputeResponse")]

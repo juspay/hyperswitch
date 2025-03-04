@@ -2,12 +2,6 @@ name: CI-pr
 
 on:
   pull_request:
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -87,6 +81,7 @@ jobs:
   check-msrv:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
+    if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
       # Use `sccache` for caching compilation artifacts
@@ -127,24 +122,24 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2
       #   with:
       #     tool: sccache
       #     checksum: true
-      
+
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
-        with: 
-            save-if: false
+        with:
+          save-if: false
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -235,24 +230,24 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2
       #   with:
       #     tool: sccache
       #     checksum: true
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
-        with: 
-            save-if: false
+        with:
+          save-if: false
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -262,7 +257,7 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
@@ -284,10 +279,16 @@ jobs:
           fi
 
       - name: Run cargo check
+        if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: just ci_hack
+
+      - name: Cargo build release
+        if: ${{ startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
+        shell: bash
+        run: cargo check --features release
 
   typos:
     name: Spell check
@@ -326,11 +327,11 @@ jobs:
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
-        with: 
-            save-if: false
+        with:
+          save-if: false
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
