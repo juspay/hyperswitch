@@ -431,8 +431,7 @@ impl PaymentIntent {
     ) -> Option<Box<FeatureMetadata>> {
         feature_metadata.map(|fm| {
             let mut updated_metadata = fm;
-            if let Some(ref mut rrm) = updated_metadata
-                .payment_revenue_recovery_metadata {
+            if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
                 rrm.payment_connector_transmission = if status {
                     common_enums::PaymentConnectorTransmission::ConnectorCallFailed
                 } else {
@@ -443,16 +442,17 @@ impl PaymentIntent {
         })
     }
 
-    pub fn get_connector_customer_id_from_feature_metadata(
-        &self,
-    ) -> Option<String> {
-        self
-        .feature_metadata
-        .as_ref()
-        .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-        .map(|rrm| rrm.billing_connector_payment_details.connector_customer_id.clone())
+    pub fn get_connector_customer_id_from_feature_metadata(&self) -> Option<String> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rrm| {
+                rrm.billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
     }
-    
+
     fn get_request_incremental_authorization_value(
         request: &api_models::payments::PaymentsCreateIntentRequest,
     ) -> CustomResult<
@@ -687,7 +687,9 @@ impl<F: Clone> PaymentConfirmData<F> {
             .and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id()))
         {
             Some(id) => Some(id.to_string()),
-            None => self.payment_intent.get_connector_customer_id_from_feature_metadata()
+            None => self
+                .payment_intent
+                .get_connector_customer_id_from_feature_metadata(),
         }
     }
 }
