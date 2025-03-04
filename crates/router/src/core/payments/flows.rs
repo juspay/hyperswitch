@@ -15,9 +15,10 @@ use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, revenue_recovery::RevenueRecoveryRecordBack
+        revenue_recovery::RevenueRecoveryRecordBack, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate,
     },
-    router_request_types::{PaymentsCaptureData,RevenueRecoveryRecordBackRequest},
+    router_request_types::{PaymentsCaptureData, RevenueRecoveryRecordBackRequest},
     router_response_types::RevenueRecoveryRecordBackResponse,
 };
 use hyperswitch_interfaces::api::{
@@ -2509,10 +2510,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::RevenueRecoveryRecordBack
-    for connector::DummyConnector<T>
-{
-}
+impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<

@@ -578,7 +578,7 @@ pub struct ConnectorInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct RevenueRecoveryRecordBackResponse{
+pub struct RevenueRecoveryRecordBackResponse {
     merchant_reference_id: common_utils::id_type::PaymentReferenceId,
 }
 pub trait SupportedPaymentMethodsExt {

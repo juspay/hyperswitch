@@ -32,9 +32,9 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate,
         },
+        revenue_recovery::RevenueRecoveryRecordBack,
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        revenue_recovery::RevenueRecoveryRecordBack,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -46,15 +46,15 @@ use hyperswitch_domain_models::{
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
-        RevenueRecoveryRecordBackRequest,
+        PaymentsTaxCalculationData, RetrieveFileRequestData, RevenueRecoveryRecordBackRequest,
+        SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        RevenueRecoveryRecordBackResponse,
+        PaymentsResponseData, RetrieveFileResponse, RevenueRecoveryRecordBackResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]

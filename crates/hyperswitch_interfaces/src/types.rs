@@ -14,11 +14,11 @@ use hyperswitch_domain_models::{
             Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        revenue_recovery::RevenueRecoveryRecordBack,
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
         webhooks::VerifyWebhookSource,
-        revenue_recovery::RevenueRecoveryRecordBack,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -32,15 +32,15 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
-        RevenueRecoveryRecordBackRequest
+        RetrieveFileRequestData, RevenueRecoveryRecordBackRequest, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        RevenueRecoveryRecordBackResponse
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        RevenueRecoveryRecordBackResponse, SubmitEvidenceResponse, TaxCalculationResponseData,
+        UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
