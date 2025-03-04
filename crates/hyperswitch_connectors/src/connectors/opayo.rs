@@ -1,32 +1,49 @@
 mod transformers;
 
+use common_enums::enums;
 use common_utils::{
-    request::RequestContent,
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use diesel_models::enums;
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::{
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
+        RefundSyncType, Response,
+    },
+    webhooks,
+};
+use masking::{ExposeInterface, Mask};
 use transformers as opayo;
 
-use crate::{
-    configs::settings,
-    connector::{utils as connector_utils, utils::convert_amount},
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
-    },
-    utils::BytesExt,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Opayo {
@@ -54,12 +71,8 @@ impl api::RefundExecute for Opayo {}
 impl api::RefundSync for Opayo {}
 impl api::PaymentToken for Opayo {}
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Opayo
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Opayo
 {
 }
 
@@ -69,9 +82,9 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let content_type = ConnectorCommon::common_get_content_type(self);
         let mut common_headers = self.get_auth_header(&req.connector_auth_type)?;
         common_headers.push((
@@ -90,14 +103,14 @@ impl ConnectorCommon for Opayo {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.opayo.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = opayo::OpayoAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -143,39 +156,24 @@ impl ConnectorValidation for Opayo {
             | enums::CaptureMethod::Manual
             | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+                crate::utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Opayo
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Opayo {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Opayo
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Opayo {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Opayo
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Opayo {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Opayo".to_string())
                 .into(),
@@ -183,14 +181,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Opayo
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Opayo {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -200,16 +196,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
@@ -223,20 +219,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -245,10 +237,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: opayo::OpayoPaymentsResponse = res
             .response
             .parse_struct("Opayo PaymentsAuthorizeResponse")
@@ -257,7 +249,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -273,14 +265,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Opayo
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Opayo {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -290,33 +280,33 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .headers(PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: opayo::OpayoPaymentsResponse = res
             .response
             .parse_struct("opayo PaymentsSyncResponse")
@@ -325,7 +315,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -341,14 +331,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Opayo
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Opayo {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -358,34 +346,32 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
+                .headers(PaymentsCaptureType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -394,10 +380,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: opayo::OpayoPaymentsResponse = res
             .response
             .parse_struct("Opayo PaymentsCaptureResponse")
@@ -406,7 +392,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -422,17 +408,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Opayo
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Opayo {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Opayo {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Opayo {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -442,16 +425,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let refund_amount = convert_amount(
             self.amount_converter,
@@ -466,29 +449,25 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
+            .headers(RefundExecuteType::get_headers(self, req, connectors)?)
+            .set_body(RefundExecuteType::get_request_body(self, req, connectors)?)
             .build();
         Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: opayo::RefundResponse = res
             .response
             .parse_struct("opayo RefundResponse")
@@ -497,7 +476,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -513,12 +492,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Opayo {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Opayo {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -528,33 +507,33 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .headers(RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::RefundSyncRouterData,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: opayo::RefundResponse = res
             .response
             .parse_struct("opayo RefundSyncResponse")
@@ -563,7 +542,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -580,24 +559,24 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Opayo {
+impl webhooks::IncomingWebhook for Opayo {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
