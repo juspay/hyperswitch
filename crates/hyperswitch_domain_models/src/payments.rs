@@ -162,7 +162,7 @@ impl PaymentIntent {
             // check if payment method or payment method type is supported by the connector
             logger::info!(
                 "Extended Authentication Connector:{:?}, Supported payment methods: {:?}, Supported payment method types: {:?}, Payment method Selected: {:?}, Payment method type Selected: {:?}",
-                connector
+                connector,
                 supported_pms,
                 supported_pmts,
                 payment_method_optional,
