@@ -1,12 +1,22 @@
+use common_enums::enums;
 use common_utils::types::MinorUnit;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
+
 #[derive(Debug, Serialize)]
 pub struct OpayoRouterData<T> {
     pub amount: MinorUnit,
@@ -38,14 +48,14 @@ pub struct OpayoCard {
     complete: bool,
 }
 
-impl TryFrom<&OpayoRouterData<&types::PaymentsAuthorizeRouterData>> for OpayoPaymentsRequest {
+impl TryFrom<&OpayoRouterData<&PaymentsAuthorizeRouterData>> for OpayoPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item_data: &OpayoRouterData<&types::PaymentsAuthorizeRouterData>,
+        item_data: &OpayoRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let item = item_data.router_data.clone();
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            PaymentMethodData::Card(req_card) => {
                 let card = OpayoCard {
                     name: item
                         .get_optional_billing_full_name()
@@ -61,26 +71,26 @@ impl TryFrom<&OpayoRouterData<&types::PaymentsAuthorizeRouterData>> for OpayoPay
                     card,
                 })
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Opayo"),
+                    crate::utils::get_unimplemented_payment_method_error_message("Opayo"),
                 )
                 .into())
             }
@@ -93,11 +103,11 @@ pub struct OpayoAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for OpayoAuthType {
+impl TryFrom<&ConnectorAuthType> for OpayoAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -131,18 +141,17 @@ pub struct OpayoPaymentsResponse {
     transaction_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, OpayoPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, OpayoPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, OpayoPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, OpayoPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
                 ),
                 redirection_data: Box::new(None),
@@ -165,9 +174,9 @@ pub struct OpayoRefundRequest {
     pub amount: MinorUnit,
 }
 
-impl<F> TryFrom<&OpayoRouterData<&types::RefundsRouterData<F>>> for OpayoRefundRequest {
+impl<F> TryFrom<&OpayoRouterData<&RefundsRouterData<F>>> for OpayoRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &OpayoRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &OpayoRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount,
         })
@@ -202,15 +211,13 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -219,15 +226,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
