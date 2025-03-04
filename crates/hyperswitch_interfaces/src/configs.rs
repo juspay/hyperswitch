@@ -53,6 +53,7 @@ pub struct Connectors {
     pub inespay: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub jpmorgan: ConnectorParams,
+    pub juspaythreedsserver: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,

@@ -48,6 +48,7 @@ mod iatapay;
 mod inespay;
 mod itaubank;
 mod jpmorgan;
+mod juspaythreedsserver;
 mod mifinity;
 mod mollie;
 mod moneris;
@@ -88,6 +89,7 @@ mod taxjar;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;
+
 mod utils;
 mod volt;
 mod wellsfargo;
