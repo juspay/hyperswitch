@@ -288,7 +288,7 @@ pub async fn delete_merchant_account(
     let mid = mid.into_inner();
 
     let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -296,7 +296,7 @@ pub async fn delete_merchant_account(
         |state, _, req, _| merchant_account_delete(state, req.merchant_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

@@ -12,9 +12,10 @@ use redis_interface::SetnxReply;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
+    kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, KVRouterStore, RouterStore,
+    DatabaseStore, RouterStore,
 };
 
 #[async_trait::async_trait]
