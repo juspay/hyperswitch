@@ -2364,7 +2364,7 @@ pub async fn fetch_network_token_details_from_locker(
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
-        nick_name: token_data.nick_name.map(masking::Secret::new),
+        nick_name: token_data.nick_name,
         card_issuer: None,
         card_network,
         card_type: None,
@@ -2411,7 +2411,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+            nick_name: card_details_from_locker.nick_name,
             card_holder_name: card_details_from_locker.name_on_card.clone(),
         };
 
