@@ -274,8 +274,6 @@ pub enum GooglePayDecryptionError {
     DerivingEcGroupFailed,
     #[error("Failed to allocate memory for big number")]
     BigNumAllocationFailed,
-    #[error("Failed to get the ECDSA signature")]
-    EcdsaSignatureFailed,
     #[error("Failed to verify the signature")]
     SignatureVerificationFailed,
     #[error("Invalid signature is provided")]
