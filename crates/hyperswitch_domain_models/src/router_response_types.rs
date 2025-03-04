@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod revenue_recovery;
 use std::collections::HashMap;
 
 use common_utils::{request::Method, types::MinorUnit};

@@ -46,6 +46,8 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
+    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
+    revenue_recovery_v2::RevenueRecoveryV2,
     ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
     ConnectorVerifyWebhookSourceV2, CurrencyUnit,
@@ -108,6 +110,7 @@ pub trait Connector:
     + ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
+    + RevenueRecovery
 {
 }
 
@@ -127,7 +130,8 @@ impl<
             + ConnectorMandateRevoke
             + ExternalAuthentication
             + TaxCalculation
-            + UnifiedAuthenticationService,
+            + UnifiedAuthenticationService
+            + RevenueRecovery,
     > Connector for T
 {
 }
@@ -148,6 +152,7 @@ pub trait ConnectorV2:
     + ConnectorMandateRevokeV2
     + ExternalAuthenticationV2
     + UnifiedAuthenticationServiceV2
+    + RevenueRecoveryV2
 {
 }
 impl<
@@ -165,7 +170,8 @@ impl<
             + FraudCheckV2
             + ConnectorMandateRevokeV2
             + ExternalAuthenticationV2
-            + UnifiedAuthenticationServiceV2,
+            + UnifiedAuthenticationServiceV2
+            + RevenueRecoveryV2,
     > ConnectorV2 for T
 {
 }

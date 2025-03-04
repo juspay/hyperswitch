@@ -5,11 +5,12 @@ use crate::{
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
+        PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -23,8 +24,8 @@ use crate::{
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
+        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -81,3 +82,9 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
+
+pub type AdditionalRevenueRecoveryDetailsRouterData = RouterData<
+    GetAdditionalRevenueRecoveryDetails,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
+>;
