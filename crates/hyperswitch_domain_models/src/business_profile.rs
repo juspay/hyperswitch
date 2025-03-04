@@ -65,6 +65,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -112,6 +113,7 @@ pub struct ProfileSetter {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -165,6 +167,7 @@ impl From<ProfileSetter> for Profile {
             card_testing_guard_config: value.card_testing_guard_config,
             card_testing_secret_key: value.card_testing_secret_key,
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
+            always_request_overcapture: value.always_request_overcapture,
         }
     }
 }
@@ -220,6 +223,7 @@ pub struct ProfileGeneralUpdate {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: Option<bool>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -290,6 +294,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_guard_config,
                     card_testing_secret_key,
                     is_clear_pan_retries_enabled,
+                    always_request_overcapture,
                 } = *update;
 
                 Self {
@@ -333,6 +338,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_guard_config,
                     card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                     is_clear_pan_retries_enabled,
+                    always_request_overcapture,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -378,6 +384,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -421,6 +428,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -464,6 +472,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -507,6 +516,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -550,6 +560,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -593,6 +604,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
+                always_request_overcapture: None,
             },
         }
     }
@@ -655,6 +667,7 @@ impl super::behaviour::Conversion for Profile {
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+            always_request_overcapture: self.always_request_overcapture,
         })
     }
 
@@ -742,6 +755,7 @@ impl super::behaviour::Conversion for Profile {
                     })
                     .await?,
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+                always_request_overcapture: item.always_request_overcapture,
             })
         }
         .await
@@ -799,6 +813,7 @@ impl super::behaviour::Conversion for Profile {
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+            always_request_overcapture: self.always_request_overcapture,
         })
     }
 }
@@ -850,6 +865,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -950,6 +966,7 @@ impl From<ProfileSetter> for Profile {
             card_testing_guard_config: value.card_testing_guard_config,
             card_testing_secret_key: value.card_testing_secret_key,
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
+            always_request_overcapture: None,
         }
     }
 }
@@ -1547,6 +1564,7 @@ impl super::behaviour::Conversion for Profile {
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+            always_request_overcapture: self.always_request_overcapture,
         })
     }
 
@@ -1634,6 +1652,7 @@ impl super::behaviour::Conversion for Profile {
                     })
                     .await?,
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+                always_request_overcapture: item.always_request_overcapture,
             })
         }
         .await

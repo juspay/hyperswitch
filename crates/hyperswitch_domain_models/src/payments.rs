@@ -111,6 +111,7 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 impl PaymentIntent {
@@ -369,6 +370,8 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    /// Denotes whether to request for overcapture
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
@@ -514,6 +517,7 @@ impl PaymentIntent {
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
+            request_overcapture: None,
         })
     }
 }
