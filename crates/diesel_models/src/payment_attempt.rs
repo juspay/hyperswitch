@@ -936,7 +936,7 @@ impl PaymentAttemptUpdateInternal {
 
 #[cfg(feature = "v2")]
 impl PaymentAttemptUpdate {
-    pub fn apply_changeset(self, source: PaymentAttempt) -> PaymentAttempt {
+    pub fn apply_changeset(self, _source: PaymentAttempt) -> PaymentAttempt {
         todo!()
         // let PaymentAttemptUpdateInternal {
         //     net_amount,
@@ -1146,7 +1146,7 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
-    fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
+    fn from(_payment_attempt_update: PaymentAttemptUpdate) -> Self {
         todo!()
         // match payment_attempt_update {
         //     PaymentAttemptUpdate::Update {
