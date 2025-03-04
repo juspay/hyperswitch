@@ -4032,7 +4032,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data.clone();
+        let payment_data = additional_data.payment_data;
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
@@ -4058,8 +4058,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             attempt,
             connector_name,
         ));
-        let merchant_account_id = additional_data
-            .payment_data
+        let merchant_account_id = payment_data
             .payment_intent
             .connector_metadata
             .clone()
@@ -4073,8 +4072,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 cm.braintree
                     .and_then(|braintree| braintree.merchant_account_id)
             });
-        let merchant_config_currency = additional_data
-            .payment_data
+        let merchant_config_currency = payment_data
             .payment_intent
             .connector_metadata
             .map(|cm| {

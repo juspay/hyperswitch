@@ -339,7 +339,6 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
 
     let merchant_account_id = payment_intent
-        .clone()
         .connector_metadata
         .clone()
         .map(|cm| {
