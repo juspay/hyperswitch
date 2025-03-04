@@ -472,7 +472,7 @@ bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }             
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
 wallet.samsung_pay = { connector_list = "cybersource" }
-wallet.google_pay = { connector_list = "bankofamerica" }
+wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet" }
 bank_redirect.giropay = { connector_list = "globalpay" }
 
 

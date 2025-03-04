@@ -117,7 +117,10 @@ impl ConnectorValidation for Authorizedotnet {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+        ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
