@@ -1,7 +1,9 @@
 use common_utils::{crypto::Encryptable, hashing::HashedString, id_type, pii, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::payments::PaymentIntent;
-use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use masking::PeekInterface;
+use masking::Secret;
 use serde_json::Value;
 use time::OffsetDateTime;
 
@@ -141,7 +143,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
 
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentIntentEvent<'a> {
-    pub fn from_storage(intent: &'a PaymentIntent) -> Self {
+    pub fn from_storage(_intent: &'a PaymentIntent) -> Self {
         // Self {
         //     id: &intent.id,
         //     merchant_id: &intent.merchant_id,

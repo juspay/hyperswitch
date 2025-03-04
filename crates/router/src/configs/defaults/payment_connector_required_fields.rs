@@ -1,10 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::{enums, payment_methods::RequiredFieldInfo};
+use api_models::enums;
+#[cfg(feature = "v1")]
+use api_models::payment_methods::RequiredFieldInfo;
 
+#[cfg(feature = "v1")]
+use crate::settings::{self, ConnectorFields, PaymentMethodType, RequiredFieldFinal};
 use crate::settings::{
-    self, ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    Mandates, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate,
 };
 
@@ -13521,6 +13524,7 @@ impl Default for settings::RequiredFields {
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn get_worldpay_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (

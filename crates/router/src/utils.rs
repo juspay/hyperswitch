@@ -13,11 +13,9 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
-use api_models::{
-    enums,
-    payments::{self},
-    webhooks,
-};
+#[cfg(feature = "v1")]
+use api_models::payments;
+use api_models::{enums, webhooks};
 use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto::{self, Encryptable},
@@ -33,13 +31,16 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 pub use hyperswitch_connectors::utils::QrImage;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+#[cfg(feature = "v1")]
 use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+#[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 use uuid::Uuid;
 
@@ -58,11 +59,13 @@ use crate::{
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
-    services::{self, authentication::get_header_value_by_key},
-    types::{
-        self, domain,
-        transformers::{ForeignFrom, ForeignInto},
-    },
+    services::authentication::get_header_value_by_key,
+    types::{self, domain},
+};
+#[cfg(feature = "v1")]
+use crate::{
+    services::{self},
+    types::transformers::{ForeignFrom, ForeignInto},
 };
 
 pub mod error_parser {
@@ -1138,13 +1141,13 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    merchant_account: domain::MerchantAccount,
-    business_profile: domain::Profile,
-    key_store: &domain::MerchantKeyStore,
-    payment_data: D,
-    customer: Option<domain::Customer>,
-    state: &SessionState,
-    operation: Op,
+    _merchant_account: domain::MerchantAccount,
+    _business_profile: domain::Profile,
+    _key_store: &domain::MerchantKeyStore,
+    _payment_data: D,
+    _customer: Option<domain::Customer>,
+    _state: &SessionState,
+    _operation: Op,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
@@ -1317,11 +1320,11 @@ pub async fn trigger_refund_outgoing_webhook(
 
 #[cfg(feature = "v2")]
 pub async fn trigger_refund_outgoing_webhook(
-    state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    refund: &diesel_models::Refund,
-    profile_id: id_type::ProfileId,
-    key_store: &domain::MerchantKeyStore,
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _refund: &diesel_models::Refund,
+    _profile_id: id_type::ProfileId,
+    _key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     todo!()
 }

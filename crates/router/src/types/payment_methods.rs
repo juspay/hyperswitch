@@ -1,9 +1,5 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::generate_id;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::Secret;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{

@@ -26,17 +26,17 @@ use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::currency;
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use super::dummy_connector::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use super::payout_link::*;
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 use super::payouts::*;
 #[cfg(all(
     feature = "oltp",
@@ -44,7 +44,7 @@ use super::payouts::*;
     not(feature = "customer_v2")
 ))]
 use super::pm_auth;
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 use super::poll;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
@@ -54,14 +54,13 @@ use super::routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
-use super::{
-    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    relay, user, user_role,
-};
+use super::{admin, api_keys, cache::*, health::*, profiles, relay};
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
+#[cfg(all(feature = "olap", feature = "v1"))]
+use super::{connector_onboarding, disputes, files, gsm, user, user_role};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -74,7 +73,7 @@ use crate::errors::RouterResult;
 use crate::routes::cards_info::card_iin_info;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
-#[cfg(all(feature = "frm", feature = "oltp"))]
+#[cfg(all(feature = "frm", feature = "oltp", feature = "v1"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;

@@ -1,7 +1,7 @@
 pub mod theme;
 
 use actix_web::{web, HttpRequest, HttpResponse};
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use api_models::user::sample_data::SampleDataRequest;
 use api_models::{
     errors::types::ApiErrorResponse,
@@ -12,6 +12,8 @@ use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
 use super::AppState;
+#[cfg(feature = "v1")]
+use crate::utils::user::dashboard_metadata::parse_string_to_enums;
 use crate::{
     core::{api_locking, user as user_core},
     services::{
@@ -19,7 +21,7 @@ use crate::{
         authentication::{self as auth},
         authorization::permissions::Permission,
     },
-    utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
+    utils::user::dashboard_metadata::set_ip_address_if_required,
 };
 
 pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {

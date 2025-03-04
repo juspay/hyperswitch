@@ -126,7 +126,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
 
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentAttemptEvent<'a> {
-    pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
+    pub fn from_storage(_attempt: &'a PaymentAttempt) -> Self {
         todo!()
         // Self {
         //     payment_id: &attempt.payment_id,

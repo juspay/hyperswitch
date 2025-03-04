@@ -1,13 +1,15 @@
 use app::SessionState;
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use common_utils::generate_id_with_default_len;
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use error_stack::ResultExt;
 
-use super::{errors, types, utils};
-use crate::{
-    routes::{app, dummy_connector::consts},
-    services::api,
-    utils::OptionExt,
-};
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+use super::errors;
+use super::{types, utils};
+use crate::{routes::app, services::api};
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+use crate::{routes::dummy_connector::consts, utils::OptionExt};
 
 #[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment(
@@ -41,6 +43,7 @@ pub async fn payment(
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
+#[allow(dead_code)]
 pub async fn payment_data(
     state: SessionState,
     req: types::DummyConnectorPaymentRetrieveRequest,

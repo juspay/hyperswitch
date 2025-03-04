@@ -20,10 +20,11 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use hyperswitch_domain_models::{
     mandates,
     network_tokenization::NetworkTokenNumber,
-    payments::payment_attempt::PaymentAttempt,
     router_request_types::{
         AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
         SyncIntegrityObject,
@@ -35,12 +36,14 @@ use regex::Regex;
 use serde::Serializer;
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "v1")]
+use crate::core::errors::ApiErrorResponse;
 #[cfg(feature = "frm")]
 use crate::types::fraud_check;
 use crate::{
     consts,
     core::{
-        errors::{self, ApiErrorResponse, CustomResult},
+        errors::{self, CustomResult},
         payments::{types::AuthenticationData, PaymentData},
     },
     pii::PeekInterface,

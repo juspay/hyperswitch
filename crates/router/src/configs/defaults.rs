@@ -175,6 +175,7 @@ impl Default for super::settings::ApiKeys {
     }
 }
 
+#[allow(dead_code)]
 pub fn get_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
@@ -281,6 +282,7 @@ pub fn get_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
     ])
 }
 
+#[allow(dead_code)]
 pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
