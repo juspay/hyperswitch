@@ -350,6 +350,19 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithoutBillingAddress: {
+      Request: {
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
+        },
+      },
+    },
     MITManualCapture: {
       Request: {},
       Response: {

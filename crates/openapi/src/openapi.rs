@@ -546,7 +546,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::relay::RelayResponse,
         api_models::enums::RelayType,
         api_models::relay::RelayData,
-        api_models::relay::RelayRefundRequest,
+        api_models::relay::RelayRefundRequestData,
         api_models::enums::RelayStatus,
         api_models::relay::RelayError,
         api_models::payments::AmountFilter,
