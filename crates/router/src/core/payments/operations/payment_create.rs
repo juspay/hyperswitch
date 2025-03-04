@@ -1196,6 +1196,16 @@ impl PaymentCreate {
                         },
                         _ => None,
                     })
+                    .or_else(|| match payment_method_type {
+                        Some(enums::PaymentMethodType::Paypal) => {
+                            Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                apple_pay: None,
+                                google_pay: None,
+                                samsung_pay: None,
+                            })
+                        }
+                        _ => None,
+                    })
             });
         };
 
