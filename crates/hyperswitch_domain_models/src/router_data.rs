@@ -474,6 +474,14 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
+        let status = payment_data.payment_attempt.status.is_terminal_status();
+        let updated_feature_metadata = payment_data
+            .payment_intent
+            .set_payment_connector_transmission(
+                payment_data.payment_intent.feature_metadata.clone(),
+                status,
+            );
+
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: common_enums::IntentStatus::from(
@@ -481,6 +489,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: updated_feature_metadata,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -489,6 +498,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: updated_feature_metadata,
             },
         }
     }
@@ -1133,6 +1143,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -1141,6 +1152,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
             },
         }
     }
