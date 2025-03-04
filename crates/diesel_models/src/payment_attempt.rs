@@ -3507,6 +3507,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
