@@ -998,7 +998,7 @@ pub async fn retrieve_default_routing_config(
         MerchantConnectorAccountId,
         MerchantConnectorAccount,
     > = HashMap::new();
-    let _ = state
+    state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
@@ -1014,7 +1014,9 @@ pub async fn retrieve_default_routing_config(
             ),
         })?
         .iter()
-        .map(|mca| merchant_connector_details.insert(mca.get_id(), mca.clone()));
+        .for_each(|mca| {
+            merchant_connector_details.insert(mca.get_id(), mca.clone());
+        });
 
     let connectors = helpers::get_merchant_default_config(db, &id, transaction_type)
         .await?
