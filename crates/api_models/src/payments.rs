@@ -34,6 +34,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "v1")]
 use crate::ephemeral_key::EphemeralKeyCreateResponse;
 #[cfg(feature = "v2")]
+use crate::mandates::ProcessorPaymentToken;
+#[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
@@ -422,6 +424,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    #[schema(value_type = Option<UpdateActiveAttempt>)]
+    /// Whether to set / unset the active attempt id
+    pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -5164,6 +5170,32 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProxyPaymentsRequest {
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    /// If this url is not passed, the url configured in the business profile will be used
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<common_utils::types::Url>,
+
+    pub amount: AmountDetails,
+
+    pub recurring_details: ProcessorPaymentToken,
+
+    pub shipping: Option<Address>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    #[schema(example = "stripe")]
+    pub connector: String,
+
+    #[schema(value_type = String)]
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
 // This struct contains the union of fields in `PaymentsCreateIntentRequest` and
 // `PaymentsConfirmIntentRequest`
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5405,7 +5437,7 @@ pub struct ConnectorTokenDetails {
 
 /// Response for Payment Intent Confirm
 /// Few fields should be expandable, we need not return these in the normal response
-/// But when explictly requested for expanded objects, these can be returned
+/// But when explicitly requested for expanded objects, these can be returned
 /// For example
 /// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]

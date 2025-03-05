@@ -33,6 +33,9 @@ pub mod tax_calculation;
 #[cfg(feature = "v2")]
 pub mod payment_confirm_intent;
 #[cfg(feature = "v2")]
+pub mod proxy_payments_intent;
+
+#[cfg(feature = "v2")]
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
