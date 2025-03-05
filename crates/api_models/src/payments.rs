@@ -2639,6 +2639,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
             Self::Bizum {} => api_enums::PaymentMethodType::Bizum,
             Self::Blik { .. } => api_enums::PaymentMethodType::Blik,
+            Self::Eft { .. } => api_enums::PaymentMethodType::Eft,
             Self::Eps { .. } => api_enums::PaymentMethodType::Eps,
             Self::Giropay { .. } => api_enums::PaymentMethodType::Giropay,
             Self::Ideal { .. } => api_enums::PaymentMethodType::Ideal,
@@ -3015,6 +3016,11 @@ pub enum BankRedirectData {
         issuer: common_enums::BankNames,
     },
     LocalBankRedirect {},
+    Eft {
+        /// The preferred eft provider
+        #[schema(example = "ozow")]
+        provider: String,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -3130,7 +3136,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingPoland { .. }
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
-            | Self::Blik { .. } => None,
+            | Self::Blik { .. }
+            | Self::Eft { .. } => None,
         }
     }
 }
@@ -6566,6 +6573,7 @@ pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
     pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
+    pub braintree: Option<BraintreeData>,
 }
 
 impl ConnectorMetadata {
@@ -6604,6 +6612,16 @@ pub struct AirwallexData {
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
     pub order_category: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BraintreeData {
+    /// Information about the merchant_account_id that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
+    pub merchant_account_id: Option<Secret<String>>,
+    /// Information about the merchant_config_currency that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
+    pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7863,6 +7881,8 @@ pub struct PaymentLinkDetails {
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7878,6 +7898,8 @@ pub struct SecurePaymentLinkDetails {
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Debug, serde::Serialize)]

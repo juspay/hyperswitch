@@ -53,7 +53,7 @@ pub async fn retrieve_apple_pay_verified_domains(
     let merchant_id = &params.merchant_id;
     let mca_id = &params.merchant_connector_account_id;
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -73,6 +73,6 @@ pub async fn retrieve_apple_pay_verified_domains(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
