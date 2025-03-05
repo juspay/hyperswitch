@@ -211,11 +211,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
-    let connector_customer_id = customer.as_ref().and_then(|customer| {
-        customer
-            .get_connector_customer_id(&merchant_connector_account.get_id())
-            .map(String::from)
-    });
+    let connector_customer_id =
+        payment_data.get_connector_customer_id(customer.as_ref(), merchant_connector_account);
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
@@ -257,14 +254,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
-        mandate_id: None,
+        mandate_id: payment_data.mandate_data.clone(),
         off_session: None,
         setup_mandate_details: None,
         confirm: true,
@@ -4078,7 +4074,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
-            payment_method_data: payment_data.payment_method_data.map(From::from),
+            payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data
                 .payment_attempt
                 .get_connector_payment_id()
@@ -4172,7 +4168,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
         let amount = payment_data.payment_attempt.get_total_amount();
 
         Ok(Self {
-            payment_method_data: payment_method_data.map(From::from),
+            payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module

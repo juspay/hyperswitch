@@ -72,7 +72,6 @@ pub struct PaymentsAuthorizeData {
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
-
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
     // amount here would include amount, surcharge_amount and shipping_cost
