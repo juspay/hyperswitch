@@ -279,7 +279,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(merchant_config_currency),
         ) = (
             item.router_data.request.merchant_account_id.clone(),
-            item.router_data.request.merchant_config_currency.clone(),
+            item.router_data.request.merchant_config_currency,
         ) {
             router_env::logger::info!(
                 "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
@@ -864,23 +864,20 @@ pub struct BraintreeRefundInput {
 impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: BraintreeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = if item.router_data.request.merchant_account_id.is_some()
-            && item.router_data.request.merchant_config_currency.is_some()
-        {
+        let metadata: BraintreeMeta = if let (
+            Some(merchant_account_id),
+            Some(merchant_config_currency),
+        ) = (
+            item.router_data.request.merchant_account_id.clone(),
+            item.router_data.request.merchant_config_currency,
+        ) {
             router_env::logger::info!(
                 "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
             );
+
             BraintreeMeta {
-                merchant_account_id: item.router_data.request.merchant_account_id.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "merchant_account_id",
-                    },
-                )?,
-                merchant_config_currency: item.router_data.request.merchant_config_currency.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "merchant_config_currency",
-                    },
-                )?,
+                merchant_account_id,
+                merchant_config_currency,
             }
         } else {
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
@@ -994,23 +991,20 @@ pub struct RefundSearchInput {
 impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = if item.request.merchant_account_id.is_some()
-            && item.request.merchant_config_currency.is_some()
-        {
+        let metadata: BraintreeMeta = if let (
+            Some(merchant_account_id),
+            Some(merchant_config_currency),
+        ) = (
+            item.request.merchant_account_id.clone(),
+            item.request.merchant_config_currency,
+        ) {
             router_env::logger::info!(
                 "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
             );
+
             BraintreeMeta {
-                merchant_account_id: item.request.merchant_account_id.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "merchant_account_id",
-                    },
-                )?,
-                merchant_config_currency: item.request.merchant_config_currency.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "merchant_config_currency",
-                    },
-                )?,
+                merchant_account_id,
+                merchant_config_currency,
             }
         } else {
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone()).change_context(
@@ -1673,23 +1667,20 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
     fn try_from(
         item: &BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta = if item.router_data.request.merchant_account_id.is_some()
-            && item.router_data.request.merchant_config_currency.is_some()
-        {
+        let metadata: BraintreeMeta = if let (
+            Some(merchant_account_id),
+            Some(merchant_config_currency),
+        ) = (
+            item.router_data.request.merchant_account_id.clone(),
+            item.router_data.request.merchant_config_currency,
+        ) {
             router_env::logger::info!(
                 "BRAINTREE: Picking merchant_account_id and merchant_config_currency from payments request"
             );
+
             BraintreeMeta {
-                merchant_account_id: item.router_data.request.merchant_account_id.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "merchant_account_id",
-                    },
-                )?,
-                merchant_config_currency: item.router_data.request.merchant_config_currency.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "merchant_config_currency",
-                    },
-                )?,
+                merchant_account_id,
+                merchant_config_currency,
             }
         } else {
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
