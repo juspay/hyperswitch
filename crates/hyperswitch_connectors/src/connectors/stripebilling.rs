@@ -563,8 +563,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        //signature contains the timestamp and the signature and signature will have the versions we need only v1
-        //handled where the signature is needed
+
         let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
         let signature = header_hashmap
             .remove("v1")
