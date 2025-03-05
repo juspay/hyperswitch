@@ -57,7 +57,7 @@ use serde_json::json;
 
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
-pub use self::{payments::*, refunds::*};
+pub use self::{payments::*, refunds::*,revenue_recovery::*};
 use crate::{
     configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
     events::connector_api_logs::ConnectorEvent, metrics, types,

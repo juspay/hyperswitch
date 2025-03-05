@@ -1,7 +1,7 @@
 use api_models::webhooks;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::revenue_recovery;
+use hyperswitch_domain_models::{revenue_recovery, router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData};
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
 
@@ -37,6 +37,8 @@ pub async fn recovery_incoming_webhook_flow(
             errors::RevenueRecoveryError::WebhookAuthenticationFailed
         ))
     })?;
+
+    // let connectors_with_additional_recovery_details_call = &state.conf.additonal_recovery_details_call;
 
     let invoice_details = RevenueRecoveryInvoice(
         interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
@@ -308,3 +310,137 @@ impl RevenueRecoveryAttempt {
         todo!()
     }
 }
+
+// async fn handle_additional_recovery_details_call(
+//     connector: &connector_integration_interface::ConnectorEnum,
+//     state: &SessionState,
+//     merchant_account: &domain::MerchantAccount,
+//     merchant_connector_account: MerchantConnectorAccount,
+//     connector_name: &str,
+//     id : &str 
+// ) -> CustomResult<GetRecoveryDetailsResponseData, errors::ConnectorError> {
+
+//     let connector_data = ConnectorData::get_connector_by_name(
+//         &state.conf.connectors,
+//         connector_name,
+//         GetToken::Connector,
+//         None,
+//     )
+//     .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+//     .attach_printable("invalid connector name received in payment attempt")?;
+
+
+//     let connector_integration: services::BoxedGetAdditionalRecoveryDetailsIntegrationInterface<
+//         GetRecoveryDetails,
+//         GetRecoveryDetailsRequestData,
+//         GetRecoveryDetailsResponseData,
+//     > = connector.get_connector_integration();
+
+//     let router_data = RevenueRecoveryAttempt::construct_router_data_for_additional_call(
+//         state,
+//         connector_name,
+//         merchant_connector_account,
+//         merchant_account,
+//         id,
+//     )
+//     .await
+//     .change_context(errors::ConnectorError::RequestEncodingFailed)
+//     .attach_printable("Failed while constructing additional recovery details call router data")?;
+
+//     let response = services::execute_connector_processing_step(
+//         state,
+//         connector_integration,
+//         &router_data,
+//         payments::CallConnectorAction::Trigger,
+//         None,
+//     )
+//     .await?;
+
+//     let recovery_details = response
+//         .response;
+    
+//     match recovery_details {
+//         Ok(response)=> Ok(response),
+//        _=> Ok(GetRecoveryDetailsResponseData{
+//         payment_method : None,
+//         status: None,
+//         payment_method_details : None,
+//         payment_processor_error_code : None,
+//         payment_processor_error_message : None,
+//         created_at : None
+//        }) 
+//     }
+
+// }
+
+// async fn construct_router_data_for_additional_call(
+//     state: &SessionState,
+//     connector_name: &str,
+//     merchant_connector_account: MerchantConnectorAccount,
+//     merchant_account: &domain::MerchantAccount,
+//     id: &str,
+// ) -> CustomResult<types::GetRecoveryDetailsRouterData, errors::ApiErrorResponse>{
+//     let auth_type: types::ConnectorAuthType =
+//         helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone()))
+//             .get_connector_account_details()
+//             .parse_value("ConnectorAuthType")
+//             .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    
+
+//     let router_data = types::RouterData {
+//         flow: PhantomData,
+//         merchant_id: merchant_account.get_id().clone(),
+//         connector: connector_name.to_string(),
+//         customer_id: None,
+//         tenant_id: state.tenant.tenant_id.clone(),
+//         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("source_verification_flow")
+//             .get_string_repr()
+//             .to_owned(),
+//         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+//         status: diesel_models::enums::AttemptStatus::default(),
+//         payment_method: diesel_models::enums::PaymentMethod::default(),
+//         connector_auth_type: auth_type,
+//         description: None,
+//         address: PaymentAddress::default(),
+//         auth_type: diesel_models::enums::AuthenticationType::default(),
+//         connector_meta_data: None,
+//         connector_wallets_details: None,
+//         amount_captured: None,
+//         minor_amount_captured: None,
+//         request : GetAdditionalRevenueRecoveryRequestData{
+//             additional_revenue_recovery_id : invoice_details.connector_transaction_id.clone().unwrap()
+//         },
+//         response: Err(types::ErrorResponse::default()),
+//         access_token: None,
+//         session_token: None,
+//         reference_id: None,
+//         payment_method_token: None,
+//         connector_customer: None,
+//         recurring_mandate_payment_data: None,
+//         preprocessing_id: None,
+//         connector_request_reference_id:
+//             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+//         #[cfg(feature = "payouts")]
+//         payout_method_data: None,
+//         #[cfg(feature = "payouts")]
+//         quote_id: None,
+//         test_mode: None,
+//         payment_method_balance: None,
+//         payment_method_status: None,
+//         connector_api_version: None,
+//         connector_http_status_code: None,
+//         external_latency: None,
+//         apple_pay_flow: None,
+//         frm_metadata: None,
+//         refund_id: None,
+//         dispute_id: None,
+//         connector_response: None,
+//         integrity_check: Ok(()),
+//         additional_merchant_data: None,
+//         header_payload: None,
+//         connector_mandate_request_reference_id: None,
+//         authentication_id: None,
+//         psd2_sca_exemption_type: None,
+//     };
+//     Ok(router_data)
+// }    

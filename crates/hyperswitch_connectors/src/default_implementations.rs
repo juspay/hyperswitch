@@ -3572,7 +3572,7 @@ default_imp_for_additional_revenue_recovery_call!(
     connectors::Shift4,
     connectors::Stax,
     connectors::Square,
-    connectors::Stripebilling,
+    // connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Trustpay,
