@@ -60,9 +60,12 @@ where
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
+        ),
+        (
+            "x-3dss-requestor".to_string(), "POSIEDON"
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        // let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        // header.append(&mut api_key);
         Ok(header)
     }
 }
