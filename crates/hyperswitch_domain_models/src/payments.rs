@@ -4,13 +4,12 @@ use std::marker::PhantomData;
 #[cfg(feature = "v2")]
 use api_models::payments::SessionToken;
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use common_utils::{
     self,
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::OptionExt,
     id_type, pii,
     types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
 };
