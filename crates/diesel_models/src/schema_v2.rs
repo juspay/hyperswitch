@@ -230,6 +230,7 @@ diesel::table! {
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         card_testing_guard_config -> Nullable<Jsonb>,
         card_testing_secret_key -> Nullable<Bytea>,
+        force_3ds_challenge -> Nullable<Bool>,
     }
 }
 
