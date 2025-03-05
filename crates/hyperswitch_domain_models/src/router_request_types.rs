@@ -71,8 +71,9 @@ pub struct PaymentsAuthorizeData {
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub merchant_account_id: Option<Secret<String>>,
+    pub merchant_config_currency: Option<storage_enums::Currency>,
 }
-
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
     // amount here would include amount, surcharge_amount and shipping_cost
@@ -418,6 +419,8 @@ pub struct CompleteAuthorizeData {
     pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub merchant_account_id: Option<Secret<String>>,
+    pub merchant_config_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Clone)]
@@ -637,6 +640,8 @@ pub struct RefundsData {
     pub minor_refund_amount: MinorUnit,
     pub integrity_object: Option<RefundIntegrityObject>,
     pub refund_status: storage_enums::RefundStatus,
+    pub merchant_account_id: Option<Secret<String>>,
+    pub merchant_config_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
