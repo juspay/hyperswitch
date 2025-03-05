@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::analytics::{
-    auth_events::AuthEventMetricsBucketIdentifier, sdk_events::SdkEventNames, Granularity,
-    TimeRange,
+    auth_events::AuthEventMetricsBucketIdentifier, Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -15,10 +14,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct ThreeDsSdkCount;
+pub(super) struct AuthenticationCount;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for ThreeDsSdkCount
+impl<T> super::AuthEventMetric<T> for AuthenticationCount
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -29,14 +28,13 @@ where
 {
     async fn load_metrics(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        publishable_key: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::Authentications);
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -45,30 +43,22 @@ where
             })
             .switch()?;
 
-        if let Some(granularity) = granularity {
-            query_builder
-                .add_granularity_in_mins(granularity)
-                .switch()?;
-        }
-
         query_builder
-            .add_filter_clause("merchant_id", publishable_key)
+            .add_select_column(Aggregate::Min {
+                field: "created_at",
+                alias: Some("start_bucket"),
+            })
             .switch()?;
 
         query_builder
-            .add_bool_filter_clause("first_event", 1)
+            .add_select_column(Aggregate::Max {
+                field: "created_at",
+                alias: Some("end_bucket"),
+            })
             .switch()?;
 
         query_builder
-            .add_filter_clause("category", "USER_EVENT")
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("log_type", "INFO")
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("event_name", SdkEventNames::ThreeDsMethod)
+            .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
 
         time_range
@@ -76,9 +66,9 @@ where
             .attach_printable("Error filtering time range")
             .switch()?;
 
-        if let Some(_granularity) = granularity.as_ref() {
-            query_builder
-                .add_group_by_clause("time_bucket")
+        if let Some(granularity) = granularity {
+            granularity
+                .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
