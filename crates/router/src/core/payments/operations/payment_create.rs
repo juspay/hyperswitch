@@ -335,6 +335,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             merchant_key_store,
             profile_id,
             &customer_acceptance,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -626,6 +627,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_id: None,
             service_details: None,
             card_testing_guard_data: None,
+            vault_operation: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -777,6 +779,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentCreateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -790,6 +793,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             customer,
             storage_scheme,
             business_profile,
+            should_retry_with_pan,
         ))
         .await
     }
@@ -1089,6 +1093,7 @@ impl PaymentCreate {
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1112,11 +1117,12 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
         state: &SessionState,
-        payment_method_billing_address_id: Option<String>,
+        optional_payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<domain::PaymentMethod>,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1193,6 +1199,16 @@ impl PaymentCreate {
                         },
                         _ => None,
                     })
+                    .or_else(|| match payment_method_type {
+                        Some(enums::PaymentMethodType::Paypal) => {
+                            Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                apple_pay: None,
+                                google_pay: None,
+                                samsung_pay: None,
+                            })
+                        }
+                        _ => None,
+                    })
             });
         };
 
@@ -1234,6 +1250,44 @@ impl PaymentCreate {
             payment_method_type,
             additional_pm_data.as_ref(),
         ));
+
+        // TODO: remove once https://github.com/juspay/hyperswitch/issues/7421 is fixed
+        let payment_method_billing_address_id = match optional_payment_method_billing_address_id {
+            None => payment_method_info
+                .as_ref()
+                .and_then(|pm_info| pm_info.payment_method_billing_address.as_ref())
+                .map(|address| {
+                    address.clone().deserialize_inner_value(|value| {
+                        value.parse_value::<api_models::payments::Address>("Address")
+                    })
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .ok()
+                .flatten()
+                .async_map(|addr| async move {
+                    helpers::create_or_find_address_for_payment_by_request(
+                        state,
+                        Some(addr.get_inner()),
+                        None,
+                        merchant_id,
+                        payment_method_info
+                            .as_ref()
+                            .map(|pmd_info| pmd_info.customer_id.clone())
+                            .as_ref(),
+                        key_store,
+                        payment_id,
+                        storage_scheme,
+                    )
+                    .await
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .flatten()
+                .map(|address| address.address_id),
+            address_id => address_id,
+        };
 
         Ok((
             storage::PaymentAttemptNew {

@@ -325,7 +325,7 @@ impl PaymentsCreateIntentRequest {
 }
 
 // This struct is only used internally, not visible in API Reference
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[cfg(feature = "v2")]
 pub struct PaymentsGetIntentRequest {
     pub id: id_type::GlobalPaymentId,
@@ -4406,6 +4406,8 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
+        display_text: Option<String>,
+        border_color: Option<String>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation {
@@ -4492,6 +4494,12 @@ pub enum QrCodeInformation {
     QrCodeImageUrl {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
+    },
+    QrColorDataUrl {
+        color_image_data_url: Url,
+        display_to_timestamp: Option<i64>,
+        display_text: Option<String>,
+        border_color: Option<String>,
     },
 }
 
@@ -7818,8 +7826,11 @@ pub struct PaymentLinkDetails {
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     pub branding_visibility: Option<bool>,
     pub payment_button_text: Option<String>,
+    pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub payment_button_colour: Option<String>,
+    pub payment_button_text_colour: Option<String>,
+    pub background_colour: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7830,8 +7841,11 @@ pub struct SecurePaymentLinkDetails {
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
     pub payment_button_text: Option<String>,
+    pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub payment_button_colour: Option<String>,
+    pub payment_button_text_colour: Option<String>,
+    pub background_colour: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]

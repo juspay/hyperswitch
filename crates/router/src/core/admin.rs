@@ -14,6 +14,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
+use hyperswitch_connectors::connectors::chargebee;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -1310,6 +1311,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Chargebee => {
+                chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1844,6 +1849,8 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_authentication_connector(self.connector_name.to_string().as_str());
         let tax_connector =
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
+        let billing_connector =
+            api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1863,6 +1870,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if tax_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::TaxProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if billing_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::BillingProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
@@ -3772,6 +3786,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
         }))
     }
 
@@ -3927,6 +3942,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
         }))
     }
 }
@@ -4213,6 +4229,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
+                is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
             },
         )))
     }

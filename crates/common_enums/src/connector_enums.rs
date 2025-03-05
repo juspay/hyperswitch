@@ -65,7 +65,7 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
-    // Chargebee,
+    Chargebee,
     Checkout,
     Coinbase,
     Coingate,
@@ -123,6 +123,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    //Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -204,7 +205,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
-    // Chargebee,
+    Chargebee,
     Checkout,
     Coinbase,
     Coingate,
@@ -263,6 +264,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    // Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -362,7 +364,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
-            // | Self::Chargebee
+            | Self::Chargebee
             | Self::Coinbase
             |Self::Coingate
             | Self::Cryptopay
@@ -410,6 +412,7 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            // | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -494,6 +497,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Chargebee => Self::Chargebee,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -545,6 +549,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
+            // RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
