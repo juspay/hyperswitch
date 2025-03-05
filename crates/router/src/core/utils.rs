@@ -1793,3 +1793,9 @@ impl ValidatePlatformMerchant for storage::PaymentIntent {
         self.platform_merchant_id.as_ref()
     }
 }
+
+impl ValidatePlatformMerchant for storage::Dispute {
+    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        self.platform_merchant_id.as_ref()
+    }
+}

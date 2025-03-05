@@ -282,6 +282,7 @@ pub async fn accept_dispute(
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
+                auth.platform_merchant_account,
                 req,
             )
         },
@@ -329,6 +330,7 @@ pub async fn submit_dispute_evidence(
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
+                auth.platform_merchant_account,
                 req,
             )
         },
@@ -383,6 +385,7 @@ pub async fn attach_dispute_evidence(
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
+                auth.platform_merchant_account,
                 req,
             )
         },
@@ -472,7 +475,12 @@ pub async fn delete_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::delete_evidence(state, auth.merchant_account, req)
+            disputes::delete_evidence(
+                state,
+                auth.merchant_account,
+                auth.platform_merchant_account,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),

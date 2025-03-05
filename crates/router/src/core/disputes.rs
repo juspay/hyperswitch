@@ -12,6 +12,7 @@ pub mod transformers;
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
     metrics,
+    utils::ValidatePlatformMerchant,
 };
 use crate::{
     core::{files, payments, utils as core_utils},
@@ -140,8 +141,11 @@ pub async fn accept_dispute(
     merchant_account: domain::MerchantAccount,
     profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
+    platform_merchant_account: Option<domain::MerchantAccount>,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
+    use super::utils::ValidatePlatformMerchant;
+
     let db = &state.store;
     let dispute = state
         .store
@@ -150,6 +154,8 @@ pub async fn accept_dispute(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
+    dispute.validate_platform_merchant(platform_merchant_account.as_ref().map(|ma| ma.get_id()))?;
+
     core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
@@ -259,6 +265,7 @@ pub async fn submit_evidence(
     merchant_account: domain::MerchantAccount,
     profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
+    platform_merchant_account: Option<domain::MerchantAccount>,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -269,6 +276,7 @@ pub async fn submit_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id.clone(),
         })?;
+    dispute.validate_platform_merchant(platform_merchant_account.as_ref().map(|ma| ma.get_id()))?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
@@ -424,6 +432,7 @@ pub async fn attach_evidence(
     merchant_account: domain::MerchantAccount,
     profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
+    platform_merchant_account: Option<domain::MerchantAccount>,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
     let db = &state.store;
@@ -438,6 +447,8 @@ pub async fn attach_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
         })?;
+    dispute.validate_platform_merchant(platform_merchant_account.as_ref().map(|ma| ma.get_id()))?;
+
     core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
@@ -522,6 +533,7 @@ pub async fn retrieve_dispute_evidence(
 pub async fn delete_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    platform_merchant_account: Option<domain::MerchantAccount>,
     delete_evidence_request: dispute_models::DeleteEvidenceRequest,
 ) -> RouterResponse<serde_json::Value> {
     let dispute_id = delete_evidence_request.dispute_id.clone();
@@ -532,6 +544,7 @@ pub async fn delete_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
         })?;
+    dispute.validate_platform_merchant(platform_merchant_account.as_ref().map(|ma| ma.get_id()))?;
     let dispute_evidence: api::DisputeEvidence = dispute
         .evidence
         .clone()
