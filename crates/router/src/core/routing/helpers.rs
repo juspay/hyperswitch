@@ -1074,7 +1074,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     profile_id.get_string_repr().into(),
                     contract_based_routing_config.clone(),
                     "".to_string(),
-                    contract_based_connectors.clone(),
+                    contract_based_connectors,
                     state.get_grpc_headers(),
                 )
                 .await

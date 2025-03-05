@@ -1606,15 +1606,14 @@ pub async fn perform_contract_based_routing(
             .ok_or(errors::RoutingError::ContractBasedRoutingConfigError)
             .attach_printable("Label information not found in contract routing configs")?;
 
-        let mut contract_based_connectors = Vec::new();
-        routable_connectors.iter().for_each(|conn| {
-            if label_info
-                .iter()
-                .any(|info| Some(info.mca_id.clone()) == conn.merchant_connector_id.clone())
-            {
-                contract_based_connectors.push(conn.clone());
-            }
-        });
+        let contract_based_connectors = routable_connectors
+            .into_iter()
+            .filter(|conn| {
+                label_info
+                    .iter()
+                    .any(|info| Some(info.mca_id.clone()) == conn.merchant_connector_id.clone())
+            })
+            .collect::<Vec<_>>();
 
         let contract_based_connectors_result = client
             .calculate_contract_score(
