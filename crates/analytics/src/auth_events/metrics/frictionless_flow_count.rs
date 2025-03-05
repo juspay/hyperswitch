@@ -62,7 +62,7 @@ where
             .switch()?;
 
         query_builder
-            .add_negative_filter_clause("trans_status", "C".to_string())
+            .add_filter_clause("trans_status", "Y".to_string())
             .switch()?;
 
         time_range
