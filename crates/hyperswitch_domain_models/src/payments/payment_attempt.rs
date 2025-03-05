@@ -8,6 +8,7 @@ use common_utils::{
 };
 use common_utils::{
     errors::{CustomResult, ValidationError},
+    ext_traits::OptionExt,
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
@@ -671,6 +672,21 @@ impl PaymentAttempt {
             card_discovery: None,
             charges: None,
         })
+    }
+
+    pub fn get_attempt_merchant_connector_account_id(
+        &self,
+    ) -> CustomResult<
+        id_type::MerchantConnectorAccountId,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let merchant_connector_id = self
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant connector id is None")?;
+        Ok(merchant_connector_id)
     }
 }
 

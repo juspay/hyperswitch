@@ -6248,16 +6248,18 @@
       },
       "BillingConnectorPaymentDetails": {
         "type": "object",
+        "required": [
+          "payment_processor_token",
+          "connector_customer_id"
+        ],
         "properties": {
           "payment_processor_token": {
             "type": "string",
-            "description": "Payment Processor Token to process the Revenue Recovery Payment",
-            "nullable": true
+            "description": "Payment Processor Token to process the Revenue Recovery Payment"
           },
           "connector_customer_id": {
             "type": "string",
-            "description": "Billing Connector's Customer Id",
-            "nullable": true
+            "description": "Billing Connector's Customer Id"
           }
         }
       },
@@ -12584,6 +12586,14 @@
               "qr_code_url": {
                 "type": "string",
                 "description": "The url for Qr code given by the connector"
+              },
+              "display_text": {
+                "type": "string",
+                "nullable": true
+              },
+              "border_color": {
+                "type": "string",
+                "nullable": true
               },
               "type": {
                 "type": "string",

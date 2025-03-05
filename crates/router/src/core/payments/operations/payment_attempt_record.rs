@@ -91,7 +91,12 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
                     current_value: intent_status.to_string(),
-                    states: ["requires_payment_method".to_string()].join(", "),
+                    states: [
+                        common_enums::IntentStatus::RequiresPaymentMethod,
+                        common_enums::IntentStatus::Failed,
+                    ]
+                    .map(|enum_value| enum_value.to_string())
+                    .join(", "),
                 })
             }
         }
@@ -265,58 +270,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
     where
         F: 'b + Send,
     {
-        let payment_intent_feature_metadata = payment_data.payment_intent.feature_metadata.clone();
-
-        let revenue_recovery =
-            payment_intent_feature_metadata
-                .as_ref()
-                .and_then(|feature_metadata| {
-                    feature_metadata.payment_revenue_recovery_metadata.clone()
-                });
-
-        let payment_revenue_recovery_metadata =
-            Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
-                total_retry_count: revenue_recovery.map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
-                payment_connector_transmission:
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
-                billing_connector_id: payment_data
-                    .revenue_recovery_data
-                    .billing_connector_id
-                    .clone(),
-                active_attempt_payment_connector_id: payment_data
-                    .payment_attempt
-                    .merchant_connector_id
-                    .clone()
-                    .get_required_value("merchant_connector_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Merchant connector id is none when constructing response")?,
-                billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
-                        payment_processor_token: payment_data
-                            .revenue_recovery_data
-                            .processor_payment_method_token
-                            .clone(),
-                        connector_customer_id: payment_data
-                            .revenue_recovery_data
-                            .connector_customer_id
-                            .clone(),
-                    },
-                payment_method_type: payment_data.payment_attempt.payment_method_type,
-                payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
-            });
-        let feature_metadata = Some(diesel_models::types::FeatureMetadata {
-            redirect_response: payment_intent_feature_metadata
-                .as_ref()
-                .and_then(|data| data.redirect_response.clone()),
-            search_tags: payment_intent_feature_metadata
-                .as_ref()
-                .and_then(|data| data.search_tags.clone()),
-            apple_pay_recurring_details: payment_intent_feature_metadata
-                .as_ref()
-                .and_then(|data| data.apple_pay_recurring_details.clone()),
-            payment_revenue_recovery_metadata,
-        });
+        let feature_metadata = payment_data.get_updated_feature_metadata()?;
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
         {
             status: common_enums::IntentStatus::from(payment_data.payment_attempt.status),
