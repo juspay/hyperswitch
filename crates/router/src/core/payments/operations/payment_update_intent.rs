@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::PaymentsUpdateIntentRequest};
+use api_models::{
+    enums::{FrmSuggestion, UpdateActiveAttempt},
+    payments::PaymentsUpdateIntentRequest,
+};
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
@@ -45,9 +48,10 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            // if the status is `Failed`` we would want to Update few intent fields to perform a Revenue Recovery retry
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -174,6 +178,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             session_expiry,
             frm_metadata,
             request_external_three_ds_authentication,
+            set_active_attempt_id,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -222,6 +227,13 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             Some(details) => payment_intent.amount_details.update_from_request(&details),
             None => payment_intent.amount_details,
         };
+
+        let active_attempt_id = set_active_attempt_id
+            .and_then(|active_attempt_req| match active_attempt_req {
+                UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
+                UpdateActiveAttempt::Unset => None,
+            })
+            .or(payment_intent.active_attempt_id);
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,
@@ -272,6 +284,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             routing_algorithm_id: routing_algorithm_id.or(payment_intent.routing_algorithm_id),
             allowed_payment_method_types: allowed_payment_method_types
                 .or(payment_intent.allowed_payment_method_types),
+            active_attempt_id,
             ..payment_intent
         };
 
@@ -351,6 +364,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 ),
                 updated_by: intent.updated_by,
                 tax_details: intent.amount_details.tax_details,
+                active_attempt_id: Some(intent.active_attempt_id),
             }));
 
         let new_payment_intent = db

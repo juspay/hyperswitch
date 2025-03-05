@@ -72,7 +72,9 @@ use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
-use crate::routes::cards_info::card_iin_info;
+use crate::routes::cards_info::{
+    card_iin_info, create_cards_info, migrate_cards_info, update_cards_info,
+};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
@@ -648,6 +650,10 @@ impl Payments {
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/proxy-confirm-intent")
+                        .route(web::post().to(payments::proxy_confirm_intent)),
                 )
                 .service(
                     web::resource("/get-intent")
@@ -1842,11 +1848,14 @@ impl Disputes {
 
 pub struct Cards;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
+            .service(web::resource("/create").route(web::post().to(create_cards_info)))
+            .service(web::resource("/update").route(web::post().to(update_cards_info)))
+            .service(web::resource("/update-batch").route(web::post().to(migrate_cards_info)))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }
