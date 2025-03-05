@@ -310,6 +310,65 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     }
   );
 
+  context("Card - MIT without billing address", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create No 3DS Payment Intent", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Confirm No 3DS CIT", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        "new_mandate",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Confirm No 3DS MIT", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITWithoutBillingAddress"];
+
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        globalState
+      );
+    });
+  });
+
   context(
     "Card - ThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {

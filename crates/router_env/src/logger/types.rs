@@ -533,6 +533,7 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
     /// Payments start redirection flow
@@ -563,6 +564,12 @@ pub enum Flow {
     PaymentMethodSessionDeleteSavedPaymentMethod,
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
+    /// Create Cards Info flow
+    CardsInfoCreate,
+    /// Update Cards Info flow
+    CardsInfoUpdate,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
 }
 
 /// Trait for providing generic behaviour to flow metric

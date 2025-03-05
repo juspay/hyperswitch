@@ -1,8 +1,8 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
-    routing::ConnectorSelection,
+    cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
+    payments, routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -305,6 +305,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
+            // api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
             api_enums::Connector::Trustpay => Self::Trustpay,
@@ -1838,6 +1839,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
+            clear_pan_possible: value.clear_pan_possible,
         }
     }
 }
@@ -1857,6 +1859,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
+            clear_pan_possible: value.clear_pan_possible,
         }
     }
 }
@@ -2263,6 +2266,44 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
             ui_config: item.ui_config,
+        }
+    }
+}
+
+impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
+    fn foreign_from(value: card_info_types::CardInfoCreateRequest) -> Self {
+        Self {
+            card_iin: value.card_iin,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_subtype: value.card_subtype,
+            card_issuing_country: value.card_issuing_country,
+            bank_code_id: value.bank_code_id,
+            bank_code: value.bank_code,
+            country_code: value.country_code,
+            date_created: common_utils::date_time::now(),
+            last_updated: Some(common_utils::date_time::now()),
+            last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
+    fn foreign_from(value: card_info_types::CardInfoUpdateRequest) -> Self {
+        Self {
+            card_iin: value.card_iin,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_subtype: value.card_subtype,
+            card_issuing_country: value.card_issuing_country,
+            bank_code_id: value.bank_code_id,
+            bank_code: value.bank_code,
+            country_code: value.country_code,
+            date_created: common_utils::date_time::now(),
+            last_updated: Some(common_utils::date_time::now()),
+            last_updated_provider: value.last_updated_provider,
         }
     }
 }

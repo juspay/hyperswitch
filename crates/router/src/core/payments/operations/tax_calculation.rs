@@ -184,6 +184,7 @@ impl<F: Send + Clone + Sync>
             session_id: request.session_id.clone(),
             service_details: None,
             card_testing_guard_data: None,
+            vault_operation: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -338,6 +339,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,

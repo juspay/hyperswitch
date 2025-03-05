@@ -1,13 +1,21 @@
 use std::collections::HashMap;
 
+use common_enums::{enums, AttemptStatus};
+use common_utils::request::Method;
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::{api::CurrencyUnit, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
-    services,
-    types::{self, api, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 #[derive(Debug, Serialize)]
@@ -16,16 +24,11 @@ pub struct OpennodeRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for OpennodeRouterData<T> {
+impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for OpennodeRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, router_data): (&CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -46,10 +49,10 @@ pub struct OpennodePaymentsRequest {
     order_id: String,
 }
 
-impl TryFrom<&OpennodeRouterData<&types::PaymentsAuthorizeRouterData>> for OpennodePaymentsRequest {
+impl TryFrom<&OpennodeRouterData<&PaymentsAuthorizeRouterData>> for OpennodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &OpennodeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(item)
     }
@@ -61,11 +64,11 @@ pub struct OpennodeAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for OpennodeAuthType {
+impl TryFrom<&ConnectorAuthType> for OpennodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -88,7 +91,7 @@ pub enum OpennodePaymentStatus {
     Unknown,
 }
 
-impl From<OpennodePaymentStatus> for enums::AttemptStatus {
+impl From<OpennodePaymentStatus> for AttemptStatus {
     fn from(item: OpennodePaymentStatus) -> Self {
         match item {
             OpennodePaymentStatus::Unpaid => Self::AuthenticationPending,
@@ -114,29 +117,23 @@ pub struct OpennodePaymentsResponse {
     data: OpennodePaymentsResponseData,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, OpennodePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, OpennodePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            OpennodePaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, OpennodePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let redirection_data = services::RedirectForm::Form {
+        let redirection_data = RedirectForm::Form {
             endpoint: item.response.data.hosted_checkout_url.to_string(),
-            method: services::Method::Get,
+            method: Method::Get,
             form_fields,
         };
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = ResponseId::ConnectorTransactionId(item.response.data.id);
         let attempt_status = item.response.data.status;
         let response_data = if attempt_status != OpennodePaymentStatus::Underpaid {
-            Ok(types::PaymentsResponseData::TransactionResponse {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
                 redirection_data: Box::new(Some(redirection_data)),
                 mandate_reference: Box::new(None),
@@ -147,9 +144,9 @@ impl<F, T>
                 charges: None,
             })
         } else {
-            Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
+            Ok(PaymentsResponseData::TransactionUnresolvedResponse {
                 resource_id: connector_id,
-                reason: Some(api::enums::UnresolvedResponseReason {
+                reason: Some(api_models::enums::UnresolvedResponseReason {
                     code: "UNDERPAID".to_string(),
                     message:
                         "Please check the transaction in opennode dashboard and resolve manually"
@@ -159,7 +156,7 @@ impl<F, T>
             })
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(attempt_status),
+            status: AttemptStatus::from(attempt_status),
             response: response_data,
             ..item.data
         })
@@ -174,11 +171,9 @@ pub struct OpennodeRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&OpennodeRouterData<&types::RefundsRouterData<F>>> for OpennodeRefundRequest {
+impl<F> TryFrom<&OpennodeRouterData<&RefundsRouterData<F>>> for OpennodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &OpennodeRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &OpennodeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.router_data.request.refund_amount,
         })
@@ -211,15 +206,13 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -228,15 +221,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -252,7 +243,7 @@ pub struct OpennodeErrorResponse {
 }
 
 fn get_crypto_specific_payment_data(
-    item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>,
+    item: &OpennodeRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Result<OpennodePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let amount = item.amount;
     let currency = item.router_data.request.currency.to_string();

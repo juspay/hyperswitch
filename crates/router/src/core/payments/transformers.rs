@@ -211,11 +211,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
-    let connector_customer_id = customer.as_ref().and_then(|customer| {
-        customer
-            .get_connector_customer_id(&merchant_connector_account.get_id())
-            .map(String::from)
-    });
+    let connector_customer_id =
+        payment_data.get_connector_customer_id(customer.as_ref(), merchant_connector_account);
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
@@ -257,14 +254,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
-        mandate_id: None,
+        mandate_id: payment_data.mandate_data.clone(),
         off_session: None,
         setup_mandate_details: None,
         confirm: true,
@@ -2960,6 +2956,8 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 image_data_url: Some(image_data_url),
                 qr_code_url: Some(qr_code_url),
                 display_to_timestamp,
+                border_color: None,
+                display_text: None,
             },
             api_models::payments::QrCodeInformation::QrDataUrl {
                 image_data_url,
@@ -2968,6 +2966,8 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 image_data_url: Some(image_data_url),
                 display_to_timestamp,
                 qr_code_url: None,
+                border_color: None,
+                display_text: None,
             },
             api_models::payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
@@ -2976,6 +2976,20 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 qr_code_url: Some(qr_code_url),
                 image_data_url: None,
                 display_to_timestamp,
+                border_color: None,
+                display_text: None,
+            },
+            api_models::payments::QrCodeInformation::QrColorDataUrl {
+                color_image_data_url,
+                display_to_timestamp,
+                border_color,
+                display_text,
+            } => Self::QrCodeInformation {
+                qr_code_url: None,
+                image_data_url: Some(color_image_data_url),
+                display_to_timestamp,
+                border_color,
+                display_text,
             },
         }
     }
