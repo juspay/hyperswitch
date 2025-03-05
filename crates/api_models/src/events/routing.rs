@@ -6,8 +6,8 @@ use crate::routing::{
     ProfileDefaultRoutingConfig, RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord,
     RoutingKind, RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
     RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplitWrapper,
-    SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingQuery,
-    ToggleDynamicRoutingWrapper,
+    SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper, SurchargeRetrieveQuery,
+    ToggleDynamicRoutingQuery, ToggleDynamicRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -52,6 +52,12 @@ impl ApiEventMetric for ProfileDefaultRoutingConfig {
 }
 
 impl ApiEventMetric for RoutingRetrieveQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for SurchargeRetrieveQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

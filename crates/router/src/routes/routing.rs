@@ -22,6 +22,7 @@ pub async fn routing_create_config(
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
     transaction_type: enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -37,6 +38,7 @@ pub async fn routing_create_config(
                 auth.profile_id,
                 payload,
                 transaction_type,
+                algorithm_type,
             )
         },
         #[cfg(not(feature = "release"))]
@@ -683,6 +685,38 @@ pub async fn retrieve_surcharge_decision_manager_config(
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerRead,
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_surcharge_decision_manager_configs(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::SurchargeRetrieveQuery>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, request, _| {
+            surcharge_decision_config::list_surcharge_decision_configs(
+                state,
+                auth.profile_id.unwrap(),
+                request.limit.unwrap_or(10) as i64,
+                request.offset.unwrap_or(0) as i64,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantSurchargeDecisionManagerRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

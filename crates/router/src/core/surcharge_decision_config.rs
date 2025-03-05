@@ -1,14 +1,19 @@
-use api_models::surcharge_decision_configs::{
-    SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse,
+use api_models::{
+    routing::RoutingKind,
+    surcharge_decision_configs::{
+        SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord,
+        SurchargeDecisionManagerResponse,
+    },
 };
-use common_utils::ext_traits::StringExt;
+use common_enums::AlgorithmType;
+use common_utils::{ext_traits::StringExt, id_type};
 use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
     services::api as service_api,
-    types::domain,
+    types::{domain, transformers::ForeignInto},
 };
 
 #[cfg(feature = "v1")]
@@ -215,4 +220,32 @@ pub async fn retrieve_surcharge_decision_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("The Surcharge Decision Config Record was not found")?;
     Ok(service_api::ApplicationResponse::Json(record))
+}
+
+pub async fn list_surcharge_decision_configs(
+    state: SessionState,
+    profile_id: id_type::ProfileId,
+    limit: i64,
+    offset: i64,
+) -> RouterResponse<RoutingKind> {
+    let db = state.store.as_ref();
+
+    let records = db
+        .list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+            &profile_id,
+            limit,
+            offset,
+            AlgorithmType::Routing,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let result = records
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect::<Vec<_>>();
+
+    Ok(service_api::ApplicationResponse::Json(
+        RoutingKind::RoutingAlgorithm(result),
+    ))
 }

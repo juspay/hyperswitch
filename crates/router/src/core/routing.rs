@@ -244,6 +244,7 @@ pub async fn create_routing_algorithm_under_profile(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
@@ -314,6 +315,7 @@ pub async fn create_routing_algorithm_under_profile(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: transaction_type.to_owned(),
+        algorithm_type: algorithm_type.to_owned(),
     };
     let record = db
         .insert_routing_algorithm(algo)

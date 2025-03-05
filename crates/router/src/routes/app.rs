@@ -3,6 +3,8 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
+use api_models::routing::SurchargeRetrieveQuery;
+use common_enums::AlgorithmType;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
@@ -835,6 +837,7 @@ impl Routing {
                             req,
                             payload,
                             TransactionType::Payment,
+                            AlgorithmType::Routing,
                         )
                     })),
             )
@@ -876,6 +879,13 @@ impl Routing {
                     .route(web::delete().to(routing::delete_surcharge_decision_manager_config)),
             )
             .service(
+                web::resource("/decision/surcharge_list").route(web::get().to(
+                    |state, req, query: web::Query<SurchargeRetrieveQuery>| {
+                        routing::list_surcharge_decision_manager_configs(state, req, query)
+                    },
+                )),
+            )
+            .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(
                     |state, req, path, payload| {
                         routing::routing_update_default_config_for_profile(
@@ -915,6 +925,7 @@ impl Routing {
                                 req,
                                 payload,
                                 TransactionType::Payout,
+                                AlgorithmType::Routing,
                             )
                         })),
                 )

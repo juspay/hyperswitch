@@ -1,11 +1,12 @@
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
-        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
-        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
-        DbCardDiscovery as CardDiscovery, DbConnectorStatus as ConnectorStatus,
-        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbAlgorithmType as AlgorithmType, DbApiVersion as ApiVersion,
+        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
+        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
+        DbCaptureStatus as CaptureStatus, DbCardDiscovery as CardDiscovery,
+        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDashboardMetadata as DashboardMetadata, DbDeleteStatus as DeleteStatus,
         DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
         DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,

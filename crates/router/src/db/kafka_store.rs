@@ -3016,6 +3016,23 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
+    async fn list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+        &self,
+        profile_id: &id_type::ProfileId,
+        limit: i64,
+        offset: i64,
+        algorithm_type: enums::AlgorithmType,
+    ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+                profile_id,
+                limit,
+                offset,
+                algorithm_type,
+            )
+            .await
+    }
+
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
         merchant_id: &id_type::MerchantId,

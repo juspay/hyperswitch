@@ -166,6 +166,67 @@ impl RoutingAlgorithm {
             .collect())
     }
 
+    pub async fn list_metadata_by_profile_id_algorithm_type(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: i64,
+        offset: i64,
+        algorithm_type: enums::AlgorithmType,
+    ) -> StorageResult<Vec<RoutingProfileMetadata>> {
+        Ok(Self::table()
+            .select((
+                dsl::algorithm_id,
+                dsl::profile_id,
+                dsl::name,
+                dsl::description,
+                dsl::kind,
+                dsl::created_at,
+                dsl::modified_at,
+                dsl::algorithm_for,
+            ))
+            .filter(dsl::profile_id.eq(profile_id.to_owned()))
+            .filter(dsl::algorithm_type.eq(algorithm_type.to_owned()))
+            .limit(limit)
+            .offset(offset)
+            .load_async::<(
+                common_utils::id_type::RoutingId,
+                common_utils::id_type::ProfileId,
+                String,
+                Option<String>,
+                enums::RoutingAlgorithmKind,
+                PrimitiveDateTime,
+                PrimitiveDateTime,
+                enums::TransactionType,
+            )>(conn)
+            .await
+            .change_context(DatabaseError::Others)?
+            .into_iter()
+            .map(
+                |(
+                    algorithm_id,
+                    profile_id,
+                    name,
+                    description,
+                    kind,
+                    created_at,
+                    modified_at,
+                    algorithm_for,
+                )| {
+                    RoutingProfileMetadata {
+                        algorithm_id,
+                        name,
+                        description,
+                        kind,
+                        created_at,
+                        modified_at,
+                        algorithm_for,
+                        profile_id,
+                    }
+                },
+            )
+            .collect())
+    }
+
     pub async fn list_metadata_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
