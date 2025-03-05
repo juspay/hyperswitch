@@ -41,6 +41,7 @@ const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
 const GOOGLEPAY_API_VERSION: u8 = 2;
 
 use crate::{
+    constants,
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
@@ -1725,16 +1726,21 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub fn get_qr_metadata(
     response: &DuitNowQrCodeResponse,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let image_data = QrImage::new_from_data(response.txn_data.request_data.qr_data.peek().clone())
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data = QrImage::new_colored_from_data(
+        response.txn_data.request_data.qr_data.peek().clone(),
+        constants::DUIT_NOW_BRAND_COLOR,
+    )
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let display_to_timestamp = None;
 
-    if let Some(image_data_url) = image_data_url {
-        let qr_code_info = payments::QrCodeInformation::QrDataUrl {
-            image_data_url,
+    if let Some(color_image_data_url) = image_data_url {
+        let qr_code_info = payments::QrCodeInformation::QrColorDataUrl {
+            color_image_data_url,
             display_to_timestamp,
+            display_text: Some(constants::DUIT_NOW_BRAND_TEXT.to_string()),
+            border_color: Some(constants::DUIT_NOW_BRAND_COLOR.to_string()),
         };
 
         Some(qr_code_info.encode_to_value())
