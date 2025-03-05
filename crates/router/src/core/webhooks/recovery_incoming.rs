@@ -331,21 +331,12 @@ impl RevenueRecoveryAttempt {
             billing_connector_account_id,
         ));
 
-        let attempt_response = Box::pin(payments::record_attempt_core::<
-            hyperswitch_domain_models::router_flow_types::payments::RecordAttempt,
-            api_models::payments::PaymentAttemptResponse,
-            _,
-            _,
-            hyperswitch_domain_models::payments::PaymentAttemptRecordData<
-                hyperswitch_domain_models::router_flow_types::payments::RecordAttempt,
-            >,
-        >(
+        let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
             merchant_account.clone(),
             profile.clone(),
             key_store.clone(),
-            &payments::operations::payment_attempt_record::PaymentAttemptRecord,
             request_payload,
             payment_id.clone(),
             hyperswitch_domain_models::payments::HeaderPayload::default(),

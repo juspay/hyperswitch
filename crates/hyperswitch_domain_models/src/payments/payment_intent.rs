@@ -646,7 +646,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_captured: None,
-                active_attempt_id: Some(active_attempt_id),
+                active_attempt_id: Some(Some(active_attempt_id)),
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,

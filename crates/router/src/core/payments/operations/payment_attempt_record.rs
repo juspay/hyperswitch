@@ -117,7 +117,7 @@ impl<F: Send + Clone + Sync>
         merchant_account: &domain::MerchantAccount,
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentAttemptRecordData<F>>> {
         let db = &*state.store;
