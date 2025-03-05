@@ -595,7 +595,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        // for stripebilling we need an additional call to fetch the recovery required data . So instead of Invoice Id we sent ChargeId
+        //  For Stripe billing, we need an additional call to fetch the required recovery data. So, instead of the Invoice ID, we send the Charge ID.
         let webhook =
             stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;

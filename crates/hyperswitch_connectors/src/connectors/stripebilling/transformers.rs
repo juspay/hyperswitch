@@ -100,7 +100,7 @@ impl TryFrom<&ConnectorAuthType> for StripebillingAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum StripebillingPaymentStatus {
     Succeeded,
@@ -172,7 +172,7 @@ impl<F> TryFrom<&StripebillingRouterData<&RefundsRouterData<F>>> for Stripebilli
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone, Copy)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -251,7 +251,7 @@ pub struct StripebillingInvoiceBody {
     pub data: StripebillingInvoiceData,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripebillingEventType {
     #[serde(rename = "invoice.paid")]
@@ -302,7 +302,7 @@ pub struct StripePaymentMethodDetails {
     pub card_funding_type: StripeCardFundingTypeDetails,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripebillingPaymentMethod {
     Card,
@@ -313,7 +313,7 @@ pub struct StripeCardFundingTypeDetails {
     pub funding: StripebillingFundingTypes,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename = "snake_case")]
 pub enum StripebillingFundingTypes {
     #[serde(rename = "credit")]
@@ -326,7 +326,7 @@ pub enum StripebillingFundingTypes {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripebillingChargeStatus {
     Succeeded,
