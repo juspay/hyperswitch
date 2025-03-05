@@ -2104,6 +2104,8 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
+            connector_mandate_detail,
+            platform_merchant_id,
         } = self;
 
         let card_network = payment_method_data
@@ -2166,17 +2168,8 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id,
             organization_id,
             card_network,
-            order_tax_amount: self.amount_details.order_tax_amount,
-            shipping_cost: self.amount_details.shipping_cost,
-            amount_to_capture: self.amount_details.amount_to_capture,
-            payment_method_billing_address: self
-                .payment_method_billing_address
-                .map(Encryption::from),
-            payment_method_subtype: self.payment_method_subtype,
-            payment_method_type_v2: self.payment_method_type,
-            id: self.id,
-            connector_mandate_detail: self.connector_mandate_detail,
-            platform_merchant_id: self.platform_merchant_id,
+            connector_mandate_detail,
+            platform_merchant_id,
             order_tax_amount: amount_details.order_tax_amount,
             shipping_cost: amount_details.shipping_cost,
             amount_to_capture: amount_details.amount_to_capture,
