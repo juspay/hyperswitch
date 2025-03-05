@@ -8371,29 +8371,29 @@ pub struct BillingConnectorPaymentDetails {
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsAttemptRecordRequest {
-    /// The amount details for the payment attempt
+    /// The amount details for the payment attempt.
     pub amount_details: PaymentAttemptAmountDetails,
 
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
 
-    /// The billing details of the payment. This address will be used for invoicing.
+    /// The billing details of the payment attempt. This address will be used for invoicing.
     pub billing: Option<Address>,
 
-    /// The shipping address for the payment.
+    /// The shipping address for the payment attempt.
     pub shipping: Option<Address>,
 
-    /// Error details for the payment if any
+    /// Error details provided by the billing processor.
     pub error: Option<RecordAttemptErrorDetails>,
 
-    /// A description for the payment
+    /// A description for the payment attempt.
     #[schema(example = "It's my first payment request", value_type = Option<String>)]
     pub description: Option<common_utils::types::Description>,
 
-    /// A unique identifier for a payment provided by the connector
+    /// A unique identifier for a payment provided by the connector.
     pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
 
-    /// The payment method that is to be used
+    /// The payment method type used for payment attempt.
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     pub payment_method_type: api_enums::PaymentMethod,
 
@@ -8401,14 +8401,15 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = String, example = "1234567890")]
     pub merchant_connector_reference_id: String,
 
-    /// Billing Connector Id to update the invoices
+    /// Billing connector id to update the invoices.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// The payment method subtype to b e used for the payment. This should match with the `payment_method_data` provided
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
-    /// The payment instrument data to be used for the payment
+
+    /// The payment instrument data to be used for the payment attempt.
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
@@ -8418,7 +8419,7 @@ pub struct PaymentsAttemptRecordRequest {
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 
-    /// The time at which payment is created
+    /// The time at which payment attempt was created.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub transaction_created_at: Option<PrimitiveDateTime>,
