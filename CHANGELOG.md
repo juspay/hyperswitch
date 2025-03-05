@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0
+
+### Features
+
+- **connector:** Add functionality for transforming QR image color ([#7414](https://github.com/juspay/hyperswitch/pull/7414)) ([`0e16e1b`](https://github.com/juspay/hyperswitch/commit/0e16e1b2b73a4613aac2771bc094259645a19fba))
+- **core:** Add support for cards bin update ([#7194](https://github.com/juspay/hyperswitch/pull/7194)) ([`8e922d3`](https://github.com/juspay/hyperswitch/commit/8e922d30da367bc0baf3cba64a86c385764fff39))
+- **cypress:** Add last used tests ([#7310](https://github.com/juspay/hyperswitch/pull/7310)) ([`d70288a`](https://github.com/juspay/hyperswitch/commit/d70288aef5b3ec549aa6ed907914473586036630))
+- **xendit:** Add Payment Webhooks ([#7277](https://github.com/juspay/hyperswitch/pull/7277)) ([`6553e29`](https://github.com/juspay/hyperswitch/commit/6553e29e478a70e4d2f0124e5a55931377bd8123))
+
+### Refactors
+
+- **connector:** [AUTHORIZEDOTNET,CHECKOUT,NOON,OPAYO,OPENNODE,PAYME,TRUSTPAY] Move to crate hyperswitch_connectors ([#7235](https://github.com/juspay/hyperswitch/pull/7235)) ([`241653b`](https://github.com/juspay/hyperswitch/commit/241653bd69e3503241f7556d363c243292a4603d))
+- **payment_methods:** Propagate empty wallet details for paypal … ([#7423](https://github.com/juspay/hyperswitch/pull/7423)) ([`759474c`](https://github.com/juspay/hyperswitch/commit/759474cd4866aa7a6fba055594b9a96de26681a4))
+
+**Full Changelog:** [`2025.03.04.0...2025.03.05.0`](https://github.com/juspay/hyperswitch/compare/2025.03.04.0...2025.03.05.0)
+
+
+- - -
+
 ## 2025.03.04.0
 
 ### Features
