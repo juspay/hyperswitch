@@ -404,8 +404,34 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                         },
                     })
                 }
-                WalletData::ApplePay(_)
-                | WalletData::AliPayQr(_)
+                WalletData::ApplePay(applepay_token) => {
+                    let merchant_authentication =
+                        AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+                    let validation_mode = match item.test_mode {
+                        Some(true) | None => ValidationMode::TestMode,
+                        Some(false) => ValidationMode::LiveMode,
+                    };
+                    Ok(Self {
+                        create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
+                            merchant_authentication,
+                            profile: Profile {
+                                // The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                                description: item.payment_id.clone(),
+                                payment_profiles: PaymentProfiles {
+                                    customer_type: CustomerType::Individual,
+                                    payment: PaymentDetails::OpaqueData(WalletDetails {
+                                        data_descriptor: WalletMethod::Applepay,
+                                        data_value: Secret::new(
+                                            applepay_token.payment_data.clone(),
+                                        ),
+                                    }),
+                                },
+                            },
+                            validation_mode,
+                        },
+                    })
+                }
+                WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
