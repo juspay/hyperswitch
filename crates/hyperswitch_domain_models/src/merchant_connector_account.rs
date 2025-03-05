@@ -94,7 +94,7 @@ impl MerchantConnectorAccount {
 
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
         &self,
-        account_reference: String,
+        _account_reference: String,
     ) -> Option<id_type::MerchantConnectorAccountId> {
         None
     }
