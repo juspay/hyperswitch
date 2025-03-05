@@ -6569,8 +6569,11 @@ pub struct NoonData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BraintreeData {
-    /// Information about the merchant_accountid and merchant_config_currency that merchant wants to specify at connector level.
+    /// Information about the merchant_account_id that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
     pub merchant_account_id: Option<Secret<String>>,
+    /// Information about the merchant_config_currency that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
     pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
