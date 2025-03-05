@@ -1117,12 +1117,16 @@ function renderSDKHeader(paymentDetails) {
  */
 function updatePaymentLinkUi(paymentLinkUiRules) {
   Object.keys(paymentLinkUiRules).forEach(function (selector) {
-    var node = document.querySelector(selector);
-    if (node instanceof HTMLElement) {
-      var styles = paymentLinkUiRules[selector];
-      Object.keys(styles).forEach(function (property) {
-        node.style[property] = styles[property];
-      });
+    try {
+      var node = document.querySelector(selector);
+      if (node instanceof HTMLElement) {
+        var styles = paymentLinkUiRules[selector];
+        Object.keys(styles).forEach(function (property) {
+          node.style[property] = styles[property];
+        });
+      }
+    } catch (error) {
+      console.error("Failed to apply styles to selector", selector, error);
     }
   })
 }
