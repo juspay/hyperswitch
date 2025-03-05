@@ -3604,6 +3604,7 @@ default_imp_for_additional_revenue_recovery_call!(
     connectors::Placetopay,
     connectors::Rapyd,
     connectors::Razorpay,
+    connectors::Recurly,
     connectors::Redsys,
     connectors::Shift4,
     connectors::Stax,
