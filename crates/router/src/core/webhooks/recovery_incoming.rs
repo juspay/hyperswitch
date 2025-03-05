@@ -81,31 +81,33 @@ pub async fn recovery_incoming_webhook_flow(
                 .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)?,
             );
 
-            Some(invoice_transaction_details
-                .get_payment_attempt(
-                    &state,
-                    &req_state,
-                    &merchant_account,
-                    &business_profile,
-                    &key_store,
-                    payment_intent.payment_id.clone(),
-                )
-                .await
-                .transpose()
-                .async_unwrap_or_else(|| async {
-                    invoice_transaction_details
-                        .record_payment_attempt(
-                            &state,
-                            &req_state,
-                            &merchant_account,
-                            &business_profile,
-                            &key_store,
-                            payment_intent.payment_id.clone(),
-                            &billing_connector_account.id,
-                        )
-                        .await
-                })
-                .await?)
+            Some(
+                invoice_transaction_details
+                    .get_payment_attempt(
+                        &state,
+                        &req_state,
+                        &merchant_account,
+                        &business_profile,
+                        &key_store,
+                        payment_intent.payment_id.clone(),
+                    )
+                    .await
+                    .transpose()
+                    .async_unwrap_or_else(|| async {
+                        invoice_transaction_details
+                            .record_payment_attempt(
+                                &state,
+                                &req_state,
+                                &merchant_account,
+                                &business_profile,
+                                &key_store,
+                                payment_intent.payment_id.clone(),
+                                &billing_connector_account.id,
+                            )
+                            .await
+                    })
+                    .await?,
+            )
         }
         false => None,
     };
@@ -312,7 +314,7 @@ impl RevenueRecoveryAttempt {
         }?;
         Ok(response)
     }
-    
+
     #[allow(clippy::too_many_arguments)]
     async fn record_payment_attempt(
         &self,
@@ -334,7 +336,9 @@ impl RevenueRecoveryAttempt {
             api_models::payments::PaymentAttemptResponse,
             _,
             _,
-            hyperswitch_domain_models::payments::PaymentAttemptRecordData<hyperswitch_domain_models::router_flow_types::payments::RecordAttempt>,
+            hyperswitch_domain_models::payments::PaymentAttemptRecordData<
+                hyperswitch_domain_models::router_flow_types::payments::RecordAttempt,
+            >,
         >(
             state.clone(),
             req_state.clone(),
@@ -350,13 +354,13 @@ impl RevenueRecoveryAttempt {
         .await;
 
         let response = match attempt_response {
-            Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response,_))) => {
+            Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
                 Ok(revenue_recovery::RecoveryPaymentAttempt {
                     attempt_id: attempt_response.id,
                     attempt_status: attempt_response.status,
-                    feature_metadata: attempt_response.feature_metadata
+                    feature_metadata: attempt_response.feature_metadata,
                 })
-            },
+            }
             Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
                 .attach_printable("Unexpected response from record attempt core"),
             error @ Err(_) => {
@@ -368,4 +372,3 @@ impl RevenueRecoveryAttempt {
         Ok(response)
     }
 }
-

@@ -635,11 +635,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     updated_by,
                 }
             }
-            PaymentIntentUpdate::RecordUpdate { status, 
-                feature_metadata, 
+            PaymentIntentUpdate::RecordUpdate {
+                status,
+                feature_metadata,
                 active_attempt_id,
-                updated_by } => 
-                Self {
+                updated_by,
+            } => Self {
                 status: Some(status),
                 amount_captured: None,
                 active_attempt_id: Some(active_attempt_id),
