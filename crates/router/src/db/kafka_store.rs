@@ -291,6 +291,21 @@ impl CardsInfoInterface for KafkaStore {
     ) -> CustomResult<Option<storage::CardInfo>, errors::StorageError> {
         self.diesel_store.get_card_info(card_iin).await
     }
+
+    async fn add_card_info(
+        &self,
+        data: storage::CardInfo,
+    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        self.diesel_store.add_card_info(data).await
+    }
+
+    async fn update_card_info(
+        &self,
+        card_iin: String,
+        data: storage::UpdateCardInfo,
+    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        self.diesel_store.update_card_info(card_iin, data).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -4026,7 +4041,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity: i64,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
@@ -4040,11 +4055,33 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
-        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         errors::StorageError,
     > {
         self.diesel_store
             .get_payment_methods_session(state, key_store, id)
+            .await
+    }
+
+    async fn update_payment_method_session(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodSessionId,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
+        current_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    ) -> CustomResult<
+        hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .update_payment_method_session(
+                state,
+                key_store,
+                id,
+                payment_methods_session,
+                current_session,
+            )
             .await
     }
 }

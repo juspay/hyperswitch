@@ -3467,6 +3467,8 @@ api_secret="Pin"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+[xendit.connector_webhook_details]
+webhook_verification_token="Source verification key"
 
 [inespay]
 [[inespay.bank_debit]]
@@ -3476,3 +3478,16 @@ api_key="API Key"
 key1="API Token"
 [inespay.connector_webhook_details]
 merchant_secret="API Key"
+
+[nomupay_payout]
+[[nomupay_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[nomupay_payout.connector_auth.BodyKey]
+api_key = "Nomupay kid"
+key1 = "Nomupay eid"
+[nomupay_payout.metadata.private_key]
+name="Private key for signature generation"
+label="Enter your private key"
+placeholder="------BEGIN PRIVATE KEY-------"
+required=true
+type="Text"
