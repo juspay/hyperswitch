@@ -16,15 +16,6 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-const customerAcceptance = {
-  acceptance_type: "offline",
-  accepted_at: "1963-05-03T04:07:52.723Z",
-  online: {
-    ip_address: "125.0.0.1",
-    user_agent: "amet irure esse",
-  },
-};
-
 const connectorMetadata = {
   noon: {
     order_category: "pay",
