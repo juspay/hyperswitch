@@ -1847,7 +1847,7 @@ pub async fn complete_payout_retrieve(
                 .await
                 .attach_printable("Payout retrieval failed for given Payout request")?;
         }
-        api::ConnectorCallType::Retryable(_) | api::ConnectorCallType::SessionMultiple(_) => {
+        _ => {
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Payout retrieval not supported for given ConnectorCallType")?
         }

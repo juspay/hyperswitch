@@ -44,7 +44,7 @@ pub fn get_connector_data_if_separate_authn_supported(
                 }
             })
         }
-        api::ConnectorCallType::SessionMultiple(_) => None,
+        _ => None,
     }
 }
 

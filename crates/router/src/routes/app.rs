@@ -656,7 +656,7 @@ impl Relay {
 #[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/payments").app_data(web::Data::new(state));
+        let mut route = web::scope("/authenticate").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -760,10 +760,10 @@ impl Payments {
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}").route(web::post().to(payments::post_3ds_payments_authorize)),
+                    web::resource("/{payment_id}/{merchant_id}/post-auth").route(web::post().to(payments::post_3ds_payments_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
+                    web::resource("/{payment_id}/areq").route(web::post().to(payments::payments_external_authentication)),
                 )
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(payments::retrieve_extended_card_info)),

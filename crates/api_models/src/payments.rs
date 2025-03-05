@@ -1341,7 +1341,7 @@ pub struct RequestSurchargeDetails {
 // for v2 use the type from common_utils::types
 #[cfg(feature = "v1")]
 /// Browser information to be used for 3DS 2.0
-#[derive(ToSchema, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(ToSchema, Debug, serde::Deserialize, Clone, serde::Serialize)]
 pub struct BrowserInformation {
     /// Color depth supported by the browser
     pub color_depth: Option<u8>,
@@ -4445,14 +4445,8 @@ pub enum NextActionData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct ThreeDsData {
-    /// ThreeDS authentication url - to initiate authentication
-    pub three_ds_authentication_url: String,
-    /// ThreeDS authorize url - to complete the payment authorization after authentication
-    pub three_ds_authorize_url: String,
     /// ThreeDS method details
     pub three_ds_method_details: ThreeDsMethodData,
-    /// Poll config for a connector
-    pub poll_config: PollConfigResponse,
     /// Message Version
     pub message_version: Option<String>,
     /// Directory Server ID
@@ -4658,6 +4652,7 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4",
         value_type = String,
     )]
+    #[serde(rename = "authentication_id")]
     pub payment_id: id_type::PaymentId,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
@@ -4665,8 +4660,8 @@ pub struct PaymentsResponse {
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
-    pub status: api_enums::IntentStatus,
+    /// Details of external authentication
+    pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
@@ -4679,6 +4674,7 @@ pub struct PaymentsResponse {
 
     /// The shipping cost for the payment.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_cost: Option<MinorUnit>,
 
     /// The maximum amount that could be captured from the payment
@@ -4691,10 +4687,12 @@ pub struct PaymentsResponse {
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub connector: Option<String>,
 
     /// It's a token used for client side verification.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<Secret<String>>,
 
     /// Time when the payment was created
@@ -4715,20 +4713,25 @@ pub struct PaymentsResponse {
         deprecated,
         value_type = Option<String>,
     )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<id_type::CustomerId>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<CustomerDetailsResponse>,
 
     /// A description of the payment
     #[schema(example = "It's my first payment request")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// List of refunds that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order
     #[schema(value_type = Option<Vec<RefundResponse>>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refunds: Option<Vec<refunds::RefundResponse>>,
 
     /// List of disputes that happened on this intent
     #[schema(value_type = Option<Vec<DisputeResponsePaymentsRetrieve>>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub disputes: Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>,
 
     /// List of attempts that happened on this intent
@@ -4743,17 +4746,21 @@ pub struct PaymentsResponse {
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.
     #[schema(example = true)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub off_session: Option<bool>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -4761,23 +4768,28 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_token: Option<String>,
 
     /// The shipping address for the payment
@@ -4792,189 +4804,235 @@ pub struct PaymentsResponse {
         "quantity": 15,
         "amount" : 900
     }]"#)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 
     /// description: The customer's email address
     /// This field will be deprecated soon. Please refer to `customer.email` object
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
     /// This field will be deprecated soon. Please refer to `customer.name` object
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS, as the 3DS method helps with more robust payer authentication
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 255, example = "Hyperswitch Router")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_name: Option<String>,
 
     /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
     #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix: Option<String>,
 
     /// Additional information required for redirection
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub next_action: Option<NextActionData>,
 
     /// If the payment was cancelled the reason will be provided here
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<String>,
 
     /// If there was an error while calling the connectors the code is received here
     #[schema(example = "E0001")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
     /// If there was an error while calling the connector the error message is received here
     #[schema(example = "Failed while verifying the card")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
 
     /// error code unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unified_code: Option<String>,
 
     /// error message unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unified_message: Option<String>,
 
     /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
     /// Can be used to specify the Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The connector used for this payment along with the country and business details
     #[schema(example = "stripe_US_food")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The business label of merchant for this payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_label: Option<String>,
 
     /// The business_sub_label for this payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_sub_label: Option<String>,
 
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
 
     /// ephemeral_key for the customer_id mentioned
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manual_retry_allowed: Option<bool>,
 
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub connector_transaction_id: Option<String>,
 
     /// Frm message contains information about the frm response
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub frm_message: Option<FrmMessage>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
 
     /// Additional data related to some connectors
     #[schema(value_type = Option<ConnectorMetadata>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub connector_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub feature_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
     /// reference(Identifier) to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_id: Option<String>,
 
     /// Details for Payment link
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<id_type::ProfileId>,
 
     /// Details of surcharge applied on this payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
     /// Total number of attempts associated with this payment
-    pub attempt_count: i16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attempt_count: Option<i16>,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_decision: Option<String>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     #[schema(value_type = Option<String>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub incremental_authorization_allowed: Option<bool>,
 
     /// Total number of authorizations happened in an incremental_authorization payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_count: Option<i32>,
 
     /// List of incremental authorizations happened to the payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 
-    /// Details of external authentication
-    pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
-
     /// Flag indicating if external 3ds authentication is made or not
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub external_3ds_authentication_attempted: Option<bool>,
 
     /// Date Time for expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_on: Option<PrimitiveDateTime>,
 
     /// Payment Fingerprint, to identify a particular card.
     /// It is a 20 character long alphanumeric code.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
 
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_info: Option<serde_json::Value>,
 
     /// Identifier for Payment Method used for the payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_id: Option<String>,
 
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     #[schema(value_type = Option<PaymentMethodStatus>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 
     /// Date time at which payment was updated
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
     #[schema(value_type = Option<ConnectorChargeResponseData>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub split_payments: Option<common_types::payments::ConnectorChargeResponseData>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// flag that indicates if extended authorization is applied on this payment or not
     #[schema(value_type = Option<bool>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
 
     /// date and time after which this payment cannot be captured
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_before: Option<PrimitiveDateTime>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -4985,16 +5043,23 @@ pub struct PaymentsResponse {
         max_length = 255,
         example = "Custom_Order_id_123"
     )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_order_reference_id: Option<String>,
     /// order tax amount calculated by tax connectors
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_tax_amount: Option<MinorUnit>,
 
     /// Connector Identifier for the payment method
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub connector_mandate_id: Option<String>,
 
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    pub status: api_enums::IntentStatus,
 }
 
 #[cfg(feature = "v2")]
@@ -5592,8 +5657,14 @@ pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Status
     #[schema(value_type = AuthenticationStatus)]
     pub status: enums::AuthenticationStatus,
+    /// Three DS Transaction ID
+    pub three_ds_server_trans_id: Option<String>,
     /// DS Transaction ID
     pub ds_transaction_id: Option<String>,
+    #[serde(rename = "trans_status")]
+    pub transaction_status: Option<common_enums::TransactionStatus>,
+    /// Authentication Value
+    pub authentication_value: Option<String>,
     /// Message Version
     pub version: Option<String>,
     /// Error Code
@@ -7248,6 +7319,12 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub device_channel: DeviceChannel,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
+    /// The billing details of the payment. This address will be used for invoicing.
+    pub billing: Option<Address>,
+    /// The shipping details of the payment. This address will be used for invoicing.
+    pub shipping: Option<Address>,
+    /// Browser Information if request is from Browser
+    pub browser_info: Option<BrowserInformation>,
 }
 
 /// Indicates if 3DS method data was successfully completed or not
@@ -7392,7 +7469,7 @@ pub struct ResponsePaymentMethodTypesForPayments {
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the transaction status
     #[serde(rename = "trans_status")]

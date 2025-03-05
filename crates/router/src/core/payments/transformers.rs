@@ -2029,48 +2029,48 @@ where
         })?;
     let mandate_id = payment_attempt.mandate_id.clone();
 
-    let refunds_response = payment_data.get_refunds().is_empty().not().then(|| {
-        payment_data
-            .get_refunds()
-            .into_iter()
-            .map(ForeignInto::foreign_into)
-            .collect()
-    });
+    // let refunds_response = payment_data.get_refunds().is_empty().not().then(|| {
+    //     payment_data
+    //         .get_refunds()
+    //         .into_iter()
+    //         .map(ForeignInto::foreign_into)
+    //         .collect()
+    // });
 
-    let disputes_response = payment_data.get_disputes().is_empty().not().then(|| {
-        payment_data
-            .get_disputes()
-            .into_iter()
-            .map(ForeignInto::foreign_into)
-            .collect()
-    });
+    // let disputes_response = payment_data.get_disputes().is_empty().not().then(|| {
+    //     payment_data
+    //         .get_disputes()
+    //         .into_iter()
+    //         .map(ForeignInto::foreign_into)
+    //         .collect()
+    // });
 
-    let incremental_authorizations_response =
-        payment_data.get_authorizations().is_empty().not().then(|| {
-            payment_data
-                .get_authorizations()
-                .into_iter()
-                .map(ForeignInto::foreign_into)
-                .collect()
-        });
+    // let incremental_authorizations_response =
+    //     payment_data.get_authorizations().is_empty().not().then(|| {
+    //         payment_data
+    //             .get_authorizations()
+    //             .into_iter()
+    //             .map(ForeignInto::foreign_into)
+    //             .collect()
+    //     });
 
-    let external_authentication_details = payment_data
+    let external_authentication_details: Option<api_models::payments::ExternalAuthenticationDetailsResponse> = payment_data
         .get_authentication()
         .map(ForeignInto::foreign_into);
 
-    let attempts_response = payment_data.get_attempts().map(|attempts| {
-        attempts
-            .into_iter()
-            .map(ForeignInto::foreign_into)
-            .collect()
-    });
+    // let attempts_response = payment_data.get_attempts().map(|attempts| {
+    //     attempts
+    //         .into_iter()
+    //         .map(ForeignInto::foreign_into)
+    //         .collect()
+    // });
 
-    let captures_response = captures.map(|captures| {
-        captures
-            .into_iter()
-            .map(ForeignInto::foreign_into)
-            .collect()
-    });
+    // let captures_response = captures.map(|captures| {
+    //     captures
+    //         .into_iter()
+    //         .map(ForeignInto::foreign_into)
+    //         .collect()
+    // });
 
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
@@ -2305,12 +2305,6 @@ where
                                         .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
-                                            three_ds_authorize_url: helpers::create_authorize_url(
-                                                base_url,
-                                                &payment_attempt,
-                                                payment_connector_name,
-                                            ),
                                             three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
                                                 api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: true,
@@ -2322,7 +2316,6 @@ where
                                                     three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
-                                            poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
                                             message_version: authentication.message_version.as_ref()
                                             .map(|version| version.to_string()),
                                             directory_server_id: authentication.directory_server_id.clone(),
@@ -2432,31 +2425,45 @@ where
             .get_connector_payment_id()
             .map(ToString::to_string);
 
+        let derived_intent_status = if let Some(external_authentication_details) = external_authentication_details.clone() {
+            Some(match external_authentication_details.status {
+                common_enums::AuthenticationStatus::Success => {
+                    common_enums::IntentStatus::Succeeded
+                }
+                common_enums::AuthenticationStatus::Failed => {
+                    common_enums::IntentStatus::Failed
+                }
+                _ => {
+                    common_enums::IntentStatus::Processing
+                }
+            })
+        } else {None};
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
-            status: payment_intent.status,
+            status: derived_intent_status.unwrap_or(payment_intent.status),
             amount: payment_attempt.net_amount.get_order_amount(),
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
-            connector: routed_through,
-            client_secret: payment_intent.client_secret.map(Secret::new),
+            connector: None,
+            client_secret: None,
             created: Some(payment_intent.created_at),
             currency: currency.to_string(),
             customer_id: customer.as_ref().map(|cus| cus.clone().customer_id),
             customer: customer_details_response,
             description: payment_intent.description,
-            refunds: refunds_response,
-            disputes: disputes_response,
-            attempts: attempts_response,
-            captures: captures_response,
-            mandate_id,
-            mandate_data,
-            setup_future_usage: payment_intent.setup_future_usage,
-            off_session: payment_intent.off_session,
+            refunds: None,
+            disputes: None,
+            attempts: None,
+            captures: None,
+            mandate_id: None,
+            mandate_data: None,
+            setup_future_usage: None,
+            off_session: None,
             capture_on: None,
-            capture_method: payment_attempt.capture_method,
+            capture_method: None,
             payment_method: payment_attempt.payment_method,
             payment_method_data: payment_method_data_response,
             payment_token: payment_attempt.payment_token,
@@ -2470,7 +2477,7 @@ where
                 .get_payment_billing()
                 .cloned()
                 .map(From::from),
-            order_details: payment_intent.order_details,
+            order_details: None,
             email: customer
                 .as_ref()
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -2482,67 +2489,55 @@ where
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
             return_url: payment_intent.return_url,
             authentication_type: payment_attempt.authentication_type,
-            statement_descriptor_name: payment_intent.statement_descriptor_name,
-            statement_descriptor_suffix: payment_intent.statement_descriptor_suffix,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
             next_action: next_action_response,
-            cancellation_reason: payment_attempt.cancellation_reason,
-            error_code: payment_attempt.error_code,
-            error_message: payment_attempt
-                .error_reason
-                .or(payment_attempt.error_message),
-            unified_code: payment_attempt.unified_code,
-            unified_message: payment_attempt.unified_message,
-            payment_experience: payment_attempt.payment_experience,
-            payment_method_type: payment_attempt.payment_method_type,
-            connector_label,
-            business_country: payment_intent.business_country,
-            business_label: payment_intent.business_label,
-            business_sub_label: payment_attempt.business_sub_label,
-            allowed_payment_method_types: payment_intent.allowed_payment_method_types,
-            ephemeral_key: payment_data
-                .get_ephemeral_key()
-                .map(ForeignFrom::foreign_from),
-            manual_retry_allowed: helpers::is_manual_retry_allowed(
-                &payment_intent.status,
-                &payment_attempt.status,
-                connector_request_reference_id_config,
-                &merchant_id,
-            ),
-            connector_transaction_id,
-            frm_message,
-            metadata: payment_intent.metadata,
-            connector_metadata: payment_intent.connector_metadata,
-            feature_metadata: payment_intent.feature_metadata,
-            reference_id: payment_attempt.connector_response_reference_id,
-            payment_link: payment_link_data,
+            cancellation_reason: None,
+            error_code: None,
+            error_message: None,
+            unified_code: None,
+            unified_message: None,
+            payment_experience: None,
+            payment_method_type: None,
+            connector_label: None,
+            business_country: None,
+            business_label: None,
+            business_sub_label: None,
+            allowed_payment_method_types: None,
+            ephemeral_key: None,
+            manual_retry_allowed: None,
+            connector_transaction_id: None,
+            frm_message: None,
+            metadata: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            reference_id: None,
+            payment_link: None,
             profile_id: payment_intent.profile_id,
-            surcharge_details,
-            attempt_count: payment_intent.attempt_count,
-            merchant_decision,
-            merchant_connector_id: payment_attempt.merchant_connector_id,
-            incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
-            authorization_count: payment_intent.authorization_count,
-            incremental_authorizations: incremental_authorizations_response,
+            surcharge_details: None,
+            attempt_count: None,
+            merchant_decision: None,
+            merchant_connector_id: None,
+            incremental_authorization_allowed: None,
+            authorization_count: None,
+            incremental_authorizations: None,
             external_authentication_details,
-            external_3ds_authentication_attempted: payment_attempt
-                .external_three_ds_authentication_attempted,
-            expires_on: payment_intent.session_expiry,
-            fingerprint: payment_intent.fingerprint_id,
+            external_3ds_authentication_attempted: None,
+            expires_on: None,
+            fingerprint: None,
             browser_info: payment_attempt.browser_info,
-            payment_method_id: payment_attempt.payment_method_id,
-            payment_method_status: payment_data
-                .get_payment_method_info()
-                .map(|info| info.status),
+            payment_method_id: None,
+            payment_method_status: None,
             updated: Some(payment_intent.modified_at),
-            split_payments: payment_attempt.charges,
-            frm_metadata: payment_intent.frm_metadata,
-            merchant_order_reference_id: payment_intent.merchant_order_reference_id,
+            split_payments: None,
+            frm_metadata: None,
+            merchant_order_reference_id: None,
             order_tax_amount,
-            connector_mandate_id,
+            connector_mandate_id: None,
             shipping_cost: payment_intent.shipping_cost,
-            capture_before: payment_attempt.capture_before,
-            extended_authorization_applied: payment_attempt.extended_authorization_applied,
-            card_discovery: payment_attempt.card_discovery,
+            capture_before: None,
+            extended_authorization_applied: None,
+            card_discovery: None,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2700,7 +2695,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
             connector_transaction_id,
-            attempt_count: pi.attempt_count,
+            attempt_count: Some(pi.attempt_count),
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
             payment_method_data: pa.payment_method_data.and_then(|data| {

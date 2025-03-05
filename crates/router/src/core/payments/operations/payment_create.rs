@@ -471,7 +471,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
-            request.confirm,
+            Some(true),
             self,
         );
 
@@ -1303,7 +1303,7 @@ impl PaymentCreate {
                 created_at,
                 modified_at,
                 last_synced,
-                authentication_type: request.authentication_type,
+                authentication_type: Some(common_enums::AuthenticationType::ThreeDs),
                 browser_info,
                 payment_experience: request.payment_experience,
                 payment_method_type,
@@ -1558,8 +1558,7 @@ impl PaymentCreate {
             authorization_count: None,
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
-            request_external_three_ds_authentication: request
-                .request_external_three_ds_authentication,
+            request_external_three_ds_authentication: Some(true),
             split_payments,
             frm_metadata: request.frm_metadata.clone(),
             billing_details: encrypted_data.billing_details,

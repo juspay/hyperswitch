@@ -372,438 +372,24 @@ where
     )
     .await?;
 
+    let mut should_continue_transaction: bool = true;
+
+    operation
+        .to_domain()?
+        .call_external_three_ds_authentication_if_eligible(
+            state,
+            &mut payment_data,
+            &mut should_continue_transaction,
+            &ConnectorCallType::Skip,
+            &business_profile,
+            &key_store,
+            mandate_type,
+        )
+        .await?;
+
     let mut connector_http_status_code = None;
     let mut external_latency = None;
-    if let Some(connector_details) = connector {
-        // Fetch and check FRM configs
-        #[cfg(feature = "frm")]
-        let mut frm_info = None;
-        #[allow(unused_variables, unused_mut)]
-        let mut should_continue_transaction: bool = true;
-        #[cfg(feature = "frm")]
-        let mut should_continue_capture: bool = true;
-        #[cfg(feature = "frm")]
-        let frm_configs = if state.conf.frm.enabled {
-            Box::pin(frm_core::call_frm_before_connector_call(
-                &operation,
-                &merchant_account,
-                &mut payment_data,
-                state,
-                &mut frm_info,
-                &customer,
-                &mut should_continue_transaction,
-                &mut should_continue_capture,
-                key_store.clone(),
-            ))
-            .await?
-        } else {
-            None
-        };
-        #[cfg(feature = "frm")]
-        logger::debug!(
-            "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
-            frm_configs,
-            should_continue_transaction,
-            should_continue_capture,
-        );
-
-        let is_eligible_for_uas =
-            helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
-                .await?;
-
-        if is_eligible_for_uas {
-            let should_do_uas_confirmation_call = false;
-            operation
-                .to_domain()?
-                .call_unified_authentication_service_if_eligible(
-                    state,
-                    &mut payment_data,
-                    &mut should_continue_transaction,
-                    &connector_details,
-                    &business_profile,
-                    &key_store,
-                    mandate_type,
-                    &should_do_uas_confirmation_call,
-                )
-                .await?;
-        } else {
-            logger::info!(
-                "skipping authentication service call since the merchant is not eligible."
-            );
-
-            operation
-                .to_domain()?
-                .call_external_three_ds_authentication_if_eligible(
-                    state,
-                    &mut payment_data,
-                    &mut should_continue_transaction,
-                    &connector_details,
-                    &business_profile,
-                    &key_store,
-                    mandate_type,
-                )
-                .await?;
-        };
-
-        operation
-            .to_domain()?
-            .payments_dynamic_tax_calculation(
-                state,
-                &mut payment_data,
-                &connector_details,
-                &business_profile,
-                &key_store,
-                &merchant_account,
-            )
-            .await?;
-
-        if should_continue_transaction {
-            #[cfg(feature = "frm")]
-            match (
-                should_continue_capture,
-                payment_data.get_payment_attempt().capture_method,
-            ) {
-                (
-                    false,
-                    Some(storage_enums::CaptureMethod::Automatic)
-                    | Some(storage_enums::CaptureMethod::SequentialAutomatic),
-                )
-                | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
-                    if let Some(info) = &mut frm_info {
-                        if let Some(frm_data) = &mut info.frm_data {
-                            frm_data.fraud_check.payment_capture_method =
-                                payment_data.get_payment_attempt().capture_method;
-                        }
-                    }
-                    payment_data
-                        .set_capture_method_in_attempt(storage_enums::CaptureMethod::Manual);
-                    logger::debug!("payment_id : {:?} capture method has been changed to manual, since it has configured Post FRM flow",payment_data.get_payment_attempt().payment_id);
-                }
-                _ => (),
-            };
-            payment_data = match connector_details {
-                ConnectorCallType::PreDetermined(ref connector) => {
-                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                    let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&[connector.clone()])
-                            .map_err(|e| logger::error!(routable_connector_error=?e))
-                            .unwrap_or_default();
-                    let schedule_time = if should_add_task_to_process_tracker {
-                        payment_sync::get_sync_process_schedule_time(
-                            &*state.store,
-                            connector.connector.id(),
-                            merchant_account.get_id(),
-                            0,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while getting process schedule time")?
-                    } else {
-                        None
-                    };
-                    let (router_data, mca) = call_connector_service(
-                        state,
-                        req_state.clone(),
-                        &merchant_account,
-                        &key_store,
-                        connector.clone(),
-                        &operation,
-                        &mut payment_data,
-                        &customer,
-                        call_connector_action.clone(),
-                        &validate_result,
-                        schedule_time,
-                        header_payload.clone(),
-                        #[cfg(feature = "frm")]
-                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
-                        #[cfg(not(feature = "frm"))]
-                        None,
-                        &business_profile,
-                        false,
-                        false,
-                    )
-                    .await?;
-
-                    if is_eligible_for_uas {
-                        let should_do_uas_confirmation_call = true;
-                        operation
-                            .to_domain()?
-                            .call_unified_authentication_service_if_eligible(
-                                state,
-                                &mut payment_data,
-                                &mut should_continue_transaction,
-                                &connector_details,
-                                &business_profile,
-                                &key_store,
-                                mandate_type,
-                                &should_do_uas_confirmation_call,
-                            )
-                            .await?;
-                    }
-
-                    let op_ref = &operation;
-                    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
-
-                    let operation = Box::new(PaymentResponse);
-
-                    connector_http_status_code = router_data.connector_http_status_code;
-                    external_latency = router_data.external_latency;
-                    //add connector http status code metrics
-                    add_connector_http_status_code_metrics(connector_http_status_code);
-
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
-
-                    let mut payment_data = operation
-                        .to_post_update_tracker()?
-                        .update_tracker(
-                            state,
-                            payment_data,
-                            router_data,
-                            &key_store,
-                            merchant_account.storage_scheme,
-                            &locale,
-                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                            routable_connectors,
-                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                            &business_profile,
-                        )
-                        .await?;
-
-                    if should_trigger_post_processing_flows {
-                        complete_postprocessing_steps_if_required(
-                            state,
-                            &merchant_account,
-                            &key_store,
-                            &customer,
-                            &mca,
-                            connector,
-                            &mut payment_data,
-                            op_ref,
-                            Some(header_payload.clone()),
-                        )
-                        .await?;
-                    }
-
-                    payment_data
-                }
-
-                ConnectorCallType::Retryable(ref connectors) => {
-                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                    let routable_connectors =
-                        convert_connector_data_to_routable_connectors(connectors)
-                            .map_err(|e| logger::error!(routable_connector_error=?e))
-                            .unwrap_or_default();
-
-                    let mut connectors = connectors.clone().into_iter();
-
-                    let connector_data = get_connector_data(&mut connectors)?;
-
-                    let schedule_time = if should_add_task_to_process_tracker {
-                        payment_sync::get_sync_process_schedule_time(
-                            &*state.store,
-                            connector_data.connector.id(),
-                            merchant_account.get_id(),
-                            0,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while getting process schedule time")?
-                    } else {
-                        None
-                    };
-                    let (router_data, mca) = call_connector_service(
-                        state,
-                        req_state.clone(),
-                        &merchant_account,
-                        &key_store,
-                        connector_data.clone(),
-                        &operation,
-                        &mut payment_data,
-                        &customer,
-                        call_connector_action.clone(),
-                        &validate_result,
-                        schedule_time,
-                        header_payload.clone(),
-                        #[cfg(feature = "frm")]
-                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
-                        #[cfg(not(feature = "frm"))]
-                        None,
-                        &business_profile,
-                        false,
-                        false,
-                    )
-                    .await?;
-
-                    #[cfg(all(feature = "retry", feature = "v1"))]
-                    let mut router_data = router_data;
-                    #[cfg(all(feature = "retry", feature = "v1"))]
-                    {
-                        use crate::core::payments::retry::{self, GsmValidation};
-                        let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
-                            merchant_account.get_id(),
-                            &business_profile,
-                        )
-                        .await;
-
-                        if config_bool && router_data.should_call_gsm() {
-                            router_data = retry::do_gsm_actions(
-                                state,
-                                req_state.clone(),
-                                &mut payment_data,
-                                connectors,
-                                &connector_data,
-                                router_data,
-                                &merchant_account,
-                                &key_store,
-                                &operation,
-                                &customer,
-                                &validate_result,
-                                schedule_time,
-                                #[cfg(feature = "frm")]
-                                frm_info.as_ref().and_then(|fi| fi.suggested_action),
-                                #[cfg(not(feature = "frm"))]
-                                None,
-                                &business_profile,
-                            )
-                            .await?;
-                        };
-                    }
-
-                    let op_ref = &operation;
-                    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
-
-                    if is_eligible_for_uas {
-                        let should_do_uas_confirmation_call = true;
-                        operation
-                            .to_domain()?
-                            .call_unified_authentication_service_if_eligible(
-                                state,
-                                &mut payment_data,
-                                &mut should_continue_transaction,
-                                &connector_details,
-                                &business_profile,
-                                &key_store,
-                                mandate_type,
-                                &should_do_uas_confirmation_call,
-                            )
-                            .await?;
-                    }
-
-                    let operation = Box::new(PaymentResponse);
-                    connector_http_status_code = router_data.connector_http_status_code;
-                    external_latency = router_data.external_latency;
-                    //add connector http status code metrics
-                    add_connector_http_status_code_metrics(connector_http_status_code);
-
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
-
-                    let mut payment_data = operation
-                        .to_post_update_tracker()?
-                        .update_tracker(
-                            state,
-                            payment_data,
-                            router_data,
-                            &key_store,
-                            merchant_account.storage_scheme,
-                            &locale,
-                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                            routable_connectors,
-                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                            &business_profile,
-                        )
-                        .await?;
-
-                    if should_trigger_post_processing_flows {
-                        complete_postprocessing_steps_if_required(
-                            state,
-                            &merchant_account,
-                            &key_store,
-                            &customer,
-                            &mca,
-                            &connector_data,
-                            &mut payment_data,
-                            op_ref,
-                            Some(header_payload.clone()),
-                        )
-                        .await?;
-                    }
-
-                    payment_data
-                }
-
-                ConnectorCallType::SessionMultiple(connectors) => {
-                    let session_surcharge_details =
-                        call_surcharge_decision_management_for_session_flow(
-                            state,
-                            &merchant_account,
-                            &business_profile,
-                            payment_data.get_payment_attempt(),
-                            payment_data.get_payment_intent(),
-                            payment_data.get_billing_address(),
-                            &connectors,
-                        )
-                        .await?;
-                    Box::pin(call_multiple_connectors_service(
-                        state,
-                        &merchant_account,
-                        &key_store,
-                        connectors,
-                        &operation,
-                        payment_data,
-                        &customer,
-                        session_surcharge_details,
-                        &business_profile,
-                        header_payload.clone(),
-                    ))
-                    .await?
-                }
-            };
-
-            #[cfg(feature = "frm")]
-            if let Some(fraud_info) = &mut frm_info {
-                #[cfg(feature = "v1")]
-                Box::pin(frm_core::post_payment_frm_core(
-                    state,
-                    req_state,
-                    &merchant_account,
-                    &mut payment_data,
-                    fraud_info,
-                    frm_configs
-                        .clone()
-                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "frm_configs",
-                        })
-                        .attach_printable("Frm configs label not found")?,
-                    &customer,
-                    key_store.clone(),
-                    &mut should_continue_capture,
-                    platform_merchant_account.as_ref(),
-                ))
-                .await?;
-            }
-        } else {
-            (_, payment_data) = operation
+    operation
                 .to_update_tracker()?
                 .update_trackers(
                     state,
@@ -814,73 +400,519 @@ where
                     None,
                     &key_store,
                     #[cfg(feature = "frm")]
-                    frm_info.and_then(|info| info.suggested_action),
+                    None,
                     #[cfg(not(feature = "frm"))]
                     None,
                     header_payload.clone(),
                 )
                 .await?;
-        }
+    // if let Some(connector_details) = connector {
+    //     // Fetch and check FRM configs
+    //     #[cfg(feature = "frm")]
+    //     let mut frm_info = None;
+    //     #[allow(unused_variables, unused_mut)]
+    //     let mut should_continue_transaction: bool = true;
+    //     #[cfg(feature = "frm")]
+    //     let mut should_continue_capture: bool = true;
+    //     #[cfg(feature = "frm")]
+    //     let frm_configs = if state.conf.frm.enabled {
+    //         Box::pin(frm_core::call_frm_before_connector_call(
+    //             &operation,
+    //             &merchant_account,
+    //             &mut payment_data,
+    //             state,
+    //             &mut frm_info,
+    //             &customer,
+    //             &mut should_continue_transaction,
+    //             &mut should_continue_capture,
+    //             key_store.clone(),
+    //         ))
+    //         .await?
+    //     } else {
+    //         None
+    //     };
+    //     #[cfg(feature = "frm")]
+    //     logger::debug!(
+    //         "frm_configs: {:?}\nshould_continue_transaction: {:?}\nshould_continue_capture: {:?}",
+    //         frm_configs,
+    //         should_continue_transaction,
+    //         should_continue_capture,
+    //     );
 
-        let payment_intent_status = payment_data.get_payment_intent().status;
+    //     let is_eligible_for_uas =
+    //         helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
+    //             .await?;
 
-        payment_data
-            .get_payment_attempt()
-            .payment_token
-            .as_ref()
-            .zip(payment_data.get_payment_attempt().payment_method)
-            .map(ParentPaymentMethodToken::create_key_for_token)
-            .async_map(|key_for_hyperswitch_token| async move {
-                if key_for_hyperswitch_token
-                    .should_delete_payment_method_token(payment_intent_status)
-                {
-                    let _ = key_for_hyperswitch_token.delete(state).await;
-                }
-            })
-            .await;
-    } else {
-        (_, payment_data) = operation
-            .to_update_tracker()?
-            .update_trackers(
-                state,
-                req_state,
-                payment_data.clone(),
-                customer.clone(),
-                validate_result.storage_scheme,
-                None,
-                &key_store,
-                None,
-                header_payload.clone(),
-            )
-            .await?;
-    }
+    //     if is_eligible_for_uas {
+    //         let should_do_uas_confirmation_call = false;
+    //         operation
+    //             .to_domain()?
+    //             .call_unified_authentication_service_if_eligible(
+    //                 state,
+    //                 &mut payment_data,
+    //                 &mut should_continue_transaction,
+    //                 &connector_details,
+    //                 &business_profile,
+    //                 &key_store,
+    //                 mandate_type,
+    //                 &should_do_uas_confirmation_call,
+    //             )
+    //             .await?;
+    //     } else {
+    //         logger::info!(
+    //             "skipping authentication service call since the merchant is not eligible."
+    //         );
 
-    let cloned_payment_data = payment_data.clone();
-    let cloned_customer = customer.clone();
+    //         operation
+    //             .to_domain()?
+    //             .call_external_three_ds_authentication_if_eligible(
+    //                 state,
+    //                 &mut payment_data,
+    //                 &mut should_continue_transaction,
+    //                 &connector_details,
+    //                 &business_profile,
+    //                 &key_store,
+    //                 mandate_type,
+    //             )
+    //             .await?;
+    //     };
 
-    #[cfg(feature = "v1")]
-    operation
-        .to_domain()?
-        .store_extended_card_info_temporarily(
-            state,
-            payment_data.get_payment_intent().get_id(),
-            &business_profile,
-            payment_data.get_payment_method_data(),
-        )
-        .await?;
+    //     operation
+    //         .to_domain()?
+    //         .payments_dynamic_tax_calculation(
+    //             state,
+    //             &mut payment_data,
+    //             &connector_details,
+    //             &business_profile,
+    //             &key_store,
+    //             &merchant_account,
+    //         )
+    //         .await?;
 
-    utils::trigger_payments_webhook(
-        merchant_account,
-        business_profile,
-        &key_store,
-        cloned_payment_data,
-        cloned_customer,
-        state,
-        operation,
-    )
-    .await
-    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
-    .ok();
+    //     if should_continue_transaction {
+    //         #[cfg(feature = "frm")]
+    //         match (
+    //             should_continue_capture,
+    //             payment_data.get_payment_attempt().capture_method,
+    //         ) {
+    //             (
+    //                 false,
+    //                 Some(storage_enums::CaptureMethod::Automatic)
+    //                 | Some(storage_enums::CaptureMethod::SequentialAutomatic),
+    //             )
+    //             | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
+    //                 if let Some(info) = &mut frm_info {
+    //                     if let Some(frm_data) = &mut info.frm_data {
+    //                         frm_data.fraud_check.payment_capture_method =
+    //                             payment_data.get_payment_attempt().capture_method;
+    //                     }
+    //                 }
+    //                 payment_data
+    //                     .set_capture_method_in_attempt(storage_enums::CaptureMethod::Manual);
+    //                 logger::debug!("payment_id : {:?} capture method has been changed to manual, since it has configured Post FRM flow",payment_data.get_payment_attempt().payment_id);
+    //             }
+    //             _ => (),
+    //         };
+    //         payment_data = match connector_details {
+    //             ConnectorCallType::PreDetermined(ref connector) => {
+    //                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    //                 let routable_connectors =
+    //                     convert_connector_data_to_routable_connectors(&[connector.clone()])
+    //                         .map_err(|e| logger::error!(routable_connector_error=?e))
+    //                         .unwrap_or_default();
+    //                 let schedule_time = if should_add_task_to_process_tracker {
+    //                     payment_sync::get_sync_process_schedule_time(
+    //                         &*state.store,
+    //                         connector.connector.id(),
+    //                         merchant_account.get_id(),
+    //                         0,
+    //                     )
+    //                     .await
+    //                     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //                     .attach_printable("Failed while getting process schedule time")?
+    //                 } else {
+    //                     None
+    //                 };
+    //                 let (router_data, mca) = call_connector_service(
+    //                     state,
+    //                     req_state.clone(),
+    //                     &merchant_account,
+    //                     &key_store,
+    //                     connector.clone(),
+    //                     &operation,
+    //                     &mut payment_data,
+    //                     &customer,
+    //                     call_connector_action.clone(),
+    //                     &validate_result,
+    //                     schedule_time,
+    //                     header_payload.clone(),
+    //                     #[cfg(feature = "frm")]
+    //                     frm_info.as_ref().and_then(|fi| fi.suggested_action),
+    //                     #[cfg(not(feature = "frm"))]
+    //                     None,
+    //                     &business_profile,
+    //                     false,
+    //                     false,
+    //                 )
+    //                 .await?;
+
+    //                 if is_eligible_for_uas {
+    //                     let should_do_uas_confirmation_call = true;
+    //                     operation
+    //                         .to_domain()?
+    //                         .call_unified_authentication_service_if_eligible(
+    //                             state,
+    //                             &mut payment_data,
+    //                             &mut should_continue_transaction,
+    //                             &connector_details,
+    //                             &business_profile,
+    //                             &key_store,
+    //                             mandate_type,
+    //                             &should_do_uas_confirmation_call,
+    //                         )
+    //                         .await?;
+    //                 }
+
+    //                 let op_ref = &operation;
+    //                 let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+    //                 let operation = Box::new(PaymentResponse);
+
+    //                 connector_http_status_code = router_data.connector_http_status_code;
+    //                 external_latency = router_data.external_latency;
+    //                 //add connector http status code metrics
+    //                 add_connector_http_status_code_metrics(connector_http_status_code);
+
+    //                 operation
+    //                     .to_post_update_tracker()?
+    //                     .save_pm_and_mandate(
+    //                         state,
+    //                         &router_data,
+    //                         &merchant_account,
+    //                         &key_store,
+    //                         &mut payment_data,
+    //                         &business_profile,
+    //                     )
+    //                     .await?;
+
+    //                 let mut payment_data = operation
+    //                     .to_post_update_tracker()?
+    //                     .update_tracker(
+    //                         state,
+    //                         payment_data,
+    //                         router_data,
+    //                         &key_store,
+    //                         merchant_account.storage_scheme,
+    //                         &locale,
+    //                         #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    //                         routable_connectors,
+    //                         #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    //                         &business_profile,
+    //                     )
+    //                     .await?;
+
+    //                 if should_trigger_post_processing_flows {
+    //                     complete_postprocessing_steps_if_required(
+    //                         state,
+    //                         &merchant_account,
+    //                         &key_store,
+    //                         &customer,
+    //                         &mca,
+    //                         connector,
+    //                         &mut payment_data,
+    //                         op_ref,
+    //                         Some(header_payload.clone()),
+    //                     )
+    //                     .await?;
+    //                 }
+
+    //                 payment_data
+    //             }
+
+    //             ConnectorCallType::Retryable(ref connectors) => {
+    //                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    //                 let routable_connectors =
+    //                     convert_connector_data_to_routable_connectors(connectors)
+    //                         .map_err(|e| logger::error!(routable_connector_error=?e))
+    //                         .unwrap_or_default();
+
+    //                 let mut connectors = connectors.clone().into_iter();
+
+    //                 let connector_data = get_connector_data(&mut connectors)?;
+
+    //                 let schedule_time = if should_add_task_to_process_tracker {
+    //                     payment_sync::get_sync_process_schedule_time(
+    //                         &*state.store,
+    //                         connector_data.connector.id(),
+    //                         merchant_account.get_id(),
+    //                         0,
+    //                     )
+    //                     .await
+    //                     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //                     .attach_printable("Failed while getting process schedule time")?
+    //                 } else {
+    //                     None
+    //                 };
+    //                 let (router_data, mca) = call_connector_service(
+    //                     state,
+    //                     req_state.clone(),
+    //                     &merchant_account,
+    //                     &key_store,
+    //                     connector_data.clone(),
+    //                     &operation,
+    //                     &mut payment_data,
+    //                     &customer,
+    //                     call_connector_action.clone(),
+    //                     &validate_result,
+    //                     schedule_time,
+    //                     header_payload.clone(),
+    //                     #[cfg(feature = "frm")]
+    //                     frm_info.as_ref().and_then(|fi| fi.suggested_action),
+    //                     #[cfg(not(feature = "frm"))]
+    //                     None,
+    //                     &business_profile,
+    //                     false,
+    //                     false,
+    //                 )
+    //                 .await?;
+
+    //                 #[cfg(all(feature = "retry", feature = "v1"))]
+    //                 let mut router_data = router_data;
+    //                 #[cfg(all(feature = "retry", feature = "v1"))]
+    //                 {
+    //                     use crate::core::payments::retry::{self, GsmValidation};
+    //                     let config_bool = retry::config_should_call_gsm(
+    //                         &*state.store,
+    //                         merchant_account.get_id(),
+    //                         &business_profile,
+    //                     )
+    //                     .await;
+
+    //                     if config_bool && router_data.should_call_gsm() {
+    //                         router_data = retry::do_gsm_actions(
+    //                             state,
+    //                             req_state.clone(),
+    //                             &mut payment_data,
+    //                             connectors,
+    //                             &connector_data,
+    //                             router_data,
+    //                             &merchant_account,
+    //                             &key_store,
+    //                             &operation,
+    //                             &customer,
+    //                             &validate_result,
+    //                             schedule_time,
+    //                             #[cfg(feature = "frm")]
+    //                             frm_info.as_ref().and_then(|fi| fi.suggested_action),
+    //                             #[cfg(not(feature = "frm"))]
+    //                             None,
+    //                             &business_profile,
+    //                         )
+    //                         .await?;
+    //                     };
+    //                 }
+
+    //                 let op_ref = &operation;
+    //                 let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+    //                 if is_eligible_for_uas {
+    //                     let should_do_uas_confirmation_call = true;
+    //                     operation
+    //                         .to_domain()?
+    //                         .call_unified_authentication_service_if_eligible(
+    //                             state,
+    //                             &mut payment_data,
+    //                             &mut should_continue_transaction,
+    //                             &connector_details,
+    //                             &business_profile,
+    //                             &key_store,
+    //                             mandate_type,
+    //                             &should_do_uas_confirmation_call,
+    //                         )
+    //                         .await?;
+    //                 }
+
+    //                 let operation = Box::new(PaymentResponse);
+    //                 connector_http_status_code = router_data.connector_http_status_code;
+    //                 external_latency = router_data.external_latency;
+    //                 //add connector http status code metrics
+    //                 add_connector_http_status_code_metrics(connector_http_status_code);
+
+    //                 operation
+    //                     .to_post_update_tracker()?
+    //                     .save_pm_and_mandate(
+    //                         state,
+    //                         &router_data,
+    //                         &merchant_account,
+    //                         &key_store,
+    //                         &mut payment_data,
+    //                         &business_profile,
+    //                     )
+    //                     .await?;
+
+    //                 let mut payment_data = operation
+    //                     .to_post_update_tracker()?
+    //                     .update_tracker(
+    //                         state,
+    //                         payment_data,
+    //                         router_data,
+    //                         &key_store,
+    //                         merchant_account.storage_scheme,
+    //                         &locale,
+    //                         #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    //                         routable_connectors,
+    //                         #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    //                         &business_profile,
+    //                     )
+    //                     .await?;
+
+    //                 if should_trigger_post_processing_flows {
+    //                     complete_postprocessing_steps_if_required(
+    //                         state,
+    //                         &merchant_account,
+    //                         &key_store,
+    //                         &customer,
+    //                         &mca,
+    //                         &connector_data,
+    //                         &mut payment_data,
+    //                         op_ref,
+    //                         Some(header_payload.clone()),
+    //                     )
+    //                     .await?;
+    //                 }
+
+    //                 payment_data
+    //             }
+
+    //             ConnectorCallType::SessionMultiple(connectors) => {
+    //                 let session_surcharge_details =
+    //                     call_surcharge_decision_management_for_session_flow(
+    //                         state,
+    //                         &merchant_account,
+    //                         &business_profile,
+    //                         payment_data.get_payment_attempt(),
+    //                         payment_data.get_payment_intent(),
+    //                         payment_data.get_billing_address(),
+    //                         &connectors,
+    //                     )
+    //                     .await?;
+    //                 Box::pin(call_multiple_connectors_service(
+    //                     state,
+    //                     &merchant_account,
+    //                     &key_store,
+    //                     connectors,
+    //                     &operation,
+    //                     payment_data,
+    //                     &customer,
+    //                     session_surcharge_details,
+    //                     &business_profile,
+    //                     header_payload.clone(),
+    //                 ))
+    //                 .await?
+    //             }
+    //         };
+
+    //         #[cfg(feature = "frm")]
+    //         if let Some(fraud_info) = &mut frm_info {
+    //             #[cfg(feature = "v1")]
+    //             Box::pin(frm_core::post_payment_frm_core(
+    //                 state,
+    //                 req_state,
+    //                 &merchant_account,
+    //                 &mut payment_data,
+    //                 fraud_info,
+    //                 frm_configs
+    //                     .clone()
+    //                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+    //                         field_name: "frm_configs",
+    //                     })
+    //                     .attach_printable("Frm configs label not found")?,
+    //                 &customer,
+    //                 key_store.clone(),
+    //                 &mut should_continue_capture,
+    //                 platform_merchant_account.as_ref(),
+    //             ))
+    //             .await?;
+    //         }
+    //     } else {
+    //         (_, payment_data) = operation
+    //             .to_update_tracker()?
+    //             .update_trackers(
+    //                 state,
+    //                 req_state,
+    //                 payment_data.clone(),
+    //                 customer.clone(),
+    //                 validate_result.storage_scheme,
+    //                 None,
+    //                 &key_store,
+    //                 #[cfg(feature = "frm")]
+    //                 frm_info.and_then(|info| info.suggested_action),
+    //                 #[cfg(not(feature = "frm"))]
+    //                 None,
+    //                 header_payload.clone(),
+    //             )
+    //             .await?;
+    //     }
+
+    //     let payment_intent_status = payment_data.get_payment_intent().status;
+
+    //     payment_data
+    //         .get_payment_attempt()
+    //         .payment_token
+    //         .as_ref()
+    //         .zip(payment_data.get_payment_attempt().payment_method)
+    //         .map(ParentPaymentMethodToken::create_key_for_token)
+    //         .async_map(|key_for_hyperswitch_token| async move {
+    //             if key_for_hyperswitch_token
+    //                 .should_delete_payment_method_token(payment_intent_status)
+    //             {
+    //                 let _ = key_for_hyperswitch_token.delete(state).await;
+    //             }
+    //         })
+    //         .await;
+    // } else {
+    //     (_, payment_data) = operation
+    //         .to_update_tracker()?
+    //         .update_trackers(
+    //             state,
+    //             req_state,
+    //             payment_data.clone(),
+    //             customer.clone(),
+    //             validate_result.storage_scheme,
+    //             None,
+    //             &key_store,
+    //             None,
+    //             header_payload.clone(),
+    //         )
+    //         .await?;
+    // }
+
+    // let cloned_payment_data = payment_data.clone();
+    // let cloned_customer = customer.clone();
+
+    // #[cfg(feature = "v1")]
+    // operation
+    //     .to_domain()?
+    //     .store_extended_card_info_temporarily(
+    //         state,
+    //         payment_data.get_payment_intent().get_id(),
+    //         &business_profile,
+    //         payment_data.get_payment_method_data(),
+    //     )
+    //     .await?;
+
+    // utils::trigger_payments_webhook(
+    //     merchant_account,
+    //     business_profile,
+    //     &key_store,
+    //     cloned_payment_data,
+    //     cloned_customer,
+    //     state,
+    //     operation,
+    // )
+    // .await
+    // .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+    // .ok();
 
     Ok((
         payment_data,
@@ -7434,7 +7466,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let amount = payment_attempt.get_total_amount();
     let shipping_address = helpers::create_or_find_address_for_payment_by_request(
         &state,
-        None,
+        req.shipping.as_ref(),
         payment_intent.shipping_address_id.as_deref(),
         merchant_id,
         payment_intent.customer_id.as_ref(),
@@ -7445,7 +7477,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     .await?;
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
         &state,
-        None,
+        req.billing.as_ref(),
         payment_attempt
             .payment_method_billing_address_id
             .as_deref()
@@ -7457,6 +7489,15 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         storage_scheme,
     )
     .await?;
+    let request_browser_info = req
+        .browser_info
+        .clone()
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
     let authentication_connector = payment_attempt
         .authentication_connector
         .clone()
@@ -7506,6 +7547,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let browser_info: Option<BrowserInformation> = payment_attempt
         .browser_info
         .clone()
+        .or(request_browser_info)
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {

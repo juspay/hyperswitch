@@ -53,6 +53,10 @@ pub async fn payments_create(
         }
     };
 
+    payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(
+        common_utils::id_type::PaymentId::default(),
+    ));
+
     tracing::Span::current().record(
         "payment_id",
         payload
@@ -1824,12 +1828,12 @@ pub async fn post_3ds_payments_authorize(
     path: web::Path<(
         common_utils::id_type::PaymentId,
         common_utils::id_type::MerchantId,
-        String,
     )>,
 ) -> impl Responder {
     let flow = Flow::PaymentsAuthorize;
 
-    let (payment_id, merchant_id, connector) = path.into_inner();
+    let (payment_id, merchant_id) = path.into_inner();
+    let connector = "cybersource".to_string();
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
     let param_string = req.query_string();
     let payload = payments::PaymentsRedirectResponseData {

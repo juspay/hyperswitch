@@ -1237,11 +1237,10 @@ pub fn create_authorize_url(
     connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/authorize/{}",
+        "{}/authenticate/{}/{}/post-auth",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.merchant_id.get_string_repr(),
-        connector_name
+        payment_attempt.merchant_id.get_string_repr()
     )
 }
 
@@ -1384,10 +1383,10 @@ pub fn payment_intent_status_fsm(
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::IntentStatus::RequiresPaymentMethod,
-            _ => storage_enums::IntentStatus::RequiresConfirmation,
+            Some(true) => storage_enums::IntentStatus::RequiresCustomerAction,
+            _ => storage_enums::IntentStatus::RequiresCustomerAction,
         },
-        None => storage_enums::IntentStatus::RequiresPaymentMethod,
+        None => storage_enums::IntentStatus::RequiresCustomerAction,
     }
 }
 
@@ -6858,17 +6857,16 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         .payment_attempt
         .external_three_ds_authentication_attempted
         .unwrap_or(false);
-    let connector_supports_separate_authn =
-        authentication::utils::get_connector_data_if_separate_authn_supported(connector_call_type);
+    let connector_supports_separate_authn = Some(true);
     logger::info!("is_pre_authn_call {:?}", authentication_id.is_none());
     logger::info!(
         "separate_authentication_requested {:?}",
         separate_authentication_requested
     );
-    logger::info!(
-        "payment connector supports external authentication: {:?}",
-        connector_supports_separate_authn.is_some()
-    );
+    // logger::info!(
+    //     "payment connector supports external authentication: {:?}",
+    //     connector_supports_separate_authn.is_some()
+    // );
     let card = payment_data.payment_method_data.as_ref().and_then(|pmd| {
         if let domain::PaymentMethodData::Card(card) = pmd {
             Some(card.clone())
@@ -6894,41 +6892,41 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 .attach_printable(
                     "payment_data.token should not be None while making pre authentication call",
                 )?;
-            let payment_connector_mca = get_merchant_connector_account(
-                state,
-                &business_profile.merchant_id,
-                None,
-                key_store,
-                business_profile.get_id(),
-                connector_data.connector_name.to_string().as_str(),
-                connector_data.merchant_connector_id.as_ref(),
-            )
-            .await?;
-            let acquirer_details = payment_connector_mca
-                .get_metadata()
-                .clone()
-                .and_then(|metadata| {
-                    metadata
-                    .peek()
-                    .clone()
-                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
-                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                                .to_string(),
-                    })
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
-                            err
-                        );
-                    })
-                    .ok()
-                });
+            // let payment_connector_mca = get_merchant_connector_account(
+            //     state,
+            //     &business_profile.merchant_id,
+            //     None,
+            //     key_store,
+            //     business_profile.get_id(),
+            //     connector_data.connector_name.to_string().as_str(),
+            //     connector_data.merchant_connector_id.as_ref(),
+            // )
+            // .await?;
+            // let acquirer_details = payment_connector_mca
+            //     .get_metadata()
+            //     .clone()
+            //     .and_then(|metadata| {
+            //         metadata
+            //         .peek()
+            //         .clone()
+            //         .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
+            //         .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            //             message:
+            //                 "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+            //                     .to_string(),
+            //         })
+            //         .inspect_err(|err| {
+            //             logger::error!(
+            //                 "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+            //                 err
+            //             );
+            //         })
+            //         .ok()
+            //     });
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card: Box::new(card),
                 token,
-                acquirer_details,
+                acquirer_details: None,
             })
         } else {
             None
