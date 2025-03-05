@@ -580,6 +580,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::EventType,
         api_models::enums::DecoupledAuthenticationType,
         api_models::enums::AuthenticationStatus,
+        api_models::enums::UpdateActiveAttempt,
         api_models::admin::MerchantAccountResponse,
         api_models::admin::MerchantConnectorId,
         api_models::admin::MerchantDetails,
