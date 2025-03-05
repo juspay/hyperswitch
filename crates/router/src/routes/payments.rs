@@ -1396,9 +1396,13 @@ pub async fn get_payment_filters(
         |state, auth: auth::AuthenticationData, _, _| {
             payments::get_payment_filters(state, auth.merchant_account, None)
         },
-        &auth::JWTAuth {
-            permission: Permission::MerchantPaymentRead,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1423,9 +1427,13 @@ pub async fn get_payment_filters_profile(
                 Some(vec![auth.profile.get_id().clone()]),
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1475,9 +1483,13 @@ pub async fn get_payments_aggregates(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::get_aggregates_for_payments(state, auth.merchant_account, None, req)
         },
-        &auth::JWTAuth {
-            permission: Permission::MerchantPaymentRead,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -2302,9 +2314,13 @@ pub async fn get_payments_aggregates_profile(
                 req,
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
