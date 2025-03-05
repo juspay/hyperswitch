@@ -16,6 +16,8 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
+pub mod revenue_recovery;
+pub mod revenue_recovery_v2;
 
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
@@ -30,16 +32,14 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
-        flow_common_types::{GetAdditionalRevenueRecoveryFlowCommonData, WebhookSourceVerifyData},
-        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
+        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+        UasFlowData,
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        GetAdditionalRevenueRecoveryDetails, PostAuthenticate, PreAuthenticate,
-        VerifyWebhookSource,
+        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -48,8 +48,7 @@ use hyperswitch_domain_models::{
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, ConnectorInfo,
-        MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -369,27 +368,6 @@ pub trait ConnectorVerifyWebhookSourceV2:
     WebhookSourceVerifyData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
->
-{
-}
-
-/// trait AdditionalRevenueRecovery
-pub trait AdditionalRevenueRecovery:
-    ConnectorIntegration<
-    GetAdditionalRevenueRecoveryDetails,
-    GetAdditionalRevenueRecoveryRequestData,
-    GetAdditionalRevenueRecoveryResponseData,
->
-{
-}
-
-/// trait AdditionalRevenueRecoveryV2
-pub trait AdditionalRevenueRecoveryV2:
-    ConnectorIntegrationV2<
-    GetAdditionalRevenueRecoveryDetails,
-    GetAdditionalRevenueRecoveryFlowCommonData,
-    GetAdditionalRevenueRecoveryRequestData,
-    GetAdditionalRevenueRecoveryResponseData,
 >
 {
 }
