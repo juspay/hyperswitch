@@ -249,8 +249,8 @@ impl<F>
                 Err(ErrorResponse {
                     code: error_data.error.to_string(),
                     status_code: item.http_code,
-                    message: error_data.error_description,
-                    reason: None,
+                    message: error_data.error_description.clone(),
+                    reason: Some(error_data.error_description),
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
@@ -274,7 +274,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                 )
             }
@@ -307,7 +307,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

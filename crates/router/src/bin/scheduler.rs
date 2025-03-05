@@ -35,15 +35,8 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(
-                conf.key_manager.get_inner(),
-                &conf.locker,
-                &conf.proxy.bypass_proxy_urls,
-            ),
-        )
-        .change_context(ProcessTrackerError::ConfigurationError)?,
+        services::ProxyClient::new(&conf.proxy)
+            .change_context(ProcessTrackerError::ConfigurationError)?,
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
@@ -259,7 +252,6 @@ pub async fn deep_health_check_func(
 #[derive(Debug, Copy, Clone)]
 pub struct WorkflowRunner;
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
@@ -329,6 +321,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow => Ok(Box::new(
                     workflows::payment_method_status_update::PaymentMethodStatusUpdateWorkflow,
                 )),
+                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => Ok(Box::new(
+                    workflows::passive_churn_recovery_workflow::ExecutePcrWorkflow,
+                )),
             }
         };
 
@@ -364,18 +359,6 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
             },
         };
         Ok(())
-    }
-}
-
-#[cfg(feature = "v2")]
-#[async_trait::async_trait]
-impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
-    async fn trigger_workflow<'a>(
-        &'a self,
-        _state: &'a routes::SessionState,
-        _process: storage::ProcessTracker,
-    ) -> CustomResult<(), ProcessTrackerError> {
-        todo!()
     }
 }
 

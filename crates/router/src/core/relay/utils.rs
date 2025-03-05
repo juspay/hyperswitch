@@ -17,8 +17,8 @@ const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
 const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
-pub async fn construct_relay_refund_router_data<'a, F>(
-    state: &'a SessionState,
+pub async fn construct_relay_refund_router_data<F>(
+    state: &SessionState,
     merchant_id: &id_type::MerchantId,
     connector_account: &domain::MerchantConnectorAccount,
     relay_record: &hyperswitch_domain_models::relay::Relay,
@@ -86,7 +86,7 @@ pub async fn construct_relay_refund_router_data<'a, F>(
         description: None,
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
         auth_type: common_enums::AuthenticationType::default(),
-        connector_meta_data: None,
+        connector_meta_data: connector_account.metadata.clone(),
         connector_wallets_details: None,
         amount_captured: None,
         payment_method_status: None,

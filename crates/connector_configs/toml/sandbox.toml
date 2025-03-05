@@ -120,10 +120,6 @@ merchant_secret="Source verification key"
 [[adyen.bank_redirect]]
   payment_method_type = "ideal"
 [[adyen.bank_redirect]]
-  payment_method_type = "giropay"
-[[adyen.bank_redirect]]
-  payment_method_type = "sofort"
-[[adyen.bank_redirect]]
   payment_method_type = "eps"
 [[adyen.bank_redirect]]
   payment_method_type = "blik"
@@ -1161,6 +1157,12 @@ api_key="API Key"
 [coinbase.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[coingate]
+[[coingate.crypto]]
+  payment_method_type = "crypto_currency"
+[coingate.connector_auth.HeaderKey]
+api_key="API Key"
+
 [cryptopay]
 [[cryptopay.crypto]]
   payment_method_type = "crypto_currency"
@@ -1213,6 +1215,8 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[cybersource.wallet]]
   payment_method_type = "paze"
+[[cybersource.wallet]]
+  payment_method_type = "samsung_pay"
 [cybersource.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
@@ -1357,6 +1361,14 @@ api_secret="Shared Secret"
 [deutschebank]
 [[deutschebank.bank_debit]]
   payment_method_type = "sepa"
+[[deutschebank.credit]]
+  payment_method_type = "Visa"
+[[deutschebank.credit]]
+  payment_method_type = "Mastercard"
+[[deutschebank.debit]]
+  payment_method_type = "Visa"
+[[deutschebank.debit]]
+  payment_method_type = "Mastercard"
 [deutschebank.connector_auth.SignatureKey]
 api_key="Client ID"
 key1="Merchant ID"
@@ -1714,10 +1726,15 @@ key2="Certificate Key"
   payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key="Access Token"
+key1="Client Secret"
 
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
+  payment_experience = "invoke_sdk_client"
+[[klarna.pay_later]]
+  payment_method_type = "klarna"
+  payment_experience = "redirect_to_url"
 [klarna.connector_auth.BodyKey]
 key1="Klarna Merchant Username"
 api_key="Klarna Merchant ID Password"
@@ -1810,6 +1827,48 @@ api_key="API Key"
 key1="Profile Token"
 [mollie.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[moneris]
+[[moneris.credit]]
+  payment_method_type = "Mastercard"
+[[moneris.credit]]
+  payment_method_type = "Visa"
+[[moneris.credit]]
+  payment_method_type = "Interac"
+[[moneris.credit]]
+  payment_method_type = "AmericanExpress"
+[[moneris.credit]]
+  payment_method_type = "JCB"
+[[moneris.credit]]
+  payment_method_type = "DinersClub"
+[[moneris.credit]]
+  payment_method_type = "Discover"
+[[moneris.credit]]
+  payment_method_type = "CartesBancaires"
+[[moneris.credit]]
+  payment_method_type = "UnionPay"
+[[moneris.debit]]
+  payment_method_type = "Mastercard"
+[[moneris.debit]]
+  payment_method_type = "Visa"
+[[moneris.debit]]
+  payment_method_type = "Interac"
+[[moneris.debit]]
+  payment_method_type = "AmericanExpress"
+[[moneris.debit]]
+  payment_method_type = "JCB"
+[[moneris.debit]]
+  payment_method_type = "DinersClub"
+[[moneris.debit]]
+  payment_method_type = "Discover"
+[[moneris.debit]]
+  payment_method_type = "CartesBancaires"
+[[moneris.debit]]
+  payment_method_type = "UnionPay"
+[moneris.connector_auth.SignatureKey]
+api_key="Client Secret"
+key1="Client Id"
+api_secret="Merchant Id"
 
 [multisafepay]
 [[multisafepay.credit]]
@@ -3073,6 +3132,8 @@ merchant_secret="Source verification key"
 [[stripe.bank_transfer]]
   payment_method_type = "multibanco"
 [[stripe.wallet]]
+  payment_method_type = "amazon_pay"
+[[stripe.wallet]]
   payment_method_type = "apple_pay"
 [[stripe.wallet]]
   payment_method_type = "google_pay"
@@ -3931,6 +3992,19 @@ type="Text"
 [stripe_payout.connector_auth.HeaderKey]
 api_key = "Stripe API Key"
 
+[nomupay_payout]
+[[nomupay_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[nomupay_payout.connector_auth.BodyKey]
+api_key = "Nomupay kid"
+key1 = "Nomupay eid"
+[nomupay_payout.metadata.private_key]
+name="Private key for signature generation"
+label="Enter your private key"
+placeholder="------BEGIN PRIVATE KEY-------"
+required=true
+type="Text"
+
 [wise_payout]
 [[wise_payout.bank_transfer]]
   payment_method_type = "ach"
@@ -3986,31 +4060,37 @@ type="Text"
 name="mcc"
 label="MCC"
 placeholder="Enter MCC"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_country_code]
 name="merchant_country_code"
 label="3 digit numeric country code"
 placeholder="Enter 3 digit numeric country code"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_name]
 name="merchant_name"
 label="Name of the merchant"
 placeholder="Enter Name of the merchant"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_name]
 name="three_ds_requestor_name"
 label="ThreeDS requestor name"
 placeholder="Enter ThreeDS requestor name"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_id]
 name="three_ds_requestor_id"
 label="ThreeDS request id"
 placeholder="Enter ThreeDS request id"
-required=true
+required=false
+type="Text"
+[netcetera.metadata.merchant_configuration_id]
+name="merchant_configuration_id"
+label="Merchant Configuration ID"
+placeholder="Enter Merchant Configuration ID"
+required=false
 type="Text"
 
 
@@ -4099,6 +4179,25 @@ key1="Public Api Key"
 [datatrans.connector_auth.BodyKey]
 api_key = "Passcode"
 key1 = "datatrans MerchantId"
+[datatrans.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[datatrans.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[datatrans.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
+
 
 [paybox]
 [[paybox.credit]]
@@ -4374,7 +4473,7 @@ placeholder="Enter locale"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.card_brands]]
+[ctp_mastercard.metadata.card_brands]
 name="card_brands"
 label="Card Brands"
 placeholder="Enter Card Brands"
@@ -4382,30 +4481,81 @@ required=true
 type="MultiSelect"
 options=["visa","mastercard"]
 
-[[ctp_mastercard.metadata.acquirer_bin]]
+[ctp_mastercard.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquire Bin"
 placeholder="Enter Acquirer Bin"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.acquirer_merchant_id]]
+[ctp_mastercard.metadata.acquirer_merchant_id]
 name="acquirer_merchant_id"
 label="Acquire Merchant Id"
 placeholder="Enter Acquirer Merchant Id"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.merchant_category_code]]
+[ctp_mastercard.metadata.merchant_category_code]
 name="merchant_category_code"
 label="Merchant Category Code"
 placeholder="Enter Merchant Category Code"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.merchant_country_code]]
+[ctp_mastercard.metadata.merchant_country_code]
 name="merchant_country_code"
 label="Merchant Country Code"
 placeholder="Enter Merchant Country Code"
 required=true
 type="Text"
+
+[xendit]
+[[xendit.credit]]
+  payment_method_type = "Mastercard"
+[[xendit.credit]]
+  payment_method_type = "Visa"
+[[xendit.credit]]
+  payment_method_type = "Interac"
+[[xendit.credit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.credit]]
+  payment_method_type = "JCB"
+[[xendit.credit]]
+  payment_method_type = "DinersClub"
+[[xendit.credit]]
+  payment_method_type = "Discover"
+[[xendit.credit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.credit]]
+  payment_method_type = "UnionPay"
+[[xendit.debit]]
+  payment_method_type = "Mastercard"
+[[xendit.debit]]
+  payment_method_type = "Visa"
+[[xendit.debit]]
+  payment_method_type = "Interac"
+[[xendit.debit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.debit]]
+  payment_method_type = "JCB"
+[[xendit.debit]]
+  payment_method_type = "DinersClub"
+[[xendit.debit]]
+  payment_method_type = "Discover"
+[[xendit.debit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.debit]]
+  payment_method_type = "UnionPay"
+[xendit.connector_auth.HeaderKey]
+api_key="API Key"
+[xendit.connector_webhook_details]
+webhook_verification_token="Source verification key"
+
+[inespay]
+[[inespay.bank_debit]]
+  payment_method_type = "sepa"
+[inespay.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Token"
+[inespay.connector_webhook_details]
+merchant_secret="API Key"

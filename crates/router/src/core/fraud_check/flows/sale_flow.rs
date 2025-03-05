@@ -176,9 +176,9 @@ impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
     }
 }
 
-pub async fn decide_frm_flow<'a, 'b>(
-    router_data: &'b mut FrmSaleRouterData,
-    state: &'a SessionState,
+pub async fn decide_frm_flow(
+    router_data: &mut FrmSaleRouterData,
+    state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

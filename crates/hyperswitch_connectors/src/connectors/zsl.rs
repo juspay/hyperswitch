@@ -458,6 +458,7 @@ lazy_static! {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::NotSupported,
                 supported_capture_methods,
+                specific_features: None,
             },
         );
 
@@ -465,9 +466,9 @@ lazy_static! {
     };
 
     static ref ZSL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "ZSL",
         description:
-            "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
-                .to_string(),
+            "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

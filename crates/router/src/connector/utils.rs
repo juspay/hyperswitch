@@ -22,6 +22,7 @@ use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
+    network_tokenization::NetworkTokenNumber,
     payments::payment_attempt::PaymentAttempt,
     router_request_types::{
         AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
@@ -753,6 +754,40 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     }
 }
 
+pub trait SplitPaymentData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest>;
+}
+
+impl SplitPaymentData for types::PaymentsCaptureData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for types::PaymentsAuthorizeData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for types::PaymentsSyncData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for PaymentsCancelData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for types::SetupMandateRequestData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
 pub trait RevokeMandateRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
@@ -893,9 +928,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            }))
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession))
             || self
                 .mandate_id
                 .as_ref()
@@ -904,9 +937,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession)
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -973,9 +1004,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession)
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -1123,9 +1152,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            }))
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession))
             || self
                 .mandate_id
                 .as_ref()
@@ -1134,9 +1161,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession)
     }
     /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
@@ -1832,8 +1857,6 @@ pub trait AddressDetailsData {
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
-    fn to_state_code(&self) -> Result<Secret<String>, Error>;
-    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
@@ -1905,31 +1928,6 @@ impl AddressDetailsData for hyperswitch_domain_models::address::AddressDetails {
             self.get_line1()?.peek(),
             self.get_line2()?.peek()
         )))
-    }
-    fn to_state_code(&self) -> Result<Secret<String>, Error> {
-        let country = self.get_country()?;
-        let state = self.get_state()?;
-        match country {
-            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
-                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
-            )),
-            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
-                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
-            )),
-            _ => Ok(state.clone()),
-        }
-    }
-    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
-        self.state
-            .as_ref()
-            .map(|state| {
-                if state.peek().len() == 2 {
-                    Ok(state.to_owned())
-                } else {
-                    self.to_state_code()
-                }
-            })
-            .transpose()
     }
 
     fn get_optional_line2(&self) -> Option<Secret<String>> {
@@ -2754,6 +2752,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPayRedirect,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -2781,7 +2780,6 @@ pub enum PaymentMethodDataType {
     SwishQr,
     KlarnaRedirect,
     KlarnaSdk,
-    KlarnaCheckout,
     AffirmRedirect,
     AfterpayClearpayRedirect,
     PayBrightRedirect,
@@ -2872,6 +2870,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 domain::payments::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 domain::payments::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 domain::payments::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -2905,7 +2904,6 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
                 domain::payments::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
-                domain::payments::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout,
                 domain::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
                 domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
@@ -3157,19 +3155,97 @@ pub fn get_refund_integrity_object<T>(
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
+    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token_expiry_month(&self) -> Secret<String>;
+    fn get_network_token_expiry_year(&self) -> Secret<String>;
+    fn get_cryptogram(&self) -> Option<Secret<String>>;
 }
 
 impl NetworkTokenData for domain::NetworkTokenData {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.token_number.peek())
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.network_token.peek())
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
             year = format!("20{}", year);
         }
         Secret::new(year)
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.network_token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.token_number.clone()
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.network_token.clone()
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.token_exp_month.clone()
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.network_token_exp_month.clone()
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.token_exp_year.clone()
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.network_token_exp_year.clone()
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        self.token_cryptogram.clone()
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        self.cryptogram.clone()
     }
 }
 

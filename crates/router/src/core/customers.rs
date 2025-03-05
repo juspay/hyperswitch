@@ -314,7 +314,7 @@ struct AddressStructForDbEntry<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> AddressStructForDbEntry<'a> {
+impl AddressStructForDbEntry<'_> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
         db: &dyn StorageInterface,
@@ -463,7 +463,7 @@ pub async fn retrieve_customer(
     let key_manager_state = &(&state).into();
 
     let response = db
-        .find_customer_by_customer_id_merchant_id(
+        .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
             key_manager_state,
             &customer_id,
             merchant_account.get_id(),
@@ -471,7 +471,9 @@ pub async fn retrieve_customer(
             merchant_account.storage_scheme,
         )
         .await
-        .switch()?;
+        .switch()?
+        .ok_or(errors::CustomersErrorResponse::CustomerNotFound)?;
+
     let address = match &response.address_id {
         Some(address_id) => Some(api_models::payments::AddressDetails::from(
             db.find_address_by_address_id(key_manager_state, address_id, &key_store)
@@ -677,19 +679,20 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             redacted_encrypted_value.clone().into_encrypted(),
         );
 
-        let updated_customer = storage::CustomerUpdate::Update {
-            name: Some(redacted_encrypted_value.clone()),
-            email: Box::new(Some(redacted_encrypted_email)),
-            phone: Box::new(Some(redacted_encrypted_value.clone())),
-            description: Some(Description::from_str_unchecked(REDACTED)),
-            phone_country_code: Some(REDACTED.to_string()),
-            metadata: None,
-            connector_customer: Box::new(None),
-            default_billing_address: None,
-            default_shipping_address: None,
-            default_payment_method_id: None,
-            status: Some(common_enums::DeleteStatus::Redacted),
-        };
+        let updated_customer =
+            storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
+                name: Some(redacted_encrypted_value.clone()),
+                email: Box::new(Some(redacted_encrypted_email)),
+                phone: Box::new(Some(redacted_encrypted_value.clone())),
+                description: Some(Description::from_str_unchecked(REDACTED)),
+                phone_country_code: Some(REDACTED.to_string()),
+                metadata: None,
+                connector_customer: Box::new(None),
+                default_billing_address: None,
+                default_shipping_address: None,
+                default_payment_method_id: None,
+                status: Some(common_enums::DeleteStatus::Redacted),
+            }));
 
         db.update_customer_by_global_id(
             key_manager_state,
@@ -1029,7 +1032,7 @@ struct AddressStructForDbUpdate<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> AddressStructForDbUpdate<'a> {
+impl AddressStructForDbUpdate<'_> {
     async fn update_address_if_sent(
         &self,
         db: &dyn StorageInterface,
@@ -1131,7 +1134,7 @@ struct VerifyIdForUpdateCustomer<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> VerifyIdForUpdateCustomer<'a> {
+impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
         db: &dyn StorageInterface,
@@ -1152,7 +1155,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl<'a> VerifyIdForUpdateCustomer<'a> {
+impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
         db: &dyn StorageInterface,
@@ -1336,7 +1339,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 &domain_customer.id,
                 domain_customer.to_owned(),
                 merchant_account.get_id(),
-                storage::CustomerUpdate::Update {
+                storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {
                         let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
@@ -1355,7 +1358,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
-                },
+                })),
                 key_store,
                 merchant_account.storage_scheme,
             )

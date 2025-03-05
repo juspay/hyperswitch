@@ -64,6 +64,22 @@ check_v2 *FLAGS:
     cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ FLAGS }}
     set +x
 
+build_v2 *FLAGS:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
+        jq -r '
+            [ .packages[] | select(.name == "router") | .features | keys[] # Obtain features of `router` package
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
+    set +x
+
+
 run_v2:
     #! /usr/bin/env bash
     set -euo pipefail
@@ -152,8 +168,20 @@ resultant_dir := source_directory() / 'final-migrations'
 # Copy v1 and v2 migrations to a single directory
 [private]
 copy_migrations:
-    @mkdir -p {{ resultant_dir }}
-    @cp -r {{ v1_migration_dir }}/. {{ v2_migration_dir }}/. {{ resultant_dir }}/
+    #! /usr/bin/env bash
+    mkdir -p {{resultant_dir}}
+    cp -r {{v1_migration_dir}}/* {{resultant_dir}}/
+
+    # Prefix v2 migrations with 9
+    sh -c '
+    for dir in "{{v2_migration_dir}}"/*; do
+        if [ -d "$dir" ]; then
+            base_name=$(basename "$dir")
+            new_name="9$base_name" 
+            cp -r "$dir" "{{resultant_dir}}/$new_name"
+        fi
+    done
+    '
     echo "Created {{ resultant_dir }}"
 
 # Delete the newly created directory

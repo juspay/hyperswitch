@@ -5,6 +5,17 @@
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
+  "topbarLinks": [
+    {
+      "name": "Contact Us",
+      "url": "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw"
+    }
+  ], 
+  "topbarCtaButton": {
+    "type": "link",
+    "url": "https://docs.hyperswitch.io/hyperswitch-open-source/overview",
+    "name": "Self-Deploy"
+  },
   "favicon": "/favicon.png",
   "colors": {
     "primary": "#006DF9",
@@ -14,11 +25,10 @@
       "dark": "#242F48"
     }
   },
+  "sidebar": {
+    "items": "card"
+  },
   "tabs": [
-    {
-      "name": "API Reference",
-      "url": "api-reference"
-    },
     {
       "name": "Locker API Reference",
       "url": "locker-api-reference"
@@ -38,212 +48,236 @@
       ]
     },
     {
-      "group": "Payments",
+      "group": "API Reference",
       "pages": [
-        "api-reference/payments/payments--create",
-        "api-reference/payments/payments--update",
-        "api-reference/payments/payments--confirm",
-        "api-reference/payments/payments--retrieve",
-        "api-reference/payments/payments--cancel",
-        "api-reference/payments/payments--capture",
-        "api-reference/payments/payments--incremental-authorization",
-        "api-reference/payments/payments--session-token",
-        "api-reference/payments/payments-link--retrieve",
-        "api-reference/payments/payments--list",
-        "api-reference/payments/payments--external-3ds-authentication",
-        "api-reference/payments/payments--complete-authorize"
+        {
+          "group": "Payments",
+          "pages": [
+            "api-reference/payments/Introduction--to--payments",
+            "api-reference/payments/payments--create",
+            "api-reference/payments/payments--update",
+            "api-reference/payments/payments--confirm",
+            "api-reference/payments/payments--retrieve",
+            "api-reference/payments/payments--cancel",
+            "api-reference/payments/payments--capture",
+            "api-reference/payments/payments--incremental-authorization",
+            "api-reference/payments/payments--session-token",
+            "api-reference/payments/payments-link--retrieve",
+            "api-reference/payments/payments--list",
+            "api-reference/payments/payments--external-3ds-authentication",
+            "api-reference/payments/payments--complete-authorize"
+          ]
+        },
+        {
+          "group": "Payment Methods",
+          "pages": [
+            "api-reference/payment-methods/paymentmethods--create",
+            "api-reference/payment-methods/payment-method--retrieve",
+            "api-reference/payment-methods/payment-method--update",
+            "api-reference/payment-methods/payment-method--delete",
+            "api-reference/payment-methods/payment-method--set-default-payment-method-for-customer",
+            "api-reference/payment-methods/list-payment-methods-for-a-merchant",
+            "api-reference/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+            "api-reference/payment-methods/list-payment-methods-for-a-customer",
+            "api-reference/customer-set-default-payment-method/customers--set-default-payment-method"
+          ]
+        },
+        {
+          "group": "Customers",
+          "pages": [
+            "api-reference/customers/customers--create",
+            "api-reference/customers/customers--retrieve",
+            "api-reference/customers/customers--update",
+            "api-reference/customers/customers--delete",
+            "api-reference/customers/customers--list"
+          ]
+        },
+        {
+          "group": "Mandates",
+          "pages": [
+            "api-reference/mandates/mandates--revoke-mandate",
+            "api-reference/mandates/mandates--retrieve-mandate",
+            "api-reference/mandates/mandates--customer-mandates-list"
+          ]
+        },
+        {
+          "group": "Refunds",
+          "pages": [
+            "api-reference/refunds/refunds--create",
+            "api-reference/refunds/refunds--update",
+            "api-reference/refunds/refunds--retrieve",
+            "api-reference/refunds/refunds--list"
+          ]
+        },
+        {
+          "group": "Disputes",
+          "pages": [
+            "api-reference/disputes/disputes--retrieve",
+            "api-reference/disputes/disputes--list"
+          ]
+        },
+        {
+          "group": "Payouts",
+          "pages": [
+            "api-reference/payouts/payouts--create",
+            "api-reference/payouts/payouts--update",
+            "api-reference/payouts/payouts--cancel",
+            "api-reference/payouts/payouts--fulfill",
+            "api-reference/payouts/payouts--confirm",
+            "api-reference/payouts/payouts--retrieve",
+            "api-reference/payouts/payouts--list",
+            "api-reference/payouts/payouts--list-filters",
+            "api-reference/payouts/payouts--filter"
+          ]
+        },
+        {
+          "group": "Event",
+          "pages": [
+            "api-reference/event/events--list",
+            "api-reference/event/events--delivery-attempt-list",
+            "api-reference/event/events--manual-retry"
+          ]
+        },
+        {
+          "group": "Poll",
+          "pages": ["api-reference/poll/poll--retrieve-poll-status"]
+        },
+        {
+          "group": "Blocklist",
+          "pages": [
+            "api-reference/blocklist/get-blocklist",
+            "api-reference/blocklist/post-blocklist",
+            "api-reference/blocklist/delete-blocklist",
+            "api-reference/blocklist/post-blocklisttoggle"
+          ]
+        },
+        {
+          "group": "Routing",
+          "pages": [
+            "api-reference/routing/routing--list",
+            "api-reference/routing/routing--create",
+            "api-reference/routing/routing--retrieve-config",
+            "api-reference/routing/routing--deactivate",
+            "api-reference/routing/routing--retrieve-default-config",
+            "api-reference/routing/routing--update-default-config",
+            "api-reference/routing/routing--retrieve-default-for-profile",
+            "api-reference/routing/routing--update-default-for-profile",
+            "api-reference/routing/routing--retrieve",
+            "api-reference/routing/routing--activate-config"
+          ]
+        },
+        {
+          "group": "Relay",
+          "pages": [
+            "api-reference/relay/relay",
+            "api-reference/relay/relay--retrieve"
+          ]
+        },
+        {
+          "group": "Schemas",
+          "pages": ["api-reference/schemas/outgoing--webhook"]
+        }
       ]
     },
     {
-      "group": "Payment Methods",
+      "group": "Admin API based",
       "pages": [
-        "api-reference/payment-methods/paymentmethods--create",
-        "api-reference/payment-methods/payment-method--retrieve",
-        "api-reference/payment-methods/payment-method--update",
-        "api-reference/payment-methods/payment-method--delete",
-        "api-reference/payment-methods/payment-method--set-default-payment-method-for-customer",
-        "api-reference/payment-methods/list-payment-methods-for-a-merchant",
-        "api-reference/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-        "api-reference/payment-methods/list-payment-methods-for-a-customer",
-        "api-reference/customer-set-default-payment-method/customers--set-default-payment-method"
+        {
+          "group": "Organization",
+          "pages": [
+            "api-reference/organization/organization--create",
+            "api-reference/organization/organization--retrieve",
+            "api-reference/organization/organization--update"
+          ]
+        },
+        {
+          "group": "Merchant Account",
+          "pages": [
+            "api-reference/merchant-account/merchant-account--create",
+            "api-reference/merchant-account/merchant-account--retrieve",
+            "api-reference/merchant-account/merchant-account--update",
+            "api-reference/merchant-account/merchant-account--delete",
+            "api-reference/merchant-account/merchant-account--kv-status"
+          ]
+        },
+        {
+          "group": "Business Profile",
+          "pages": [
+            "api-reference/business-profile/business-profile--create",
+            "api-reference/business-profile/business-profile--update",
+            "api-reference/business-profile/business-profile--retrieve",
+            "api-reference/business-profile/business-profile--delete",
+            "api-reference/business-profile/business-profile--list"
+          ]
+        },
+        {
+          "group": "API Key",
+          "pages": [
+            "api-reference/api-key/api-key--create",
+            "api-reference/api-key/api-key--retrieve",
+            "api-reference/api-key/api-key--update",
+            "api-reference/api-key/api-key--revoke",
+            "api-reference/api-key/api-key--list"
+          ]
+        },
+        {
+          "group": "Merchant Connector Account",
+          "pages": [
+            "api-reference/merchant-connector-account/merchant-connector--create",
+            "api-reference/merchant-connector-account/merchant-connector--retrieve",
+            "api-reference/merchant-connector-account/merchant-connector--update",
+            "api-reference/merchant-connector-account/merchant-connector--delete",
+            "api-reference/merchant-connector-account/merchant-connector--list"
+          ]
+        },
+        {
+          "group": "GSM (Global Status Mapping)",
+          "pages": [
+            "api-reference/gsm/gsm--create",
+            "api-reference/gsm/gsm--get",
+            "api-reference/gsm/gsm--update",
+            "api-reference/gsm/gsm--delete"
+          ]
+        },
+        {
+          "group": "Event",
+          "pages": [
+            "api-reference/event/events--list",
+            "api-reference/event/events--delivery-attempt-list",
+            "api-reference/event/events--manual-retry"
+          ]
+        }
       ]
-    },
-    {
-      "group": "Customers",
-      "pages": [
-        "api-reference/customers/customers--create",
-        "api-reference/customers/customers--retrieve",
-        "api-reference/customers/customers--update",
-        "api-reference/customers/customers--delete",
-        "api-reference/customers/customers--list"
-      ]
-    },
-    {
-      "group": "Mandates",
-      "pages": [
-        "api-reference/mandates/mandates--revoke-mandate",
-        "api-reference/mandates/mandates--retrieve-mandate",
-        "api-reference/mandates/mandates--customer-mandates-list"
-      ]
-    },
-    {
-      "group": "Refunds",
-      "pages": [
-        "api-reference/refunds/refunds--create",
-        "api-reference/refunds/refunds--update",
-        "api-reference/refunds/refunds--retrieve",
-        "api-reference/refunds/refunds--list"
-      ]
-    },
-    {
-      "group": "Disputes",
-      "pages": [
-        "api-reference/disputes/disputes--retrieve",
-        "api-reference/disputes/disputes--list"
-      ]
-    },
-    {
-      "group": "Organization",
-      "pages": [
-        "api-reference/organization/organization--create",
-        "api-reference/organization/organization--retrieve",
-        "api-reference/organization/organization--update"
-      ]
-    },
-    {
-      "group": "Merchant Account",
-      "pages": [
-        "api-reference/merchant-account/merchant-account--create",
-        "api-reference/merchant-account/merchant-account--retrieve",
-        "api-reference/merchant-account/merchant-account--update",
-        "api-reference/merchant-account/merchant-account--delete",
-        "api-reference/merchant-account/merchant-account--kv-status"
-      ]
-    },
-    {
-      "group": "Business Profile",
-      "pages": [
-        "api-reference/business-profile/business-profile--create",
-        "api-reference/business-profile/business-profile--update",
-        "api-reference/business-profile/business-profile--retrieve",
-        "api-reference/business-profile/business-profile--delete",
-        "api-reference/business-profile/business-profile--list"
-      ]
-    },
-    {
-      "group": "API Key",
-      "pages": [
-        "api-reference/api-key/api-key--create",
-        "api-reference/api-key/api-key--retrieve",
-        "api-reference/api-key/api-key--update",
-        "api-reference/api-key/api-key--revoke",
-        "api-reference/api-key/api-key--list"
-      ]
-    },
-    {
-      "group": "Merchant Connector Account",
-      "pages": [
-        "api-reference/merchant-connector-account/merchant-connector--create",
-        "api-reference/merchant-connector-account/merchant-connector--retrieve",
-        "api-reference/merchant-connector-account/merchant-connector--update",
-        "api-reference/merchant-connector-account/merchant-connector--delete",
-        "api-reference/merchant-connector-account/merchant-connector--list"
-      ]
-    },
-    {
-      "group": "Payouts",
-      "pages": [
-        "api-reference/payouts/payouts--create",
-        "api-reference/payouts/payouts--update",
-        "api-reference/payouts/payouts--cancel",
-        "api-reference/payouts/payouts--fulfill",
-        "api-reference/payouts/payouts--confirm",
-        "api-reference/payouts/payouts--retrieve",
-        "api-reference/payouts/payouts--list",
-        "api-reference/payouts/payouts--list-filters",
-        "api-reference/payouts/payouts--filter"
-      ]
-    },
-    {
-      "group": "Event",
-      "pages": [
-        "api-reference/event/events--list",
-        "api-reference/event/events--delivery-attempt-list",
-        "api-reference/event/events--manual-retry"
-      ]
-    },
-    {
-      "group": "GSM (Global Status Mapping)",
-      "pages": [
-        "api-reference/gsm/gsm--create",
-        "api-reference/gsm/gsm--get",
-        "api-reference/gsm/gsm--update",
-        "api-reference/gsm/gsm--delete"
-      ]
-    },
-    {
-      "group": "Poll",
-      "pages": ["api-reference/poll/poll--retrieve-poll-status"]
     },
     {
       "group": "Hyperswitch Card Vault",
       "pages": ["locker-api-reference/overview"]
     },
     {
-      "group": "Locker - Health",
-      "pages": ["locker-api-reference/locker-health/get-health"]
-    },
-    {
-      "group": "Locker - Key Custodian",
+      "group": "API Reference",
       "pages": [
-        "locker-api-reference/key-custodian/provide-key-1",
-        "locker-api-reference/key-custodian/provide-key-2",
-        "locker-api-reference/key-custodian/unlock-the-locker"
+        {
+          "group": "Locker - Health",
+          "pages": ["locker-api-reference/locker-health/get-health"]
+        },
+        {
+          "group": "Locker - Key Custodian",
+          "pages": [
+            "locker-api-reference/key-custodian/provide-key-1",
+            "locker-api-reference/key-custodian/provide-key-2",
+            "locker-api-reference/key-custodian/unlock-the-locker"
+          ]
+        },
+        {
+          "group": "Locker - Cards",
+          "pages": [
+            "locker-api-reference/cards/add-data-in-locker",
+            "locker-api-reference/cards/delete-data-from-locker",
+            "locker-api-reference/cards/retrieve-data-from-locker",
+            "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
+          ]
+        }
       ]
-    },
-    {
-      "group": "Locker - Cards",
-      "pages": [
-        "locker-api-reference/cards/add-data-in-locker",
-        "locker-api-reference/cards/delete-data-from-locker",
-        "locker-api-reference/cards/retrieve-data-from-locker",
-        "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
-      ]
-    },
-    {
-      "group": "Blocklist",
-      "pages": [
-        "api-reference/blocklist/get-blocklist",
-        "api-reference/blocklist/post-blocklist",
-        "api-reference/blocklist/delete-blocklist",
-        "api-reference/blocklist/post-blocklisttoggle"
-      ]
-    },
-    {
-      "group": "Routing",
-      "pages": [
-        "api-reference/routing/routing--list",
-        "api-reference/routing/routing--create",
-        "api-reference/routing/routing--retrieve-config",
-        "api-reference/routing/routing--deactivate",
-        "api-reference/routing/routing--retrieve-default-config",
-        "api-reference/routing/routing--update-default-config",
-        "api-reference/routing/routing--retrieve-default-for-profile",
-        "api-reference/routing/routing--update-default-for-profile",
-        "api-reference/routing/routing--retrieve",
-        "api-reference/routing/routing--activate-config"
-      ]
-    },
-    {
-      "group": "Relay",
-      "pages": [
-        "api-reference/relay/relay",
-        "api-reference/relay/relay--retrieve"
-      ]
-    },
-    {
-      "group": "Schemas",
-      "pages": ["api-reference/schemas/outgoing--webhook"]
     }
   ],
   "footerSocials": {
@@ -256,7 +290,10 @@
   },
   "analytics": {
     "gtm": {
-        "tagId": "GTM-PLBNKQFQ"
+      "tagId": "GTM-PLBNKQFQ"
+    },
+    "mixpanel": {
+      "projectToken": "b00355f29d9548d1333608df71d5d53d"
     }
   }
 }

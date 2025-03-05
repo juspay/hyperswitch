@@ -23,7 +23,7 @@
       "payment_method": "card",
       "payment_method_data": {
         "card": {
-          "card_number": "4242424242424242",
+          "card_number": "378282246310005",
           "card_exp_month": "13",
           "card_exp_year": "69",
           "card_holder_name": "joseph Doe",

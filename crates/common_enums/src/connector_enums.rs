@@ -65,8 +65,10 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
+    Chargebee,
     Checkout,
     Coinbase,
+    Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
@@ -79,22 +81,24 @@ pub enum RoutableConnectors {
     Fiservemea,
     Fiuu,
     Forte,
+    // Getnet,
     Globalpay,
     Globepay,
     Gocardless,
     Helcim,
     Iatapay,
-    // Inespay,
+    Inespay,
     Itaubank,
     Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -105,6 +109,7 @@ pub enum RoutableConnectors {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
@@ -118,6 +123,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    //Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -130,7 +136,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
-    // Xendit,
+    Xendit,
     Zen,
     Plaid,
     Zsl,
@@ -199,8 +205,10 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
+    Chargebee,
     Checkout,
     Coinbase,
+    Coingate,
     Cryptopay,
     CtpMastercard,
     Cybersource,
@@ -214,24 +222,26 @@ pub enum Connector {
     Fiservemea,
     Fiuu,
     Forte,
+    // Getnet,
     Globalpay,
     Globepay,
     Gocardless,
     Gpayments,
     Helcim,
-    // Inespay,
+    Inespay,
     Iatapay,
     Itaubank,
     Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -242,6 +252,7 @@ pub enum Connector {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
@@ -253,6 +264,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    // Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -268,7 +280,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
-    // Xendit,
+    Xendit,
     Zen,
     Zsl,
 }
@@ -281,6 +293,7 @@ impl Connector {
             (Self::Paypal, Some(PayoutType::Wallet))
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
+                | (Self::Nomupay, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -301,7 +314,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Nomupay)
     }
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
@@ -310,6 +323,7 @@ impl Connector {
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
+                | (Self::Moneris, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
@@ -350,7 +364,9 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
+            | Self::Chargebee
             | Self::Coinbase
+            |Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -361,22 +377,24 @@ impl Connector {
             | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
+            // | Self::Getnet
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
-			// | Self::Inespay
+			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
+            | Self::Moneris
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
-            // | Self::Nomupay
+            | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -384,6 +402,7 @@ impl Connector {
             | Self::Payme
             | Self::Payone
             | Self::Paypal
+            | Self::Paystack
             | Self::Payu
             | Self::Placetopay
             | Self::Powertranz
@@ -393,6 +412,7 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            // | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -404,7 +424,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
-            // | Self::Xendit
+            | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
@@ -412,12 +432,11 @@ impl Connector {
             | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            | Self::Datatrans
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi | Self::Cybersource => true,
+            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
         }
     }
 
@@ -478,6 +497,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Chargebee => Self::Chargebee,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -502,10 +522,12 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Klarna => Self::Klarna,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
+            RoutableConnectors::Moneris => Self::Moneris,
             RoutableConnectors::Multisafepay => Self::Multisafepay,
             RoutableConnectors::Nexinets => Self::Nexinets,
             RoutableConnectors::Nexixpay => Self::Nexixpay,
             RoutableConnectors::Nmi => Self::Nmi,
+            RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
@@ -514,6 +536,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
+            RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,
@@ -526,6 +549,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
+            // RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
@@ -536,6 +560,9 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Zen => Self::Zen,
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
+            RoutableConnectors::Xendit => Self::Xendit,
+            RoutableConnectors::Inespay => Self::Inespay,
+            RoutableConnectors::Coingate => Self::Coingate,
         }
     }
 }
