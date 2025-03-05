@@ -1,9 +1,6 @@
-use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use hyperswitch_domain_models::{
-    errors,
-    merchant_account::MerchantAccount,
-    merchant_key_store::MerchantKeyStore,
-    payment_methods::{PaymentMethod, PaymentMethodInterface},
+    merchant_key_store::MerchantKeyStore, payment_methods::PaymentMethodInterface,
 };
 use storage_impl::{kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
