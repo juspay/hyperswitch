@@ -23109,6 +23109,11 @@
               }
             ],
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23362,6 +23367,11 @@
                 "$ref": "#/components/schemas/CardTestingGuardConfig"
               }
             ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
             "nullable": true
           }
         }
