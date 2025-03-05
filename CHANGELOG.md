@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.26.0-hotfix3
+
+### Features
+
+- **router:** Add capability to force challenge for 3DS Payments through Netcetera and send few optional fields ([#7434](https://github.com/juspay/hyperswitch/pull/7434)) ([`a5a51d0`](https://github.com/juspay/hyperswitch/commit/a5a51d0644795071033223140d6860a654fed317))
+
+**Full Changelog:** [`2025.02.26.0-hotfix2...2025.02.26.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.02.26.0-hotfix2...2025.02.26.0-hotfix3)
+
+
+- - -
+
 ## 2025.02.26.0-hotfix2
 
 ### Features
