@@ -1,4 +1,16 @@
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use common_utils::errors::CustomResult;
 use common_utils::{id_type, types::keymanager::KeyManagerState};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use hyperswitch_domain_models::{
+    errors, merchant_account::MerchantAccount, payment_methods::PaymentMethod,
+};
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore, payment_methods::PaymentMethodInterface,
 };

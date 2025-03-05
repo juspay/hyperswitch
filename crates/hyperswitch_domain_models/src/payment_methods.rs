@@ -88,13 +88,13 @@ pub struct PaymentMethod {
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethod {
     /// The identifier for the payment method. Using this recurring payments can be made
-    pub id: common_utils::id_type::GlobalPaymentMethodId,
+    pub id: id_type::GlobalPaymentMethodId,
 
     /// The customer id against which the payment method is saved
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub customer_id: id_type::GlobalCustomerId,
 
     /// The merchant id against which the payment method is saved
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
@@ -129,7 +129,7 @@ impl PaymentMethod {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
+    pub fn get_id(&self) -> &id_type::GlobalPaymentMethodId {
         &self.id
     }
 
@@ -459,7 +459,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     }
 
     async fn convert_back(
-        state: &keymanager::KeyManagerState,
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,
@@ -585,16 +585,16 @@ impl super::behaviour::Conversion for PaymentMethod {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodSession {
-    pub id: common_utils::id_type::GlobalPaymentMethodSessionId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub id: id_type::GlobalPaymentMethodSessionId,
+    pub customer_id: id_type::GlobalCustomerId,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
     pub return_url: Option<common_utils::types::Url>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<common_utils::id_type::GlobalPaymentMethodId>>,
-    pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
+    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment: Option<id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v2")]
@@ -617,7 +617,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
     }
 
     async fn convert_back(
-        state: &keymanager::KeyManagerState,
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,
@@ -900,7 +900,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use common_utils::id_type::MerchantConnectorAccountId;
+    use id_type::MerchantConnectorAccountId;
 
     use super::*;
 

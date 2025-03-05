@@ -190,7 +190,7 @@ pub async fn api_key_update(
     let mut payload = json_payload.into_inner();
     payload.key_id = api_key_id;
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -212,7 +212,7 @@ pub async fn api_key_update(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -229,7 +229,7 @@ pub async fn api_key_revoke(
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -244,7 +244,7 @@ pub async fn api_key_revoke(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -261,7 +261,7 @@ pub async fn api_key_revoke(
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -276,7 +276,7 @@ pub async fn api_key_revoke(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -324,7 +324,7 @@ pub async fn api_key_list(
     let flow = Flow::ApiKeyList;
     let payload = query.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -346,6 +346,6 @@ pub async fn api_key_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
