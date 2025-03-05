@@ -471,10 +471,6 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
             ip_address,
             item.router_data.psd2_sca_exemption_type,
-        );
-        let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
-            ip_address,
-            item.router_data.psd2_sca_exemption_type,
             item.router_data.request.force_3ds_challenge,
             item.router_data
                 .request
