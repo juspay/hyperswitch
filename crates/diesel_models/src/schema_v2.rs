@@ -207,7 +207,6 @@ diesel::table! {
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
-        force_3ds_challenge -> Nullable<Bool>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -231,6 +230,7 @@ diesel::table! {
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         card_testing_guard_config -> Nullable<Jsonb>,
         card_testing_secret_key -> Nullable<Bytea>,
+        force_3ds_challenge -> Nullable<Bool>,
     }
 }
 
