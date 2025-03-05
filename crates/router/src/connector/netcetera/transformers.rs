@@ -256,10 +256,13 @@ pub struct NetceteraMetaData {
     pub mcc: Option<String>,
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
-    pub endpoint_prefix: String,
+    // pub endpoint_prefix: String,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
-    pub merchant_configuration_id: Option<String>,
+    // pub merchant_configuration_id: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_country_code: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData {
@@ -555,7 +558,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             .parse_value("NetceteraMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_data = netcetera_types::MerchantData {
-            merchant_configuration_id: connector_meta_data.merchant_configuration_id,
+            merchant_configuration_id: None,
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
@@ -720,4 +723,85 @@ pub struct ResultsResponseData {
 
     /// Optional object containing error details if any errors occurred during the process.
     pub error_details: Option<NetceteraErrorDetails>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PostAuthenticationRequest {
+    pub three_ds_server_trans_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PostAuthenticationResponse {
+    pub eci: Option<String>,
+    pub authentication_value: Option<String>,
+    pub three_ds_server_trans_id: Option<String>,
+    pub results_request: Option<ResultsRequest>,
+    pub trans_status: TransStatus,
+    pub result_response: Option<ResultResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub enum TransStatus {
+    /// Authentication/ Account Verification Successful
+    Y,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    N,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
+    U,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    A,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    R,
+    C,
+}
+
+impl From<TransStatus> for common_enums::TransactionStatus {
+    fn from(value: TransStatus) -> Self {
+        match value {
+            TransStatus::Y => Self::Success,
+            TransStatus::N => Self::Failure,
+            TransStatus::U => Self::VerificationNotPerformed,
+            TransStatus::A => Self::NotVerified,
+            TransStatus::R => Self::Rejected,
+            TransStatus::C => Self::ChallengeRequired,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultsRequest {
+    pub eci: Option<String>,
+    pub ds_trans_id: Option<String>,
+    pub acs_rendering_type: Option<AcsRenderingType>,
+    pub authentication_value: Option<String>,
+    pub message_type: Option<String>,
+    pub three_ds_server_trans_id: String,
+    pub acs_trans_id: Option<String>,
+    pub authentication_method: Option<String>,
+    pub sdk_trans_id: Option<String>,
+    pub message_category: Option<String>,
+    pub interaction_counter: Option<String>,
+    pub trans_status: common_enums::TransactionStatus,
+    pub message_version: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AcsRenderingType {
+    pub acs_interface: String,
+    pub acs_ui_template: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultResponse {
+    pub three_ds_server_trans_id: String,
+    pub acs_trans_id: Option<String>,
+    pub ds_trans_id: Option<String>,
+    pub message_type: Option<String>,
+    pub message_version: Option<String>,
+    pub results_status: Option<String>,
 }
