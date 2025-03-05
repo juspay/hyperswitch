@@ -580,6 +580,7 @@ impl PaymentAttempt {
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
         payment_merchant_connector_name: Option<String>,
+        payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -610,10 +611,7 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
-        let error = request
-            .error
-            .as_ref()
-            .map(ErrorDetails::from);
+        let error = request.error.as_ref().map(ErrorDetails::from);
         let connector_payment_id = request
             .connector_transaction_id
             .as_ref()
@@ -646,7 +644,7 @@ impl PaymentAttempt {
             updated_by: storage_scheme.to_string(),
             redirection_data: None,
             encoded_data: None,
-            merchant_connector_id: None,
+            merchant_connector_id: payment_merchant_connector_account_id,
             external_three_ds_authentication_attempted: None,
             authentication_connector: None,
             authentication_id: None,

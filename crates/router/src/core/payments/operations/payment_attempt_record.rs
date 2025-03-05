@@ -74,9 +74,9 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
     ) -> Result<(), errors::ApiErrorResponse> {
         // need to verify this?
         match intent_status {
-            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            // Payment attempt can be recorded for failed payment as well in revenue recovery flow.
+            common_enums::IntentStatus::RequiresPaymentMethod | common_enums::IntentStatus::Failed=> Ok(()),
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -126,16 +126,23 @@ impl<F: Send + Clone + Sync>
             id: request.billing_connector_id.get_string_repr().to_owned(),
         })?;
 
-        let payment_merchant_connector_account_id = billing_mca.feature_metadata.as_ref().and_then(|metadata| metadata.revenue_recovery.as_ref().and_then(|recovery| recovery.mca_reference.billing_to_recovery.get(&request.merchant_connector_reference_id)));
+        let payment_merchant_connector_account_id = billing_mca.get_payment_merchant_connector_account_id_using_account_reference_id(request.merchant_connector_reference_id.clone());
 
-        let payment_merchant_connector_account =payment_merchant_connector_account_id
-        .async_map(|mca_id| db.find_merchant_connector_account_by_id(key_manager_state, mca_id, key_store)).await
+        let payment_merchant_connector_account = payment_merchant_connector_account_id
+        .as_ref()
+        .async_map(|mca_id| {
+            let mca_id_cloned = mca_id.clone();
+            async move {
+                db.find_merchant_connector_account_by_id(key_manager_state, &mca_id_cloned, key_store).await
+            }
+        })
+        .await
         .transpose()
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: request.billing_connector_id.get_string_repr().to_owned(),
         })?;
 
-        let connector_name = payment_merchant_connector_account.map(|connector| connector.connector_name.to_string());
+        let connector_name = payment_merchant_connector_account.map(|connector| connector.get_connector_name_as_string());
 
         let payment_intent = db
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
@@ -188,6 +195,7 @@ impl<F: Send + Clone + Sync>
                 request,
                 encrypted_data,
                 connector_name,
+                payment_merchant_connector_account_id,
             )
             .await?;
 

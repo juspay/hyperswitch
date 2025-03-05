@@ -4379,7 +4379,6 @@ impl
                 attempt_triggered_by: recovery.attempt_triggered_by,
             }
         });
-
         Self { revenue_recovery }
     }
 }
@@ -4403,24 +4402,6 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
         }
     }
 }
-
-// impl ForeignFrom<&api_models::payments::PaymentAttemptAmountDetails>
-//     for hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetailsSetter
-// {
-//     fn foreign_from(
-//         amount_details: &api_models::payments::PaymentAttemptAmountDetails,
-//     ) -> Self {
-//         Self{
-//             net_amount: amount_details.get_net_amount(),
-//             amount_to_capture: amount_details.get_amount_to_capture(),
-//             surcharge_amount: amount_details.get_surcharge_amount(),
-//             tax_on_surcharge: amount_details.get_tax_on_surcharge(),
-//             amount_capturable: amount_details.get_amount_capturable(),
-//             shipping_cost: amount_details.get_shipping_cost(),
-//             order_tax_amount: amount_details.get_order_tax_amount(),
-//         }
-//     }
-// }
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
