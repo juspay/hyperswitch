@@ -6566,6 +6566,7 @@ pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
     pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
+    pub braintree: Option<BraintreeData>,
 }
 
 impl ConnectorMetadata {
@@ -6604,6 +6605,16 @@ pub struct AirwallexData {
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
     pub order_category: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BraintreeData {
+    /// Information about the merchant_account_id that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
+    pub merchant_account_id: Option<Secret<String>>,
+    /// Information about the merchant_config_currency that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
+    pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
