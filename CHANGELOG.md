@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.06.0
+
+### Features
+
+- **connector:** [EFT] Add EFT as a payment method ([#7304](https://github.com/juspay/hyperswitch/pull/7304)) ([`6df1578`](https://github.com/juspay/hyperswitch/commit/6df1578922b7bdc3d0b20ef1bc0b8714f43cc4bf))
+- **payment_link:** Expose payment link configs for SDK UI rules and payment button ([#7427](https://github.com/juspay/hyperswitch/pull/7427)) ([`6a5ce26`](https://github.com/juspay/hyperswitch/commit/6a5ce266d94ed2f026b26f486b4e0ea763384909))
+
+**Full Changelog:** [`2025.03.05.1...2025.03.06.0`](https://github.com/juspay/hyperswitch/compare/2025.03.05.1...2025.03.06.0)
+
+
+- - -
+
 ## 2025.03.05.1
 
 ### Features
