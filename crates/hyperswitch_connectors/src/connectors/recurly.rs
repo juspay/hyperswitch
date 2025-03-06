@@ -38,6 +38,8 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Mask};
 use transformers as recurly;
+use crate::connectors::recurly::transformers::RecurlyWebhookBody;
+use std::collections::HashMap;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -543,6 +545,53 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Recurly {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Recurly {
+    
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(common_utils::crypto::HmacSha256))
+    }
+    
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        //signature contains the timestamp and the signature and signature will have the versions we need only v1
+        //handled where the signature is needed
+        let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
+        let signature = header_hashmap.remove("v1").ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+    
+    fn get_webhook_source_verification_message(
+        &self,
+        request : &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id : &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets : &api_models::webhooks::ConnectorWebhookSecrets
+    )->CustomResult<Vec<u8>,errors::ConnectorError>{
+        let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
+        let timestamp = header_hashmap.remove("t").ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        Ok(format!(
+            "{}.{}",
+            String::from_utf8_lossy(&timestamp),
+            String::from_utf8_lossy(request.body)
+        ).into_bytes())
+    } 
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let webhook = RecurlyWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.uuid),
+        ))
+    }
+
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -550,6 +599,25 @@ impl webhooks::IncomingWebhook for Recurly {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_webhook_event_type(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        let webhook = RecurlyWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let event = match webhook.event_type {
+            transformers::RecurlyPaymentEventType::PaymentSucceeded => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess
+            }
+            transformers::RecurlyPaymentEventType::PaymentFailed => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentFailure
+            }
+        };
+        Ok(event)
+    }
+
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -559,10 +627,33 @@ impl webhooks::IncomingWebhook for Recurly {
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook = RecurlyWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(webhook))
     }
+
+}
+
+fn get_signature_elements_from_header(
+    headers : &actix_web::http::header::HeaderMap
+) -> CustomResult<HashMap<String, Vec<u8>>, errors::ConnectorError>{
+    let security_header = headers.get("recurly-signature").ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+    let security_header_str = security_header.to_str().change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+    let header_parts = security_header_str.split(',').collect::<Vec<&str>>();
+    let mut header_hashmap : HashMap<String, Vec<u8>> = HashMap::with_capacity(header_parts.len());
+
+    for (index, header_part) in header_parts.iter().enumerate() {
+        let key = if index == 0 {
+            "t".to_string() 
+        } else {
+            format!("v{}", index) 
+        };
+        
+        header_hashmap.insert(key, header_part.bytes().collect());
+    }
+    Ok(header_hashmap)
 }
 
 impl ConnectorSpecifications for Recurly {}
