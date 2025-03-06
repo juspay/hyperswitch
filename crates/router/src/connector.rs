@@ -39,12 +39,12 @@ pub use hyperswitch_connectors::connectors::{
     paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payme, payme::Payme, paystack,
     paystack::Paystack, payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz,
     powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
-    razorpay::Razorpay, recurly::Recurly, redsys, redsys::Redsys, shift4, shift4::Shift4, square,
-    square::Square, stax, stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar,
-    taxjar::Taxjar, thunes, thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys,
-    unified_authentication_service, unified_authentication_service::UnifiedAuthenticationService,
-    volt, volt::Volt, wellsfargo, wellsfargo::Wellsfargo, worldline, worldline::Worldline,
-    worldpay, worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4, square, square::Square,
+    stax, stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes,
+    thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
+    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
+    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
+    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]

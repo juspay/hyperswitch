@@ -57,13 +57,16 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        ),
-        (
-            "x-3dss-requestor".to_string(), "POSIEDON"
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                "x-3dss-requestor".to_string(),
+                "POSIEDON".to_string().into(),
+            ),
+        ];
         // let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         // header.append(&mut api_key);
         Ok(header)
@@ -227,7 +230,7 @@ fn build_endpoint(
     connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let metadata = netcetera::NetceteraMetaData::try_from(connector_metadata)?;
-    let endpoint_prefix = metadata.endpoint_prefix;
+    let endpoint_prefix = "";
     Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
 }
 
@@ -262,7 +265,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{}/3ds/versioning", base_url,))
+        Ok(format!("{}/3ds/version", base_url,))
     }
 
     fn get_request_body(
@@ -360,7 +363,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{}/3ds/authentication", base_url,))
+        Ok(format!("{}/3ds/authenticate", base_url,))
     }
 
     fn get_request_body(

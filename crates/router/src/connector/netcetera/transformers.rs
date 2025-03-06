@@ -71,20 +71,20 @@ impl
                 let card_range = pre_authn_response.get_card_range_if_available();
                 let maximum_supported_3ds_version = card_range
                     .as_ref()
-                    .map(|card_range| card_range.highest_common_supported_version.clone())
+                    .map(|card_range| card_range.acs_end_protocol_version.clone())
                     .unwrap_or_else(|| {
                         // Version "0.0.0" will be less that "2.0.0", hence we will treat this card as not eligible for 3ds authentication
                         common_utils::types::SemanticVersion::new(0, 0, 0)
                     });
-                let three_ds_method_data = card_range.as_ref().and_then(|card_range| {
-                    card_range
-                        .three_ds_method_data_form
-                        .as_ref()
-                        .map(|data| data.three_ds_method_data.clone())
-                });
-                let three_ds_method_url = card_range
-                    .as_ref()
-                    .and_then(|card_range| card_range.get_three_ds_method_url());
+                // let three_ds_method_data = card_range.as_ref().and_then(|card_range| {
+                //     card_range
+                //         .three_ds_method_data_form
+                //         .as_ref()
+                //         .map(|data| data.three_ds_method_data.clone())
+                // });
+                // let three_ds_method_url = card_range
+                //     .as_ref()
+                //     .and_then(|card_range| card_range.get_three_ds_method_url());
                 Ok(
                     types::authentication::AuthenticationResponseData::PreAuthNResponse {
                         threeds_server_transaction_id: pre_authn_response
@@ -92,13 +92,11 @@ impl
                             .clone(),
                         maximum_supported_3ds_version: maximum_supported_3ds_version.clone(),
                         connector_authentication_id: pre_authn_response.three_ds_server_trans_id,
-                        three_ds_method_data,
-                        three_ds_method_url,
+                        three_ds_method_data: None,
+                        three_ds_method_url: None,
                         message_version: maximum_supported_3ds_version,
                         connector_metadata: None,
-                        directory_server_id: card_range
-                            .as_ref()
-                            .and_then(|card_range| card_range.directory_server_id.clone()),
+                        directory_server_id: None,
                     },
                 )
             }
@@ -256,10 +254,11 @@ pub struct NetceteraMetaData {
     pub mcc: Option<String>,
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
-    pub endpoint_prefix: String,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
-    pub merchant_configuration_id: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData {
@@ -278,7 +277,7 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetceteraPreAuthenticationRequest {
-    cardholder_account_number: cards::CardNumber,
+    card_number: cards::CardNumber,
     scheme_id: Option<SchemeId>,
 }
 
@@ -317,31 +316,19 @@ impl NetceteraPreAuthenticationResponseData {
         let card_range = self
             .card_ranges
             .iter()
-            .max_by_key(|card_range| &card_range.highest_common_supported_version);
+            .max_by_key(|card_range| &card_range.acs_end_protocol_version);
         card_range.cloned()
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CardRange {
-    pub scheme_id: SchemeId,
-    pub directory_server_id: Option<String>,
-    pub acs_protocol_versions: Vec<AcsProtocolVersion>,
-    #[serde(rename = "threeDSMethodDataForm")]
-    pub three_ds_method_data_form: Option<ThreeDSMethodDataForm>,
-    pub highest_common_supported_version: common_utils::types::SemanticVersion,
-}
-
-impl CardRange {
-    pub fn get_three_ds_method_url(&self) -> Option<String> {
-        self.acs_protocol_versions
-            .iter()
-            .find(|acs_protocol_version| {
-                acs_protocol_version.version == self.highest_common_supported_version
-            })
-            .and_then(|acs_version| acs_version.three_ds_method_url.clone())
-    }
+struct CardRange {
+    acs_info_ind: Vec<String>,
+    start_range: String,
+    acs_end_protocol_version: common_utils::types::SemanticVersion,
+    acs_start_protocol_version: String,
+    end_range: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -379,7 +366,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::PreAuthNRouterData>>
                 .attach_printable("error while checking is_cobadged_card")
         };
         Ok(Self {
-            cardholder_account_number: router_data.request.card.card_number.clone(),
+            card_number: router_data.request.card.card_number.clone(),
             scheme_id: router_data
                 .request
                 .card
@@ -500,11 +487,14 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             netcetera_types::ThreeDSRequestor::from(item.router_data.psd2_sca_exemption_type);
         let card = utils::get_card_details(request.payment_method_data, "netcetera")?;
         let cardholder_account = netcetera_types::CardholderAccount {
-            acct_type: None,
+            acct_type: Some(netcetera_types::AccountType::Credit),
             card_expiry_date: Some(card.get_expiry_date_as_yymm()?),
             acct_info: None,
             acct_number: card.card_number,
-            scheme_id: None,
+            scheme_id: card
+                .card_network
+                .map(|n| n.to_string())
+                .or(Some("VISA".to_string())),
             acct_id: None,
             pay_token_ind: None,
             pay_token_info: None,
@@ -555,7 +545,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             .parse_value("NetceteraMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_data = netcetera_types::MerchantData {
-            merchant_configuration_id: connector_meta_data.merchant_configuration_id,
+            merchant_configuration_id: None,
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
@@ -593,11 +583,23 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
                     ],
                 })
             }
-            api_models::payments::DeviceChannel::Browser => None,
+            api_models::payments::DeviceChannel::Browser => {
+                Some(netcetera_types::DeviceRenderingOptionsSupported {
+                    // hard-coded until core provides these values.
+                    sdk_interface: netcetera_types::SdkInterface::Both,
+                    sdk_ui_type: vec![
+                        netcetera_types::SdkUiType::Text,
+                        netcetera_types::SdkUiType::SingleSelect,
+                        netcetera_types::SdkUiType::MultiSelect,
+                        netcetera_types::SdkUiType::Oob,
+                        netcetera_types::SdkUiType::HtmlOther,
+                    ],
+                })
+            }
         };
         Ok(Self {
             preferred_protocol_version: Some(pre_authn_data.message_version),
-            enforce_preferred_protocol_version: None,
+            enforce_preferred_protocol_version: Some(true),
             device_channel: netcetera_types::NetceteraDeviceChannel::from(request.device_channel),
             message_category: netcetera_types::NetceteraMessageCategory::from(
                 request.message_category,

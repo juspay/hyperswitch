@@ -60,7 +60,7 @@ pub mod powertranz;
 pub mod prophetpay;
 pub mod rapyd;
 pub mod razorpay;
-pub mod recurly;
+// pub mod recurly;
 pub mod redsys;
 pub mod shift4;
 pub mod square;

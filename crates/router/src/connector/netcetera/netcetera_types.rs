@@ -1406,18 +1406,19 @@ impl From<crate::types::BrowserInformation> for Browser {
 impl From<Option<common_enums::ScaExemptionType>> for ThreeDSRequestor {
     fn from(value: Option<common_enums::ScaExemptionType>) -> Self {
         // if sca exemption is provided, we need to set the challenge indicator to NoChallengeRequestedTransactionalRiskAnalysis
-        let three_ds_requestor_challenge_ind =
-            if let Some(common_enums::ScaExemptionType::TransactionRiskAnalysis) = value {
-                Some(SingleOrListElement::Single(
-                ThreeDSRequestorChallengeIndicator::NoChallengeRequestedTransactionalRiskAnalysis,
-            ))
-            } else {
-                None
-            };
+        let three_ds_requestor_challenge_ind = Some(SingleOrListElement::Single(
+            ThreeDSRequestorChallengeIndicator::NoPreference,
+        ));
 
         Self {
             three_ds_requestor_authentication_ind: ThreeDSRequestorAuthenticationIndicator::Payment,
-            three_ds_requestor_authentication_info: None,
+            three_ds_requestor_authentication_info: Some(SingleOrListElement::Single(
+                ThreeDSRequestorAuthenticationInformation {
+                    three_ds_req_auth_method: ThreeDSReqAuthMethod::Guest,
+                    three_ds_req_auth_timestamp: "202409190344".to_string(),
+                    three_ds_req_auth_data: None,
+                },
+            )),
             three_ds_requestor_challenge_ind,
             three_ds_requestor_prior_authentication_info: None,
             three_ds_requestor_dec_req_ind: None,

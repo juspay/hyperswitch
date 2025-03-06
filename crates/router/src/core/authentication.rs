@@ -77,7 +77,7 @@ pub async fn perform_authentication(
         .map_err(|err| ApiErrorResponse::ExternalConnectorError {
             code: err.code,
             message: err.message,
-            connector: authentication_connector,
+            connector: "juspaythreedsserver".to_string(),
             status_code: err.status_code,
             reason: err.reason,
         })?;
@@ -107,7 +107,7 @@ pub async fn perform_post_authentication(
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
-    if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
+    if !authentication.authentication_status.is_terminal_status() && true {
         let router_data = transformers::construct_post_authentication_router_data(
             state,
             authentication_connector.to_string(),
