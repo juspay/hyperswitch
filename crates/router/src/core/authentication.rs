@@ -40,7 +40,7 @@ pub async fn perform_authentication(
     webhook_url: String,
     three_ds_requestor_url: String,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-    force_3ds_challenge: Option<bool>,
+    force_3ds_challenge: bool,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         state,

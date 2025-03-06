@@ -208,7 +208,7 @@ impl SemanticVersion {
         self.0.major
     }
 
-    /// returns major version number
+    /// returns minor version number
     pub fn get_minor(&self) -> u64 {
         self.0.minor
     }

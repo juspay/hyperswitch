@@ -46,7 +46,7 @@ pub fn construct_authentication_router_data(
     webhook_url: String,
     three_ds_requestor_url: String,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-    force_3ds_challenge: Option<bool>,
+    force_3ds_challenge: bool,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
         payment_method_data,

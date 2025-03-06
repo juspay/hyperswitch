@@ -1,2 +1,2 @@
 ALTER TABLE business_profile
-ADD COLUMN IF NOT EXISTS force_3ds_challenge boolean DEFAULT false;
+ADD COLUMN IF NOT EXISTS force_3ds_challenge boolean NOT NULL DEFAULT false;

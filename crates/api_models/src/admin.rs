@@ -2239,7 +2239,7 @@ pub struct ProfileResponse {
     pub is_clear_pan_retries_enabled: bool,
 
     /// Indicates if 3ds challenge is forced
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v2")]

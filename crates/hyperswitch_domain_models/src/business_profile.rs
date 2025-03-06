@@ -65,7 +65,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -113,7 +113,7 @@ pub struct ProfileSetter {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -223,7 +223,7 @@ pub struct ProfileGeneralUpdate {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: Option<bool>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -384,7 +384,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge: false,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -428,7 +428,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge: false,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -472,7 +472,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge: false,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -516,7 +516,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge: false,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -560,7 +560,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge: false,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -604,7 +604,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge: false,
             },
         }
     }
@@ -1562,7 +1562,7 @@ impl super::behaviour::Conversion for Profile {
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-            force_3ds_challenge: None,
+            force_3ds_challenge: false,
         })
     }
 

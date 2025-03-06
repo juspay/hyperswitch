@@ -439,6 +439,6 @@ pub async fn create_profile_from_merchant_account(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating card testing secret key")?,
         is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
-        force_3ds_challenge: request.force_3ds_challenge,
+        force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
     }))
 }
