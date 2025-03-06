@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
 #[cfg(feature = "v1")]
