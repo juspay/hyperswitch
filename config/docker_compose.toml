@@ -574,6 +574,20 @@ eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 przelewy24 = { country = "PL", currency = "PLN,EUR" }
 
+[pm_filters.boku]
+dana = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+momo = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+gcash = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+go_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+kakao_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+
+[pm_filters.datatrans]
+credit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
+debit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
+
+[pm_filters.cryptopay]
+crypto_currency = { country = "AX,AT,BE,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FO,FR,GF,GP,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MF,MQ,MT,NL,NO,PL,PT,RE,RO,SE,SI,SK",  currency = "AED,AUD,CAD,CHF,EUR,GBP,HKD,IDR,INR,JPY,KRW,MYR,NZD,PHP,SGD,THB,USD" }
+
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 fiuu.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_of_china,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
@@ -586,7 +600,7 @@ adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,hal
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
-wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica" }
+wallet.google_pay = { connector_list = "stripe,adyen,cybersource,bankofamerica" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen" }
@@ -599,6 +613,7 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
 bank_redirect.giropay = { connector_list = "globalpay" }
+wallet.paze = { connector_list = "cybersource" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
