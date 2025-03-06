@@ -4373,7 +4373,8 @@
           "netcetera",
           "gpayments",
           "ctp_mastercard",
-          "unified_authentication_service"
+          "unified_authentication_service",
+          "juspaythreedsserver"
         ]
       },
       "AuthenticationStatus": {
@@ -7416,6 +7417,7 @@
           "iatapay",
           "itaubank",
           "jpmorgan",
+          "juspaythreedsserver",
           "klarna",
           "mifinity",
           "mollie",
