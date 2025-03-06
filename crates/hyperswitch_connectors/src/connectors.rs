@@ -36,6 +36,7 @@ pub mod iatapay;
 pub mod inespay;
 pub mod itaubank;
 pub mod jpmorgan;
+pub mod juspaythreedsserver;
 pub mod klarna;
 pub mod mifinity;
 pub mod mollie;
@@ -87,6 +88,7 @@ pub use self::{
     elavon::Elavon, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
     getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     helcim::Helcim, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    juspaythreedsserver::Juspaythreedsserver,
     klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
     multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
     noon::Noon, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
