@@ -225,7 +225,7 @@ impl PaymentsResponseData {
 
                 diesel_models::ConnectorTokenDetails {
                     connector_mandate_id,
-                    connector_mandate_request_reference_id,
+                    connector_token_request_reference_id: connector_mandate_request_reference_id,
                 }
             })
         } else {
@@ -271,6 +271,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -351,10 +352,12 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             RedirectForm::Nmi {
                 amount,
@@ -433,10 +436,12 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             diesel_models::payment_attempt::RedirectForm::Nmi {
                 amount,

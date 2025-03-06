@@ -71,7 +71,9 @@ use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
-use crate::routes::cards_info::card_iin_info;
+use crate::routes::cards_info::{
+    card_iin_info, create_cards_info, migrate_cards_info, update_cards_info,
+};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
@@ -568,12 +570,17 @@ impl Payments {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
             .service(
-                web::resource("")
-                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
-            )
-            .service(
                 web::resource("/create-intent")
                     .route(web::post().to(payments::payments_create_intent)),
+            )
+            .service(web::resource("/filter").route(web::get().to(payments::get_payment_filters)))
+            .service(
+                web::resource("/profile/filter")
+                    .route(web::get().to(payments::get_payment_filters_profile)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
@@ -595,6 +602,10 @@ impl Payments {
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/proxy-confirm-intent")
+                        .route(web::post().to(payments::proxy_confirm_intent)),
                 )
                 .service(
                     web::resource("/get-intent")
@@ -1282,10 +1293,10 @@ impl PaymentMethods {
 }
 
 #[cfg(all(feature = "v2", feature = "oltp"))]
-pub struct PaymentMethodsSession;
+pub struct PaymentMethodSession;
 
 #[cfg(all(feature = "v2", feature = "oltp"))]
-impl PaymentMethodsSession {
+impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
         route = route.service(
@@ -1293,23 +1304,27 @@ impl PaymentMethodsSession {
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
         );
 
-        route = route.service(
-            web::scope("/{payment_method_session_id}")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(payment_methods::payment_methods_session_retrieve)),
-                )
-                .service(web::resource("/list-payment-methods").route(
-                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
-                ))
-                .service(
-                    web::resource("/update-saved-payment-method").route(
+        route =
+            route.service(
+                web::scope("/{payment_method_session_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(payment_methods::payment_methods_session_retrieve))
+                            .route(web::put().to(payment_methods::payment_methods_session_update)),
+                    )
+                    .service(web::resource("/list-payment-methods").route(
+                        web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                    ))
+                    .service(
+                        web::resource("/confirm")
+                            .route(web::post().to(payment_methods::payment_method_session_confirm)),
+                    )
+                    .service(web::resource("/update-saved-payment-method").route(
                         web::put().to(
                             payment_methods::payment_method_session_update_saved_payment_method,
                         ),
-                    ),
-                ),
-        );
+                    )),
+            );
 
         route
     }
@@ -1785,11 +1800,14 @@ impl Disputes {
 
 pub struct Cards;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
+            .service(web::resource("/create").route(web::post().to(create_cards_info)))
+            .service(web::resource("/update").route(web::post().to(update_cards_info)))
+            .service(web::resource("/update-batch").route(web::post().to(migrate_cards_info)))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }

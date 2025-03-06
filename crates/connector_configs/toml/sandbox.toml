@@ -3992,6 +3992,19 @@ type="Text"
 [stripe_payout.connector_auth.HeaderKey]
 api_key = "Stripe API Key"
 
+[nomupay_payout]
+[[nomupay_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[nomupay_payout.connector_auth.BodyKey]
+api_key = "Nomupay kid"
+key1 = "Nomupay eid"
+[nomupay_payout.metadata.private_key]
+name="Private key for signature generation"
+label="Enter your private key"
+placeholder="------BEGIN PRIVATE KEY-------"
+required=true
+type="Text"
+
 [wise_payout]
 [[wise_payout.bank_transfer]]
   payment_method_type = "ach"
@@ -4535,6 +4548,8 @@ type="Text"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+[xendit.connector_webhook_details]
+webhook_verification_token="Source verification key"
 
 [inespay]
 [[inespay.bank_debit]]

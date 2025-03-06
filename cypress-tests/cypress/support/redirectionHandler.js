@@ -7,11 +7,14 @@ const CONSTANTS = {
   TIMEOUT: 20000, // 20 seconds
   WAIT_TIME: 10000, // 10 seconds
   ERROR_PATTERNS: [
-    /4\d{2}/,
-    /5\d{2}/,
-    /error/i,
-    /invalid request/i,
-    /server error/i,
+    /^(4|5)\d{2}\s/, // HTTP error status codes
+    /\berror occurred\b/i,
+    /\bpayment failed\b/i,
+    /\binvalid request\b/i,
+    /\bserver error\b/i,
+    /\btransaction failed\b/i,
+    /\bpayment declined\b/i,
+    /\bauthorization failed\b/i,
   ],
   VALID_TERMINAL_STATUSES: [
     "failed",
@@ -31,28 +34,28 @@ export function handleRedirection(
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
       break;
     case "bank_transfer":
       bankTransferRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType,
-        handlerMetadata.next_action_type
+        handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirection_url, urls.expected_url, connectorId);
+      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
       break;
     case "upi":
       upiRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
@@ -137,64 +140,25 @@ function bankRedirectRedirection(
               cy.get('[value="authorised"]').click();
               break;
             case "ideal":
-              cy.get(":nth-child(4) > td > p").should(
-                "contain.text",
-                "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
-              );
-              cy.get(".btnLink").click();
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
-              break;
-            case "giropay":
-              cy.get(
-                ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
-              ).click();
-              cy.wait(5000);
-              cy.get(".normal-3").should(
-                "contain.text",
-                "Bank suchen ‑ mit giropay zahlen."
-              );
-              cy.get("#bankSearch").type("giropay TestBank{enter}");
-              cy.get(".normal-2 > div").click();
-              cy.get('[data-testid="customerIban"]').type(
-                "DE48499999601234567890"
-              );
-              cy.get('[data-testid="customerIdentification"]').type(
-                "9123456789"
-              );
-              cy.get(":nth-child(3) > .rds-button").click();
-              cy.get('[data-testid="onlineBankingPin"]').type("1234");
-              cy.get(".rds-button--primary").click();
-              cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
-              cy.get(".rds-button--primary").click();
-              cy.get('[data-testid="photoTan"]').type("123456");
-              cy.get(".rds-button--primary").click();
-              cy.wait(5000);
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
-              break;
-            case "sofort":
-              cy.get(".modal-overlay.modal-shown.in", {
-                timeout: constants.TIMEOUT,
-              }).then(($modal) => {
-                // If modal is found, handle it
-                if ($modal.length > 0) {
-                  cy.get("button.cookie-modal-deny-all.button-tertiary")
-                    .should("be.visible")
-                    .should("contain", "Reject All")
-                    .click({ multiple: true });
-                  cy.get("div#TopBanks.top-banks-multistep")
-                    .should("contain", "Demo Bank")
-                    .as("btn")
-                    .click();
-                  cy.get("@btn").click();
-                } else {
-                  cy.get("input.phone").type("9123456789");
-                  cy.get("#button.onContinue")
-                    .should("contain", "Continue")
-                    .click();
-                }
-              });
+              cy.wait(2000);
+              cy.get("button[data-testid=payment-action-button]").click();
+              cy.wait(2000);
+              cy.get("button[id=bank-item-TESTNL2A]").click();
+              cy.wait(2000);
+              cy.location("host").then(() => {
+                cy.url().then((currentUrl) => {
+                  console.log("currenturl ", currentUrl);
+                  cy.origin(new URL(currentUrl).origin, () => {
+                    cy.url().then((redirectedUrl) => {
+                      console.log("redirectedUrl ", redirectedUrl);
+
+                      cy.get('button.shared-styles_button__cNu+v').contains('Success').click();
+                      cy.url().should('include', '/loading/SUCCESS');
+
+                    });
+                  });
+                })
+              })
               break;
             default:
               throw new Error(
@@ -515,13 +479,18 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                   if (!pageText) {
                     // eslint-disable-next-line cypress/assertion-before-screenshot
                     cy.screenshot("blank-page-error");
-                  } else if (
-                    constants.ERROR_PATTERNS.some((pattern) =>
+                  } else {
+                    // Check if any error pattern exists in the text
+                    const hasError = constants.ERROR_PATTERNS.some((pattern) =>
                       pattern.test(pageText)
-                    )
-                  ) {
-                    // eslint-disable-next-line cypress/assertion-before-screenshot
-                    cy.screenshot(`error-page-${Date.now()}`);
+                    );
+
+                    if (hasError) {
+                      // Only take screenshot if an error pattern was found
+                      // eslint-disable-next-line cypress/assertion-before-screenshot
+                      cy.screenshot(`error-page-${Date.now()}`);
+                      throw new Error(`Page contains error: ${pageText}`);
+                    }
                   }
                 });
 

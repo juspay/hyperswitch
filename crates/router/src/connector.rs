@@ -34,22 +34,22 @@ pub use hyperswitch_connectors::connectors::{
     mollie::Mollie, moneris, moneris::Moneris, multisafepay, multisafepay::Multisafepay, nexinets,
     nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, noon, noon::Noon,
     novalnet, novalnet::Novalnet, nuvei, nuvei::Nuvei, opayo, opayo::Opayo, opennode,
-    opennode::Opennode, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payme, payme::Payme,
-    paypal, paypal::Paypal, payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz,
+    opennode::Opennode, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payme, payme::Payme,paypal, paypal::Paypal,
+    paystack, paystack::Paystack, payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz,
     powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
-    razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4, square, square::Square,
-    stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, trustpay, trustpay::Trustpay,
-    tsys, tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
-    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    razorpay::Razorpay, recurly::Recurly, redsys, redsys::Redsys, shift4, shift4::Shift4, square,
+    square::Square, stax, stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar,
+    taxjar::Taxjar, thunes, thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys,
+    unified_authentication_service, unified_authentication_service::UnifiedAuthenticationService,
+    volt, volt::Volt, wellsfargo, wellsfargo::Wellsfargo, worldline, worldline::Worldline,
+    worldpay, worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyen::Adyen, adyenplatform::Adyenplatform, ebanx::Ebanx, gpayments::Gpayments,
-    netcetera::Netcetera, nmi::Nmi, payone::Payone, plaid::Plaid, riskified::Riskified,
-    signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
+    netcetera::Netcetera, nmi::Nmi, payone::Payone, paypal::Paypal, plaid::Plaid,
+    riskified::Riskified, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
     wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
