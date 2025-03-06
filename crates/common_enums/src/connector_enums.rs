@@ -233,6 +233,7 @@ pub enum Connector {
     Iatapay,
     Itaubank,
     Jpmorgan,
+    Juspaythreedsserver,
     Klarna,
     Mifinity,
     Mollie,
@@ -389,6 +390,7 @@ impl Connector {
 			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
+            | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
