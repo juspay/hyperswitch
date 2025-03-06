@@ -4,7 +4,7 @@ use error_stack::ResultExt;
 use hmac::{Hmac, Mac, NewMac};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData, ErrorResponse},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsPreProcessingData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -14,7 +14,7 @@ use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use openssl::symm::{encrypt, Cipher};
 use router_env::logger;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::Sha256;
 
 use crate::{
@@ -292,19 +292,30 @@ pub struct RedsysTransaction {
     ds_signature: Secret<String>,
 }
 
-impl<F> TryFrom<ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>>
-    for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            RedsysPreProcessingResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            RedsysPreProcessingResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
-            RedsysPreProcessingResponse::RedsysResponse( response) => {
-                let response_data: IniciaPeticionResponse = get_merchant_parameters(
-                    &response.ds_merchant_parameters.clone().expose(),
-                )?;
+            RedsysPreProcessingResponse::RedsysResponse(response) => {
+                let response_data: IniciaPeticionResponse =
+                    get_merchant_parameters(&response.ds_merchant_parameters.clone().expose())?;
 
                 handle_redsys_response(item, &response_data)
             }
@@ -316,31 +327,48 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPrePr
 }
 
 fn handle_redsys_response<F>(
-    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    item: ResponseRouterData<
+        F,
+        RedsysPreProcessingResponse,
+        PaymentsPreProcessingData,
+        PaymentsResponseData,
+    >,
     response_data: &IniciaPeticionResponse,
-) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<
+    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
+    error_stack::Report<errors::ConnectorError>,
+> {
     match (
         response_data.ds_emv3ds.three_d_s_method_u_r_l.clone(),
         response_data.ds_emv3ds.three_d_s_server_trans_i_d.clone(),
     ) {
-        (Some(three_d_s_method_u_r_l), Some(three_d_s_server_trans_i_d)) => {
-            handle_ddc_case(item, response_data, three_d_s_method_u_r_l, three_d_s_server_trans_i_d)
-        }
+        (Some(three_d_s_method_u_r_l), Some(three_d_s_server_trans_i_d)) => handle_ddc_case(
+            item,
+            response_data,
+            three_d_s_method_u_r_l,
+            three_d_s_server_trans_i_d,
+        ),
         (None, Some(three_d_s_server_trans_i_d)) => {
             handle_no_ddc_case(item, response_data, three_d_s_server_trans_i_d)
         }
-        (Some(_), None) | (None, None) => {
-            handle_non_3ds_case(item, response_data)
-        }
+        (Some(_), None) | (None, None) => handle_non_3ds_case(item, response_data),
     }
 }
 
 fn handle_ddc_case<F>(
-    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    item: ResponseRouterData<
+        F,
+        RedsysPreProcessingResponse,
+        PaymentsPreProcessingData,
+        PaymentsResponseData,
+    >,
     response_data: &IniciaPeticionResponse,
     three_d_s_method_u_r_l: String,
     three_d_s_server_trans_i_d: String,
-) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<
+    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
+    error_stack::Report<errors::ConnectorError>,
+> {
     let three_d_s_method_notification_u_r_l = item.data.request.get_webhook_url()?;
 
     let threeds_invoke_data = ThreedsInvokeRequest {
@@ -384,10 +412,18 @@ fn handle_ddc_case<F>(
 }
 
 fn handle_no_ddc_case<F>(
-    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    item: ResponseRouterData<
+        F,
+        RedsysPreProcessingResponse,
+        PaymentsPreProcessingData,
+        PaymentsResponseData,
+    >,
     response_data: &IniciaPeticionResponse,
     three_d_s_server_trans_i_d: String,
-) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<
+    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
+    error_stack::Report<errors::ConnectorError>,
+> {
     let three_ds_data = ThreeDsNoDDCData {
         message_version: response_data.ds_emv3ds.protocol_version.clone(),
         three_d_s_server_trans_i_d,
@@ -416,9 +452,17 @@ fn handle_no_ddc_case<F>(
 }
 
 fn handle_non_3ds_case<F>(
-    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    item: ResponseRouterData<
+        F,
+        RedsysPreProcessingResponse,
+        PaymentsPreProcessingData,
+        PaymentsResponseData,
+    >,
     response_data: &IniciaPeticionResponse,
-) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<
+    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
+    error_stack::Report<errors::ConnectorError>,
+> {
     Ok(RouterData {
         status: common_enums::enums::AttemptStatus::AuthenticationPending,
         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -436,9 +480,17 @@ fn handle_non_3ds_case<F>(
 }
 
 fn handle_redsys_error_response<F>(
-    item: ResponseRouterData<F, RedsysPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+    item: ResponseRouterData<
+        F,
+        RedsysPreProcessingResponse,
+        PaymentsPreProcessingData,
+        PaymentsResponseData,
+    >,
     response: &RedsysErrorResponse,
-) -> Result<RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<
+    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
+    error_stack::Report<errors::ConnectorError>,
+> {
     let response = Err(ErrorResponse {
         code: response.error_code.clone(),
         message: response.error_code.clone(),
