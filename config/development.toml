@@ -77,10 +77,11 @@ locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 
 [forex_api]
-call_delay = 21600
 api_key = ""
 fallback_api_key = ""
-redis_lock_timeout = 100
+call_delay_in_seconds = 21600
+redis_lock_timeout_in_seconds = 100
+redis_cache_expiry_in_seconds = 172800
 
 [jwekey]
 vault_encryption_key = """

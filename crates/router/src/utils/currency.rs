@@ -455,7 +455,7 @@ async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCac
             &REDIX_FOREX_CACHE_KEY.into(),
             "",
             Some(
-                i64::try_from(forex_api.redis_lock_timeout)
+                i64::try_from(forex_api.redis_lock_timeout_in_seconds)
                     .change_context(ForexCacheError::ConversionError)?,
             ),
         )
@@ -469,12 +469,17 @@ async fn save_forex_data_to_redis(
     app_state: &SessionState,
     forex_exchange_cache_entry: &FxExchangeRatesCacheEntry,
 ) -> CustomResult<(), ForexCacheError> {
+    let forex_api = app_state.conf.forex_api.get_inner();
     logger::debug!("forex_log: Saving forex to redis");
     app_state
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .serialize_and_set_key(&REDIX_FOREX_CACHE_DATA.into(), forex_exchange_cache_entry)
+        .serialize_and_set_key_with_expiry(
+            &REDIX_FOREX_CACHE_DATA.into(),
+            forex_exchange_cache_entry,
+            forex_api.redis_cache_expiry_in_seconds,
+        )
         .await
         .change_context(ForexCacheError::RedisWriteError)
         .attach_printable("Unable to save forex data to redis")
@@ -516,7 +521,7 @@ pub async fn convert_currency(
     from_currency: String,
 ) -> CustomResult<api_models::currency::CurrencyConversionResponse, ForexCacheError> {
     let forex_api = state.conf.forex_api.get_inner();
-    let rates = get_forex_rates(&state, forex_api.call_delay)
+    let rates = get_forex_rates(&state, forex_api.call_delay_in_seconds)
         .await
         .change_context(ForexCacheError::ApiError)?;
 
