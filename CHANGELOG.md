@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.06.0
+
+### Features
+
+- **connector:** [EFT] Add EFT as a payment method ([#7304](https://github.com/juspay/hyperswitch/pull/7304)) ([`6df1578`](https://github.com/juspay/hyperswitch/commit/6df1578922b7bdc3d0b20ef1bc0b8714f43cc4bf))
+- **payment_link:** Expose payment link configs for SDK UI rules and payment button ([#7427](https://github.com/juspay/hyperswitch/pull/7427)) ([`6a5ce26`](https://github.com/juspay/hyperswitch/commit/6a5ce266d94ed2f026b26f486b4e0ea763384909))
+
+**Full Changelog:** [`2025.03.05.1...2025.03.06.0`](https://github.com/juspay/hyperswitch/compare/2025.03.05.1...2025.03.06.0)
+
+
+- - -
+
+## 2025.03.05.1
+
+### Features
+
+- **connector:**
+  - Add template code for recurly ([#7284](https://github.com/juspay/hyperswitch/pull/7284)) ([`a1691d1`](https://github.com/juspay/hyperswitch/commit/a1691d1b85226f336514d2c0dd4707cda131c69b))
+  - [Moneris] Implement mandate for Moneris ([#7322](https://github.com/juspay/hyperswitch/pull/7322)) ([`ba84b00`](https://github.com/juspay/hyperswitch/commit/ba84b00edebb5884fb68270ad8cf3e3f50883c55))
+- **router:** Add proxy-confirm-intent api for payments in v2 flow ([#7215](https://github.com/juspay/hyperswitch/pull/7215)) ([`30f321b`](https://github.com/juspay/hyperswitch/commit/30f321bc2001264f5197172428ecae79896ad2f5))
+
+### Bug Fixes
+
+- **connector:** [Braintree] Consume merchant_account_id and merchant_config_currency in payment requests ([#7408](https://github.com/juspay/hyperswitch/pull/7408)) ([`00d69bd`](https://github.com/juspay/hyperswitch/commit/00d69bd924c1c8368ea6ab1af32a2f258c1a94c1))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.85.0 clippy lints ([#7376](https://github.com/juspay/hyperswitch/pull/7376)) ([`38bb767`](https://github.com/juspay/hyperswitch/commit/38bb7676be4015ee6e256110f564b7d573f89c91))
+
+**Full Changelog:** [`2025.03.05.0...2025.03.05.1`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0...2025.03.05.1)
+
+
+- - -
+
 ## 2025.03.05.0
 
 ### Features
