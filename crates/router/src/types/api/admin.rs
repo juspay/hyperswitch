@@ -438,5 +438,6 @@ pub async fn create_profile_from_merchant_account(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating card testing secret key")?,
         is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
+        active_surcharge_algorithm_id: request.active_surcharge_algorithm_id,
     }))
 }

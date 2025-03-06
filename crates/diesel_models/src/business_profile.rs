@@ -64,6 +64,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -160,6 +161,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -205,6 +207,7 @@ impl ProfileUpdateInternal {
             card_testing_guard_config,
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
+            active_surcharge_algorithm_id,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -275,6 +278,8 @@ impl ProfileUpdateInternal {
             card_testing_secret_key,
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
+            active_surcharge_algorithm_id: active_surcharge_algorithm_id
+                .or(source.active_surcharge_algorithm_id),
         }
     }
 }

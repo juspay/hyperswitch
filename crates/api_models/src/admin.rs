@@ -1963,6 +1963,9 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    ///active surcharge config id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[nutype::nutype(
@@ -2501,6 +2504,9 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// active surcharge config id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]

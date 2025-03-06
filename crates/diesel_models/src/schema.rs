@@ -220,6 +220,8 @@ diesel::table! {
         card_testing_guard_config -> Nullable<Jsonb>,
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
+        #[max_length = 64]
+        active_surcharge_algorithm_id -> Nullable<Varchar>,
     }
 }
 
@@ -921,6 +923,8 @@ diesel::table! {
         processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 64]
+        surcharge_algorithm_id -> Nullable<Varchar>,
     }
 }
 

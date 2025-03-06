@@ -48,6 +48,7 @@ pub use self::{
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,
+    routing::SurchargeRoutingId,
     tenant::TenantId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
