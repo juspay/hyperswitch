@@ -551,6 +551,28 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        currency: "EUR",
+        billing: billingAddress,
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,

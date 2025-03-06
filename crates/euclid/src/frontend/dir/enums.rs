@@ -147,6 +147,7 @@ pub enum BankRedirectType {
     Giropay,
     Ideal,
     Sofort,
+    Eft,
     Eps,
     BancontactCard,
     Blik,

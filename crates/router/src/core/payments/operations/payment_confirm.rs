@@ -1022,7 +1022,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     token,
                     business_profile,
                     acquirer_details,
-                    Some(payment_data.payment_attempt.payment_id.clone()),
+                    payment_data.payment_attempt.payment_id.clone(),
                     payment_data.payment_attempt.organization_id.clone(),
                 ))
                 .await?;
@@ -1063,6 +1063,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     key_store,
                     business_profile.clone(),
                     authentication_id.clone(),
+                    &payment_data.payment_intent.payment_id,
                 ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
@@ -1280,7 +1281,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication_connector_name.clone(),
                     token,
                     business_profile.get_id().to_owned(),
-                    Some(payment_data.payment_intent.payment_id.clone()),
+                    payment_data.payment_intent.payment_id.clone(),
                     three_ds_connector_account
                         .get_mca_id()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)

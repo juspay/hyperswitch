@@ -7,11 +7,14 @@ const CONSTANTS = {
   TIMEOUT: 20000, // 20 seconds
   WAIT_TIME: 10000, // 10 seconds
   ERROR_PATTERNS: [
-    /4\d{2}/,
-    /5\d{2}/,
-    /error/i,
-    /invalid request/i,
-    /server error/i,
+    /^(4|5)\d{2}\s/, // HTTP error status codes
+    /\berror occurred\b/i,
+    /\bpayment failed\b/i,
+    /\binvalid request\b/i,
+    /\bserver error\b/i,
+    /\btransaction failed\b/i,
+    /\bpayment declined\b/i,
+    /\bauthorization failed\b/i,
   ],
   VALID_TERMINAL_STATUSES: [
     "failed",
@@ -31,28 +34,28 @@ export function handleRedirection(
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
       break;
     case "bank_transfer":
       bankTransferRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType,
-        handlerMetadata.next_action_type
+        handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirection_url, urls.expected_url, connectorId);
+      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
       break;
     case "upi":
       upiRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
@@ -476,13 +479,18 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                   if (!pageText) {
                     // eslint-disable-next-line cypress/assertion-before-screenshot
                     cy.screenshot("blank-page-error");
-                  } else if (
-                    constants.ERROR_PATTERNS.some((pattern) =>
+                  } else {
+                    // Check if any error pattern exists in the text
+                    const hasError = constants.ERROR_PATTERNS.some((pattern) =>
                       pattern.test(pageText)
-                    )
-                  ) {
-                    // eslint-disable-next-line cypress/assertion-before-screenshot
-                    cy.screenshot(`error-page-${Date.now()}`);
+                    );
+
+                    if (hasError) {
+                      // Only take screenshot if an error pattern was found
+                      // eslint-disable-next-line cypress/assertion-before-screenshot
+                      cy.screenshot(`error-page-${Date.now()}`);
+                      throw new Error(`Page contains error: ${pageText}`);
+                    }
                   }
                 });
 

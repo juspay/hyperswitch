@@ -196,6 +196,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
+            global_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
         }
     }
 }

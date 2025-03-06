@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::analytics::{
-    auth_events::{AuthEventFlows, AuthEventMetricsBucketIdentifier},
-    Granularity, TimeRange,
+    auth_events::AuthEventMetricsBucketIdentifier, Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -10,7 +9,7 @@ use time::PrimitiveDateTime;
 
 use super::AuthEventMetricRow;
 use crate::{
-    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -30,13 +29,12 @@ where
     async fn load_metrics(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        _publishable_key: &str,
         granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::ApiEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::Authentications);
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -45,22 +43,30 @@ where
             })
             .switch()?;
 
-        if let Some(granularity) = granularity {
-            query_builder
-                .add_granularity_in_mins(granularity)
-                .switch()?;
-        }
+        query_builder
+            .add_select_column(Aggregate::Min {
+                field: "created_at",
+                alias: Some("start_bucket"),
+            })
+            .switch()?;
+
+        query_builder
+            .add_select_column(Aggregate::Max {
+                field: "created_at",
+                alias: Some("end_bucket"),
+            })
+            .switch()?;
 
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
 
         query_builder
-            .add_filter_clause("api_flow", AuthEventFlows::IncomingWebhookReceive)
+            .add_filter_clause("trans_status", "C".to_string())
             .switch()?;
 
         query_builder
-            .add_custom_filter_clause("request", "threeDSServerTransID", FilterTypes::Like)
+            .add_negative_filter_clause("authentication_status", "pending")
             .switch()?;
 
         time_range
@@ -68,9 +74,9 @@ where
             .attach_printable("Error filtering time range")
             .switch()?;
 
-        if let Some(_granularity) = granularity.as_ref() {
-            query_builder
-                .add_group_by_clause("time_bucket")
+        if let Some(granularity) = granularity {
+            granularity
+                .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }

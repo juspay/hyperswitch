@@ -222,6 +222,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Multibanco
                 | PaymentMethodType::Przelewy24
                 | PaymentMethodType::Becs
+                | PaymentMethodType::Eft
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer

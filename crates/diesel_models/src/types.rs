@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use common_enums::{enums::PaymentConnectorTransmission, PaymentMethod, PaymentMethodType};
+use common_enums::enums::PaymentConnectorTransmission;
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -54,6 +54,25 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+}
+
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|rrm| rrm.payment_method_subtype)
+    }
+
+    pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|rrm| rrm.payment_method_type)
+    }
+
+    // TODO: Check search_tags for relevant payment method type
+    // TODO: Check redirect_response metadata if applicable
+    // TODO: Check apple_pay_recurring_details metadata if applicable
 }
 
 #[cfg(feature = "v1")]
@@ -137,9 +156,9 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
-    pub payment_method_type: PaymentMethod,
+    pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: common_enums::enums::PaymentMethodType,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

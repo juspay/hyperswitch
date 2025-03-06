@@ -175,6 +175,17 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
+            BankRedirectData::Eft { .. } => Self::BankRedirect(Box::new(BankRedirectionPMData {
+                payment_brand: PaymentBrand::Eft,
+                bank_account_country: Some(item.router_data.get_billing_country()?),
+                bank_account_bank_name: None,
+                bank_account_bic: None,
+                bank_account_iban: None,
+                billing_country: None,
+                merchant_customer_id: None,
+                merchant_transaction_id: None,
+                customer_email: None,
+            })),
             BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
@@ -327,6 +338,7 @@ pub struct WalletPMData {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentBrand {
     Eps,
+    Eft,
     Ideal,
     Giropay,
     Sofortueberweisung,

@@ -6,6 +6,29 @@ use std::{
 use super::NameDescription;
 
 #[derive(
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::AsRefStr,
+    PartialEq,
+    PartialOrd,
+    Eq,
+    Ord,
+    strum::Display,
+    strum::EnumIter,
+    Clone,
+    Copy,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthEventDimensions {
+    #[serde(rename = "authentication_status")]
+    AuthenticationStatus,
+    #[serde(rename = "trans_status")]
+    TransactionStatus,
+}
+
+#[derive(
     Clone,
     Debug,
     Hash,
@@ -20,7 +43,7 @@ use super::NameDescription;
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum AuthEventMetrics {
-    ThreeDsSdkCount,
+    AuthenticationCount,
     AuthenticationAttemptCount,
     AuthenticationSuccessCount,
     ChallengeFlowCount,
@@ -48,7 +71,7 @@ pub enum AuthEventFlows {
 }
 
 pub mod metric_behaviour {
-    pub struct ThreeDsSdkCount;
+    pub struct AuthenticationCount;
     pub struct AuthenticationAttemptCount;
     pub struct AuthenticationSuccessCount;
     pub struct ChallengeFlowCount;
@@ -96,7 +119,7 @@ impl PartialEq for AuthEventMetricsBucketIdentifier {
 
 #[derive(Debug, serde::Serialize)]
 pub struct AuthEventMetricsBucketValue {
-    pub three_ds_sdk_count: Option<u64>,
+    pub authentication_count: Option<u64>,
     pub authentication_attempt_count: Option<u64>,
     pub authentication_success_count: Option<u64>,
     pub challenge_flow_count: Option<u64>,

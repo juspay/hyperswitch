@@ -36,7 +36,7 @@ if (jsonData?.error?.message) {
   pm.test(
     "[POST]::/payments/:id/confirm - Content check if value for 'error.reason' matches ' mandate payment is not supported by nmi'" ,
     function () {
-      pm.expect(jsonData.error.reason).to.eql(" mandate payment is not supported by nmi");
+      pm.expect(jsonData.error.reason).to.eql("credit mandate payment is not supported by nmi");
     },
   );
 }

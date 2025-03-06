@@ -2661,7 +2661,7 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<NextActionData>)]
     pub next_action: Option<payments::NextActionData>,
 
-    /// The customer authenticaion details for the payment method
+    /// The customer authentication details for the payment method
     /// This refers to either the payment / external authentication details
     pub authentication_details: Option<AuthenticationDetails>,
 

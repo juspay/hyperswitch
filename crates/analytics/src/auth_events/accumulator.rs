@@ -4,7 +4,7 @@ use super::metrics::AuthEventMetricRow;
 
 #[derive(Debug, Default)]
 pub struct AuthEventMetricsAccumulator {
-    pub three_ds_sdk_count: CountAccumulator,
+    pub authentication_count: CountAccumulator,
     pub authentication_attempt_count: CountAccumulator,
     pub authentication_success_count: CountAccumulator,
     pub challenge_flow_count: CountAccumulator,
@@ -47,7 +47,7 @@ impl AuthEventMetricAccumulator for CountAccumulator {
 impl AuthEventMetricsAccumulator {
     pub fn collect(self) -> AuthEventMetricsBucketValue {
         AuthEventMetricsBucketValue {
-            three_ds_sdk_count: self.three_ds_sdk_count.collect(),
+            authentication_count: self.authentication_count.collect(),
             authentication_attempt_count: self.authentication_attempt_count.collect(),
             authentication_success_count: self.authentication_success_count.collect(),
             challenge_flow_count: self.challenge_flow_count.collect(),

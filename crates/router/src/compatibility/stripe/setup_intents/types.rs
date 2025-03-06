@@ -179,11 +179,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| {
-                v.into_iter()
-                    .next()
-                    .map(api_enums::RoutableConnectors::from)
-            });
+            item.connector.and_then(|v| v.into_iter().next());
 
         let routing = routable_connector
             .map(|connector| {
@@ -377,6 +373,8 @@ pub enum StripeNextAction {
         image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
+        border_color: Option<String>,
+        display_text: Option<String>,
     },
     FetchQrCodeInformation {
         qr_code_fetch_url: url::Url,
@@ -422,10 +420,14 @@ pub(crate) fn into_stripe_next_action(
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            display_text,
+            border_color,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            display_text,
+            border_color,
         },
         payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
             StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }

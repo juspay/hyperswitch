@@ -283,7 +283,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = mandate_data.map(Into::into);
+        let setup_mandate = mandate_data;
 
         let mandate_details_present =
             payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();

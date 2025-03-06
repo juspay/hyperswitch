@@ -316,7 +316,7 @@ services:
       - redisinsight_store:/db
 
   hyperswitch-control-center:
-    image: juspaydotin/hyperswitch-control-center:latest
+    image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
     pull_policy: always
     networks:
       - router_net

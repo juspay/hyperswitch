@@ -456,7 +456,7 @@ pub async fn connector_retrieve(
     let id = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -477,7 +477,7 @@ pub async fn connector_retrieve(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -491,7 +491,7 @@ pub async fn connector_list(
     let flow = Flow::MerchantConnectorsList;
     let profile_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -507,7 +507,7 @@ pub async fn connector_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
