@@ -121,7 +121,8 @@ iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
-jpmorgan.secondary_base_url="https://id.payments.jpmorgan.com"
+juspaythreedsserver.base_url = "http://localhost:8000"
+jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -227,6 +228,7 @@ cards = [
     "inespay",
     "itaubank",
     "jpmorgan",
+    "juspaythreedsserver",
     "mollie",
     "moneris",
     "multisafepay",

@@ -6497,6 +6497,7 @@ pub enum AuthenticationConnectors {
     Gpayments,
     CtpMastercard,
     UnifiedAuthenticationService,
+    Juspaythreedsserver,
 }
 
 impl AuthenticationConnectors {
@@ -6505,7 +6506,8 @@ impl AuthenticationConnectors {
             Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
-            | Self::UnifiedAuthenticationService => false,
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver => false,
             Self::Gpayments => true,
         }
     }

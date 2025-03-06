@@ -156,6 +156,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -302,6 +303,7 @@ impl ConnectorConfig {
             AuthenticationConnectors::UnifiedAuthenticationService => {
                 Ok(connector_data.unified_authentication_service)
             }
+            AuthenticationConnectors::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
         }
     }
 
@@ -368,6 +370,7 @@ impl ConnectorConfig {
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
+            Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
