@@ -181,9 +181,7 @@ impl PaymentIntent {
         let intent_request_extended_authorization_optional = self.request_extended_authorization;
         if always_request_extended_authorization_optional.is_some_and(
             |always_request_extended_authorization| *always_request_extended_authorization,
-        ) {
-            Some(is_extended_authorization_supported_by_connector())
-        } else if intent_request_extended_authorization_optional.is_some_and(
+        ) || intent_request_extended_authorization_optional.is_some_and(
             |intent_request_extended_authorization| *intent_request_extended_authorization,
         ) {
             Some(is_extended_authorization_supported_by_connector())
