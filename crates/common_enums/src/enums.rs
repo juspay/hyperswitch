@@ -6685,6 +6685,7 @@ impl From<RoleScope> for EntityType {
     serde::Serialize,
     serde::Deserialize,
     Eq,
+    Hash,
     PartialEq,
     ToSchema,
     strum::Display,
