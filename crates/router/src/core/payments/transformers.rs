@@ -4470,6 +4470,8 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
             payment_button_text_colour: config.payment_button_text_colour,
+            sdk_ui_rules: config.sdk_ui_rules,
+            payment_link_ui_rules: config.payment_link_ui_rules,
         }
     }
 }
@@ -4538,6 +4540,8 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
             payment_button_text_colour: config.payment_button_text_colour,
+            sdk_ui_rules: config.sdk_ui_rules,
+            payment_link_ui_rules: config.payment_link_ui_rules,
         }
     }
 }

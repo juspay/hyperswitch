@@ -4549,7 +4549,7 @@ type="Text"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
 [xendit.connector_webhook_details]
-webhook_verification_token="Source verification key"
+merchant_secret="Webhook Verification Token"
 
 [inespay]
 [[inespay.bank_debit]]
@@ -4559,3 +4559,54 @@ api_key="API Key"
 key1="API Token"
 [inespay.connector_webhook_details]
 merchant_secret="API Key"
+
+[juspaythreedsserver]
+[juspaythreedsserver.metadata.mcc]
+name="mcc"
+label="MCC"
+placeholder="Enter MCC"
+required=false
+type="Text"
+
+[juspaythreedsserver.metadata.merchant_country_code]
+name="merchant_country_code"
+label="3 digit numeric country code"
+placeholder="Enter 3 digit numeric country code"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant"
+placeholder="Enter Name of the merchant"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.three_ds_requestor_name]
+name="three_ds_requestor_name"
+label="ThreeDS requestor name"
+placeholder="Enter ThreeDS requestor name"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.three_ds_requestor_id]
+name="three_ds_requestor_id"
+label="ThreeDS request id"
+placeholder="Enter ThreeDS request id"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=true
+type="Text"
+[juspaythreedsserver.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=true
+type="Text"
+[juspaythreedsserver.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant Id"
+placeholder="Enter Acquirer Merchant Id"
+required=true
+type="Text"
