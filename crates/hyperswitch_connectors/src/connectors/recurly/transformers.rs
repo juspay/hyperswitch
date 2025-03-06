@@ -1,8 +1,5 @@
 use common_enums::enums;
-use serde::{Deserialize, Serialize};
-use masking::Secret;
-use common_utils::{errors::CustomResult,ext_traits::ByteSliceExt};
-use common_utils::types::StringMinorUnit;
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -13,6 +10,9 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
@@ -228,29 +228,24 @@ pub struct RecurlyErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Debug,Serialize,Deserialize,Clone)]
-pub struct RecurlyWebhookBody{
-    // transaction id 
-    pub uuid : String,
-    pub event_type : RecurlyPaymentEventType,
-  }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RecurlyWebhookBody {
+    // transaction id
+    pub uuid: String,
+    pub event_type: RecurlyPaymentEventType,
+}
 
-
-#[derive(Serialize, Deserialize, Debug,Clone)]
-#[serde(rename_all="snake_case")]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum RecurlyPaymentEventType {
-    #[serde(rename="succeeded")]
+    #[serde(rename = "succeeded")]
     PaymentSucceeded,
-    #[serde(rename="failed")]
+    #[serde(rename = "failed")]
     PaymentFailed,
 }
 
-
-
 impl RecurlyWebhookBody {
-    pub fn get_webhook_object_from_body(
-        body: &[u8],
-    ) -> CustomResult<Self, errors::ConnectorError> {
+    pub fn get_webhook_object_from_body(body: &[u8]) -> CustomResult<Self, errors::ConnectorError> {
         let webhook_body = body
             .parse_struct::<Self>("RecurlyWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
