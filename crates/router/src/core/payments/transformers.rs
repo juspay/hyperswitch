@@ -3451,18 +3451,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
-        let connector_name = &additional_data.connector_name;
 
-        let merchant_connector_account_id_or_connector_name = payment_data
+        let merchant_connector_account_id = payment_data
             .payment_attempt
             .merchant_connector_id
             .as_ref()
             .map(|mca_id| mca_id.get_string_repr())
-            .unwrap_or(connector_name);
+            .ok_or(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let webhook_url: Option<_> = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            merchant_connector_account_id_or_connector_name,
+            merchant_connector_account_id,
         ));
         Ok(Self {
             capture_method: payment_data.get_capture_method(),
@@ -3529,18 +3528,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
-        let connector_name = &additional_data.connector_name;
 
-        let merchant_connector_account_id_or_connector_name = payment_data
+        let merchant_connector_account_id = payment_data
             .payment_attempt
             .merchant_connector_id
             .as_ref()
             .map(|mca_id| mca_id.get_string_repr())
-            .unwrap_or(connector_name);
+            .ok_or(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let webhook_url: Option<_> = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            merchant_connector_account_id_or_connector_name,
+            merchant_connector_account_id,
         ));
         let capture_method = payment_data.payment_attempt.capture_method;
         Ok(Self {

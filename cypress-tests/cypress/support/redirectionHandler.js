@@ -145,12 +145,13 @@ function bankRedirectRedirection(
               cy.wait(2000);
               cy.get("button[id=bank-item-TESTNL2A]").click();
               cy.wait(2000);
+              //TODO: Handle the change of origin twice in case of Ideal
               cy.location("host").then(() => {
                 cy.url().then((currentUrl) => {
-                  console.log("currenturl ", currentUrl);
+                  // console.log("currenturl ", currentUrl);
                   cy.origin(new URL(currentUrl).origin, () => {
                     cy.url().then((redirectedUrl) => {
-                      console.log("redirectedUrl ", redirectedUrl);
+                      // console.log("redirectedUrl ", redirectedUrl);
 
                       cy.get('button.shared-styles_button__cNu+v').contains('Success').click();
                       cy.url().should('include', '/loading/SUCCESS');
