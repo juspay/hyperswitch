@@ -5,11 +5,12 @@ use crate::{
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
+        CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
+        PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -24,8 +25,8 @@ use crate::{
         SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData, VerifyWebhookSourceResponseData,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
+        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -90,3 +91,9 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
+
+pub type AdditionalRevenueRecoveryDetailsRouterData = RouterData<
+    GetAdditionalRevenueRecoveryDetails,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
+>;

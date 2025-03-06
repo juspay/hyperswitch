@@ -787,6 +787,7 @@ fn get_payment_source(
         )
         .into()),
         BankRedirectData::Bizum {}
+        | BankRedirectData::Eft { .. }
         | BankRedirectData::Interac { .. }
         | BankRedirectData::OnlineBankingCzechRepublic { .. }
         | BankRedirectData::OnlineBankingFinland { .. }
@@ -1175,6 +1176,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::DirectCarrierBilling
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
+                    | enums::PaymentMethodType::Eft
                     | enums::PaymentMethodType::Eps
                     | enums::PaymentMethodType::Fps
                     | enums::PaymentMethodType::Evoucher

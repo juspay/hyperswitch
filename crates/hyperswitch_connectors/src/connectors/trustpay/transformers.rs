@@ -238,6 +238,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Bizum {}
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
             | BankRedirectData::OnlineBankingFinland { .. }
