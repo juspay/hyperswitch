@@ -400,8 +400,10 @@ pub enum RoutingError {
     ContractBasedRoutingConfigError,
     #[error("Params not found in contract based routing config")]
     ContractBasedRoutingParamsNotFoundError,
-    #[error("Unable to calculate contract score from dynamic routing service")]
-    ContractScoreCalculationError,
+    #[error("Unable to calculate contract score from dynamic routing service: '{err}'")]
+    ContractScoreCalculationError { err: String },
+    #[error("Unable to update contract score on dynamic routing service")]
+    ContractScoreUpdationError,
     #[error("contract routing client from dynamic routing gRPC service not initialized")]
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
@@ -444,4 +446,21 @@ pub enum NetworkTokenizationError {
     NetworkTokenizationServiceNotConfigured,
     #[error("Failed while calling Network Token Service API")]
     ApiError,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Debug, thiserror::Error)]
+pub enum RevenueRecoveryError {
+    #[error("Failed to fetch payment intent")]
+    PaymentIntentFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptFetchFailed,
+    #[error("Failed to get revenue recovery invoice webhook")]
+    InvoiceWebhookProcessingFailed,
+    #[error("Failed to get revenue recovery invoice transaction")]
+    TransactionWebhookProcessingFailed,
+    #[error("Failed to create payment intent")]
+    PaymentIntentCreateFailed,
+    #[error("Source verification failed for billing connector")]
+    WebhookAuthenticationFailed,
 }

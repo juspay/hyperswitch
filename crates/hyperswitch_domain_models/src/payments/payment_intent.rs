@@ -120,6 +120,30 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<
+        Vec<(
+            PaymentIntent,
+            Option<super::payment_attempt::PaymentAttempt>,
+        )>,
+        errors::StorageError,
+    >;
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Option<String>>, errors::StorageError>;
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
@@ -170,7 +194,7 @@ pub struct PaymentIntentUpdateFields {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
-
+    pub active_attempt_id: Option<Option<id_type::GlobalAttemptId>>,
     // updated_by is set internally, field not present in request
     pub updated_by: String,
 }
@@ -294,7 +318,7 @@ pub enum PaymentIntentUpdate {
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: common_enums::IntentStatus,
-        active_attempt_id: id_type::GlobalAttemptId,
+        active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
     },
     /// PostUpdate tracker of ConfirmIntent
@@ -302,6 +326,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
         updated_by: String,
+        feature_metadata: Option<Box<diesel_models::types::FeatureMetadata>>,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
@@ -412,6 +437,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 amount_captured,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 active_attempt_id: None,
@@ -440,7 +466,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 allowed_payment_method_types: None,
                 metadata: None,
                 connector_metadata: None,
-                feature_metadata: None,
+                feature_metadata: feature_metadata.map(|val| *val),
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,
@@ -559,11 +585,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     session_expiry,
                     frm_metadata,
                     request_external_three_ds_authentication,
+                    active_attempt_id,
                     updated_by,
                 } = *boxed_intent;
                 Self {
                     status: None,
-                    active_attempt_id: None,
+                    active_attempt_id,
                     modified_at: common_utils::date_time::now(),
                     amount_captured: None,
                     amount,
@@ -1077,6 +1104,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
     }
 }
 
+#[cfg(feature = "v1")]
 pub enum PaymentIntentFetchConstraints {
     Single {
         payment_intent_id: id_type::PaymentId,
@@ -1084,6 +1112,7 @@ pub enum PaymentIntentFetchConstraints {
     List(Box<PaymentIntentListParams>),
 }
 
+#[cfg(feature = "v1")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id_list(&self) -> Option<Vec<id_type::ProfileId>> {
         if let Self::List(pi_list_params) = self {
@@ -1094,6 +1123,26 @@ impl PaymentIntentFetchConstraints {
     }
 }
 
+#[cfg(feature = "v2")]
+pub enum PaymentIntentFetchConstraints {
+    Single {
+        payment_intent_id: id_type::GlobalPaymentId,
+    },
+    List(Box<PaymentIntentListParams>),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntentFetchConstraints {
+    pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
+        if let Self::List(pi_list_params) = self {
+            pi_list_params.profile_id.clone()
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 pub struct PaymentIntentListParams {
     pub offset: u32,
     pub starting_at: Option<PrimitiveDateTime>,
@@ -1117,6 +1166,30 @@ pub struct PaymentIntentListParams {
     pub merchant_order_reference_id: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+pub struct PaymentIntentListParams {
+    pub offset: u32,
+    pub starting_at: Option<PrimitiveDateTime>,
+    pub ending_at: Option<PrimitiveDateTime>,
+    pub amount_filter: Option<api_models::payments::AmountFilter>,
+    pub connector: Option<api_models::enums::Connector>,
+    pub currency: Option<common_enums::Currency>,
+    pub status: Option<common_enums::IntentStatus>,
+    pub payment_method_type: Option<common_enums::PaymentMethod>,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub profile_id: Option<id_type::ProfileId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub starting_after_id: Option<id_type::GlobalPaymentId>,
+    pub ending_before_id: Option<id_type::GlobalPaymentId>,
+    pub limit: Option<u32>,
+    pub order: api_models::payments::Order,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub merchant_order_reference_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
         let api_models::payments::PaymentListConstraints {
@@ -1155,6 +1228,73 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PaymentListConstraints) -> Self {
+        let api_models::payments::PaymentListConstraints {
+            customer_id,
+            starting_after,
+            ending_before,
+            limit,
+            created,
+            created_lt,
+            created_gt,
+            created_lte,
+            created_gte,
+            payment_id,
+            profile_id,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            order_on,
+            order_by,
+            card_network,
+            merchant_order_reference_id,
+            offset,
+        } = value;
+        if let Some(payment_intent_id) = payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List(Box::new(PaymentIntentListParams {
+                offset: offset.unwrap_or_default(),
+                starting_at: created_gte.or(created_gt).or(created),
+                ending_at: created_lte.or(created_lt).or(created),
+                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
+                    api_models::payments::AmountFilter {
+                        start_amount,
+                        end_amount,
+                    }
+                }),
+                connector,
+                currency,
+                status,
+                payment_method_type,
+                payment_method_subtype,
+                authentication_type,
+                merchant_connector_id,
+                profile_id,
+                customer_id,
+                starting_after_id: starting_after,
+                ending_before_id: ending_before,
+                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+                order: api_models::payments::Order {
+                    on: order_on,
+                    by: order_by,
+                },
+                card_network,
+                merchant_order_reference_id,
+            }))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
@@ -1182,6 +1322,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         let api_models::payments::PaymentListFilterConstraints {
@@ -1233,6 +1374,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
     }
 }
 
+#[cfg(feature = "v1")]
 impl<T> TryFrom<(T, Option<Vec<id_type::ProfileId>>)> for PaymentIntentFetchConstraints
 where
     Self: From<T>,
@@ -1336,6 +1478,7 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             payment_link_config,
             platform_merchant_id,
+            split_payments,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1406,8 +1549,9 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
+            request_extended_authorization: None,
             platform_merchant_id,
-            split_payments: None,
+            split_payments,
         })
     }
     async fn convert_back(
@@ -1534,6 +1678,7 @@ impl behaviour::Conversion for PaymentIntent {
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
                 platform_merchant_id: storage_model.platform_merchant_id,
+                split_payments: storage_model.split_payments,
             })
         }
         .await
@@ -1672,6 +1817,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: self.platform_merchant_id,
         })
@@ -1761,6 +1907,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                request_extended_authorization: storage_model.request_extended_authorization,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
                 platform_merchant_id: storage_model.platform_merchant_id,
             })
@@ -1826,6 +1973,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: self.platform_merchant_id,
         })

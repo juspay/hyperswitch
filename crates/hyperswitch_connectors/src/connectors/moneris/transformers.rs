@@ -1,31 +1,35 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::MinorUnit;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
+    utils::{CardData as _, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
-//TODO: Fill the struct with respective fields
+const CLIENT_CREDENTIALS: &str = "client_credentials";
+
 pub struct MonerisRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for MonerisRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(MinorUnit, T)> for MonerisRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -33,20 +37,71 @@ impl<T> From<(StringMinorUnit, T)> for MonerisRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+pub mod auth_headers {
+    pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const API_VERSION: &str = "Api-Version";
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsRequest {
-    amount: StringMinorUnit,
+    idempotency_key: String,
+    amount: Amount,
+    payment_method: PaymentMethod,
+    automatic_capture: bool,
+}
+#[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Amount {
+    currency: enums::Currency,
+    amount: MinorUnit,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum PaymentMethod {
+    Card(PaymentMethodCard),
+    PaymentMethodId(PaymentMethodId),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodCard {
+    payment_method_source: PaymentMethodSource,
     card: MonerisCard,
+    store_payment_method: StorePaymentMethod,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodId {
+    payment_method_source: PaymentMethodSource,
+    payment_method_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentMethodSource {
+    Card,
+    PaymentMethodId,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+    card_number: cards::CardNumber,
+    expiry_month: Secret<i64>,
+    expiry_year: Secret<i64>,
+    card_security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StorePaymentMethod {
+    DoNotStore,
+    CardholderInitiated,
+    MerchantInitiated,
 }
 
 impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymentsRequest {
@@ -54,18 +109,81 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
     fn try_from(
         item: &MonerisRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "Moneris",
+            })?
+        };
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = MonerisCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
+            PaymentMethodData::Card(ref req_card) => {
+                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let amount = Amount {
+                    currency: item.router_data.request.currency,
+                    amount: item.amount,
                 };
+                let payment_method = PaymentMethod::Card(PaymentMethodCard {
+                    payment_method_source: PaymentMethodSource::Card,
+                    card: MonerisCard {
+                        card_number: req_card.card_number.clone(),
+                        expiry_month: Secret::new(
+                            req_card
+                                .card_exp_month
+                                .peek()
+                                .parse::<i64>()
+                                .change_context(errors::ConnectorError::ParsingFailed)?,
+                        ),
+                        expiry_year: Secret::new(
+                            req_card
+                                .get_expiry_year_4_digit()
+                                .peek()
+                                .parse::<i64>()
+                                .change_context(errors::ConnectorError::ParsingFailed)?,
+                        ),
+                        card_security_code: req_card.card_cvc.clone(),
+                    },
+                    store_payment_method: if item
+                        .router_data
+                        .request
+                        .is_customer_initiated_mandate_payment()
+                    {
+                        StorePaymentMethod::CardholderInitiated
+                    } else {
+                        StorePaymentMethod::DoNotStore
+                    },
+                });
+                let automatic_capture = item.router_data.request.is_auto_capture()?;
+
                 Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
+                    idempotency_key,
+                    amount,
+                    payment_method,
+                    automatic_capture,
+                })
+            }
+            PaymentMethodData::MandatePayment => {
+                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let amount = Amount {
+                    currency: item.router_data.request.currency,
+                    amount: item.amount,
+                };
+                let automatic_capture = item.router_data.request.is_auto_capture()?;
+                let payment_method = PaymentMethod::PaymentMethodId(PaymentMethodId {
+                    payment_method_source: PaymentMethodSource::PaymentMethodId,
+                    payment_method_id: item
+                        .router_data
+                        .request
+                        .connector_mandate_id()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                        })?
+                        .into(),
+                });
+                Ok(Self {
+                    idempotency_key,
+                    amount,
+                    payment_method,
+                    automatic_capture,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -73,49 +191,113 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct MonerisAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for MonerisAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                client_id: key1.to_owned(),
+                client_secret: api_key.to_owned(),
+                merchant_id: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct MonerisAuthRequest {
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
+    grant_type: String,
+}
+
+impl TryFrom<&RefreshTokenRouterData> for MonerisAuthRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let auth = MonerisAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            client_id: auth.client_id.clone(),
+            client_secret: auth.client_secret.clone(),
+            grant_type: CLIENT_CREDENTIALS.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MonerisAuthResponse {
+    access_token: Secret<String>,
+    token_type: String,
+    expires_in: String,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, MonerisAuthResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, MonerisAuthResponse, T, AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(AccessToken {
+                token: item.response.access_token,
+                expires: item
+                    .response
+                    .expires_in
+                    .parse::<i64>()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MonerisPaymentStatus {
     Succeeded,
-    Failed,
     #[default]
     Processing,
+    Canceled,
+    Declined,
+    DeclinedRetry,
+    Authorized,
 }
 
 impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: MonerisPaymentStatus) -> Self {
         match item {
             MonerisPaymentStatus::Succeeded => Self::Charged,
-            MonerisPaymentStatus::Failed => Self::Failure,
-            MonerisPaymentStatus::Processing => Self::Authorizing,
+            MonerisPaymentStatus::Authorized => Self::Authorized,
+            MonerisPaymentStatus::Canceled => Self::Voided,
+            MonerisPaymentStatus::Declined | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
+            MonerisPaymentStatus::Processing => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsResponse {
-    status: MonerisPaymentStatus,
-    id: String,
+    payment_status: MonerisPaymentStatus,
+    payment_id: String,
+    payment_method: MonerisPaymentMethodData,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisPaymentMethodData {
+    payment_method_id: Secret<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsResponseData>>
@@ -126,14 +308,25 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
         item: ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.payment_status),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: Some(
+                        item.response
+                            .payment_method
+                            .payment_method_id
+                            .peek()
+                            .to_string(),
+                    ),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.payment_id),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -142,50 +335,101 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisPaymentsCaptureRequest {
+    amount: Amount,
+    idempotency_key: String,
+}
+
+impl TryFrom<&MonerisRouterData<&PaymentsCaptureRouterData>> for MonerisPaymentsCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &MonerisRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+        let amount = Amount {
+            currency: item.router_data.request.currency,
+            amount: item.amount,
+        };
+        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        Ok(Self {
+            amount,
+            idempotency_key,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisCancelRequest {
+    idempotency_key: String,
+    reason: Option<String>,
+}
+
+impl TryFrom<&PaymentsCancelRouterData> for MonerisCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let reason = item.request.cancellation_reason.clone();
+        Ok(Self {
+            idempotency_key,
+            reason,
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisRefundRequest {
-    pub amount: StringMinorUnit,
+    pub refund_amount: Amount,
+    pub idempotency_key: String,
+    pub reason: Option<String>,
+    pub payment_id: String,
 }
 
 impl<F> TryFrom<&MonerisRouterData<&RefundsRouterData<F>>> for MonerisRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &MonerisRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let refund_amount = Amount {
+            currency: item.router_data.request.currency,
+            amount: item.amount,
+        };
+        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let reason = item.router_data.request.reason.clone();
+        let payment_id = item.router_data.request.connector_transaction_id.clone();
         Ok(Self {
-            amount: item.amount.to_owned(),
+            refund_amount,
+            idempotency_key,
+            reason,
+            payment_id,
         })
     }
 }
 
-// Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Succeeded,
-    Failed,
     #[default]
     Processing,
+    Declined,
+    DeclinedRetry,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Declined | RefundStatus::DeclinedRetry => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    refund_id: String,
+    refund_status: RefundStatus,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -195,8 +439,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.refund_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
             }),
             ..item.data
         })
@@ -210,19 +454,32 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.refund_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
             }),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub status: u16,
+    pub category: String,
+    pub title: String,
+    pub errors: Option<Vec<MonerisError>>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisError {
+    pub reason_code: String,
+    pub parameter_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MonerisAuthErrorResponse {
+    pub error: String,
+    pub error_description: Option<String>,
 }

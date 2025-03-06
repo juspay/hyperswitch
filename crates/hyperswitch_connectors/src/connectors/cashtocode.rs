@@ -142,8 +142,8 @@ impl ConnectorCommon for Cashtocode {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error.to_string(),
-            message: response.error_description,
-            reason: None,
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
         })
