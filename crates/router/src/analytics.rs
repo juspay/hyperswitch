@@ -975,7 +975,6 @@ pub mod routes {
                 analytics::auth_events::get_metrics(
                     &state.pool,
                     auth.merchant_account.get_id(),
-                    &auth.merchant_account.publishable_key,
                     req,
                 )
                 .await

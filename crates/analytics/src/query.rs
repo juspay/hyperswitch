@@ -19,6 +19,7 @@ use api_models::{
     },
     refunds::RefundStatus,
 };
+use common_enums::{AuthenticationStatus, TransactionStatus};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     id_type::{MerchantId, OrganizationId, ProfileId},
@@ -502,6 +503,8 @@ impl_to_sql_for_to_string!(
     Currency,
     RefundType,
     FrmTransactionType,
+    TransactionStatus,
+    AuthenticationStatus,
     Flow,
     &String,
     &bool,
