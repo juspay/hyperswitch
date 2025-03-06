@@ -160,6 +160,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::Giropay => Self::Giropay,
             enums::BankRedirectType::Ideal => Self::Ideal,
             enums::BankRedirectType::Sofort => Self::Sofort,
+            enums::BankRedirectType::Eft => Self::Eft,
             enums::BankRedirectType::Eps => Self::Eps,
             enums::BankRedirectType::BancontactCard => Self::BancontactCard,
             enums::BankRedirectType::Blik => Self::Blik,
