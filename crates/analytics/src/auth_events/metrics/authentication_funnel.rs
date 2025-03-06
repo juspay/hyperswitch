@@ -4,22 +4,24 @@ use api_models::analytics::{
     auth_events::{AuthEventDimensions, AuthEventFilters, AuthEventMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
-use common_enums::AuthenticationStatus;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use super::AuthEventMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct AuthenticationSuccessCount;
+pub(super) struct AuthenticationFunnel;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for AuthenticationSuccessCount
+impl<T> super::AuthEventMetric<T> for AuthenticationFunnel
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -68,7 +70,11 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("authentication_status", AuthenticationStatus::Success)
+            .add_custom_filter_clause(
+                AuthEventDimensions::TransactionStatus,
+                "NULL",
+                FilterTypes::IsNotNull,
+            )
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range

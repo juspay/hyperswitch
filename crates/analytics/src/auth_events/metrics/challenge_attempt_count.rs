@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use api_models::analytics::{
-    auth_events::AuthEventMetricsBucketIdentifier, Granularity, TimeRange,
+    auth_events::{AuthEventDimensions, AuthEventFilters, AuthEventMetricsBucketIdentifier},
+    Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -9,7 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::AuthEventMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -29,13 +30,17 @@ where
     async fn load_metrics(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
+        dimensions: &[AuthEventDimensions],
+        filters: &AuthEventFilters,
         granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::Authentications);
-
+        for dim in dimensions.iter() {
+            query_builder.add_select_column(dim).switch()?;
+        }
         query_builder
             .add_select_column(Aggregate::Count {
                 field: None,
@@ -68,11 +73,18 @@ where
         query_builder
             .add_negative_filter_clause("authentication_status", "pending")
             .switch()?;
-
+        filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
+
+        for dim in dimensions.iter() {
+            query_builder
+                .add_group_by_clause(dim)
+                .attach_printable("Error grouping by dimensions")
+                .switch()?;
+        }
 
         if let Some(granularity) = granularity {
             granularity
@@ -89,7 +101,23 @@ where
             .into_iter()
             .map(|i| {
                 Ok((
-                    AuthEventMetricsBucketIdentifier::new(i.time_bucket.clone()),
+                    AuthEventMetricsBucketIdentifier::new(
+                        i.authentication_status.as_ref().map(|i| i.0),
+                        i.trans_status.as_ref().map(|i| i.0.clone()),
+                        i.error_message.clone(),
+                        i.authentication_connector.as_ref().map(|i| i.0),
+                        i.message_version.clone(),
+                        TimeRange {
+                            start_time: match (granularity, i.start_bucket) {
+                                (Some(g), Some(st)) => g.clip_to_start(st)?,
+                                _ => time_range.start_time,
+                            },
+                            end_time: granularity.as_ref().map_or_else(
+                                || Ok(time_range.end_time),
+                                |g| i.end_bucket.map(|et| g.clip_to_end(et)).transpose(),
+                            )?,
+                        },
+                    ),
                     i,
                 ))
             })
