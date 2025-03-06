@@ -4450,7 +4450,8 @@
           "netcetera",
           "gpayments",
           "ctp_mastercard",
-          "unified_authentication_service"
+          "unified_authentication_service",
+          "juspaythreedsserver"
         ]
       },
       "AuthenticationDetails": {
@@ -7553,6 +7554,7 @@
           "iatapay",
           "itaubank",
           "jpmorgan",
+          "juspaythreedsserver",
           "klarna",
           "mifinity",
           "mollie",
@@ -15433,7 +15435,7 @@
           "associated_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/id_type.GlobalPaymentMethodId"
+              "type": "string"
             },
             "description": "The payment method that was created using this payment method session",
             "nullable": true
