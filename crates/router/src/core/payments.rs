@@ -344,18 +344,18 @@ where
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
-    let connector = get_connector_choice(
-        &operation,
-        state,
-        &req,
-        &merchant_account,
-        &business_profile,
-        &key_store,
-        &mut payment_data,
-        eligible_connectors,
-        mandate_type,
-    )
-    .await?;
+    // let connector = get_connector_choice(
+    //     &operation,
+    //     state,
+    //     &req,
+    //     &merchant_account,
+    //     &business_profile,
+    //     &key_store,
+    //     &mut payment_data,
+    //     eligible_connectors,
+    //     mandate_type,
+    // )
+    // .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -390,22 +390,22 @@ where
     let mut connector_http_status_code = None;
     let mut external_latency = None;
     operation
-                .to_update_tracker()?
-                .update_trackers(
-                    state,
-                    req_state,
-                    payment_data.clone(),
-                    customer.clone(),
-                    validate_result.storage_scheme,
-                    None,
-                    &key_store,
-                    #[cfg(feature = "frm")]
-                    None,
-                    #[cfg(not(feature = "frm"))]
-                    None,
-                    header_payload.clone(),
-                )
-                .await?;
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data.clone(),
+            customer.clone(),
+            validate_result.storage_scheme,
+            None,
+            &key_store,
+            #[cfg(feature = "frm")]
+            None,
+            #[cfg(not(feature = "frm"))]
+            None,
+            header_payload.clone(),
+        )
+        .await?;
     // if let Some(connector_details) = connector {
     //     // Fetch and check FRM configs
     //     #[cfg(feature = "frm")]
@@ -7553,15 +7553,15 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "browser_info",
         })?;
-    let payment_connector_name = payment_attempt
-        .connector
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("missing connector in payment_attempt")?;
+    // let payment_connector_name = payment_attempt
+    //     .connector
+    //     .as_ref()
+    //     .ok_or(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("missing connector in payment_attempt")?;
     let return_url = Some(helpers::create_authorize_url(
         &state.base_url,
         &payment_attempt.clone(),
-        payment_connector_name,
+        "abc",
     ));
     let mca_id_option = merchant_connector_account.get_mca_id(); // Bind temporary value
     let merchant_connector_account_id_or_connector_name = mca_id_option

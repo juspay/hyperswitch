@@ -4652,7 +4652,6 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4",
         value_type = String,
     )]
-    #[serde(rename = "authentication_id")]
     pub payment_id: id_type::PaymentId,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
@@ -4670,19 +4669,23 @@ pub struct PaymentsResponse {
     /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,
     /// If no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount
     #[schema(value_type = i64, example = 6540)]
+    #[serde(skip_serializing)]
     pub net_amount: MinorUnit,
 
     /// The shipping cost for the payment.
     #[schema(value_type = Option<i64>, example = 6540)]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing)]
     pub shipping_cost: Option<MinorUnit>,
 
     /// The maximum amount that could be captured from the payment
     #[schema(value_type = i64, minimum = 100, example = 6540)]
+    #[serde(skip_serializing)]
     pub amount_capturable: MinorUnit,
 
     /// The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[serde(skip_serializing)]
     pub amount_received: Option<MinorUnit>,
 
     /// The connector used for the payment
@@ -7310,9 +7313,6 @@ pub struct PaymentsExternalAuthenticationRequest {
     /// The identifier for the payment
     #[serde(skip)]
     pub payment_id: id_type::PaymentId,
-    /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser

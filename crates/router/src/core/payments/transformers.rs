@@ -2054,7 +2054,9 @@ where
     //             .collect()
     //     });
 
-    let external_authentication_details: Option<api_models::payments::ExternalAuthenticationDetailsResponse> = payment_data
+    let external_authentication_details: Option<
+        api_models::payments::ExternalAuthenticationDetailsResponse,
+    > = payment_data
         .get_authentication()
         .map(ForeignInto::foreign_into);
 
@@ -2300,9 +2302,6 @@ where
                                     // if preAuthn and separate authentication needed.
                                     let poll_config = payment_data.get_poll_config().unwrap_or_default();
                                     let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
-                                    let payment_connector_name = payment_attempt.connector
-                                        .as_ref()
-                                        .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
                                             three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
@@ -2425,19 +2424,19 @@ where
             .get_connector_payment_id()
             .map(ToString::to_string);
 
-        let derived_intent_status = if let Some(external_authentication_details) = external_authentication_details.clone() {
+        let derived_intent_status = if let Some(external_authentication_details) =
+            external_authentication_details.clone()
+        {
             Some(match external_authentication_details.status {
                 common_enums::AuthenticationStatus::Success => {
                     common_enums::IntentStatus::Succeeded
                 }
-                common_enums::AuthenticationStatus::Failed => {
-                    common_enums::IntentStatus::Failed
-                }
-                _ => {
-                    common_enums::IntentStatus::Processing
-                }
+                common_enums::AuthenticationStatus::Failed => common_enums::IntentStatus::Failed,
+                _ => common_enums::IntentStatus::Processing,
             })
-        } else {None};
+        } else {
+            None
+        };
 
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
