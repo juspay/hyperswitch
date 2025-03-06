@@ -67,7 +67,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{self, IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::{Maskable,Mask, Secret, ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers::{

@@ -1558,25 +1558,27 @@ pub enum PaypalOrderStatus {
 //     }
 // }
 
-pub (crate) fn get_order_status (
-item: PaypalOrderStatus,
-intent: PaypalPaymentIntent,
+pub(crate) fn get_order_status(
+    item: PaypalOrderStatus,
+    intent: PaypalPaymentIntent,
 ) -> storage_enums::AttemptStatus {
     match item {
-            PaypalOrderStatus::Completed => {
-                if intent == PaypalPaymentIntent::Authorize {
-                    storage_enums::AttemptStatus::Authorized
-                } else {
-                    storage_enums::AttemptStatus::Charged
-                }
+        PaypalOrderStatus::Completed => {
+            if intent == PaypalPaymentIntent::Authorize {
+                storage_enums::AttemptStatus::Authorized
+            } else {
+                storage_enums::AttemptStatus::Charged
             }
-            PaypalOrderStatus::Voided => storage_enums::AttemptStatus::Voided,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
-                storage_enums::AttemptStatus::Pending
-            }
-            PaypalOrderStatus::Approved => storage_enums::AttemptStatus::AuthenticationSuccessful,
-            PaypalOrderStatus::PayerActionRequired => storage_enums::AttemptStatus::AuthenticationPending,
         }
+        PaypalOrderStatus::Voided => storage_enums::AttemptStatus::Voided,
+        PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
+            storage_enums::AttemptStatus::Pending
+        }
+        PaypalOrderStatus::Approved => storage_enums::AttemptStatus::AuthenticationSuccessful,
+        PaypalOrderStatus::PayerActionRequired => {
+            storage_enums::AttemptStatus::AuthenticationPending
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1973,10 +1975,7 @@ impl<F, T>
             Option<common_enums::PaymentExperience>,
         ),
     ) -> Result<Self, Self::Error> {
-        let status = get_order_status(
-            item.response.clone().status,
-            item.response.intent.clone(),
-        );
+        let status = get_order_status(item.response.clone().status, item.response.intent.clone());
         let link = get_redirect_url(item.response.links.clone())?;
 
         // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
@@ -2035,10 +2034,7 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = get_order_status(
-            item.response.clone().status,
-            item.response.intent.clone(),
-        );
+        let status = get_order_status(item.response.clone().status, item.response.intent.clone());
         let link = get_redirect_url(item.response.links.clone())?;
 
         let connector_meta = serde_json::json!(PaypalMeta {
@@ -2091,10 +2087,7 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = get_order_status(
-            item.response.clone().status,
-            item.response.intent.clone(),
-        );
+        let status = get_order_status(item.response.clone().status, item.response.intent.clone());
 
         // For Paypal SDK flow, we need to trigger SDK client and then Confirm
         let next_action = Some(api_models::payments::NextActionCall::Confirm);
@@ -2179,7 +2172,7 @@ impl<F>
             order_id: None,
         });
 
-        let status = get_order_status (
+        let status = get_order_status(
             item.response.clone().status,
             PaypalPaymentIntent::Authenticate,
         );

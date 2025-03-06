@@ -7,7 +7,8 @@ use crate::{
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
-        PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
+        PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
@@ -26,7 +27,8 @@ use crate::{
     },
     router_response_types::{
         revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData, VerifyWebhookSourceResponseData,
+        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
