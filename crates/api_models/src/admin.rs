@@ -1963,6 +1963,9 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2234,6 +2237,9 @@ pub struct ProfileResponse {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: bool,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2501,6 +2507,9 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

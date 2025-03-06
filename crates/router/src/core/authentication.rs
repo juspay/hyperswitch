@@ -41,6 +41,7 @@ pub async fn perform_authentication(
     three_ds_requestor_url: String,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     payment_id: common_utils::id_type::PaymentId,
+    force_3ds_challenge: bool,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         state,
@@ -65,6 +66,7 @@ pub async fn perform_authentication(
         three_ds_requestor_url,
         psd2_sca_exemption_type,
         payment_id,
+        force_3ds_challenge,
     )?;
     let response = Box::pin(utils::do_auth_connector_call(
         state,
