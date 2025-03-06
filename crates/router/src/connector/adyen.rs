@@ -11,7 +11,7 @@ use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
-//
+
 use self::transformers as adyen;
 use super::utils::is_mandate_supported;
 #[cfg(feature = "payouts")]
