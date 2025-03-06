@@ -10,16 +10,16 @@ pm.test("[GET]::/payments/:id - Content-Type is application/json", function () {
   );
 });
 
+// Validate if response has JSON Body
+pm.test("[GET]::/payments/:id - Response has JSON Body", function () {
+  pm.response.to.have.jsonBody();
+});
+
 // Set response object as internal variable
 let jsonData = {};
 try {
   jsonData = pm.response.json();
 } catch (e) {}
-
-// Validate if response has JSON Body
-pm.test("[GET]::/payments/:id - Response has JSON Body", function () {
-  pm.response.to.have.jsonBody();
-});
 
 // pm.collectionVariables - Set payment_id as variable for jsonData.payment_id
 if (jsonData?.payment_id) {
@@ -31,19 +31,6 @@ if (jsonData?.payment_id) {
 } else {
   console.log(
     "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.",
-  );
-}
-
-// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id
-if (jsonData?.mandate_id) {
-  pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
-  console.log(
-    "- use {{mandate_id}} as collection variable for value",
-    jsonData.mandate_id,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
   );
 }
 
@@ -60,12 +47,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "Succeeded" for "status"
+// Response body should have value "processing" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'",
+    "[POST]::/payments/:id - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }

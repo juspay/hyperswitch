@@ -50,7 +50,7 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "processing" for "status" while partially capturing a payment
+// Response body should have value "processing" for "status"
 if (jsonData?.status) {
   pm.test(
     "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'processing'",
