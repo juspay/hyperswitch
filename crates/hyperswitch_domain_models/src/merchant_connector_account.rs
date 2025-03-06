@@ -91,13 +91,6 @@ impl MerchantConnectorAccount {
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone()
     }
-
-    pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
-        &self,
-        _account_reference: String,
-    ) -> Option<id_type::MerchantConnectorAccountId> {
-        None
-    }
 }
 
 #[cfg(feature = "v2")]
