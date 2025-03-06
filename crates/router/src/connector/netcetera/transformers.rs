@@ -139,8 +139,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             NetceteraAuthenticationResponse::Success(response) => {
-                let authn_flow_type = match response.acs_challenge_mandated {
-                    Some(ACSChallengeMandatedIndicator::Y) => {
+                let authn_flow_type = match response.trans_status {
+                    common_enums::TransactionStatus::ChallengeRequired => {
                         types::authentication::AuthNFlowType::Challenge(Box::new(
                             types::authentication::ChallengeParams {
                                 acs_url: response.authentication_response.acs_url.clone(),
@@ -156,9 +156,7 @@ impl
                             },
                         ))
                     }
-                    Some(ACSChallengeMandatedIndicator::N) | None => {
-                        types::authentication::AuthNFlowType::Frictionless
-                    }
+                    _ => types::authentication::AuthNFlowType::Frictionless,
                 };
                 Ok(
                     types::authentication::AuthenticationResponseData::AuthNResponse {
@@ -187,21 +185,14 @@ impl
 }
 
 pub struct NetceteraAuthType {
-    pub(super) certificate: Secret<String>,
-    pub(super) private_key: Secret<String>,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NetceteraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type.to_owned() {
-            types::ConnectorAuthType::CertificateAuth {
-                certificate,
-                private_key,
-            } => Ok(Self {
-                certificate,
-                private_key,
-            }),
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self { api_key }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -525,7 +516,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             ),
             recurring_expiry: None,
             recurring_frequency: None,
-            trans_type: None,
+            trans_type: Some("01".to_string()),
             recurring_amount: None,
             recurring_currency: None,
             recurring_exponent: None,
@@ -533,17 +524,17 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             amount_ind: None,
             frequency_ind: None,
         };
-        let acquirer_details = netcetera_types::AcquirerData {
-            acquirer_bin: request.pre_authentication_data.acquirer_bin,
-            acquirer_merchant_id: request.pre_authentication_data.acquirer_merchant_id,
-            acquirer_country_code: request.pre_authentication_data.acquirer_country_code,
-        };
         let connector_meta_data: NetceteraMetaData = item
             .router_data
             .connector_meta_data
             .clone()
             .parse_value("NetceteraMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let acquirer_details = netcetera_types::AcquirerData {
+            acquirer_bin: connector_meta_data.acquirer_bin,
+            acquirer_merchant_id: connector_meta_data.acquirer_merchant_id,
+            acquirer_country_code: connector_meta_data.acquirer_country_code,
+        };
         let merchant_data = netcetera_types::MerchantData {
             merchant_configuration_id: None,
             mcc: connector_meta_data.mcc,
@@ -681,6 +672,13 @@ pub enum ACSChallengeMandatedIndicator {
     Y,
     /// Challenge is not mandated
     N,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetceteraPostAuthRequest {
+    #[serde(rename = "threeDSServerTransID")]
+    pub three_ds_server_trans_id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

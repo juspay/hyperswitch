@@ -140,6 +140,7 @@ impl FromStr for CardNumber {
             "6000100611111203",
             "3000100811111072",
             "9000100111111111",
+            "4000400040004000",
         ];
         #[cfg(not(target_arch = "wasm32"))]
         let valid_test_cards = match router_env_which() {

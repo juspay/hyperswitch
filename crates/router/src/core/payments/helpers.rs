@@ -1237,7 +1237,7 @@ pub fn create_authorize_url(
     _connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
-        "https://auth.api.hyperswitch.io/api/authenticate/{}/{}/post-auth",
+        "https://auth.app.hyperswitch.io/api/authenticate/{}/{}/post-auth",
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr()
     )

@@ -304,8 +304,6 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(netcetera_auth_type.certificate))
-                .add_certificate_key(Some(netcetera_auth_type.private_key))
                 .build(),
         ))
     }
@@ -414,8 +412,6 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(netcetera_auth_type.certificate))
-                .add_certificate_key(Some(netcetera_auth_type.private_key))
                 .build(),
         ))
     }
@@ -458,6 +454,101 @@ impl
         types::authentication::AuthenticationResponseData,
     > for Netcetera
 {
+    fn get_headers(
+        &self,
+        req: &types::authentication::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::authentication::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/3ds/final", self.base_url(connectors),))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::authentication::ConnectorPostAuthenticationRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = netcetera::NetceteraPostAuthRequest {
+            three_ds_server_trans_id: req.request.threeds_server_transaction_id.clone(),
+        };
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::authentication::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(
+                    &types::authentication::ConnectorPostAuthenticationType::get_url(
+                        self, req, connectors,
+                    )?,
+                )
+                .attach_default_headers()
+                .headers(
+                    types::authentication::ConnectorPostAuthenticationType::get_headers(
+                        self, req, connectors,
+                    )?,
+                )
+                .set_body(
+                    types::authentication::ConnectorPostAuthenticationType::get_request_body(
+                        self, req, connectors,
+                    )?,
+                )
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::authentication::ConnectorPostAuthenticationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        types::authentication::ConnectorPostAuthenticationRouterData,
+        errors::ConnectorError,
+    > {
+        let response: netcetera::ResultsResponseData = res
+            .response
+            .parse_struct("threedsecureio PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        Ok(
+            types::authentication::ConnectorPostAuthenticationRouterData {
+                response: Ok(
+                    types::authentication::AuthenticationResponseData::PostAuthNResponse {
+                        trans_status: response.trans_status.unwrap_or_default(),
+                        authentication_value: response.authentication_value,
+                        eci: response.eci,
+                    },
+                ),
+                ..data.clone()
+            },
+        )
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl
