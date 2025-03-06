@@ -321,3 +321,6 @@ api_key= "API Key"
 
 [paystack]
 api_key = "API Key"
+
+[recurly]
+api_key= "API Key"
