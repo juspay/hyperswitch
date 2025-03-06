@@ -556,7 +556,7 @@ pub async fn save_payout_data_to_locker(
                 merchant_account.get_id(),
                 None,
                 None,
-                card_details_encrypted.clone().map(Into::into),
+                card_details_encrypted.clone(),
                 key_store,
                 connector_mandate_details,
                 None,

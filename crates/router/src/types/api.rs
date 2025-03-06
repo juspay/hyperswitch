@@ -459,6 +459,9 @@ impl ConnectorData {
                 enums::Connector::Jpmorgan => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
+                enums::Connector::Juspaythreedsserver => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Juspaythreedsserver::new(),
+                ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
@@ -510,6 +513,7 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
+                // enums::Connector::Recurly => Ok(ConnectorEnum::Old(Box::new(connector::Recurly))),
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
