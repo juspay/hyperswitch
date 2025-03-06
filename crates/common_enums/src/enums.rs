@@ -1,14 +1,15 @@
+mod accounts;
 mod payments;
 mod ui;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use accounts::MerchantProductType;
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::RoutableConnectors;
-
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -428,6 +429,9 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Represents billing processors that handle subscription management, invoicing,
+    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
+    BillingProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1583,6 +1587,7 @@ pub enum PaymentMethodType {
     Debit,
     DuitNow,
     Efecty,
+    Eft,
     Eps,
     Fps,
     Evoucher,
@@ -7373,6 +7378,19 @@ impl SurchargeCalculationOverride {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorMandateStatus {
+    /// Indicates that the connector mandate is active and can be used for payments.
+    Active,
+    /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
+    Inactive,
+}
+
+/// Connector Mandate Status
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorTokenStatus {
     /// Indicates that the connector mandate is active and can be used for payments.
     Active,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.

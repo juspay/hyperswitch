@@ -194,7 +194,7 @@ pub struct PaymentIntentUpdateFields {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
-
+    pub active_attempt_id: Option<Option<id_type::GlobalAttemptId>>,
     // updated_by is set internally, field not present in request
     pub updated_by: String,
 }
@@ -318,7 +318,7 @@ pub enum PaymentIntentUpdate {
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: common_enums::IntentStatus,
-        active_attempt_id: id_type::GlobalAttemptId,
+        active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
     },
     /// PostUpdate tracker of ConfirmIntent
@@ -326,6 +326,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
         updated_by: String,
+        feature_metadata: Option<Box<diesel_models::types::FeatureMetadata>>,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
@@ -436,6 +437,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 amount_captured,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 active_attempt_id: None,
@@ -464,7 +466,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 allowed_payment_method_types: None,
                 metadata: None,
                 connector_metadata: None,
-                feature_metadata: None,
+                feature_metadata: feature_metadata.map(|val| *val),
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,
@@ -583,11 +585,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     session_expiry,
                     frm_metadata,
                     request_external_three_ds_authentication,
+                    active_attempt_id,
                     updated_by,
                 } = *boxed_intent;
                 Self {
                     status: None,
-                    active_attempt_id: None,
+                    active_attempt_id,
                     modified_at: common_utils::date_time::now(),
                     amount_captured: None,
                     amount,

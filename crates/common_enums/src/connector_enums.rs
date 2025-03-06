@@ -67,7 +67,7 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
-    // Chargebee,
+    Chargebee,
     Checkout,
     Coinbase,
     Coingate,
@@ -100,7 +100,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -111,12 +111,14 @@ pub enum RoutableConnectors {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
     Razorpay,
+    // Recurly,
     // Redsys,
     Riskified,
     Shift4,
@@ -124,6 +126,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    //Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -205,7 +208,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
-    // Chargebee,
+    Chargebee,
     Checkout,
     Coinbase,
     Coingate,
@@ -241,7 +244,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -252,17 +255,20 @@ pub enum Connector {
     Payme,
     Payone,
     Paypal,
+    Paystack,
     Payu,
     Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
     Razorpay,
+    //Recurly,
     // Redsys,
     Shift4,
     Square,
     Stax,
     Stripe,
+    // Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -291,6 +297,7 @@ impl Connector {
             (Self::Paypal, Some(PayoutType::Wallet))
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
+                | (Self::Nomupay, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -311,7 +318,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Nomupay)
     }
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
@@ -361,7 +368,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
-            // | Self::Chargebee
+            | Self::Chargebee
             | Self::Coinbase
             |Self::Coingate
             | Self::Cryptopay
@@ -391,7 +398,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
-            // | Self::Nomupay
+            | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -399,15 +406,18 @@ impl Connector {
             | Self::Payme
             | Self::Payone
             | Self::Paypal
+            | Self::Paystack
             | Self::Payu
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
+            // | Self::Recurly
 			// | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            // | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -501,6 +511,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Chargebee => Self::Chargebee,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -530,6 +541,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nexinets => Self::Nexinets,
             RoutableConnectors::Nexixpay => Self::Nexixpay,
             RoutableConnectors::Nmi => Self::Nmi,
+            RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
@@ -538,18 +550,21 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
+            RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,
             RoutableConnectors::Prophetpay => Self::Prophetpay,
             RoutableConnectors::Rapyd => Self::Rapyd,
             RoutableConnectors::Razorpay => Self::Razorpay,
+            // RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Riskified => Self::Riskified,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
+            // RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
