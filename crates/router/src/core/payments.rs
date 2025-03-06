@@ -7650,6 +7650,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 webhook_url,
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
+                payment_intent.payment_id,
             ))
             .await?
         };
