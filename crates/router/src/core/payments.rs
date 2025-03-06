@@ -1,6 +1,5 @@
 pub mod access_token;
 pub mod conditional_configs;
-pub mod connector_integration_v2_impls;
 pub mod customers;
 pub mod flows;
 pub mod helpers;

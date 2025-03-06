@@ -44,9 +44,9 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as helcim;
 

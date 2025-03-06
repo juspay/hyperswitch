@@ -1018,7 +1018,7 @@ pub async fn perform_session_flow_routing<'a>(
             .amount_details
             .calculate_net_amount(),
         currency: session_input.payment_intent.amount_details.currency,
-        authentication_type: Some(session_input.payment_intent.authentication_type),
+        authentication_type: session_input.payment_intent.authentication_type,
         card_bin: None,
         capture_method: Option::<euclid_enums::CaptureMethod>::foreign_from(
             session_input.payment_intent.capture_method,
