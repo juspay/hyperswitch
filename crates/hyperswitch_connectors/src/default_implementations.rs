@@ -3613,6 +3613,7 @@ default_imp_for_additional_revenue_recovery_call!(
     connectors::Inespay,
     connectors::Itaubank,
     connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
