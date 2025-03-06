@@ -11,15 +11,18 @@ use time::PrimitiveDateTime;
 
 use super::AuthEventMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct AuthenticationSuccessCount;
+pub(super) struct AuthenticationErrorMessage;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for AuthenticationSuccessCount
+impl<T> super::AuthEventMetric<T> for AuthenticationErrorMessage
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -68,7 +71,15 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("authentication_status", AuthenticationStatus::Success)
+            .add_filter_clause("authentication_status", AuthenticationStatus::Failed)
+            .switch()?;
+
+        query_builder
+            .add_custom_filter_clause(
+                AuthEventDimensions::ErrorMessage,
+                "NULL",
+                FilterTypes::IsNotNull,
+            )
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
