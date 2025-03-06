@@ -1037,7 +1037,7 @@ pub mod routes {
                 analytics::auth_events::get_filters(
                     &state.pool,
                     req,
-                    &auth.merchant_account.get_id(),
+                    auth.merchant_account.get_id(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
