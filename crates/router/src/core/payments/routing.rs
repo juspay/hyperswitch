@@ -1465,7 +1465,7 @@ pub async fn perform_dynamic_routing(
         .async_map(|algorithm| {
             perform_elimination_routing(
                 state,
-                routable_connectors.clone(),
+                connector_list.clone(),
                 profile.get_id(),
                 dynamic_routing_config_params_interpolator.clone(),
                 algorithm.clone(),
