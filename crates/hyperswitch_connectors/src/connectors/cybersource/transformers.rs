@@ -368,6 +368,8 @@ pub struct CybersourceConsumerAuthInformation {
     ///
     /// For external authentication, this field will always be "Y"
     veres_enrolled: Option<String>,
+    /// Raw electronic commerce indicator (ECI)
+    eci_raw: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1289,6 +1291,7 @@ impl
                     specification_version: None,
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
                 }
             });
 
@@ -1372,6 +1375,7 @@ impl
                     specification_version: None,
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
                 }
             });
 
@@ -1453,6 +1457,7 @@ impl
                     specification_version: None,
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
                 }
             });
 
@@ -1620,6 +1625,7 @@ impl
             specification_version: three_ds_info.three_ds_data.specification_version,
             pa_specification_version: None,
             veres_enrolled: None,
+            eci_raw: None,
         });
 
         let merchant_defined_information = item
@@ -1708,6 +1714,7 @@ impl
                 specification_version: None,
                 pa_specification_version: None,
                 veres_enrolled: None,
+                eci_raw: None,
             }),
             merchant_defined_information,
         })
@@ -1844,6 +1851,7 @@ impl
                 specification_version: None,
                 pa_specification_version: None,
                 veres_enrolled: None,
+                eci_raw: None,
             }),
             merchant_defined_information,
         })
@@ -2036,6 +2044,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                                 specification_version: None,
                                                 pa_specification_version: None,
                                                 veres_enrolled: None,
+                                                eci_raw: None,
                                             },
                                         ),
                                     })

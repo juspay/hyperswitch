@@ -92,6 +92,7 @@ pub struct ConnectorAuthenticationRequestData {
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub three_ds_requestor_url: String,
     pub webhook_url: String,
+    pub force_3ds_challenge: bool,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
