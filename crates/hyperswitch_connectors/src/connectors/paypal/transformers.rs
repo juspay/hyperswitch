@@ -54,7 +54,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 use utils::ForeignTryFrom;
@@ -1537,25 +1536,25 @@ pub enum PaypalOrderStatus {
     Approved,
 }
 
-impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::AttemptStatus {
-    fn foreign_from(item: (PaypalOrderStatus, PaypalPaymentIntent)) -> Self {
-        match item.0 {
-            PaypalOrderStatus::Completed => {
-                if item.1 == PaypalPaymentIntent::Authorize {
-                    Self::Authorized
-                } else {
-                    Self::Charged
-                }
-            }
-            PaypalOrderStatus::Voided => Self::Voided,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
-                Self::Pending
-            }
-            PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
-            PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
-        }
-    }
-}
+// impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::AttemptStatus {
+//     fn foreign_from(item: (PaypalOrderStatus, PaypalPaymentIntent)) -> Self {
+//         match item.0 {
+//             PaypalOrderStatus::Completed => {
+//                 if item.1 == PaypalPaymentIntent::Authorize {
+//                     Self::Authorized
+//                 } else {
+//                     Self::Charged
+//                 }
+//             }
+//             PaypalOrderStatus::Voided => Self::Voided,
+//             PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
+//                 Self::Pending
+//             }
+//             PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
+//             PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
+//         }
+//     }
+// }
 
 pub (crate) fn get_order_status (
 item: PaypalOrderStatus,
