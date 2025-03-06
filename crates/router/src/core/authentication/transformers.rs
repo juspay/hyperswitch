@@ -46,6 +46,7 @@ pub fn construct_authentication_router_data(
     webhook_url: String,
     three_ds_requestor_url: String,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    payment_id: common_utils::id_type::PaymentId,
     force_3ds_challenge: bool,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
@@ -77,6 +78,7 @@ pub fn construct_authentication_router_data(
         router_request,
         &merchant_connector_account,
         psd2_sca_exemption_type,
+        payment_id,
     )
 }
 
@@ -86,6 +88,7 @@ pub fn construct_post_authentication_router_data(
     business_profile: domain::Profile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: &storage::Authentication,
+    payment_id: &common_utils::id_type::PaymentId,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
     let threeds_server_transaction_id = authentication_data
         .threeds_server_transaction_id
@@ -104,6 +107,7 @@ pub fn construct_post_authentication_router_data(
         router_request,
         &merchant_connector_account,
         None,
+        payment_id.clone(),
     )
 }
 
@@ -113,6 +117,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
     card: hyperswitch_domain_models::payment_method_data::Card,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     merchant_id: common_utils::id_type::MerchantId,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<
     types::RouterData<
         F,
@@ -130,6 +135,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
         router_request,
         merchant_connector_account,
         None,
+        payment_id,
     )
 }
 
@@ -143,6 +149,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     request_data: Req,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<types::RouterData<F, Req, Res>> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -156,9 +163,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
-            .get_string_repr()
-            .to_owned(),
+        payment_id: payment_id.get_string_repr().to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,

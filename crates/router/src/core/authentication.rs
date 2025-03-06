@@ -40,6 +40,7 @@ pub async fn perform_authentication(
     webhook_url: String,
     three_ds_requestor_url: String,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    payment_id: common_utils::id_type::PaymentId,
     force_3ds_challenge: bool,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
@@ -64,6 +65,7 @@ pub async fn perform_authentication(
         webhook_url,
         three_ds_requestor_url,
         psd2_sca_exemption_type,
+        payment_id,
         force_3ds_challenge,
     )?;
     let response = Box::pin(utils::do_auth_connector_call(
@@ -91,6 +93,7 @@ pub async fn perform_post_authentication(
     key_store: &domain::MerchantKeyStore,
     business_profile: domain::Profile,
     authentication_id: String,
+    payment_id: &common_utils::id_type::PaymentId,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, &business_profile).await?;
@@ -116,6 +119,7 @@ pub async fn perform_post_authentication(
             business_profile,
             three_ds_connector_account,
             &authentication,
+            payment_id,
         )?;
         let router_data =
             utils::do_auth_connector_call(state, authentication_connector.to_string(), router_data)
@@ -134,7 +138,7 @@ pub async fn perform_pre_authentication(
     token: String,
     business_profile: &domain::Profile,
     acquirer_details: Option<types::AcquirerDetails>,
-    payment_id: Option<common_utils::id_type::PaymentId>,
+    payment_id: common_utils::id_type::PaymentId,
     organization_id: common_utils::id_type::OrganizationId,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -146,7 +150,7 @@ pub async fn perform_pre_authentication(
         authentication_connector_name.clone(),
         token,
         business_profile.get_id().to_owned(),
-        payment_id,
+        payment_id.clone(),
         three_ds_connector_account
             .get_mca_id()
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -163,6 +167,7 @@ pub async fn perform_pre_authentication(
                 card.clone(),
                 &three_ds_connector_account,
                 business_profile.merchant_id.clone(),
+                payment_id.clone(),
             )?;
         let router_data = utils::do_auth_connector_call(
             state,
@@ -191,6 +196,7 @@ pub async fn perform_pre_authentication(
             card,
             &three_ds_connector_account,
             business_profile.merchant_id.clone(),
+            payment_id,
         )?;
     let router_data =
         utils::do_auth_connector_call(state, authentication_connector_name, router_data).await?;
