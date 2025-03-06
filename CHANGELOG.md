@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0-hotfix1
+
+### Features
+
+- **analytics:** Refactor and rewrite authentication related analytics ([#7448](https://github.com/juspay/hyperswitch/pull/7448)) ([`5befefd`](https://github.com/juspay/hyperswitch/commit/5befefd8fba636a7c3b4c358629b97992a18eea2))
+- **connector:** Added ThreeDs server integration template pr ([#7446](https://github.com/juspay/hyperswitch/pull/7446)) ([`fc160ca`](https://github.com/juspay/hyperswitch/commit/fc160cafa0fe843ab0a06cfe9104248eb95590be))
+- **payment_link:** Expose payment link configs for SDK UI rules and payment button ([#7442](https://github.com/juspay/hyperswitch/pull/7442)) ([`bb84ad7`](https://github.com/juspay/hyperswitch/commit/bb84ad705e54bb0f89a7a4644df412229387b48c))
+
+### Bug Fixes
+
+- **connector:** [Braintree] Consume merchant_account_id and merchant_config_currency in payment requests ([#7445](https://github.com/juspay/hyperswitch/pull/7445)) ([`bf0b9bb`](https://github.com/juspay/hyperswitch/commit/bf0b9bb9ebd58b85f1f92bd9cb00d8f29cec5d57))
+
+**Full Changelog:** [`2025.03.05.0...2025.03.05.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0...2025.03.05.0-hotfix1)
+
+
+- - -
+
 ## 2025.03.05.0
 
 ### Features
