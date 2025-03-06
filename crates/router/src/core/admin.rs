@@ -14,7 +14,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_connectors::connectors::{chargebee, recurly};
+use hyperswitch_connectors::connectors::chargebee;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -1529,10 +1529,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 razorpay::transformers::RazorpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Recurly => {
-                recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
+            // api_enums::Connector::Recurly => {
+            //     recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())
