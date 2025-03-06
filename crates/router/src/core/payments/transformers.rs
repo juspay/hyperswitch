@@ -4054,7 +4054,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
-            payment_method_data: payment_data.payment_method_data.map(From::from),
+            payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data
                 .payment_attempt
                 .get_connector_payment_id()
@@ -4148,7 +4148,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
         let amount = payment_data.payment_attempt.get_total_amount();
 
         Ok(Self {
-            payment_method_data: payment_method_data.map(From::from),
+            payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
@@ -4431,6 +4431,8 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
             payment_button_text_colour: config.payment_button_text_colour,
+            sdk_ui_rules: config.sdk_ui_rules,
+            payment_link_ui_rules: config.payment_link_ui_rules,
         }
     }
 }
@@ -4499,6 +4501,8 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
             payment_button_text_colour: config.payment_button_text_colour,
+            sdk_ui_rules: config.sdk_ui_rules,
+            payment_link_ui_rules: config.payment_link_ui_rules,
         }
     }
 }
