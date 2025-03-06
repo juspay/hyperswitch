@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0-hotfix2
+
+### Features
+
+- **analytics:** Add new filters, dimensions and metrics for authentication analytics ([#7453](https://github.com/juspay/hyperswitch/pull/7453)) ([`11c703c`](https://github.com/juspay/hyperswitch/commit/11c703c47c85af5d63608ce0bc282bb8a9ba2045))
+- **router:** Add capability to force challenge for 3DS Payments through Netcetera and send few optional fields ([#7449](https://github.com/juspay/hyperswitch/pull/7449)) ([`ec0718f`](https://github.com/juspay/hyperswitch/commit/ec0718f31edf165def85aa71e5d63711d31b4c36))
+
+**Full Changelog:** [`2025.03.05.0-hotfix1...2025.03.05.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0-hotfix1...2025.03.05.0-hotfix2)
+
+
+- - -
+
 ## 2025.03.05.0-hotfix1
 
 ### Features
