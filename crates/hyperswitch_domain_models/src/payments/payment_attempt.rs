@@ -706,11 +706,7 @@ impl PaymentAttempt {
         let connector_payment_id = request
             .connector_transaction_id
             .as_ref()
-            .map(|txn_id| txn_id.get_txn_id(None))
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to decode billing address")?
-            .cloned();
+            .map(|txn_id| txn_id.get_id().clone());
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -2390,6 +2386,9 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_to_capture: amount_details.amount_to_capture,
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             payment_method_subtype,
+            connector_payment_id: connector_payment_id
+                .as_ref()
+                .map(|txn_id| ConnectorTransactionId::TxnId(txn_id.clone())),
             payment_method_type_v2: payment_method_type,
             id,
             charges,
