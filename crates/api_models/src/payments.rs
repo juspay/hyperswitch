@@ -2872,6 +2872,15 @@ pub enum AdditionalPaymentData {
     },
 }
 
+impl AdditionalPaymentData {
+    pub fn get_card_network_for_card_payment_method(&self) -> Option<api_enums::CardNetwork> {
+        match self {
+            Self::Card(additional_card_info) => additional_card_info.card_network.clone(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
@@ -4451,6 +4460,8 @@ pub struct ThreeDsData {
     pub message_version: Option<String>,
     /// Directory Server ID
     pub directory_server_id: Option<String>,
+    /// Post Auth URL
+    pub post_auth_url: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4695,7 +4706,6 @@ pub struct PaymentsResponse {
 
     /// It's a token used for client side verification.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<Secret<String>>,
 
     /// Time when the payment was created

@@ -2108,8 +2108,9 @@ where
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
 
-    let payment_method_data =
-        additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+    let payment_method_data = additional_payment_method_data
+        .clone()
+        .map(api::PaymentMethodDataResponse::from);
 
     let payment_method_data_response = (payment_method_data.is_some()
         || payment_data
@@ -2304,6 +2305,11 @@ where
                                     let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
+                                            post_auth_url: helpers::create_authorize_url(
+                                                base_url,
+                                                &payment_attempt,
+                                                "abc".to_string(),
+                                            ),
                                             three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
                                                 api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: true,
@@ -2447,7 +2453,11 @@ where
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
             connector: None,
-            client_secret: None,
+            client_secret: payment_data
+                .get_payment_intent()
+                .client_secret
+                .clone()
+                .map(Secret::new),
             created: Some(payment_intent.created_at),
             currency: currency.to_string(),
             customer_id: customer.as_ref().map(|cus| cus.clone().customer_id),

@@ -1232,13 +1232,12 @@ pub fn create_authentication_url(
 }
 
 pub fn create_authorize_url(
-    router_base_url: &str,
+    _router_base_url: &str,
     payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
+    _connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
-        "{}/authenticate/{}/{}/post-auth",
-        router_base_url,
+        "https://auth.api.hyperswitch.io/api/authenticate/{}/{}/post-auth",
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr()
     )
