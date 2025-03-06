@@ -459,6 +459,9 @@ impl ConnectorData {
                 enums::Connector::Jpmorgan => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
+                enums::Connector::Juspaythreedsserver => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Juspaythreedsserver::new(),
+                ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
