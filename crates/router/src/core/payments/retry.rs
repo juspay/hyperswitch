@@ -678,6 +678,7 @@ pub fn make_new_payment_attempt(
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
+        surcharge_algorithm_id: old_payment_attempt.surcharge_algorithm_id,
     }
 }
 

@@ -229,6 +229,7 @@ impl PaymentAttemptInterface for MockDb {
             capture_before: payment_attempt.capture_before,
             card_discovery: payment_attempt.card_discovery,
             charges: None,
+            surcharge_algorithm_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

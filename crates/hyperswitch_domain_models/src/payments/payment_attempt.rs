@@ -733,6 +733,7 @@ pub struct PaymentAttempt {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -982,6 +983,7 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1711,6 +1713,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
         })
@@ -1799,6 +1802,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 capture_before: storage_model.capture_before,
                 card_discovery: storage_model.card_discovery,
                 charges: storage_model.charges,
+                surcharge_algorithm_id: storage_model.surcharge_algorithm_id,
             })
         }
         .await
@@ -1884,6 +1888,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
         })
     }
 }
