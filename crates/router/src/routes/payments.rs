@@ -1,5 +1,5 @@
 use crate::{
-    core::api_locking::{self, GetLockingInput},
+    core::{api_locking::{self, GetLockingInput}, errors::utils::StorageErrorExt},
     services::authorization::permissions::Permission,
 };
 pub mod helpers;
@@ -28,6 +28,7 @@ use crate::{
         transformers::ForeignTryFrom,
     },
 };
+
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
@@ -1711,6 +1712,157 @@ where
     }
 }
 
+// #[cfg(feature = "v1")]
+// #[allow(clippy::too_many_arguments)]
+// async fn authenticate_verify_select<Op>(
+//     state:  app::SessionState,
+//     merchant_account: domain::MerchantAccount,
+//     key_store: domain::MerchantKeyStore,
+//     req: api_models::payments::PaymentsExternalAuthenticationRequest,
+// ) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
+// {
+//     let db = &*state.store;
+//     let key_manager_state = &(&state).into();
+
+//     let merchant_id = merchant_account.get_id();
+//     let storage_scheme = merchant_account.storage_scheme;
+//     let payment_id = req.payment_id;
+//     let payment_intent = db
+//         .find_payment_intent_by_payment_id_merchant_id(
+//             key_manager_state,
+//             &payment_id,
+//             merchant_id,
+//             &key_store,
+//             storage_scheme,
+//         )
+//         .await
+//         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+//     let attempt_id = payment_intent.active_attempt.get_id().clone();
+//     let payment_attempt = db
+//         .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+//             &payment_intent.payment_id,
+//             merchant_id,
+//             &attempt_id.clone(),
+//             storage_scheme,
+//         )
+//         .await
+//         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+//     if payment_attempt.external_three_ds_authentication_attempted != Some(true) {
+//         payments::payments_core::<
+//                     api_types::CompleteAuthentication,
+//                     payment_types::PaymentsResponse,
+//                     _,
+//                     _,
+//                     _,
+//                     payments::PaymentData<api_types::SetupMandate>,
+//                 >(
+//                     state,
+//                     req_state,
+//                     merchant_account,
+//                     profile_id,
+//                     key_store,
+//                     operation,
+//                     req,
+//                     auth_flow,
+//                     payments::CallConnectorAction::Trigger,
+//                     eligible_connectors,
+//                     header_payload,
+//                     platform_merchant_account,
+//                 )
+//                 .await
+//     }
+    
+
+//     let is_recurring_details_type_nti_and_card_details = req
+//         .recurring_details
+//         .clone()
+//         .map(|recurring_details| {
+//             recurring_details.is_network_transaction_id_and_card_details_flow()
+//         })
+//         .unwrap_or(false);
+//     if is_recurring_details_type_nti_and_card_details {
+//         // no list of eligible connectors will be passed in the confirm call
+//         logger::debug!("Authorize call for NTI and Card Details flow");
+//         payments::proxy_for_payments_core::<
+//             api_types::Authorize,
+//             payment_types::PaymentsResponse,
+//             _,
+//             _,
+//             _,
+//             payments::PaymentData<api_types::Authorize>,
+//         >(
+//             state,
+//             req_state,
+//             merchant_account,
+//             profile_id,
+//             key_store,
+//             operation,
+//             req,
+//             auth_flow,
+//             payments::CallConnectorAction::Trigger,
+//             header_payload,
+//             platform_merchant_account,
+//         )
+//         .await
+//     } else {
+//         let eligible_connectors = req.connector.clone();
+//         match req.payment_type.unwrap_or_default() {
+//             api_models::enums::PaymentType::Normal
+//             | api_models::enums::PaymentType::RecurringMandate
+//             | api_models::enums::PaymentType::NewMandate => {
+//                 payments::payments_core::<
+//                     api_types::Authorize,
+//                     payment_types::PaymentsResponse,
+//                     _,
+//                     _,
+//                     _,
+//                     payments::PaymentData<api_types::Authorize>,
+//                 >(
+//                     state,
+//                     req_state,
+//                     merchant_account,
+//                     profile_id,
+//                     key_store,
+//                     operation,
+//                     req,
+//                     auth_flow,
+//                     payments::CallConnectorAction::Trigger,
+//                     eligible_connectors,
+//                     header_payload,
+//                     platform_merchant_account,
+//                 )
+//                 .await
+//             }
+//             api_models::enums::PaymentType::SetupMandate => {
+//                 payments::payments_core::<
+//                     api_types::SetupMandate,
+//                     payment_types::PaymentsResponse,
+//                     _,
+//                     _,
+//                     _,
+//                     payments::PaymentData<api_types::SetupMandate>,
+//                 >(
+//                     state,
+//                     req_state,
+//                     merchant_account,
+//                     profile_id,
+//                     key_store,
+//                     operation,
+//                     req,
+//                     auth_flow,
+//                     payments::CallConnectorAction::Trigger,
+//                     eligible_connectors,
+//                     header_payload,
+//                     platform_merchant_account,
+//                 )
+//                 .await
+//             }
+//         }
+//     }
+// }
+
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
 pub async fn payments_incremental_authorization(
@@ -1763,7 +1915,7 @@ pub async fn payments_incremental_authorization(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsExternalAuthentication, payment_id))]
-pub async fn payments_external_authentication(
+pub async fn payments_authentication(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsExternalAuthenticationRequest>,

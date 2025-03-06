@@ -7,7 +7,7 @@ use crate::{
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        SetupMandate, Void, CompleteAuthentication,
     },
     router_request_types::{
         unified_authentication_service::{

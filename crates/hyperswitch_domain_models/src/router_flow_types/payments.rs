@@ -3,6 +3,9 @@
 pub struct Authorize;
 
 #[derive(Debug, Clone)]
+pub struct CompleteAuthentication;
+
+#[derive(Debug, Clone)]
 pub struct AuthorizeSessionToken;
 
 #[derive(Debug, Clone)]

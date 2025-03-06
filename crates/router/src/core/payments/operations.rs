@@ -5,6 +5,8 @@ pub mod payment_cancel;
 #[cfg(feature = "v1")]
 pub mod payment_capture;
 #[cfg(feature = "v1")]
+pub mod payment_complete_authentication;
+#[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
 #[cfg(feature = "v1")]
 pub mod payment_confirm;
