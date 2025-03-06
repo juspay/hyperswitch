@@ -4,7 +4,7 @@ use super::generics;
 #[cfg(feature = "v1")]
 use crate::schema::merchant_account::dsl;
 #[cfg(feature = "v2")]
-use crate::schema_v2::merchant_account::dsl::{self, id as dsl_identifier};
+use crate::schema_v2::merchant_account::dsl;
 use crate::{
     errors,
     merchant_account::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal},
@@ -74,9 +74,7 @@ impl MerchantAccount {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(identifier.to_owned())
-                .or(dsl::id.eq(identifier.to_owned())),
+            dsl::merchant_id.eq(identifier.to_owned()),
         )
         .await
     }
@@ -122,9 +120,7 @@ impl MerchantAccount {
             _,
         >(
             conn,
-            dsl::merchant_id
-                .eq_any(merchant_ids.clone())
-                .or(dsl::id.eq_any(merchant_ids)),
+            dsl::merchant_id.eq_any(merchant_ids.clone()),
             None,
             None,
             None,
@@ -144,7 +140,7 @@ impl MerchantAccount {
             _,
         >(
             conn,
-            dsl::merchant_id.ne_all(vec![""]).or(dsl::id.is_null()),
+            dsl::merchant_id.ne_all(vec![""]),
             Some(i64::from(limit)),
             offset.map(i64::from),
             None,
