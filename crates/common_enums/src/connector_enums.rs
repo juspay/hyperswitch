@@ -116,6 +116,7 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Razorpay,
+    // Recurly,
     // Redsys,
     Riskified,
     Shift4,
@@ -123,6 +124,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    //Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -231,6 +233,7 @@ pub enum Connector {
     Iatapay,
     Itaubank,
     Jpmorgan,
+    Juspaythreedsserver,
     Klarna,
     Mifinity,
     Mollie,
@@ -258,11 +261,13 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
+    //Recurly,
     // Redsys,
     Shift4,
     Square,
     Stax,
     Stripe,
+    // Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -385,6 +390,7 @@ impl Connector {
 			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
+            | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
@@ -406,10 +412,12 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
+            // | Self::Recurly
 			// | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            // | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -540,12 +548,14 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Prophetpay => Self::Prophetpay,
             RoutableConnectors::Rapyd => Self::Rapyd,
             RoutableConnectors::Razorpay => Self::Razorpay,
+            // RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Riskified => Self::Riskified,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
+            // RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
