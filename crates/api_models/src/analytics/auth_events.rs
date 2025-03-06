@@ -3,7 +3,23 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use super::NameDescription;
+use common_enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
+
+use super::{NameDescription, TimeRange};
+
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+pub struct AuthEventFilters {
+    #[serde(default)]
+    pub authentication_status: Vec<AuthenticationStatus>,
+    #[serde(default)]
+    pub trans_status: Vec<TransactionStatus>,
+    #[serde(default)]
+    pub error_message: Vec<String>,
+    #[serde(default)]
+    pub authentication_connector: Vec<AuthenticationConnectors>,
+    #[serde(default)]
+    pub message_version: Vec<String>,
+}
 
 #[derive(
     Debug,
@@ -22,10 +38,13 @@ use super::NameDescription;
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthEventDimensions {
-    #[serde(rename = "authentication_status")]
     AuthenticationStatus,
+    #[strum(serialize = "trans_status")]
     #[serde(rename = "trans_status")]
     TransactionStatus,
+    ErrorMessage,
+    AuthenticationConnector,
+    MessageVersion,
 }
 
 #[derive(
@@ -51,6 +70,8 @@ pub enum AuthEventMetrics {
     FrictionlessSuccessCount,
     ChallengeAttemptCount,
     ChallengeSuccessCount,
+    AuthenticationErrorMessage,
+    AuthenticationFunnel,
 }
 
 #[derive(
@@ -79,6 +100,7 @@ pub mod metric_behaviour {
     pub struct FrictionlessSuccessCount;
     pub struct ChallengeAttemptCount;
     pub struct ChallengeSuccessCount;
+    pub struct AuthenticationErrorMessage;
 }
 
 impl From<AuthEventMetrics> for NameDescription {
@@ -90,19 +112,58 @@ impl From<AuthEventMetrics> for NameDescription {
     }
 }
 
+impl From<AuthEventDimensions> for NameDescription {
+    fn from(value: AuthEventDimensions) -> Self {
+        Self {
+            name: value.to_string(),
+            desc: String::new(),
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize, Eq)]
 pub struct AuthEventMetricsBucketIdentifier {
-    pub time_bucket: Option<String>,
+    pub authentication_status: Option<AuthenticationStatus>,
+    pub trans_status: Option<TransactionStatus>,
+    pub error_message: Option<String>,
+    pub authentication_connector: Option<AuthenticationConnectors>,
+    pub message_version: Option<String>,
+    #[serde(rename = "time_range")]
+    pub time_bucket: TimeRange,
+    #[serde(rename = "time_bucket")]
+    #[serde(with = "common_utils::custom_serde::iso8601custom")]
+    pub start_time: time::PrimitiveDateTime,
 }
 
 impl AuthEventMetricsBucketIdentifier {
-    pub fn new(time_bucket: Option<String>) -> Self {
-        Self { time_bucket }
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        authentication_status: Option<AuthenticationStatus>,
+        trans_status: Option<TransactionStatus>,
+        error_message: Option<String>,
+        authentication_connector: Option<AuthenticationConnectors>,
+        message_version: Option<String>,
+        normalized_time_range: TimeRange,
+    ) -> Self {
+        Self {
+            authentication_status,
+            trans_status,
+            error_message,
+            authentication_connector,
+            message_version,
+            time_bucket: normalized_time_range,
+            start_time: normalized_time_range.start_time,
+        }
     }
 }
 
 impl Hash for AuthEventMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        self.authentication_status.hash(state);
+        self.trans_status.hash(state);
+        self.authentication_connector.hash(state);
+        self.message_version.hash(state);
+        self.error_message.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -127,6 +188,8 @@ pub struct AuthEventMetricsBucketValue {
     pub challenge_success_count: Option<u64>,
     pub frictionless_flow_count: Option<u64>,
     pub frictionless_success_count: Option<u64>,
+    pub error_message_count: Option<u64>,
+    pub authentication_funnel: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]
