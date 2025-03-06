@@ -1607,11 +1607,21 @@ pub async fn perform_contract_based_routing(
             .attach_printable("Label information not found in contract routing configs")?;
 
         let contract_based_connectors = routable_connectors
+            .clone()
             .into_iter()
             .filter(|conn| {
                 label_info
                     .iter()
                     .any(|info| Some(info.mca_id.clone()) == conn.merchant_connector_id.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut other_connectors = routable_connectors
+            .into_iter()
+            .filter(|conn| {
+                label_info
+                    .iter()
+                    .all(|info| Some(info.mca_id.clone()) != conn.merchant_connector_id.clone())
             })
             .collect::<Vec<_>>();
 
@@ -1690,6 +1700,8 @@ pub async fn perform_contract_based_routing(
                 ),
             });
         }
+
+        connectors.append(&mut other_connectors);
 
         logger::debug!(contract_based_routing_connectors=?connectors);
         Ok(connectors)
