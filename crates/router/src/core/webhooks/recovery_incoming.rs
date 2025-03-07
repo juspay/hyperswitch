@@ -82,7 +82,7 @@ pub async fn recovery_incoming_webhook_flow(
             );
             // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
             let payment_merchant_connector_account = invoice_transaction_details
-                .find_payment_merchant_connector_account_id(
+                .find_payment_merchant_connector_account(
                     &state,
                     &key_store,
                     &billing_connector_account,
@@ -405,7 +405,7 @@ impl RevenueRecoveryAttempt {
         }
     }
 
-    pub async fn find_payment_merchant_connector_account_id(
+    pub async fn find_payment_merchant_connector_account(
         &self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
