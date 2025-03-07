@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0-hotfix4
+
+### Bug Fixes
+
+- **dashboard:** Wasm fix for xendit connector ([#7459](https://github.com/juspay/hyperswitch/pull/7459)) ([`8e480af`](https://github.com/juspay/hyperswitch/commit/8e480af36001a7d0571db2fe2bf4228ae23e4338))
+
+**Full Changelog:** [`2025.03.05.0-hotfix3...2025.03.05.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0-hotfix3...2025.03.05.0-hotfix4)
+
+
+- - -
+
 ## 2025.03.05.0-hotfix3
 
 ### Bug Fixes
