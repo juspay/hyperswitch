@@ -1261,6 +1261,14 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::migrate_payment_methods)),
                 )
                 .service(
+                    web::resource("/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_api)),
+                )
+                .service(
+                    web::resource("/tokenize-card-batch")
+                        .route(web::post().to(payment_methods::tokenize_card_batch_api)),
+                )
+                .service(
                     web::resource("/collect")
                         .route(web::post().to(payment_methods::initiate_pm_collect_link_flow)),
                 )
@@ -1272,6 +1280,10 @@ impl PaymentMethods {
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_methods::payment_method_retrieve_api))
                         .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_using_pm_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/update")
