@@ -560,6 +560,8 @@ pub enum Flow {
     PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Delete a saved payment method using the payment methods session
+    PaymentMethodSessionDeleteSavedPaymentMethod,
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
     /// Create Cards Info flow

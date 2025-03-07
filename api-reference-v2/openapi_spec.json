@@ -2960,6 +2960,62 @@
             "ephemeral_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Delete a saved payment method",
+        "description": "Delete a saved payment method from the given payment method session.",
+        "operationId": "Delete a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionDeleteSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
       }
     },
     "/v2/payment-method-session/:id/list-payment-methods": {
@@ -4452,6 +4508,25 @@
           "ctp_mastercard",
           "unified_authentication_service"
         ]
+      },
+      "AuthenticationDetails": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -14951,13 +15026,18 @@
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
-          "id"
+          "id",
+          "deleted"
         ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether payment method was deleted or not"
           }
         }
       },
@@ -15291,6 +15371,19 @@
           }
         }
       },
+      "PaymentMethodSessionDeleteSavedPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method_id"
+        ],
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "description": "The payment method id of the payment method to be updated",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
       "PaymentMethodSessionRequest": {
         "type": "object",
         "required": [
@@ -15416,10 +15509,7 @@
             "nullable": true
           },
           "associated_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/id_type.GlobalPaymentMethodId"
-            },
+            "type": "string",
             "description": "The payment method that was created using this payment method session",
             "nullable": true
           }
