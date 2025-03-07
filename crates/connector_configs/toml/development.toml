@@ -4671,4 +4671,3 @@ required=true
 type="Text"
 [juspaythreedsserver.connector_auth.HeaderKey]
 api_key="API Key"
-required=true
