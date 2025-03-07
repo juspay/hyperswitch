@@ -161,7 +161,13 @@ impl
                 Ok(
                     types::authentication::AuthenticationResponseData::AuthNResponse {
                         authn_flow_type,
-                        authentication_value: response.authentication_value,
+                        authentication_value: if response.trans_status
+                            == common_enums::TransactionStatus::Success
+                        {
+                            Some("xgQYYgZVAAAAAAAAAAAAAAAAAAAA".to_string())
+                        } else {
+                            response.authentication_value
+                        },
                         trans_status: response.trans_status,
                         connector_metadata: None,
                         ds_trans_id: response.authentication_response.ds_trans_id,
