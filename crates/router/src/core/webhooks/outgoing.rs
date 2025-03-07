@@ -866,27 +866,27 @@ async fn update_overall_delivery_status_in_storage(
         is_overall_delivery_successful: true,
     };
 
-    let parent_event_id = updated_event.initial_attempt_id.clone();
+    let initial_attempt_id = updated_event.initial_attempt_id.as_ref();
     let delivery_attempt = updated_event.delivery_attempt;
 
     if let Some((
-        parent_event_id,
+        initial_attempt_id,
         enums::WebhookDeliveryAttempt::InitialAttempt
         | enums::WebhookDeliveryAttempt::AutomaticRetry,
-    )) = parent_event_id.zip(delivery_attempt)
+    )) = initial_attempt_id.zip(delivery_attempt)
     {
         state
             .store
             .update_event_by_merchant_id_event_id(
                 key_manager_state,
                 merchant_id,
-                parent_event_id.as_str(),
+                initial_attempt_id.as_str(),
                 update_overall_delivery_status,
                 &merchant_key_store,
             )
             .await
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-            .attach_printable("Failed to update parent event")?;
+            .attach_printable("Failed to update initial delivery attempt")?;
     }
 
     Ok(())
