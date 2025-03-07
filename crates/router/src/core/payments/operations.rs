@@ -69,7 +69,7 @@ pub use self::{
     payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
     payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
-    tax_calculation::PaymentSessionUpdate,
+    tax_calculation::PaymentSessionUpdate, payment_complete_authentication::CompleteAuthentication,
 };
 #[cfg(feature = "v2")]
 pub use self::{

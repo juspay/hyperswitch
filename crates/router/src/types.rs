@@ -73,7 +73,7 @@ pub use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, ResponseId,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData, CompleteAuthenticationData,
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,

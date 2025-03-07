@@ -137,6 +137,7 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub post_auth_complete_authorize_connectors: Option<PostAuthCompleteAuthorizeConnectors>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -885,6 +886,12 @@ pub struct UserAuthMethodSettings {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTokenizationSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PostAuthCompleteAuthorizeConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }

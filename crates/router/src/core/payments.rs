@@ -73,7 +73,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, CompleteAuthentication,
 };
 use self::{
     conditional_configs::perform_decision_management,
