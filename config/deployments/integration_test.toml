@@ -25,7 +25,7 @@ adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
-amazonpay.base_url = "https://pay-api.amazon.com/v2"
+amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
@@ -436,6 +436,9 @@ debit = { not_available_flows = { capture_method = "manual" } }
 eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 przelewy24 = { country = "PL", currency = "PLN,EUR" }
+
+[pm_filters.amazonpay]
+amazon_pay = { country = "US", currency = "USD" }
 
 [payout_method_filters.adyenplatform]
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
