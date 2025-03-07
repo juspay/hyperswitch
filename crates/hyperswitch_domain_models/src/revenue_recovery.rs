@@ -1,20 +1,20 @@
 use api_models::webhooks;
-use common_utils::{id_type, transformers::ForeignFrom};
 use time::PrimitiveDateTime;
-
-use crate::merchant_connector_account;
+use common_utils::{types as util_types, id_type};
+use common_enums::enums as common_enums;
+use api_models::payments as api_payments;
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
     /// transaction amount against invoice, accepted in minor unit.
-    pub amount: common_utils::types::MinorUnit,
+    pub amount: util_types::MinorUnit,
     /// currency of the transaction
-    pub currency: common_enums::enums::Currency,
+    pub currency: common_enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
-    pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
     /// transaction id reference at payment connector
-    pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
+    pub connector_transaction_id: Option<util_types::ConnectorTransactionId>,
     /// error code sent by billing connector.
     pub error_code: Option<String>,
     /// error message sent by billing connector.
@@ -28,22 +28,22 @@ pub struct RevenueRecoveryAttemptData {
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
     /// transaction status at billing connector equivalent to payment attempt status.
-    pub status: common_enums::enums::AttemptStatus,
+    pub status: common_enums::AttemptStatus,
     /// payment method of payment attempt.
-    pub payment_method_type: common_enums::enums::PaymentMethod,
+    pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
-    pub payment_method_sub_type: common_enums::enums::PaymentMethodType,
+    pub payment_method_sub_type: common_enums::PaymentMethodType,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryInvoiceData {
     /// invoice amount at billing connector
-    pub amount: common_utils::types::MinorUnit,
+    pub amount: util_types::MinorUnit,
     /// currency of the amount.
-    pub currency: common_enums::enums::Currency,
+    pub currency: common_enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
-    pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
 }
 
 /// type of action that needs to taken after consuming recovery payload
@@ -64,15 +64,15 @@ pub enum RecoveryAction {
 }
 
 pub struct RecoveryPaymentIntent {
-    pub payment_id: common_utils::id_type::GlobalPaymentId,
-    pub status: common_enums::enums::IntentStatus,
-    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub payment_id: id_type::GlobalPaymentId,
+    pub status: common_enums::IntentStatus,
+    pub feature_metadata: Option<api_payments::FeatureMetadata>,
 }
 
 pub struct RecoveryPaymentAttempt {
-    pub attempt_id: common_utils::id_type::GlobalAttemptId,
+    pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,
-    pub feature_metadata: Option<api_models::payments::PaymentAttemptFeatureMetadata>,
+    pub feature_metadata: Option<api_payments::PaymentAttemptFeatureMetadata>,
 }
 
 impl RecoveryPaymentAttempt {
@@ -141,9 +141,9 @@ impl RecoveryAction {
     }
 }
 
-impl From<&RevenueRecoveryInvoiceData> for api_models::payments::AmountDetails {
+impl From<&RevenueRecoveryInvoiceData> for api_payments::AmountDetails {
     fn from(data: &RevenueRecoveryInvoiceData) -> Self {
-        let amount = api_models::payments::AmountDetailsSetter {
+        let amount = api_payments::AmountDetailsSetter {
             order_amount: data.amount.into(),
             currency: data.currency,
             shipping_cost: None,
@@ -157,9 +157,9 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::AmountDetails {
     }
 }
 
-impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateIntentRequest {
+impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentRequest {
     fn from(data: &RevenueRecoveryInvoiceData) -> Self {
-        let amount_details = api_models::payments::AmountDetails::from(data);
+        let amount_details = api_payments::AmountDetails::from(data);
         Self {
             amount_details,
             merchant_reference_id: Some(data.merchant_reference_id.clone()),
@@ -192,7 +192,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
     }
 }
 
-impl From<&RevenueRecoveryAttemptData> for api_models::payments::PaymentAttemptAmountDetails {
+impl From<&RevenueRecoveryAttemptData> for api_payments::PaymentAttemptAmountDetails {
     fn from(data: &RevenueRecoveryAttemptData) -> Self {
         Self {
             net_amount: data.amount,
@@ -206,13 +206,13 @@ impl From<&RevenueRecoveryAttemptData> for api_models::payments::PaymentAttemptA
     }
 }
 
-impl From<&RevenueRecoveryAttemptData> for Option<api_models::payments::RecordAttemptErrorDetails> {
+impl From<&RevenueRecoveryAttemptData> for Option<api_payments::RecordAttemptErrorDetails> {
     fn from(data: &RevenueRecoveryAttemptData) -> Self {
         data.error_code
             .as_ref()
             .zip(data.error_message.clone())
             .map(
-                |(code, message)| api_models::payments::RecordAttemptErrorDetails {
+                |(code, message)| api_payments::RecordAttemptErrorDetails {
                     code: code.to_string(),
                     message: message.to_string(),
                 },

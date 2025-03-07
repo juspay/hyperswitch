@@ -7,12 +7,12 @@ use router_env::{instrument, tracing};
 
 use crate::{
     core::{
-        errors::{self, CustomResult, StorageErrorExt},
+        errors::{self, CustomResult},
         payments,
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface},
-    types::{api, domain, transformers::ForeignFrom},
+    types::{api, domain},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -96,7 +96,7 @@ pub async fn recovery_incoming_webhook_flow(
                         &req_state,
                         &merchant_account,
                         &business_profile,
-                        &key_store.clone(),
+                        &key_store,
                         payment_intent.payment_id.clone(),
                     )
                     .await
@@ -108,7 +108,7 @@ pub async fn recovery_incoming_webhook_flow(
                                 &req_state,
                                 &merchant_account,
                                 &business_profile,
-                                &key_store.clone(),
+                                &key_store,
                                 payment_intent.payment_id.clone(),
                                 &billing_connector_account.id,
                                 payment_merchant_connector_account,
