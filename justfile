@@ -176,10 +176,10 @@ prefix_and_copy_migrations dir_1 dir_2 prefix resultant_dir:
     # Prefix v2 migrations with {{prefix}}
     sh -c '
     for dir in "{{dir_2}}"/*; do
-        if [ -d "$dir" ]; then
-            base_name=$(basename "$dir")
+        if [ -d "${dir}" ]; then
+            base_name=$(basename "${dir}")
             new_name="{{prefix}}${base_name}"
-            cp -r "$dir" "{{resultant_dir}}/$new_name"
+            cp -r "${dir}" "{{resultant_dir}}/${new_name}"
         fi
     done
     '
