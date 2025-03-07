@@ -31,8 +31,8 @@ use serde_json::Value;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, CardData, ForeignTryFrom, PaymentsSyncRequestData, RefundsRequestData,
-        RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
+        RefundsRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 
@@ -674,19 +674,6 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
-fn should_create_payment_profile(router_data: &PaymentsAuthorizeRouterData) -> bool {
-    router_data
-        .request
-        .setup_future_usage
-        .is_some_and(|future_usage| matches!(future_usage, common_enums::FutureUsage::OffSession))
-        && (router_data.request.customer_acceptance.is_some()
-            || router_data
-                .request
-                .setup_mandate_details
-                .clone()
-                .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
-}
-
 impl
     TryFrom<(
         &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
@@ -845,7 +832,7 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if should_create_payment_profile(item.router_data) {
+        let (profile, customer) = if item.router_data.request.is_mandate_payment() {
             (
                 Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                     create_profile: true,
@@ -921,7 +908,7 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if should_create_payment_profile(item.router_data) {
+        let (profile, customer) = if item.router_data.request.is_mandate_payment() {
             (
                 Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                     create_profile: true,
