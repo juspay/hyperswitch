@@ -4,7 +4,6 @@ use api_models::analytics::{
     auth_events::{AuthEventDimensions, AuthEventFilters, AuthEventMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
-use common_enums::AuthenticationStatus;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -16,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct AuthenticationSuccessCount;
+pub(super) struct AuthenticationCount;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for AuthenticationSuccessCount
+impl<T> super::AuthEventMetric<T> for AuthenticationCount
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -65,10 +64,6 @@ where
 
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("authentication_status", AuthenticationStatus::Success)
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
