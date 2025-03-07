@@ -6605,7 +6605,8 @@
           "netcetera",
           "gpayments",
           "ctp_mastercard",
-          "unified_authentication_service"
+          "unified_authentication_service",
+          "juspaythreedsserver"
         ]
       },
       "AuthenticationStatus": {
@@ -9736,6 +9737,7 @@
           "iatapay",
           "itaubank",
           "jpmorgan",
+          "juspaythreedsserver",
           "klarna",
           "mifinity",
           "mollie",
@@ -23352,6 +23354,11 @@
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not.",
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23386,7 +23393,8 @@
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
           "is_click_to_pay_enabled",
-          "is_clear_pan_retries_enabled"
+          "is_clear_pan_retries_enabled",
+          "force_3ds_challenge"
         ],
         "properties": {
           "merchant_id": {
@@ -23611,6 +23619,10 @@
           "is_clear_pan_retries_enabled": {
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not."
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced"
           }
         }
       },
