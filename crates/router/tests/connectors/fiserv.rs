@@ -16,7 +16,7 @@ impl utils::Connector for FiservTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Fiserv;
         utils::construct_connector_data_old(
-            Box::new(&Fiserv),
+            Box::new(Fiserv::new()),
             types::Connector::Fiserv,
             types::api::GetToken::Connector,
             None,
