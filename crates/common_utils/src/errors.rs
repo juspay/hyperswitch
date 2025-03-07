@@ -103,6 +103,9 @@ pub enum QrCodeError {
     /// Failed to encode data into Qr code
     #[error("Failed to create Qr code")]
     FailedToCreateQrCode,
+    /// Failed to parse hex color
+    #[error("Invalid hex color code supplied")]
+    InvalidHexColor,
 }
 
 /// Api Models construction error

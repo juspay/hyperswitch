@@ -35,13 +35,14 @@ use diesel_models::{
 };
 
 use self::payment_attempt::PaymentAttempt;
-#[cfg(feature = "v1")]
-use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, errors, merchant_account, payment_address,
-    payment_method_data, ApiModelToDieselModelConvertor,
+    address::Address, business_profile, customer, errors, merchant_account,
+    merchant_connector_account, payment_address, payment_method_data,
+    ApiModelToDieselModelConvertor,
 };
+#[cfg(feature = "v1")]
+use crate::{payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -225,9 +226,45 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
+            common_enums::TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
+        })
+    }
+
+    pub fn proxy_create_attempt_amount_details(
+        &self,
+        _confirm_intent_request: &api_models::payments::ProxyPaymentsRequest,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = self.calculate_net_amount();
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            common_enums::TaxCalculationOverride::Skip => self
+                .tax_details
+                .as_ref()
+                .and_then(|tax_details| tax_details.get_tax_amount(None)),
             common_enums::TaxCalculationOverride::Calculate => None,
         };
 
@@ -375,6 +412,47 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+    fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get_payment_method_sub_type())
+    }
+
+    fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get_payment_method_type())
+    }
+
+    pub fn set_payment_connector_transmission(
+        &self,
+        feature_metadata: Option<FeatureMetadata>,
+        status: bool,
+    ) -> Option<Box<FeatureMetadata>> {
+        feature_metadata.map(|fm| {
+            let mut updated_metadata = fm;
+            if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
+                rrm.payment_connector_transmission = if status {
+                    common_enums::PaymentConnectorTransmission::ConnectorCallFailed
+                } else {
+                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                };
+            }
+            Box::new(updated_metadata)
+        })
+    }
+
+    pub fn get_connector_customer_id_from_feature_metadata(&self) -> Option<String> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rrm| {
+                rrm.billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
+    }
+
     fn get_request_incremental_authorization_value(
         request: &api_models::payments::PaymentsCreateIntentRequest,
     ) -> CustomResult<
@@ -585,7 +663,7 @@ where
 
 // TODO: Check if this can be merged with existing payment data
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentConfirmData<F>
 where
     F: Clone,
@@ -595,6 +673,25 @@ where
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
+    pub mandate_data: Option<api_models::payments::MandateIds>,
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> PaymentConfirmData<F> {
+    pub fn get_connector_customer_id(
+        &self,
+        customer: Option<&customer::Customer>,
+        merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> Option<String> {
+        match customer
+            .and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id()))
+        {
+            Some(id) => Some(id.to_string()),
+            None => self
+                .payment_intent
+                .get_connector_customer_id_from_feature_metadata(),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -631,5 +728,82 @@ where
 {
     pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
         &self.payment_intent.id
+    }
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultOperation {
+    ExistingVaultData(VaultData),
+}
+
+impl VaultOperation {
+    pub fn get_updated_vault_data(
+        existing_vault_data: Option<&Self>,
+        payment_method_data: &payment_method_data::PaymentMethodData,
+    ) -> Option<Self> {
+        match (existing_vault_data, payment_method_data) {
+            (None, payment_method_data::PaymentMethodData::Card(card)) => {
+                Some(Self::ExistingVaultData(VaultData::Card(card.clone())))
+            }
+            (None, payment_method_data::PaymentMethodData::NetworkToken(nt_data)) => Some(
+                Self::ExistingVaultData(VaultData::NetworkToken(nt_data.clone())),
+            ),
+            (Some(Self::ExistingVaultData(vault_data)), payment_method_data) => {
+                match (vault_data, payment_method_data) {
+                    (
+                        VaultData::Card(card),
+                        payment_method_data::PaymentMethodData::NetworkToken(nt_data),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    (
+                        VaultData::NetworkToken(nt_data),
+                        payment_method_data::PaymentMethodData::Card(card),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    _ => Some(Self::ExistingVaultData(vault_data.clone())),
+                }
+            }
+            //payment_method_data is not card or network token
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultData {
+    Card(payment_method_data::Card),
+    NetworkToken(payment_method_data::NetworkTokenData),
+    CardAndNetworkToken(Box<CardAndNetworkTokenData>),
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardAndNetworkTokenData {
+    pub card_data: payment_method_data::Card,
+    pub network_token_data: payment_method_data::NetworkTokenData,
+}
+
+impl VaultData {
+    pub fn get_card_vault_data(&self) -> Option<payment_method_data::Card> {
+        match self {
+            Self::Card(card_data) => Some(card_data.clone()),
+            Self::NetworkToken(_network_token_data) => None,
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
+        }
+    }
+
+    pub fn get_network_token_data(&self) -> Option<payment_method_data::NetworkTokenData> {
+        match self {
+            Self::Card(_card_data) => None,
+            Self::NetworkToken(network_token_data) => Some(network_token_data.clone()),
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
+        }
     }
 }

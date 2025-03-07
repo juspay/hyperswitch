@@ -568,6 +568,7 @@ pub enum AdyenPaymentMethod<'a> {
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     #[serde(rename = "gcash")]
     Gcash(Box<GcashData>),
+    #[serde(rename = "googlepay")]
     Gpay(Box<AdyenGPay>),
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
@@ -2403,6 +2404,7 @@ impl
             ),
             domain::BankRedirectData::Trustly { .. } => Ok(AdyenPaymentMethod::Trustly),
             domain::BankRedirectData::Giropay { .. }
+            | domain::BankRedirectData::Eft { .. }
             | domain::BankRedirectData::Interac { .. }
             | domain::BankRedirectData::LocalBankRedirect {}
             | domain::BankRedirectData::Przelewy24 { .. }
