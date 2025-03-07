@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0-hotfix3
+
+### Bug Fixes
+
+- **dashboard:** Added apikey auth for juspay threeds server in wasm file ([#7456](https://github.com/juspay/hyperswitch/pull/7456)) ([`5885761`](https://github.com/juspay/hyperswitch/commit/588576167411285a731eb216638a50284bd92a32))
+
+**Full Changelog:** [`2025.03.05.0-hotfix2...2025.03.05.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0-hotfix2...2025.03.05.0-hotfix3)
+
+
+- - -
+
 ## 2025.03.05.0-hotfix2
 
 ### Features
