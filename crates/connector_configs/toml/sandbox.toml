@@ -4549,7 +4549,7 @@ type="Text"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
 [xendit.connector_webhook_details]
-webhook_verification_token="Source verification key"
+merchant_secret="Webhook Verification Token"
 
 [inespay]
 [[inespay.bank_debit]]
