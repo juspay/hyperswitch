@@ -9636,6 +9636,7 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
@@ -11876,6 +11877,12 @@
             "type": "string",
             "enum": [
               "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_network"
             ]
           },
           {
@@ -24680,6 +24687,7 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",

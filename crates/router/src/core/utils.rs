@@ -337,6 +337,7 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_attempt.capture_method;
 
     let braintree_metadata = payment_intent
         .connector_metadata
@@ -395,6 +396,7 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_status: refund.refund_status,
             merchant_account_id,
             merchant_config_currency,
+            capture_method,
         },
 
         response: Ok(types::RefundsResponseData {
