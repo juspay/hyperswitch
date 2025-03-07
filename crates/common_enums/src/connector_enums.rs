@@ -263,7 +263,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
-    //Recurly,
+    // Recurly,
     // Redsys,
     Shift4,
     Square,
