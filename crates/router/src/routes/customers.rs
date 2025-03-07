@@ -125,7 +125,7 @@ pub async fn customers_list(
     let flow = Flow::CustomersList;
     let payload = query.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -147,7 +147,7 @@ pub async fn customers_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

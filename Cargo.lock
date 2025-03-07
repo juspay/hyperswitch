@@ -5631,6 +5631,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
+name = "payment_methods"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "common_utils",
+ "dyn-clone",
+ "hyperswitch_domain_models",
+ "storage_impl",
+]
+
+[[package]]
 name = "pem"
 version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6633,6 +6644,7 @@ dependencies = [
  "once_cell",
  "openidconnect",
  "openssl",
+ "payment_methods",
  "pm_auth",
  "quick-xml",
  "rand",
