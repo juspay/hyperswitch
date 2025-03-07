@@ -643,7 +643,7 @@ function handleFlow(
     const callbackArgs = {
       connectorId,
       constants: CONSTANTS,
-      expectedUrlOrigin: expectedUrl.origin,
+      expectedUrl: expectedUrl.origin,
       ...options, // e.g. paymentMethodType if provided
     };
 
