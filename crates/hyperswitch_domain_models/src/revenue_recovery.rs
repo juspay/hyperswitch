@@ -1,8 +1,7 @@
-use api_models::webhooks;
-use time::PrimitiveDateTime;
-use common_utils::{types as util_types, id_type};
+use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
-use api_models::payments as api_payments;
+use common_utils::{id_type, types as util_types};
+use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
@@ -211,11 +210,9 @@ impl From<&RevenueRecoveryAttemptData> for Option<api_payments::RecordAttemptErr
         data.error_code
             .as_ref()
             .zip(data.error_message.clone())
-            .map(
-                |(code, message)| api_payments::RecordAttemptErrorDetails {
-                    code: code.to_string(),
-                    message: message.to_string(),
-                },
-            )
+            .map(|(code, message)| api_payments::RecordAttemptErrorDetails {
+                code: code.to_string(),
+                message: message.to_string(),
+            })
     }
 }
