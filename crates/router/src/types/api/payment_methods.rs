@@ -2,9 +2,9 @@
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardType, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
+    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, NetworkTokenDetailsPaymentMethod,
+    NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+    PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
     PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
     PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
