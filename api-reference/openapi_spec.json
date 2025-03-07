@@ -16140,6 +16140,22 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "OverCaptureStatus": {
+        "type": "string",
+        "description": "Whether overcapture is allowed by the connector",
+        "enum": [
+          "applicable",
+          "not_applicable"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -18625,6 +18641,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19021,6 +19045,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -19579,6 +19611,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
+            "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
               }
             ],
             "nullable": true
@@ -20266,6 +20306,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20850,6 +20898,14 @@
               }
             ],
             "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21344,6 +21400,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -23352,6 +23416,11 @@
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not.",
             "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23611,6 +23680,13 @@
           "is_clear_pan_retries_enabled": {
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not."
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "default": false,
+            "example": false,
+            "nullable": true
           }
         }
       },

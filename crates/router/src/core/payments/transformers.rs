@@ -306,6 +306,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_payment_method_data: None,
         merchant_account_id: None,
         merchant_config_currency: None,
+        request_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2545,6 +2546,7 @@ where
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
             card_discovery: payment_attempt.card_discovery,
+            overcapture_status: payment_attempt.overcapture_status,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2803,7 +2805,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
-            card_discovery: pa.card_discovery
+            card_discovery: pa.card_discovery,
+            overcapture_status: pa.overcapture_status,
         }
     }
 }
@@ -3156,6 +3159,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        let request_overcapture = payment_data.payment_attempt.request_overcapture;
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -3209,6 +3214,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             shipping_cost,
             merchant_account_id,
             merchant_config_currency,
+            request_overcapture,
         })
     }
 }

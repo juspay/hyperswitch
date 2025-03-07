@@ -3792,6 +3792,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
             force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
+            always_request_overcapture: self.always_request_overcapture,
         }))
     }
 
@@ -4234,6 +4235,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
                 force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
+                always_request_overcapture: self.always_request_overcapture,
             },
         )))
     }

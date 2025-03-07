@@ -3846,6 +3846,7 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3918,6 +3919,7 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3988,6 +3990,7 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4523,6 +4526,7 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            request_overcapture: None,
         }
     }
 
@@ -7408,4 +7412,50 @@ pub async fn validate_allowed_payment_method_types_request(
     }
 
     Ok(())
+}
+
+pub fn validate_overcapture_request(
+    capture_method: Option<api_enums::CaptureMethod>,
+    request_overcapture: Option<api_enums::OverCaptureRequest>,
+) -> Result<(), errors::ApiErrorResponse> {
+    utils::when(
+        request_overcapture.is_some_and(|request_overcapture| request_overcapture.is_enabled())
+            && !(capture_method.is_some_and(|capture_method| capture_method.is_manual())),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
+            })
+        },
+    )
+}
+
+#[cfg(feature = "v1")]
+pub fn validate_and_get_overcapture_request(
+    capture_method: &Option<storage_enums::CaptureMethod>,
+    request_overcapture: &Option<api_enums::OverCaptureRequest>,
+    profile: &domain::Profile,
+    confirm: bool,
+) -> Result<Option<api_enums::OverCaptureRequest>, errors::ApiErrorResponse> {
+    if let Some(api_enums::CaptureMethod::Manual) = capture_method {
+        let is_overcapture_requested = match *request_overcapture {
+            Some(request_overcapture) => Some(request_overcapture),
+            None => {
+                if confirm {
+                    profile
+                        .always_request_overcapture
+                        .map(api_enums::OverCaptureRequest::from)
+                } else {
+                    None
+                }
+            }
+        };
+        Ok(is_overcapture_requested)
+    } else {
+        match *request_overcapture {
+            Some(_) => Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
+            }),
+            request_overcapture => Ok(request_overcapture),
+        }
+    }
 }

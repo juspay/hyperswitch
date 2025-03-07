@@ -62,6 +62,7 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -148,6 +149,7 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -328,6 +330,7 @@ pub struct PaymentIntentNew {
     pub apply_mit_exemption: Option<bool>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -397,6 +400,7 @@ pub struct PaymentIntentNew {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -552,6 +556,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 // TODO: uncomment fields as necessary
@@ -636,6 +641,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -678,6 +684,7 @@ impl PaymentIntentUpdate {
             shipping_details,
             is_payment_processor_token_flow,
             tax_details,
+            request_overcapture,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -723,6 +730,7 @@ impl PaymentIntentUpdate {
             is_payment_processor_token_flow: is_payment_processor_token_flow
                 .or(source.is_payment_processor_token_flow),
             tax_details: tax_details.or(source.tax_details),
+            request_overcapture: request_overcapture.or(source.request_overcapture),
             ..source
         }
     }
@@ -772,6 +780,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -811,6 +820,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count: None,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 tax_details: None,
+                request_overcapture: value.request_overcapture,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -857,6 +867,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -899,6 +910,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -942,6 +954,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -992,6 +1005,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1034,6 +1048,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1077,6 +1092,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1119,6 +1135,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1161,6 +1178,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1202,6 +1220,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1240,6 +1259,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1280,6 +1300,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1320,6 +1341,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1358,6 +1380,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1401,6 +1424,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details,
                 is_payment_processor_token_flow: None,
+                request_overcapture: None,
             },
         }
     }

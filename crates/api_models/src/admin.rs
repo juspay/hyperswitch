@@ -1982,6 +1982,10 @@ pub struct ProfileCreate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[serde(default)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2256,6 +2260,10 @@ pub struct ProfileResponse {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: bool,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(default = false, example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2526,6 +2534,10 @@ pub struct ProfileUpdate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

@@ -221,6 +221,7 @@ diesel::table! {
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
+        always_request_overcapture -> Nullable<Bool>,
     }
 }
 
@@ -922,6 +923,10 @@ diesel::table! {
         processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 32]
+        request_overcapture -> Nullable<Varchar>,
+        #[max_length = 32]
+        overcapture_status -> Nullable<Varchar>,
     }
 }
 
@@ -1007,6 +1012,8 @@ diesel::table! {
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        request_overcapture -> Nullable<Varchar>,
     }
 }
 

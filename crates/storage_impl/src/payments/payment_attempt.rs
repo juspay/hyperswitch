@@ -646,6 +646,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
+                    request_overcapture: None,
+                    overcapture_status: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1649,6 +1651,8 @@ impl DataModelExt for PaymentAttempt {
             charges: self.charges,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
+            request_overcapture: self.request_overcapture,
+            overcapture_status: self.overcapture_status,
         }
     }
 
@@ -1730,6 +1734,8 @@ impl DataModelExt for PaymentAttempt {
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             charges: storage_model.charges,
+            request_overcapture: storage_model.request_overcapture,
+            overcapture_status: storage_model.overcapture_status,
         }
     }
 }
@@ -1816,6 +1822,7 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            request_overcapture: self.request_overcapture,
         }
     }
 
@@ -1891,6 +1898,7 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
+            request_overcapture: storage_model.request_overcapture,
         }
     }
 }
