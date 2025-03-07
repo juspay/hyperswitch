@@ -39,7 +39,7 @@ pub mod payment_methods {
 pub mod consts {
     pub use hyperswitch_domain_models::consts::*;
 }
-pub mod payment_method_data{
+pub mod payment_method_data {
     pub use hyperswitch_domain_models::payment_method_data::*;
 }
 
@@ -62,11 +62,11 @@ pub use event::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;
 pub use network_tokenization::*;
+pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use payments::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;
-pub use payment_method_data::*;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use vault::*;

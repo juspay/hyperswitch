@@ -2,15 +2,15 @@
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardType, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
+    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, NetworkTokenDetailsPaymentMethod,
+    NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+    PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
     PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
     PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
     PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted,
     TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2, NetworkTokenResponse, NetworkTokenDetailsPaymentMethod
+    TokenizedWalletValue2,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),

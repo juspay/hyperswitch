@@ -19,7 +19,10 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{address::Address, type_encryption::OptionalEncryptableJsonType, payment_method_data as domain_payment_method_data};
+use crate::{
+    address::Address, payment_method_data as domain_payment_method_data,
+    type_encryption::OptionalEncryptableJsonType,
+};
 use crate::{
     mandates::{self, CommonMandateReference},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
@@ -113,7 +116,8 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     #[encrypt(ty = Value)]
-    pub network_token_payment_method_data: Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
+    pub network_token_payment_method_data:
+        Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
 }
 
 impl PaymentMethod {
@@ -512,8 +516,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             let network_token_payment_method_data = data
                 .network_token_payment_method_data
                 .map(|network_token_payment_method_data| {
-                    network_token_payment_method_data
-                        .deserialize_inner_value(|value| value.parse_value("Network token Payment Method Data"))
+                    network_token_payment_method_data.deserialize_inner_value(|value| {
+                        value.parse_value("Network token Payment Method Data")
+                    })
                 })
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
