@@ -1281,6 +1281,7 @@ pub trait AddressDetailsData {
     fn get_optional_line2(&self) -> Option<Secret<String>>;
     fn get_optional_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1501,6 +1502,10 @@ impl AddressDetailsData for AddressDetails {
 
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
         self.last_name.clone()
+    }
+
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
     }
 }
 
@@ -1883,6 +1888,22 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
     }
 }
 
+pub trait PaymentsPostSessionTokensRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_amount(&self) -> Result<i64, Error>;
@@ -1921,6 +1942,7 @@ pub trait RefundsRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_connector_metadata(&self) -> Result<Value, Error>;
+    fn get_connector_refund_id(&self) -> Result<String, Error>;
 }
 
 impl RefundsRequestData for RefundsData {
@@ -1950,6 +1972,12 @@ impl RefundsRequestData for RefundsData {
         self.connector_metadata
             .clone()
             .ok_or_else(missing_field_err("connector_metadata"))
+    }
+    fn get_connector_refund_id(&self) -> Result<String, Error> {
+        self.connector_refund_id
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
     }
 }
 

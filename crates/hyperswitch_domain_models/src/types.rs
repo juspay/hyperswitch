@@ -7,7 +7,8 @@ use crate::{
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
-        PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
+        PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
@@ -21,11 +22,13 @@ use crate::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
+        PaymentsTaxCalculationData, RefundsData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -75,6 +78,14 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     IncrementalAuthorization,
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
+>;
+pub type SdkSessionUpdateRouterData =
+    RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
+
+pub type VerifyWebhookSourceRouterData = RouterData<
+    VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
 >;
 
 #[cfg(feature = "payouts")]
