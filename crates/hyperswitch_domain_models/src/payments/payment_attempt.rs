@@ -575,6 +575,8 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             feature_metadata: None,
+            overcapture_status: None,
+            request_overcapture: None,
         })
     }
 
