@@ -37,6 +37,7 @@ pub enum ApiIdentifier {
     Recon,
     Poll,
     ApplePayCertificatesMigration,
+    PaymentMethodBillingAddressMigration,
     Relay,
     Documentation,
     CardNetworkTokenization,
@@ -331,6 +332,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionConfirm
             | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
+            Flow::PaymentMethodBillingAddressMigration => {
+                Self::PaymentMethodBillingAddressMigration
+            }
         }
     }
 }
