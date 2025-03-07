@@ -125,44 +125,6 @@ impl<F: Send + Clone + Sync>
 
         let storage_scheme = merchant_account.storage_scheme;
 
-        let billing_mca = db
-            .find_merchant_connector_account_by_id(
-                key_manager_state,
-                &request.billing_connector_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: request.billing_connector_id.get_string_repr().to_owned(),
-            })?;
-
-        let payment_merchant_connector_account_id = billing_mca
-            .get_payment_merchant_connector_account_id_using_account_reference_id(
-                request.merchant_connector_reference_id.clone(),
-            );
-
-        let payment_merchant_connector_account = payment_merchant_connector_account_id
-            .as_ref()
-            .async_map(|mca_id| {
-                let mca_id_cloned = mca_id.clone();
-                async move {
-                    db.find_merchant_connector_account_by_id(
-                        key_manager_state,
-                        &mca_id_cloned,
-                        key_store,
-                    )
-                    .await
-                }
-            })
-            .await
-            .transpose()
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: request.billing_connector_id.get_string_repr().to_owned(),
-            })?;
-
-        let connector_name = payment_merchant_connector_account
-            .map(|connector| connector.get_connector_name_as_string());
-
         let payment_intent = db
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
@@ -213,8 +175,6 @@ impl<F: Send + Clone + Sync>
                 storage_scheme,
                 request,
                 encrypted_data,
-                connector_name,
-                payment_merchant_connector_account_id,
             )
             .await?;
 
@@ -229,7 +189,7 @@ impl<F: Send + Clone + Sync>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
         let revenue_recovery_data = hyperswitch_domain_models::payments::RevenueRecoveryData {
-            billing_connector_id: billing_mca.id,
+            billing_connector_id: request.billing_connector_id.clone(),
             processor_payment_method_token: request.processor_payment_method_token.clone(),
             connector_customer_id: request.connector_customer_id.clone(),
         };

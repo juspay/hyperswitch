@@ -670,8 +670,6 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
-        payment_merchant_connector_name: Option<String>,
-        payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -707,13 +705,14 @@ impl PaymentAttempt {
             .connector_transaction_id
             .as_ref()
             .map(|txn_id| txn_id.get_id().clone());
+        let connector = request.connector.map(|connector| connector.to_string());
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
             amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
-            connector: payment_merchant_connector_name,
+            connector,
             authentication_type: storage_enums::AuthenticationType::NoThreeDs,
             created_at: transaction_created_at,
             modified_at: now,
@@ -731,7 +730,7 @@ impl PaymentAttempt {
             updated_by: storage_scheme.to_string(),
             redirection_data: None,
             encoded_data: None,
-            merchant_connector_id: payment_merchant_connector_account_id,
+            merchant_connector_id: request.payment_merchant_connector_id.clone(),
             external_three_ds_authentication_attempted: None,
             authentication_connector: None,
             authentication_id: None,

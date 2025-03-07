@@ -15,8 +15,6 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::revenue_recovery;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -2317,49 +2315,6 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-impl
-    ForeignFrom<(
-        &revenue_recovery::RevenueRecoveryAttemptData,
-        &common_utils::id_type::MerchantConnectorAccountId,
-    )> for payments::PaymentsAttemptRecordRequest
-{
-    fn foreign_from(
-        (request, billing_connector_account_id): (
-            &revenue_recovery::RevenueRecoveryAttemptData,
-            &common_utils::id_type::MerchantConnectorAccountId,
-        ),
-    ) -> Self {
-        let amount_details = payments::PaymentAttemptAmountDetails::from(request);
-        let feature_metadata = payments::PaymentAttemptFeatureMetadata {
-            revenue_recovery: Some(payments::PaymentAttemptRevenueRecoveryData {
-                // Since we are recording the external payment attempt, this is hardcoded to External
-                attempt_triggered_by: common_enums::TriggeredBy::External,
-            }),
-        };
-        let error = Option::<payments::RecordAttemptErrorDetails>::from(request);
-        Self {
-            amount_details,
-            status: request.status,
-            billing: None,
-            shipping: None,
-            error,
-            description: None,
-            connector_transaction_id: request.connector_transaction_id.clone(),
-            payment_method_type: request.payment_method_type,
-            merchant_connector_reference_id: request.connector_account_reference_id.clone(),
-            billing_connector_id: billing_connector_account_id.clone(),
-            payment_method_subtype: request.payment_method_sub_type,
-            payment_method_data: None,
-            metadata: None,
-            feature_metadata: Some(feature_metadata),
-            transaction_created_at: request.transaction_created_at,
-            processor_payment_method_token: request.processor_payment_method_token.clone(),
-            connector_customer_id: request.connector_customer_id.clone(),
         }
     }
 }

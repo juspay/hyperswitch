@@ -8419,13 +8419,17 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     pub payment_method_type: api_enums::PaymentMethod,
 
-    /// A unique reference identifier for a connector provided by the external system to identify payment connector.
-    #[schema(value_type = String, example = "1234567890")]
-    pub merchant_connector_reference_id: String,
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Option<Connector>, example = "stripe")]
+    pub connector: Option<common_enums::connector_enums::Connector>,
 
     /// Billing connector id to update the invoices.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
