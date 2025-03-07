@@ -7733,6 +7733,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft"
+            ],
+            "properties": {
+              "eft": {
+                "type": "object",
+                "required": [
+                  "provider"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "description": "The preferred eft provider",
+                    "example": "ozow"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -8507,6 +8528,23 @@
             "type": "string",
             "description": "The shopper's social security number",
             "nullable": true
+          }
+        }
+      },
+      "BraintreeData": {
+        "type": "object",
+        "required": [
+          "merchant_account_id",
+          "merchant_config_currency"
+        ],
+        "properties": {
+          "merchant_account_id": {
+            "type": "string",
+            "description": "Information about the merchant_account_id that merchant wants to specify at connector level."
+          },
+          "merchant_config_currency": {
+            "type": "string",
+            "description": "Information about the merchant_config_currency that merchant wants to specify at connector level."
           }
         }
       },
@@ -9756,6 +9794,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NoonData"
+              }
+            ],
+            "nullable": true
+          },
+          "braintree": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BraintreeData"
               }
             ],
             "nullable": true
@@ -12830,7 +12876,8 @@
           "message",
           "status",
           "decision",
-          "step_up_possible"
+          "step_up_possible",
+          "clear_pan_possible"
         ],
         "properties": {
           "connector": {
@@ -12885,6 +12932,10 @@
               }
             ],
             "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
           }
         }
       },
@@ -12969,7 +13020,8 @@
           "message",
           "status",
           "decision",
-          "step_up_possible"
+          "step_up_possible",
+          "clear_pan_possible"
         ],
         "properties": {
           "connector": {
@@ -13026,6 +13078,10 @@
               }
             ],
             "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
           }
         }
       },
@@ -13129,6 +13185,11 @@
                 "$ref": "#/components/schemas/ErrorCategory"
               }
             ],
+            "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible",
             "nullable": true
           }
         }
@@ -15291,6 +15352,14 @@
                 "type": "string",
                 "description": "The url for Qr code given by the connector"
               },
+              "display_text": {
+                "type": "string",
+                "nullable": true
+              },
+              "border_color": {
+                "type": "string",
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -16520,6 +16589,28 @@
             "type": "string",
             "description": "Custom background colour for the payment link",
             "nullable": true
+          },
+          "sdk_ui_rules": {
+            "type": "object",
+            "description": "SDK configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "payment_link_ui_rules": {
+            "type": "object",
+            "description": "Payment link configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
           }
         }
       },
@@ -16634,6 +16725,28 @@
           "background_colour": {
             "type": "string",
             "description": "Custom background colour for the payment link",
+            "nullable": true
+          },
+          "sdk_ui_rules": {
+            "type": "object",
+            "description": "SDK configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "payment_link_ui_rules": {
+            "type": "object",
+            "description": "Payment link configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
             "nullable": true
           }
         }
@@ -17744,6 +17857,7 @@
           "debit",
           "duit_now",
           "efecty",
+          "eft",
           "eps",
           "fps",
           "evoucher",
@@ -23142,6 +23256,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23175,7 +23294,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "is_clear_pan_retries_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -23396,6 +23516,10 @@
               }
             ],
             "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not."
           }
         }
       },
@@ -23952,7 +24076,7 @@
             ],
             "properties": {
               "refund": {
-                "$ref": "#/components/schemas/RelayRefundRequest"
+                "$ref": "#/components/schemas/RelayRefundRequestData"
               }
             }
           }
@@ -23975,7 +24099,7 @@
           }
         }
       },
-      "RelayRefundRequest": {
+      "RelayRefundRequestData": {
         "type": "object",
         "required": [
           "amount",

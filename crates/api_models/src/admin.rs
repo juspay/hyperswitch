@@ -1960,6 +1960,12 @@ pub struct ProfileCreate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2081,6 +2087,9 @@ pub struct ProfileCreate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2225,6 +2234,12 @@ pub struct ProfileResponse {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2352,6 +2367,9 @@ pub struct ProfileResponse {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2486,6 +2504,12 @@ pub struct ProfileUpdate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2601,6 +2625,9 @@ pub struct ProfileUpdate {
 
     /// Card Testing Guard Configs
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2792,6 +2819,10 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2873,6 +2904,10 @@ pub struct PaymentLinkConfig {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

@@ -1422,6 +1422,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Juspaythreedsserver => Ok(()),
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -3755,8 +3756,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector
                 .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
+            outgoing_webhook_custom_http_headers,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             always_collect_billing_details_from_wallet_connector: self
@@ -3786,6 +3786,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
+            force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
         }))
     }
 
@@ -3903,8 +3905,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector_if_required
                 .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
+            outgoing_webhook_custom_http_headers,
             always_collect_billing_details_from_wallet_connector: self
                 .always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: self
@@ -3941,6 +3942,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
         }))
     }
 }
@@ -4209,8 +4211,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 collect_billing_details_from_wallet_connector: self
                     .collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                    .map(Into::into),
+                outgoing_webhook_custom_http_headers,
                 always_collect_billing_details_from_wallet_connector: self
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
@@ -4227,6 +4228,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
+                is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+                force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
             },
         )))
     }
@@ -4342,8 +4345,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 collect_billing_details_from_wallet_connector: self
                     .collect_billing_details_from_wallet_connector_if_required,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                    .map(Into::into),
+                outgoing_webhook_custom_http_headers,
                 order_fulfillment_time: self
                     .order_fulfillment_time
                     .map(|order_fulfillment_time| order_fulfillment_time.into_inner()),
