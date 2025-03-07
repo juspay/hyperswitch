@@ -1549,10 +1549,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Stripebilling => {
-            //     stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Stripebilling => {
+                stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
