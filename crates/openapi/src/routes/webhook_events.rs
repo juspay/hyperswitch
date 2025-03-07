@@ -45,6 +45,11 @@
             Query,
             description = "Only include Events associated with the Profile identified by the specified Profile ID."
         ),
+        (
+            "is_delivered" = Option<bool>,
+            Query,
+            description = "Only include Events which are ultimately delivered to the merchant."
+        ),
     ),
     responses(
         (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
