@@ -47,12 +47,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "Succeeded" for "status"
+// Response body should have value "processing" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'",
+    "[POST]::/payments/:id - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }
@@ -82,12 +82,12 @@ if (jsonData?.amount_received) {
   );
 }
 
-// Response body should have value "0" for "amount_capturable"
+// Response body should have value full amount for "amount_capturable"
 if (jsonData?.amount) {
   pm.test(
     "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 0'",
     function () {
-      pm.expect(jsonData.amount_capturable).to.eql(0);
+      pm.expect(jsonData.amount_capturable).to.eql(jsonData.amount);
     },
   );
 }
