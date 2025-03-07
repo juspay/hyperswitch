@@ -207,6 +207,11 @@ impl SemanticVersion {
     pub fn get_major(&self) -> u64 {
         self.0.major
     }
+
+    /// returns minor version number
+    pub fn get_minor(&self) -> u64 {
+        self.0.minor
+    }
     /// Constructs new SemanticVersion instance
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self(Version::new(major, minor, patch))

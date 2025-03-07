@@ -1,13 +1,20 @@
 use std::collections::HashMap;
 
 use api_models::analytics::{
-    auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier, MetricsBucketResponse},
-    AnalyticsMetadata, GetAuthEventMetricRequest, MetricsResponse,
+    auth_events::{
+        AuthEventDimensions, AuthEventMetrics, AuthEventMetricsBucketIdentifier,
+        MetricsBucketResponse,
+    },
+    AuthEventFilterValue, AuthEventFiltersResponse, AuthEventMetricsResponse,
+    AuthEventsAnalyticsMetadata, GetAuthEventFilterRequest, GetAuthEventMetricRequest,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
-use super::AuthEventMetricsAccumulator;
+use super::{
+    filters::{get_auth_events_filter_for_dimension, AuthEventFilterRow},
+    AuthEventMetricsAccumulator,
+};
 use crate::{
     auth_events::AuthEventMetricAccumulator,
     errors::{AnalyticsError, AnalyticsResult},
@@ -19,7 +26,7 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &common_utils::id_type::MerchantId,
     req: GetAuthEventMetricRequest,
-) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
+) -> AnalyticsResult<AuthEventMetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
         AuthEventMetricsBucketIdentifier,
         AuthEventMetricsAccumulator,
@@ -34,7 +41,9 @@ pub async fn get_metrics(
             let data = pool
                 .get_auth_event_metrics(
                     &metric_type,
+                    &req.group_by_names.clone(),
                     &merchant_id_scoped,
+                    &req.filters,
                     req.time_series.map(|t| t.granularity),
                     &req.time_range,
                 )
@@ -77,22 +86,94 @@ pub async fn get_metrics(
                 AuthEventMetrics::FrictionlessSuccessCount => metrics_builder
                     .frictionless_success_count
                     .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationErrorMessage => metrics_builder
+                    .authentication_error_message
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationFunnel => metrics_builder
+                    .authentication_funnel
+                    .add_metrics_bucket(&value),
             }
         }
     }
 
+    let mut total_error_message_count = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
-        .map(|(id, val)| MetricsBucketResponse {
-            values: val.collect(),
-            dimensions: id,
+        .map(|(id, val)| {
+            let collected_values = val.collect();
+            if let Some(count) = collected_values.error_message_count {
+                total_error_message_count += count;
+            }
+            MetricsBucketResponse {
+                values: collected_values,
+                dimensions: id,
+            }
         })
         .collect();
-
-    Ok(MetricsResponse {
+    Ok(AuthEventMetricsResponse {
         query_data,
-        meta_data: [AnalyticsMetadata {
-            current_time_range: req.time_range,
+        meta_data: [AuthEventsAnalyticsMetadata {
+            total_error_message_count: Some(total_error_message_count),
         }],
     })
+}
+
+pub async fn get_filters(
+    pool: &AnalyticsProvider,
+    req: GetAuthEventFilterRequest,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> AnalyticsResult<AuthEventFiltersResponse> {
+    let mut res = AuthEventFiltersResponse::default();
+    for dim in req.group_by_names {
+        let values = match pool {
+                        AnalyticsProvider::Sqlx(_pool) => {
+                            Err(report!(AnalyticsError::UnknownError))
+            }
+                        AnalyticsProvider::Clickhouse(pool) => {
+                get_auth_events_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                    .await
+                    .map_err(|e| e.change_context(AnalyticsError::UnknownError))
+            }
+                    AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) | AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
+                let ckh_result = get_auth_events_filter_for_dimension(
+                    dim,
+                    merchant_id,
+                    &req.time_range,
+                    ckh_pool,
+                )
+                .await
+                .map_err(|e| e.change_context(AnalyticsError::UnknownError));
+                let sqlx_result = get_auth_events_filter_for_dimension(
+                    dim,
+                    merchant_id,
+                    &req.time_range,
+                    sqlx_pool,
+                )
+                .await
+                .map_err(|e| e.change_context(AnalyticsError::UnknownError));
+                match (&sqlx_result, &ckh_result) {
+                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+                    },
+                    _ => {}
+                };
+                ckh_result
+            }
+        }
+        .change_context(AnalyticsError::UnknownError)?
+        .into_iter()
+        .filter_map(|fil: AuthEventFilterRow| match dim {
+            AuthEventDimensions::AuthenticationStatus => fil.authentication_status.map(|i| i.as_ref().to_string()),
+            AuthEventDimensions::TransactionStatus => fil.trans_status.map(|i| i.as_ref().to_string()),
+            AuthEventDimensions::ErrorMessage => fil.error_message,
+            AuthEventDimensions::AuthenticationConnector => fil.authentication_connector.map(|i| i.as_ref().to_string()),
+            AuthEventDimensions::MessageVersion => fil.message_version,
+        })
+        .collect::<Vec<String>>();
+        res.query_data.push(AuthEventFilterValue {
+            dimension: dim,
+            values,
+        })
+    }
+    Ok(res)
 }

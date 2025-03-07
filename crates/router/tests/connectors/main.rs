@@ -44,6 +44,7 @@ mod globepay;
 mod gocardless;
 mod gpayments;
 mod helcim;
+mod hipay;
 mod iatapay;
 mod inespay;
 mod itaubank;

@@ -28,6 +28,7 @@ use crate::{
         filters::ApiEventFilter,
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
     },
+    auth_events::filters::AuthEventFilterRow,
     connector_events::events::ConnectorEventsResult,
     disputes::{filters::DisputeFilterRow, metrics::DisputeMetricRow},
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
@@ -181,6 +182,7 @@ impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
 impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
 impl super::active_payments::metrics::ActivePaymentsMetricAnalytics for ClickhouseClient {}
 impl super::auth_events::metrics::AuthEventMetricAnalytics for ClickhouseClient {}
+impl super::auth_events::filters::AuthEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
@@ -399,6 +401,16 @@ impl TryInto<AuthEventMetricRow> for serde_json::Value {
     fn try_into(self) -> Result<AuthEventMetricRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse AuthEventMetricRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<AuthEventFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<AuthEventFilterRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse AuthEventFilterRow in clickhouse results",
         ))
     }
 }
