@@ -674,7 +674,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
-fn has_off_session_with_customer_acceptance(router_data: &PaymentsAuthorizeRouterData) -> bool {
+fn should_create_payment_profile(router_data: &PaymentsAuthorizeRouterData) -> bool {
     router_data
         .request
         .setup_future_usage
@@ -845,7 +845,7 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if has_off_session_with_customer_acceptance(item.router_data) {
+        let (profile, customer) = if should_create_payment_profile(item.router_data) {
             (
                 Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                     create_profile: true,
@@ -921,7 +921,7 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if has_off_session_with_customer_acceptance(item.router_data) {
+        let (profile, customer) = if should_create_payment_profile(item.router_data) {
             (
                 Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                     create_profile: true,
