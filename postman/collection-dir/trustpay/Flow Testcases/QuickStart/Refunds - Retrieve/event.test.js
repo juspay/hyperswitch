@@ -28,3 +28,23 @@ if (jsonData?.refund_id) {
     "INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.",
   );
 }
+
+// Response body should have value "succeeded" for "status"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/refunds - Content check if value for 'status' matches 'succeeded'",
+    function () {
+      pm.expect(jsonData.status).to.eql("succeeded");
+    },
+  );
+}
+
+// Response body should have value "600" for "amount"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/refunds - Content check if value for 'amount' matches '600'",
+    function () {
+      pm.expect(jsonData.amount).to.eql(600);
+    },
+  );
+}

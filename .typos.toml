@@ -56,9 +56,24 @@ WIL = "WIL" # Is iso representation of a state in UK
 YOR = "YOR" # Is iso representation of a state in UK
 OT = "OT" # Is iso representation of a state in Romania
 OltCounty = "OltCounty" # Is a state in Romania
-olt = "olt" # Is iso representation of a state in Romania
+Olt = "Olt" # Is iso representation of a state in Romania
 Vas = "Vas" # Is iso representation of a state in Hungary
 vas = "vas" # Is iso representation of a state in Hungary
+WHT = "WHT" # Is iso representation of a state in Belgium
+CantonOfEschSurAlzette = "CantonOfEschSurAlzette" # Is a state in Luxembourg
+GorenjaVasPoljane = "GorenjaVasPoljane" # Is a state in Slovenia
+sur = "sur" # Is iso representation of a state in Luxembourg
+Corse = "Corse" # Is a state in France
+CorseDuSud = "CorseDuSud" # Is a state in France
+Gard = "Gard" # Is a state in France
+HauteCorse = "HauteCorse" # Is a state in France
+Somme = "Somme" # Is a state in France
+RaceFram = "RaceFram" # Is a state in France
+TrnovskaVas = "TrnovskaVas" # Is a state in Slovenia
+Corse-du-Sud = "Corse-du-Sud" # Is a state in France
+Haute-Corse = "Haute-Corse" # Is a state in France
+Fram = "Fram" # Is a state in Slovenia
+
 
 [default.extend-words]
 aci = "aci" # Name of a connector

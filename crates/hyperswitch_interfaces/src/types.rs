@@ -14,13 +14,18 @@ use hyperswitch_domain_models::{
             Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
+        revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
@@ -32,8 +37,9 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, AcceptDisputeResponse,
+        DefendDisputeResponse, MandateRevokeResponseData, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
@@ -206,9 +212,23 @@ pub type UasPostAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
+/// Type alias for `ConnectorIntegration<Confirmation, UasConfirmationRequestData, UasAuthenticationResponseData>`
+pub type UasAuthenticationConfirmationType = dyn ConnectorIntegration<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>;
+
 /// Type alias for `ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>`
 pub type UasAuthenticationType = dyn ConnectorIntegration<
     Authenticate,
     UasAuthenticationRequestData,
     UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<GetAdditionalRevenueRecoveryDetails, GetAdditionalRevenueRecoveryRequestData, GetAdditionalRevenueRecoveryResponseData>`
+pub type AdditionalRevenueRecoveryCallType = dyn ConnectorIntegration<
+    GetAdditionalRevenueRecoveryDetails,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
 >;

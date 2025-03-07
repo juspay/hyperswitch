@@ -1,14 +1,15 @@
+mod accounts;
 mod payments;
 mod ui;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use accounts::MerchantProductType;
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::RoutableConnectors;
-
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -428,6 +429,9 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Represents billing processors that handle subscription management, invoicing,
+    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
+    BillingProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1583,6 +1587,7 @@ pub enum PaymentMethodType {
     Debit,
     DuitNow,
     Efecty,
+    Eft,
     Eps,
     Fps,
     Evoucher,
@@ -1649,6 +1654,12 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
     DirectCarrierBilling,
+}
+
+impl PaymentMethodType {
+    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
+        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+    }
 }
 
 impl masking::SerializableSecret for PaymentMethodType {}
@@ -2943,128 +2954,274 @@ pub enum FinlandStatesAbbreviation {
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
 pub enum FranceStatesAbbreviation {
-    #[strum(serialize = "WF-AL")]
-    Alo,
-    #[strum(serialize = "A")]
+    #[strum(serialize = "01")]
+    Ain,
+    #[strum(serialize = "02")]
+    Aisne,
+    #[strum(serialize = "03")]
+    Allier,
+    #[strum(serialize = "04")]
+    AlpesDeHauteProvence,
+    #[strum(serialize = "06")]
+    AlpesMaritimes,
+    #[strum(serialize = "6AE")]
     Alsace,
-    #[strum(serialize = "B")]
-    Aquitaine,
-    #[strum(serialize = "C")]
-    Auvergne,
+    #[strum(serialize = "07")]
+    Ardeche,
+    #[strum(serialize = "08")]
+    Ardennes,
+    #[strum(serialize = "09")]
+    Ariege,
+    #[strum(serialize = "10")]
+    Aube,
+    #[strum(serialize = "11")]
+    Aude,
     #[strum(serialize = "ARA")]
     AuvergneRhoneAlpes,
+    #[strum(serialize = "12")]
+    Aveyron,
+    #[strum(serialize = "67")]
+    BasRhin,
+    #[strum(serialize = "13")]
+    BouchesDuRhone,
     #[strum(serialize = "BFC")]
     BourgogneFrancheComte,
     #[strum(serialize = "BRE")]
-    Brittany,
-    #[strum(serialize = "D")]
-    Burgundy,
+    Bretagne,
+    #[strum(serialize = "14")]
+    Calvados,
+    #[strum(serialize = "15")]
+    Cantal,
     #[strum(serialize = "CVL")]
     CentreValDeLoire,
-    #[strum(serialize = "G")]
-    ChampagneArdenne,
-    #[strum(serialize = "COR")]
-    Corsica,
-    #[strum(serialize = "I")]
-    FrancheComte,
-    #[strum(serialize = "GF")]
+    #[strum(serialize = "16")]
+    Charente,
+    #[strum(serialize = "17")]
+    CharenteMaritime,
+    #[strum(serialize = "18")]
+    Cher,
+    #[strum(serialize = "CP")]
+    Clipperton,
+    #[strum(serialize = "19")]
+    Correze,
+    #[strum(serialize = "20R")]
+    Corse,
+    #[strum(serialize = "2A")]
+    CorseDuSud,
+    #[strum(serialize = "21")]
+    CoteDor,
+    #[strum(serialize = "22")]
+    CotesDarmor,
+    #[strum(serialize = "23")]
+    Creuse,
+    #[strum(serialize = "79")]
+    DeuxSevres,
+    #[strum(serialize = "24")]
+    Dordogne,
+    #[strum(serialize = "25")]
+    Doubs,
+    #[strum(serialize = "26")]
+    Drome,
+    #[strum(serialize = "91")]
+    Essonne,
+    #[strum(serialize = "27")]
+    Eure,
+    #[strum(serialize = "28")]
+    EureEtLoir,
+    #[strum(serialize = "29")]
+    Finistere,
+    #[strum(serialize = "973")]
     FrenchGuiana,
     #[strum(serialize = "PF")]
     FrenchPolynesia,
+    #[strum(serialize = "TF")]
+    FrenchSouthernAndAntarcticLands,
+    #[strum(serialize = "30")]
+    Gard,
+    #[strum(serialize = "32")]
+    Gers,
+    #[strum(serialize = "33")]
+    Gironde,
     #[strum(serialize = "GES")]
     GrandEst,
-    #[strum(serialize = "GP")]
+    #[strum(serialize = "971")]
     Guadeloupe,
+    #[strum(serialize = "68")]
+    HautRhin,
+    #[strum(serialize = "2B")]
+    HauteCorse,
+    #[strum(serialize = "31")]
+    HauteGaronne,
+    #[strum(serialize = "43")]
+    HauteLoire,
+    #[strum(serialize = "52")]
+    HauteMarne,
+    #[strum(serialize = "70")]
+    HauteSaone,
+    #[strum(serialize = "74")]
+    HauteSavoie,
+    #[strum(serialize = "87")]
+    HauteVienne,
+    #[strum(serialize = "05")]
+    HautesAlpes,
+    #[strum(serialize = "65")]
+    HautesPyrenees,
     #[strum(serialize = "HDF")]
     HautsDeFrance,
-    #[strum(serialize = "K")]
-    LanguedocRoussillon,
-    #[strum(serialize = "L")]
-    Limousin,
-    #[strum(serialize = "M")]
-    Lorraine,
-    #[strum(serialize = "P")]
-    LowerNormandy,
-    #[strum(serialize = "MQ")]
+    #[strum(serialize = "92")]
+    HautsDeSeine,
+    #[strum(serialize = "34")]
+    Herault,
+    #[strum(serialize = "IDF")]
+    IleDeFrance,
+    #[strum(serialize = "35")]
+    IlleEtVilaine,
+    #[strum(serialize = "36")]
+    Indre,
+    #[strum(serialize = "37")]
+    IndreEtLoire,
+    #[strum(serialize = "38")]
+    Isere,
+    #[strum(serialize = "39")]
+    Jura,
+    #[strum(serialize = "974")]
+    LaReunion,
+    #[strum(serialize = "40")]
+    Landes,
+    #[strum(serialize = "41")]
+    LoirEtCher,
+    #[strum(serialize = "42")]
+    Loire,
+    #[strum(serialize = "44")]
+    LoireAtlantique,
+    #[strum(serialize = "45")]
+    Loiret,
+    #[strum(serialize = "46")]
+    Lot,
+    #[strum(serialize = "47")]
+    LotEtGaronne,
+    #[strum(serialize = "48")]
+    Lozere,
+    #[strum(serialize = "49")]
+    MaineEtLoire,
+    #[strum(serialize = "50")]
+    Manche,
+    #[strum(serialize = "51")]
+    Marne,
+    #[strum(serialize = "972")]
     Martinique,
-    #[strum(serialize = "YT")]
+    #[strum(serialize = "53")]
+    Mayenne,
+    #[strum(serialize = "976")]
     Mayotte,
-    #[strum(serialize = "O")]
-    NordPasDeCalais,
+    #[strum(serialize = "69M")]
+    MetropoleDeLyon,
+    #[strum(serialize = "54")]
+    MeurtheEtMoselle,
+    #[strum(serialize = "55")]
+    Meuse,
+    #[strum(serialize = "56")]
+    Morbihan,
+    #[strum(serialize = "57")]
+    Moselle,
+    #[strum(serialize = "58")]
+    Nievre,
+    #[strum(serialize = "59")]
+    Nord,
     #[strum(serialize = "NOR")]
-    Normandy,
+    Normandie,
     #[strum(serialize = "NAQ")]
     NouvelleAquitaine,
     #[strum(serialize = "OCC")]
-    Occitania,
-    #[strum(serialize = "75")]
+    Occitanie,
+    #[strum(serialize = "60")]
+    Oise,
+    #[strum(serialize = "61")]
+    Orne,
+    #[strum(serialize = "75C")]
     Paris,
+    #[strum(serialize = "62")]
+    PasDeCalais,
     #[strum(serialize = "PDL")]
     PaysDeLaLoire,
-    #[strum(serialize = "S")]
-    Picardy,
-    #[strum(serialize = "T")]
-    PoitouCharentes,
     #[strum(serialize = "PAC")]
-    ProvenceAlpesCoteDAzur,
-    #[strum(serialize = "V")]
-    RhoneAlpes,
-    #[strum(serialize = "RE")]
-    Reunion,
+    ProvenceAlpesCoteDazur,
+    #[strum(serialize = "63")]
+    PuyDeDome,
+    #[strum(serialize = "64")]
+    PyreneesAtlantiques,
+    #[strum(serialize = "66")]
+    PyreneesOrientales,
+    #[strum(serialize = "69")]
+    Rhone,
+    #[strum(serialize = "PM")]
+    SaintPierreAndMiquelon,
     #[strum(serialize = "BL")]
     SaintBarthelemy,
     #[strum(serialize = "MF")]
     SaintMartin,
-    #[strum(serialize = "PM")]
-    SaintPierreAndMiquelon,
-    #[strum(serialize = "WF-SG")]
-    Sigave,
-    #[strum(serialize = "Q")]
-    UpperNormandy,
-    #[strum(serialize = "WF-UV")]
-    Uvea,
+    #[strum(serialize = "71")]
+    SaoneEtLoire,
+    #[strum(serialize = "72")]
+    Sarthe,
+    #[strum(serialize = "73")]
+    Savoie,
+    #[strum(serialize = "77")]
+    SeineEtMarne,
+    #[strum(serialize = "76")]
+    SeineMaritime,
+    #[strum(serialize = "93")]
+    SeineSaintDenis,
+    #[strum(serialize = "80")]
+    Somme,
+    #[strum(serialize = "81")]
+    Tarn,
+    #[strum(serialize = "82")]
+    TarnEtGaronne,
+    #[strum(serialize = "90")]
+    TerritoireDeBelfort,
+    #[strum(serialize = "95")]
+    ValDoise,
+    #[strum(serialize = "94")]
+    ValDeMarne,
+    #[strum(serialize = "83")]
+    Var,
+    #[strum(serialize = "84")]
+    Vaucluse,
+    #[strum(serialize = "85")]
+    Vendee,
+    #[strum(serialize = "86")]
+    Vienne,
+    #[strum(serialize = "88")]
+    Vosges,
     #[strum(serialize = "WF")]
     WallisAndFutuna,
-    #[strum(serialize = "IDF")]
-    IleDeFrance,
+    #[strum(serialize = "89")]
+    Yonne,
+    #[strum(serialize = "78")]
+    Yvelines,
 }
 
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
 pub enum GermanyStatesAbbreviation {
-    #[strum(serialize = "BW")]
-    BadenWurttemberg,
-    #[strum(serialize = "BY")]
-    Bavaria,
-    #[strum(serialize = "BE")]
-    Berlin,
-    #[strum(serialize = "BB")]
-    Brandenburg,
-    #[strum(serialize = "HB")]
-    Bremen,
-    #[strum(serialize = "HH")]
-    Hamburg,
-    #[strum(serialize = "HE")]
-    Hesse,
-    #[strum(serialize = "NI")]
-    LowerSaxony,
-    #[strum(serialize = "MV")]
-    MecklenburgVorpommern,
-    #[strum(serialize = "NW")]
-    NorthRhineWestphalia,
-    #[strum(serialize = "RP")]
-    RhinelandPalatinate,
-    #[strum(serialize = "SL")]
-    Saarland,
-    #[strum(serialize = "SN")]
-    Saxony,
-    #[strum(serialize = "ST")]
-    SaxonyAnhalt,
-    #[strum(serialize = "SH")]
-    SchleswigHolstein,
-    #[strum(serialize = "TH")]
-    Thuringia,
+    BW,
+    BY,
+    BE,
+    BB,
+    HB,
+    HH,
+    HE,
+    NI,
+    MV,
+    NW,
+    RP,
+    SL,
+    SN,
+    ST,
+    SH,
+    TH,
 }
 
 #[derive(
@@ -3802,7 +3959,7 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "04")]
     Birkirkara,
     #[strum(serialize = "05")]
-    Birzebbuga,
+    Birżebbuġa,
     #[strum(serialize = "06")]
     Cospicua,
     #[strum(serialize = "07")]
@@ -3816,19 +3973,19 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "11")]
     Gudja,
     #[strum(serialize = "12")]
-    Gzira,
+    Gżira,
     #[strum(serialize = "13")]
-    Ghajnsielem,
+    Għajnsielem,
     #[strum(serialize = "14")]
-    Gharb,
+    Għarb,
     #[strum(serialize = "15")]
-    Gharghur,
+    Għargħur,
     #[strum(serialize = "16")]
-    Ghasri,
+    Għasri,
     #[strum(serialize = "17")]
-    Ghaxaq,
+    Għaxaq,
     #[strum(serialize = "18")]
-    Hamrun,
+    Ħamrun,
     #[strum(serialize = "19")]
     Iklin,
     #[strum(serialize = "20")]
@@ -3836,7 +3993,7 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "21")]
     Kalkara,
     #[strum(serialize = "22")]
-    Kercem,
+    Kerċem,
     #[strum(serialize = "23")]
     Kirkop,
     #[strum(serialize = "24")]
@@ -3852,9 +4009,9 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "29")]
     Mdina,
     #[strum(serialize = "30")]
-    Mellieha,
+    Mellieħa,
     #[strum(serialize = "31")]
-    Mgarr,
+    Mġarr,
     #[strum(serialize = "32")]
     Mosta,
     #[strum(serialize = "33")]
@@ -3874,7 +4031,7 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "40")]
     Pembroke,
     #[strum(serialize = "41")]
-    Pieta,
+    Pietà,
     #[strum(serialize = "42")]
     Qala,
     #[strum(serialize = "43")]
@@ -3888,7 +4045,7 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "48")]
     StJulians,
     #[strum(serialize = "49")]
-    SanGwann,
+    SanĠwann,
     #[strum(serialize = "50")]
     SaintLawrence,
     #[strum(serialize = "51")]
@@ -3896,11 +4053,11 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "52")]
     Sannat,
     #[strum(serialize = "53")]
-    SantaLucija,
+    SantaLuċija,
     #[strum(serialize = "54")]
     SantaVenera,
     #[strum(serialize = "55")]
-    Siggiewi,
+    Siġġiewi,
     #[strum(serialize = "56")]
     Sliema,
     #[strum(serialize = "57")]
@@ -3912,21 +4069,21 @@ pub enum MaltaStatesAbbreviation {
     #[strum(serialize = "60")]
     Valletta,
     #[strum(serialize = "61")]
-    Xaghra,
+    Xagħra,
     #[strum(serialize = "62")]
     Xewkija,
     #[strum(serialize = "63")]
-    Xghajra,
+    Xgħajra,
     #[strum(serialize = "64")]
-    Zabbar,
+    Żabbar,
     #[strum(serialize = "65")]
-    ZebbugGozo,
+    ŻebbuġGozo,
     #[strum(serialize = "66")]
-    ZebbugMalta,
+    ŻebbuġMalta,
     #[strum(serialize = "67")]
-    Zejtun,
+    Żejtun,
     #[strum(serialize = "68")]
-    Zurrieq,
+    Żurrieq,
 }
 
 #[derive(
@@ -3942,69 +4099,69 @@ pub enum MoldovaStatesAbbreviation {
     #[strum(serialize = "BR")]
     BriceniDistrict,
     #[strum(serialize = "BA")]
-    BaltiMunicipality,
+    BălțiMunicipality,
     #[strum(serialize = "CA")]
     CahulDistrict,
     #[strum(serialize = "CT")]
     CantemirDistrict,
     #[strum(serialize = "CU")]
-    ChisinauMunicipality,
+    ChișinăuMunicipality,
     #[strum(serialize = "CM")]
-    CimisliaDistrict,
+    CimișliaDistrict,
     #[strum(serialize = "CR")]
     CriuleniDistrict,
     #[strum(serialize = "CL")]
-    CalarasiDistrict,
+    CălărașiDistrict,
     #[strum(serialize = "CS")]
-    CauseniDistrict,
+    CăușeniDistrict,
     #[strum(serialize = "DO")]
-    DonduseniDistrict,
+    DondușeniDistrict,
     #[strum(serialize = "DR")]
     DrochiaDistrict,
     #[strum(serialize = "DU")]
-    DubasariDistrict,
+    DubăsariDistrict,
     #[strum(serialize = "ED")]
-    EdinetDistrict,
+    EdinețDistrict,
     #[strum(serialize = "FL")]
-    FlorestiDistrict,
+    FloreștiDistrict,
     #[strum(serialize = "FA")]
-    FalestiDistrict,
+    FăleștiDistrict,
     #[strum(serialize = "GA")]
-    Gagauzia,
+    Găgăuzia,
     #[strum(serialize = "GL")]
     GlodeniDistrict,
     #[strum(serialize = "HI")]
-    HincestiDistrict,
+    HînceștiDistrict,
     #[strum(serialize = "IA")]
     IaloveniDistrict,
     #[strum(serialize = "NI")]
     NisporeniDistrict,
     #[strum(serialize = "OC")]
-    OcnitaDistrict,
+    OcnițaDistrict,
     #[strum(serialize = "OR")]
     OrheiDistrict,
     #[strum(serialize = "RE")]
     RezinaDistrict,
     #[strum(serialize = "RI")]
-    RiscaniDistrict,
+    RîșcaniDistrict,
     #[strum(serialize = "SO")]
     SorocaDistrict,
     #[strum(serialize = "ST")]
-    StraseniDistrict,
+    StrășeniDistrict,
     #[strum(serialize = "SI")]
-    SingereiDistrict,
+    SîngereiDistrict,
     #[strum(serialize = "TA")]
     TaracliaDistrict,
     #[strum(serialize = "TE")]
-    TelenestiDistrict,
+    TeleneștiDistrict,
     #[strum(serialize = "SN")]
     TransnistriaAutonomousTerritorialUnit,
     #[strum(serialize = "UN")]
     UngheniDistrict,
     #[strum(serialize = "SD")]
-    SoldanestiDistrict,
+    ȘoldăneștiDistrict,
     #[strum(serialize = "SV")]
-    StefanVodaDistrict,
+    ȘtefanVodăDistrict,
 }
 
 #[derive(
@@ -4049,11 +4206,11 @@ pub enum MontenegroStatesAbbreviation {
     #[strum(serialize = "14")]
     PljevljaMunicipality,
     #[strum(serialize = "15")]
-    PluzineMunicipality,
+    PlužineMunicipality,
     #[strum(serialize = "16")]
     PodgoricaMunicipality,
     #[strum(serialize = "17")]
-    RozajeMunicipality,
+    RožajeMunicipality,
     #[strum(serialize = "19")]
     TivatMunicipality,
     #[strum(serialize = "20")]
@@ -4061,7 +4218,7 @@ pub enum MontenegroStatesAbbreviation {
     #[strum(serialize = "18")]
     SavnikMunicipality,
     #[strum(serialize = "21")]
-    ZabljakMunicipality,
+    ŽabljakMunicipality,
 }
 
 #[derive(
@@ -4211,7 +4368,7 @@ pub enum NorthMacedoniaStatesAbbreviation {
     #[strum(serialize = "62")]
     PrilepMunicipality,
     #[strum(serialize = "63")]
-    ProbistipMunicipality,
+    ProbishtipMunicipality,
     #[strum(serialize = "64")]
     RadovisMunicipality,
     #[strum(serialize = "65")]
@@ -4269,7 +4426,7 @@ pub enum NorthMacedoniaStatesAbbreviation {
     #[strum(serialize = "83")]
     StipMunicipality,
     #[strum(serialize = "84")]
-    SutoOrizariMunicipality,
+    ShutoOrizariMunicipality,
     #[strum(serialize = "30")]
     ZelinoMunicipality,
 }
@@ -4326,40 +4483,38 @@ pub enum NorwayStatesAbbreviation {
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
 pub enum PolandStatesAbbreviation {
-    #[strum(serialize = "WP")]
-    GreaterPolandVoivodeship,
-    #[strum(serialize = "KI")]
-    Kielce,
-    #[strum(serialize = "KP")]
-    KuyavianPomeranianVoivodeship,
-    #[strum(serialize = "MA")]
-    LesserPolandVoivodeship,
-    #[strum(serialize = "DS")]
-    LowerSilesianVoivodeship,
-    #[strum(serialize = "LU")]
-    LublinVoivodeship,
-    #[strum(serialize = "LB")]
-    LubuszVoivodeship,
-    #[strum(serialize = "MZ")]
-    MasovianVoivodeship,
-    #[strum(serialize = "OP")]
-    OpoleVoivodeship,
-    #[strum(serialize = "PK")]
-    PodkarpackieVoivodeship,
-    #[strum(serialize = "PD")]
-    PodlaskieVoivodeship,
-    #[strum(serialize = "PM")]
-    PomeranianVoivodeship,
-    #[strum(serialize = "SL")]
-    SilesianVoivodeship,
-    #[strum(serialize = "WN")]
-    WarmianMasurianVoivodeship,
-    #[strum(serialize = "ZP")]
-    WestPomeranianVoivodeship,
-    #[strum(serialize = "LD")]
-    LodzVoivodeship,
-    #[strum(serialize = "SK")]
-    SwietokrzyskieVoivodeship,
+    #[strum(serialize = "30")]
+    GreaterPoland,
+    #[strum(serialize = "26")]
+    HolyCross,
+    #[strum(serialize = "04")]
+    KuyaviaPomerania,
+    #[strum(serialize = "12")]
+    LesserPoland,
+    #[strum(serialize = "02")]
+    LowerSilesia,
+    #[strum(serialize = "06")]
+    Lublin,
+    #[strum(serialize = "08")]
+    Lubusz,
+    #[strum(serialize = "10")]
+    Łódź,
+    #[strum(serialize = "14")]
+    Mazovia,
+    #[strum(serialize = "20")]
+    Podlaskie,
+    #[strum(serialize = "22")]
+    Pomerania,
+    #[strum(serialize = "24")]
+    Silesia,
+    #[strum(serialize = "18")]
+    Subcarpathia,
+    #[strum(serialize = "16")]
+    UpperSilesia,
+    #[strum(serialize = "28")]
+    WarmiaMasuria,
+    #[strum(serialize = "32")]
+    WestPomerania,
 }
 
 #[derive(
@@ -4603,23 +4758,33 @@ pub enum SwitzerlandStatesAbbreviation {
 )]
 pub enum UnitedKingdomStatesAbbreviation {
     #[strum(serialize = "ABE")]
-    AberdeenCity,
+    Aberdeen,
     #[strum(serialize = "ABD")]
     Aberdeenshire,
     #[strum(serialize = "ANS")]
     Angus,
+    #[strum(serialize = "ANT")]
+    Antrim,
     #[strum(serialize = "ANN")]
     AntrimAndNewtownabbey,
+    #[strum(serialize = "ARD")]
+    Ards,
     #[strum(serialize = "AND")]
     ArdsAndNorthDown,
     #[strum(serialize = "AGB")]
     ArgyllAndBute,
+    #[strum(serialize = "ARM")]
+    ArmaghCityAndDistrictCouncil,
     #[strum(serialize = "ABC")]
-    ArmaghCityBanbridgeAndCraigavon,
-    #[strum(serialize = "BDG")]
-    BarkingAndDagenham,
-    #[strum(serialize = "BNE")]
-    Barnet,
+    ArmaghBanbridgeAndCraigavon,
+    #[strum(serialize = "SH-AC")]
+    AscensionIsland,
+    #[strum(serialize = "BLA")]
+    BallymenaBorough,
+    #[strum(serialize = "BLY")]
+    Ballymoney,
+    #[strum(serialize = "BNB")]
+    Banbridge,
     #[strum(serialize = "BNS")]
     Barnsley,
     #[strum(serialize = "BAS")]
@@ -4627,9 +4792,7 @@ pub enum UnitedKingdomStatesAbbreviation {
     #[strum(serialize = "BDF")]
     Bedford,
     #[strum(serialize = "BFS")]
-    BelfastCity,
-    #[strum(serialize = "BEX")]
-    Bexley,
+    BelfastDistrict,
     #[strum(serialize = "BIR")]
     Birmingham,
     #[strum(serialize = "BBD")]
@@ -4637,41 +4800,35 @@ pub enum UnitedKingdomStatesAbbreviation {
     #[strum(serialize = "BPL")]
     Blackpool,
     #[strum(serialize = "BGW")]
-    BlaenauGwent,
+    BlaenauGwentCountyBorough,
     #[strum(serialize = "BOL")]
     Bolton,
-    #[strum(serialize = "BCP")]
-    BournemouthChristchurchAndPoole,
+    #[strum(serialize = "BMH")]
+    Bournemouth,
     #[strum(serialize = "BRC")]
     BracknellForest,
     #[strum(serialize = "BRD")]
     Bradford,
-    #[strum(serialize = "BEN")]
-    Brent,
     #[strum(serialize = "BGE")]
-    Bridgend,
+    BridgendCountyBorough,
     #[strum(serialize = "BNH")]
     BrightonAndHove,
-    #[strum(serialize = "BST")]
-    BristolCityOf,
-    #[strum(serialize = "BRY")]
-    Bromley,
     #[strum(serialize = "BKM")]
     Buckinghamshire,
     #[strum(serialize = "BUR")]
     Bury,
     #[strum(serialize = "CAY")]
-    Caerphilly,
+    CaerphillyCountyBorough,
     #[strum(serialize = "CLD")]
     Calderdale,
     #[strum(serialize = "CAM")]
     Cambridgeshire,
-    #[strum(serialize = "CMD")]
-    Camden,
-    #[strum(serialize = "CRF")]
-    Cardiff,
     #[strum(serialize = "CMN")]
     Carmarthenshire,
+    #[strum(serialize = "CKF")]
+    CarrickfergusBoroughCouncil,
+    #[strum(serialize = "CSR")]
+    Castlereagh,
     #[strum(serialize = "CCG")]
     CausewayCoastAndGlens,
     #[strum(serialize = "CBF")]
@@ -4682,44 +4839,84 @@ pub enum UnitedKingdomStatesAbbreviation {
     CheshireEast,
     #[strum(serialize = "CHW")]
     CheshireWestAndChester,
+    #[strum(serialize = "CRF")]
+    CityAndCountyOfCardiff,
+    #[strum(serialize = "SWA")]
+    CityAndCountyOfSwansea,
+    #[strum(serialize = "BST")]
+    CityOfBristol,
+    #[strum(serialize = "DER")]
+    CityOfDerby,
+    #[strum(serialize = "KHL")]
+    CityOfKingstonUponHull,
+    #[strum(serialize = "LCE")]
+    CityOfLeicester,
+    #[strum(serialize = "LND")]
+    CityOfLondon,
+    #[strum(serialize = "NGM")]
+    CityOfNottingham,
+    #[strum(serialize = "PTE")]
+    CityOfPeterborough,
+    #[strum(serialize = "PLY")]
+    CityOfPlymouth,
+    #[strum(serialize = "POR")]
+    CityOfPortsmouth,
+    #[strum(serialize = "STH")]
+    CityOfSouthampton,
+    #[strum(serialize = "STE")]
+    CityOfStokeOnTrent,
+    #[strum(serialize = "SND")]
+    CityOfSunderland,
+    #[strum(serialize = "WSM")]
+    CityOfWestminster,
+    #[strum(serialize = "WLV")]
+    CityOfWolverhampton,
+    #[strum(serialize = "YOR")]
+    CityOfYork,
     #[strum(serialize = "CLK")]
     Clackmannanshire,
+    #[strum(serialize = "CLR")]
+    ColeraineBoroughCouncil,
     #[strum(serialize = "CWY")]
-    Conwy,
+    ConwyCountyBorough,
+    #[strum(serialize = "CKT")]
+    CookstownDistrictCouncil,
     #[strum(serialize = "CON")]
     Cornwall,
+    #[strum(serialize = "DUR")]
+    CountyDurham,
     #[strum(serialize = "COV")]
     Coventry,
-    #[strum(serialize = "CRY")]
-    Croydon,
+    #[strum(serialize = "CGV")]
+    CraigavonBoroughCouncil,
     #[strum(serialize = "CMA")]
     Cumbria,
     #[strum(serialize = "DAL")]
     Darlington,
     #[strum(serialize = "DEN")]
     Denbighshire,
-    #[strum(serialize = "DER")]
-    Derby,
     #[strum(serialize = "DBY")]
     Derbyshire,
     #[strum(serialize = "DRS")]
-    DerryAndStrabane,
+    DerryCityAndStrabane,
+    #[strum(serialize = "DRY")]
+    DerryCityCouncil,
     #[strum(serialize = "DEV")]
     Devon,
     #[strum(serialize = "DNC")]
     Doncaster,
     #[strum(serialize = "DOR")]
     Dorset,
+    #[strum(serialize = "DOW")]
+    DownDistrictCouncil,
     #[strum(serialize = "DUD")]
     Dudley,
     #[strum(serialize = "DGY")]
     DumfriesAndGalloway,
     #[strum(serialize = "DND")]
-    DundeeCity,
-    #[strum(serialize = "DUR")]
-    DurhamCounty,
-    #[strum(serialize = "EAL")]
-    Ealing,
+    Dundee,
+    #[strum(serialize = "DGN")]
+    DungannonAndSouthTyroneBoroughCouncil,
     #[strum(serialize = "EAY")]
     EastAyrshire,
     #[strum(serialize = "EDU")]
@@ -4733,17 +4930,17 @@ pub enum UnitedKingdomStatesAbbreviation {
     #[strum(serialize = "ESX")]
     EastSussex,
     #[strum(serialize = "EDH")]
-    EdinburghCityOf,
-    #[strum(serialize = "ELS")]
-    EileanSiar,
-    #[strum(serialize = "ENF")]
-    Enfield,
+    Edinburgh,
+    #[strum(serialize = "ENG")]
+    England,
     #[strum(serialize = "ESS")]
     Essex,
     #[strum(serialize = "FAL")]
     Falkirk,
     #[strum(serialize = "FMO")]
     FermanaghAndOmagh,
+    #[strum(serialize = "FER")]
+    FermanaghDistrictCouncil,
     #[strum(serialize = "FIF")]
     Fife,
     #[strum(serialize = "FLN")]
@@ -4751,91 +4948,119 @@ pub enum UnitedKingdomStatesAbbreviation {
     #[strum(serialize = "GAT")]
     Gateshead,
     #[strum(serialize = "GLG")]
-    GlasgowCity,
+    Glasgow,
     #[strum(serialize = "GLS")]
     Gloucestershire,
-    #[strum(serialize = "GRE")]
-    Greenwich,
     #[strum(serialize = "GWN")]
     Gwynedd,
-    #[strum(serialize = "HCK")]
-    Hackney,
     #[strum(serialize = "HAL")]
     Halton,
-    #[strum(serialize = "HMF")]
-    HammersmithAndFulham,
     #[strum(serialize = "HAM")]
     Hampshire,
-    #[strum(serialize = "HRY")]
-    Haringey,
-    #[strum(serialize = "HRW")]
-    Harrow,
     #[strum(serialize = "HPL")]
     Hartlepool,
-    #[strum(serialize = "HAV")]
-    Havering,
     #[strum(serialize = "HEF")]
     Herefordshire,
     #[strum(serialize = "HRT")]
     Hertfordshire,
     #[strum(serialize = "HLD")]
     Highland,
-    #[strum(serialize = "HIL")]
-    Hillingdon,
-    #[strum(serialize = "HNS")]
-    Hounslow,
     #[strum(serialize = "IVC")]
     Inverclyde,
-    #[strum(serialize = "AGY")]
-    IsleOfAnglesey,
     #[strum(serialize = "IOW")]
     IsleOfWight,
     #[strum(serialize = "IOS")]
     IslesOfScilly,
-    #[strum(serialize = "ISL")]
-    Islington,
-    #[strum(serialize = "KEC")]
-    KensingtonAndChelsea,
     #[strum(serialize = "KEN")]
     Kent,
-    #[strum(serialize = "KHL")]
-    KingstonUponHull,
-    #[strum(serialize = "KTT")]
-    KingstonUponThames,
     #[strum(serialize = "KIR")]
     Kirklees,
     #[strum(serialize = "KWL")]
     Knowsley,
-    #[strum(serialize = "LBH")]
-    Lambeth,
     #[strum(serialize = "LAN")]
     Lancashire,
+    #[strum(serialize = "LRN")]
+    LarneBoroughCouncil,
     #[strum(serialize = "LDS")]
     Leeds,
-    #[strum(serialize = "LCE")]
-    Leicester,
     #[strum(serialize = "LEC")]
     Leicestershire,
-    #[strum(serialize = "LEW")]
-    Lewisham,
+    #[strum(serialize = "LMV")]
+    LimavadyBoroughCouncil,
     #[strum(serialize = "LIN")]
     Lincolnshire,
     #[strum(serialize = "LBC")]
     LisburnAndCastlereagh,
+    #[strum(serialize = "LSB")]
+    LisburnCityCouncil,
     #[strum(serialize = "LIV")]
     Liverpool,
-    #[strum(serialize = "LND")]
-    LondonCityOf,
-    #[strum(serialize = "LUT")]
-    Luton,
+    #[strum(serialize = "BDG")]
+    LondonBoroughOfBarkingAndDagenham,
+    #[strum(serialize = "BNE")]
+    LondonBoroughOfBarnet,
+    #[strum(serialize = "BEX")]
+    LondonBoroughOfBexley,
+    #[strum(serialize = "BEN")]
+    LondonBoroughOfBrent,
+    #[strum(serialize = "BRY")]
+    LondonBoroughOfBromley,
+    #[strum(serialize = "CMD")]
+    LondonBoroughOfCamden,
+    #[strum(serialize = "CRY")]
+    LondonBoroughOfCroydon,
+    #[strum(serialize = "EAL")]
+    LondonBoroughOfEaling,
+    #[strum(serialize = "ENF")]
+    LondonBoroughOfEnfield,
+    #[strum(serialize = "HCK")]
+    LondonBoroughOfHackney,
+    #[strum(serialize = "HMF")]
+    LondonBoroughOfHammersmithAndFulham,
+    #[strum(serialize = "HRY")]
+    LondonBoroughOfHaringey,
+    #[strum(serialize = "HRW")]
+    LondonBoroughOfHarrow,
+    #[strum(serialize = "HAV")]
+    LondonBoroughOfHavering,
+    #[strum(serialize = "HIL")]
+    LondonBoroughOfHillingdon,
+    #[strum(serialize = "HNS")]
+    LondonBoroughOfHounslow,
+    #[strum(serialize = "ISL")]
+    LondonBoroughOfIslington,
+    #[strum(serialize = "LBH")]
+    LondonBoroughOfLambeth,
+    #[strum(serialize = "LEW")]
+    LondonBoroughOfLewisham,
+    #[strum(serialize = "MRT")]
+    LondonBoroughOfMerton,
+    #[strum(serialize = "NWM")]
+    LondonBoroughOfNewham,
+    #[strum(serialize = "RDB")]
+    LondonBoroughOfRedbridge,
+    #[strum(serialize = "RIC")]
+    LondonBoroughOfRichmondUponThames,
+    #[strum(serialize = "SWK")]
+    LondonBoroughOfSouthwark,
+    #[strum(serialize = "STN")]
+    LondonBoroughOfSutton,
+    #[strum(serialize = "TWH")]
+    LondonBoroughOfTowerHamlets,
+    #[strum(serialize = "WFT")]
+    LondonBoroughOfWalthamForest,
+    #[strum(serialize = "WND")]
+    LondonBoroughOfWandsworth,
+    #[strum(serialize = "MFT")]
+    MagherafeltDistrictCouncil,
     #[strum(serialize = "MAN")]
     Manchester,
     #[strum(serialize = "MDW")]
     Medway,
     #[strum(serialize = "MTY")]
-    MerthyrTydfil,
-    #[strum(serialize = "MRT")]
-    Merton,
+    MerthyrTydfilCountyBorough,
+    #[strum(serialize = "WGN")]
+    MetropolitanBoroughOfWigan,
     #[strum(serialize = "MEA")]
     MidAndEastAntrim,
     #[strum(serialize = "MUL")]
@@ -4850,20 +5075,26 @@ pub enum UnitedKingdomStatesAbbreviation {
     Monmouthshire,
     #[strum(serialize = "MRY")]
     Moray,
+    #[strum(serialize = "MYL")]
+    MoyleDistrictCouncil,
     #[strum(serialize = "NTL")]
-    NeathPortTalbot,
+    NeathPortTalbotCountyBorough,
     #[strum(serialize = "NET")]
     NewcastleUponTyne,
-    #[strum(serialize = "NWM")]
-    Newham,
     #[strum(serialize = "NWP")]
     Newport,
+    #[strum(serialize = "NYM")]
+    NewryAndMourneDistrictCouncil,
     #[strum(serialize = "NMD")]
     NewryMourneAndDown,
+    #[strum(serialize = "NTA")]
+    NewtownabbeyBoroughCouncil,
     #[strum(serialize = "NFK")]
     Norfolk,
     #[strum(serialize = "NAY")]
     NorthAyrshire,
+    #[strum(serialize = "NDN")]
+    NorthDownBoroughCouncil,
     #[strum(serialize = "NEL")]
     NorthEastLincolnshire,
     #[strum(serialize = "NLK")]
@@ -4878,52 +5109,58 @@ pub enum UnitedKingdomStatesAbbreviation {
     NorthYorkshire,
     #[strum(serialize = "NTH")]
     Northamptonshire,
+    #[strum(serialize = "NIR")]
+    NorthernIreland,
     #[strum(serialize = "NBL")]
     Northumberland,
-    #[strum(serialize = "NGM")]
-    Nottingham,
     #[strum(serialize = "NTT")]
     Nottinghamshire,
     #[strum(serialize = "OLD")]
     Oldham,
+    #[strum(serialize = "OMH")]
+    OmaghDistrictCouncil,
     #[strum(serialize = "ORK")]
     OrkneyIslands,
+    #[strum(serialize = "ELS")]
+    OuterHebrides,
     #[strum(serialize = "OXF")]
     Oxfordshire,
     #[strum(serialize = "PEM")]
     Pembrokeshire,
     #[strum(serialize = "PKN")]
     PerthAndKinross,
-    #[strum(serialize = "PTE")]
-    Peterborough,
-    #[strum(serialize = "PLY")]
-    Plymouth,
-    #[strum(serialize = "POR")]
-    Portsmouth,
+    #[strum(serialize = "POL")]
+    Poole,
     #[strum(serialize = "POW")]
     Powys,
     #[strum(serialize = "RDG")]
     Reading,
-    #[strum(serialize = "RDB")]
-    Redbridge,
     #[strum(serialize = "RCC")]
     RedcarAndCleveland,
     #[strum(serialize = "RFW")]
     Renfrewshire,
     #[strum(serialize = "RCT")]
-    RhonddaCynonTaff,
-    #[strum(serialize = "RIC")]
-    RichmondUponThames,
+    RhonddaCynonTaf,
     #[strum(serialize = "RCH")]
     Rochdale,
     #[strum(serialize = "ROT")]
     Rotherham,
+    #[strum(serialize = "GRE")]
+    RoyalBoroughOfGreenwich,
+    #[strum(serialize = "KEC")]
+    RoyalBoroughOfKensingtonAndChelsea,
+    #[strum(serialize = "KTT")]
+    RoyalBoroughOfKingstonUponThames,
     #[strum(serialize = "RUT")]
     Rutland,
+    #[strum(serialize = "SH-HL")]
+    SaintHelena,
     #[strum(serialize = "SLF")]
     Salford,
     #[strum(serialize = "SAW")]
     Sandwell,
+    #[strum(serialize = "SCT")]
+    Scotland,
     #[strum(serialize = "SCB")]
     ScottishBorders,
     #[strum(serialize = "SFT")]
@@ -4948,12 +5185,8 @@ pub enum UnitedKingdomStatesAbbreviation {
     SouthLanarkshire,
     #[strum(serialize = "STY")]
     SouthTyneside,
-    #[strum(serialize = "STH")]
-    Southampton,
     #[strum(serialize = "SOS")]
     SouthendOnSea,
-    #[strum(serialize = "SWK")]
-    Southwark,
     #[strum(serialize = "SHN")]
     StHelens,
     #[strum(serialize = "STS")]
@@ -4964,18 +5197,12 @@ pub enum UnitedKingdomStatesAbbreviation {
     Stockport,
     #[strum(serialize = "STT")]
     StocktonOnTees,
-    #[strum(serialize = "STE")]
-    StokeOnTrent,
+    #[strum(serialize = "STB")]
+    StrabaneDistrictCouncil,
     #[strum(serialize = "SFK")]
     Suffolk,
-    #[strum(serialize = "SND")]
-    Sunderland,
     #[strum(serialize = "SRY")]
     Surrey,
-    #[strum(serialize = "STN")]
-    Sutton,
-    #[strum(serialize = "SWA")]
-    Swansea,
     #[strum(serialize = "SWD")]
     Swindon,
     #[strum(serialize = "TAM")]
@@ -4988,20 +5215,18 @@ pub enum UnitedKingdomStatesAbbreviation {
     Torbay,
     #[strum(serialize = "TOF")]
     Torfaen,
-    #[strum(serialize = "TWH")]
-    TowerHamlets,
     #[strum(serialize = "TRF")]
     Trafford,
+    #[strum(serialize = "UKM")]
+    UnitedKingdom,
     #[strum(serialize = "VGL")]
     ValeOfGlamorgan,
     #[strum(serialize = "WKF")]
     Wakefield,
+    #[strum(serialize = "WLS")]
+    Wales,
     #[strum(serialize = "WLL")]
     Walsall,
-    #[strum(serialize = "WFT")]
-    WalthamForest,
-    #[strum(serialize = "WND")]
-    Wandsworth,
     #[strum(serialize = "WRT")]
     Warrington,
     #[strum(serialize = "WAR")]
@@ -5014,10 +5239,6 @@ pub enum UnitedKingdomStatesAbbreviation {
     WestLothian,
     #[strum(serialize = "WSX")]
     WestSussex,
-    #[strum(serialize = "WSM")]
-    Westminster,
-    #[strum(serialize = "WGN")]
-    Wigan,
     #[strum(serialize = "WIL")]
     Wiltshire,
     #[strum(serialize = "WNM")]
@@ -5026,14 +5247,909 @@ pub enum UnitedKingdomStatesAbbreviation {
     Wirral,
     #[strum(serialize = "WOK")]
     Wokingham,
-    #[strum(serialize = "WLV")]
-    Wolverhampton,
     #[strum(serialize = "WOR")]
     Worcestershire,
     #[strum(serialize = "WRX")]
-    Wrexham,
-    #[strum(serialize = "YOR")]
-    York,
+    WrexhamCountyBorough,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BelgiumStatesAbbreviation {
+    #[strum(serialize = "VAN")]
+    Antwerp,
+    #[strum(serialize = "BRU")]
+    BrusselsCapitalRegion,
+    #[strum(serialize = "VOV")]
+    EastFlanders,
+    #[strum(serialize = "VLG")]
+    Flanders,
+    #[strum(serialize = "VBR")]
+    FlemishBrabant,
+    #[strum(serialize = "WHT")]
+    Hainaut,
+    #[strum(serialize = "VLI")]
+    Limburg,
+    #[strum(serialize = "WLG")]
+    Liege,
+    #[strum(serialize = "WLX")]
+    Luxembourg,
+    #[strum(serialize = "WNA")]
+    Namur,
+    #[strum(serialize = "WAL")]
+    Wallonia,
+    #[strum(serialize = "WBR")]
+    WalloonBrabant,
+    #[strum(serialize = "VWV")]
+    WestFlanders,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum LuxembourgStatesAbbreviation {
+    #[strum(serialize = "CA")]
+    CantonOfCapellen,
+    #[strum(serialize = "CL")]
+    CantonOfClervaux,
+    #[strum(serialize = "DI")]
+    CantonOfDiekirch,
+    #[strum(serialize = "EC")]
+    CantonOfEchternach,
+    #[strum(serialize = "ES")]
+    CantonOfEschSurAlzette,
+    #[strum(serialize = "GR")]
+    CantonOfGrevenmacher,
+    #[strum(serialize = "LU")]
+    CantonOfLuxembourg,
+    #[strum(serialize = "ME")]
+    CantonOfMersch,
+    #[strum(serialize = "RD")]
+    CantonOfRedange,
+    #[strum(serialize = "RM")]
+    CantonOfRemich,
+    #[strum(serialize = "VD")]
+    CantonOfVianden,
+    #[strum(serialize = "WI")]
+    CantonOfWiltz,
+    #[strum(serialize = "D")]
+    DiekirchDistrict,
+    #[strum(serialize = "G")]
+    GrevenmacherDistrict,
+    #[strum(serialize = "L")]
+    LuxembourgDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum RussiaStatesAbbreviation {
+    #[strum(serialize = "ALT")]
+    AltaiKrai,
+    #[strum(serialize = "AL")]
+    AltaiRepublic,
+    #[strum(serialize = "AMU")]
+    AmurOblast,
+    #[strum(serialize = "ARK")]
+    Arkhangelsk,
+    #[strum(serialize = "AST")]
+    AstrakhanOblast,
+    #[strum(serialize = "BEL")]
+    BelgorodOblast,
+    #[strum(serialize = "BRY")]
+    BryanskOblast,
+    #[strum(serialize = "CE")]
+    ChechenRepublic,
+    #[strum(serialize = "CHE")]
+    ChelyabinskOblast,
+    #[strum(serialize = "CHU")]
+    ChukotkaAutonomousOkrug,
+    #[strum(serialize = "CU")]
+    ChuvashRepublic,
+    #[strum(serialize = "IRK")]
+    Irkutsk,
+    #[strum(serialize = "IVA")]
+    IvanovoOblast,
+    #[strum(serialize = "YEV")]
+    JewishAutonomousOblast,
+    #[strum(serialize = "KB")]
+    KabardinoBalkarRepublic,
+    #[strum(serialize = "KGD")]
+    Kaliningrad,
+    #[strum(serialize = "KLU")]
+    KalugaOblast,
+    #[strum(serialize = "KAM")]
+    KamchatkaKrai,
+    #[strum(serialize = "KC")]
+    KarachayCherkessRepublic,
+    #[strum(serialize = "KEM")]
+    KemerovoOblast,
+    #[strum(serialize = "KHA")]
+    KhabarovskKrai,
+    #[strum(serialize = "KHM")]
+    KhantyMansiAutonomousOkrug,
+    #[strum(serialize = "KIR")]
+    KirovOblast,
+    #[strum(serialize = "KO")]
+    KomiRepublic,
+    #[strum(serialize = "KOS")]
+    KostromaOblast,
+    #[strum(serialize = "KDA")]
+    KrasnodarKrai,
+    #[strum(serialize = "KYA")]
+    KrasnoyarskKrai,
+    #[strum(serialize = "KGN")]
+    KurganOblast,
+    #[strum(serialize = "KRS")]
+    KurskOblast,
+    #[strum(serialize = "LEN")]
+    LeningradOblast,
+    #[strum(serialize = "LIP")]
+    LipetskOblast,
+    #[strum(serialize = "MAG")]
+    MagadanOblast,
+    #[strum(serialize = "ME")]
+    MariElRepublic,
+    #[strum(serialize = "MOW")]
+    Moscow,
+    #[strum(serialize = "MOS")]
+    MoscowOblast,
+    #[strum(serialize = "MUR")]
+    MurmanskOblast,
+    #[strum(serialize = "NEN")]
+    NenetsAutonomousOkrug,
+    #[strum(serialize = "NIZ")]
+    NizhnyNovgorodOblast,
+    #[strum(serialize = "NGR")]
+    NovgorodOblast,
+    #[strum(serialize = "NVS")]
+    Novosibirsk,
+    #[strum(serialize = "OMS")]
+    OmskOblast,
+    #[strum(serialize = "ORE")]
+    OrenburgOblast,
+    #[strum(serialize = "ORL")]
+    OryolOblast,
+    #[strum(serialize = "PNZ")]
+    PenzaOblast,
+    #[strum(serialize = "PER")]
+    PermKrai,
+    #[strum(serialize = "PRI")]
+    PrimorskyKrai,
+    #[strum(serialize = "PSK")]
+    PskovOblast,
+    #[strum(serialize = "AD")]
+    RepublicOfAdygea,
+    #[strum(serialize = "BA")]
+    RepublicOfBashkortostan,
+    #[strum(serialize = "BU")]
+    RepublicOfBuryatia,
+    #[strum(serialize = "DA")]
+    RepublicOfDagestan,
+    #[strum(serialize = "IN")]
+    RepublicOfIngushetia,
+    #[strum(serialize = "KL")]
+    RepublicOfKalmykia,
+    #[strum(serialize = "KR")]
+    RepublicOfKarelia,
+    #[strum(serialize = "KK")]
+    RepublicOfKhakassia,
+    #[strum(serialize = "MO")]
+    RepublicOfMordovia,
+    #[strum(serialize = "SE")]
+    RepublicOfNorthOssetiaAlania,
+    #[strum(serialize = "TA")]
+    RepublicOfTatarstan,
+    #[strum(serialize = "ROS")]
+    RostovOblast,
+    #[strum(serialize = "RYA")]
+    RyazanOblast,
+    #[strum(serialize = "SPE")]
+    SaintPetersburg,
+    #[strum(serialize = "SA")]
+    SakhaRepublic,
+    #[strum(serialize = "SAK")]
+    Sakhalin,
+    #[strum(serialize = "SAM")]
+    SamaraOblast,
+    #[strum(serialize = "SAR")]
+    SaratovOblast,
+    #[strum(serialize = "UA-40")]
+    Sevastopol,
+    #[strum(serialize = "SMO")]
+    SmolenskOblast,
+    #[strum(serialize = "STA")]
+    StavropolKrai,
+    #[strum(serialize = "SVE")]
+    Sverdlovsk,
+    #[strum(serialize = "TAM")]
+    TambovOblast,
+    #[strum(serialize = "TOM")]
+    TomskOblast,
+    #[strum(serialize = "TUL")]
+    TulaOblast,
+    #[strum(serialize = "TY")]
+    TuvaRepublic,
+    #[strum(serialize = "TVE")]
+    TverOblast,
+    #[strum(serialize = "TYU")]
+    TyumenOblast,
+    #[strum(serialize = "UD")]
+    UdmurtRepublic,
+    #[strum(serialize = "ULY")]
+    UlyanovskOblast,
+    #[strum(serialize = "VLA")]
+    VladimirOblast,
+    #[strum(serialize = "VLG")]
+    VologdaOblast,
+    #[strum(serialize = "VOR")]
+    VoronezhOblast,
+    #[strum(serialize = "YAN")]
+    YamaloNenetsAutonomousOkrug,
+    #[strum(serialize = "YAR")]
+    YaroslavlOblast,
+    #[strum(serialize = "ZAB")]
+    ZabaykalskyKrai,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SanMarinoStatesAbbreviation {
+    #[strum(serialize = "01")]
+    Acquaviva,
+    #[strum(serialize = "06")]
+    BorgoMaggiore,
+    #[strum(serialize = "02")]
+    Chiesanuova,
+    #[strum(serialize = "03")]
+    Domagnano,
+    #[strum(serialize = "04")]
+    Faetano,
+    #[strum(serialize = "05")]
+    Fiorentino,
+    #[strum(serialize = "08")]
+    Montegiardino,
+    #[strum(serialize = "07")]
+    SanMarino,
+    #[strum(serialize = "09")]
+    Serravalle,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SerbiaStatesAbbreviation {
+    #[strum(serialize = "00")]
+    Belgrade,
+
+    #[strum(serialize = "01")]
+    BorDistrict,
+
+    #[strum(serialize = "02")]
+    BraničevoDistrict,
+
+    #[strum(serialize = "03")]
+    CentralBanatDistrict,
+
+    #[strum(serialize = "04")]
+    JablanicaDistrict,
+
+    #[strum(serialize = "05")]
+    KolubaraDistrict,
+
+    #[strum(serialize = "06")]
+    MačvaDistrict,
+
+    #[strum(serialize = "07")]
+    MoravicaDistrict,
+
+    #[strum(serialize = "08")]
+    NišavaDistrict,
+
+    #[strum(serialize = "09")]
+    NorthBanatDistrict,
+
+    #[strum(serialize = "10")]
+    NorthBačkaDistrict,
+
+    #[strum(serialize = "11")]
+    PirotDistrict,
+
+    #[strum(serialize = "12")]
+    PodunavljeDistrict,
+
+    #[strum(serialize = "13")]
+    PomoravljeDistrict,
+
+    #[strum(serialize = "14")]
+    PčinjaDistrict,
+
+    #[strum(serialize = "15")]
+    RasinaDistrict,
+
+    #[strum(serialize = "16")]
+    RaškaDistrict,
+
+    #[strum(serialize = "17")]
+    SouthBanatDistrict,
+
+    #[strum(serialize = "18")]
+    SouthBačkaDistrict,
+
+    #[strum(serialize = "19")]
+    SremDistrict,
+
+    #[strum(serialize = "20")]
+    ToplicaDistrict,
+
+    #[strum(serialize = "21")]
+    Vojvodina,
+
+    #[strum(serialize = "22")]
+    WestBačkaDistrict,
+
+    #[strum(serialize = "23")]
+    ZaječarDistrict,
+
+    #[strum(serialize = "24")]
+    ZlatiborDistrict,
+
+    #[strum(serialize = "25")]
+    ŠumadijaDistrict,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SlovakiaStatesAbbreviation {
+    #[strum(serialize = "BC")]
+    BanskaBystricaRegion,
+    #[strum(serialize = "BL")]
+    BratislavaRegion,
+    #[strum(serialize = "KI")]
+    KosiceRegion,
+    #[strum(serialize = "NI")]
+    NitraRegion,
+    #[strum(serialize = "PV")]
+    PresovRegion,
+    #[strum(serialize = "TC")]
+    TrencinRegion,
+    #[strum(serialize = "TA")]
+    TrnavaRegion,
+    #[strum(serialize = "ZI")]
+    ZilinaRegion,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SloveniaStatesAbbreviation {
+    #[strum(serialize = "001")]
+    Ajdovščina,
+    #[strum(serialize = "213")]
+    Ankaran,
+    #[strum(serialize = "002")]
+    Beltinci,
+    #[strum(serialize = "148")]
+    Benedikt,
+    #[strum(serialize = "149")]
+    BistricaObSotli,
+    #[strum(serialize = "003")]
+    Bled,
+    #[strum(serialize = "150")]
+    Bloke,
+    #[strum(serialize = "004")]
+    Bohinj,
+    #[strum(serialize = "005")]
+    Borovnica,
+    #[strum(serialize = "006")]
+    Bovec,
+    #[strum(serialize = "151")]
+    Braslovče,
+    #[strum(serialize = "007")]
+    Brda,
+    #[strum(serialize = "008")]
+    Brezovica,
+    #[strum(serialize = "009")]
+    Brežice,
+    #[strum(serialize = "152")]
+    Cankova,
+    #[strum(serialize = "012")]
+    CerkljeNaGorenjskem,
+    #[strum(serialize = "013")]
+    Cerknica,
+    #[strum(serialize = "014")]
+    Cerkno,
+    #[strum(serialize = "153")]
+    Cerkvenjak,
+    #[strum(serialize = "011")]
+    CityMunicipalityOfCelje,
+    #[strum(serialize = "085")]
+    CityMunicipalityOfNovoMesto,
+    #[strum(serialize = "018")]
+    Destrnik,
+    #[strum(serialize = "019")]
+    Divača,
+    #[strum(serialize = "154")]
+    Dobje,
+    #[strum(serialize = "020")]
+    Dobrepolje,
+    #[strum(serialize = "155")]
+    Dobrna,
+    #[strum(serialize = "021")]
+    DobrovaPolhovGradec,
+    #[strum(serialize = "156")]
+    Dobrovnik,
+    #[strum(serialize = "022")]
+    DolPriLjubljani,
+    #[strum(serialize = "157")]
+    DolenjskeToplice,
+    #[strum(serialize = "023")]
+    Domžale,
+    #[strum(serialize = "024")]
+    Dornava,
+    #[strum(serialize = "025")]
+    Dravograd,
+    #[strum(serialize = "026")]
+    Duplek,
+    #[strum(serialize = "027")]
+    GorenjaVasPoljane,
+    #[strum(serialize = "028")]
+    Gorišnica,
+    #[strum(serialize = "207")]
+    Gorje,
+    #[strum(serialize = "029")]
+    GornjaRadgona,
+    #[strum(serialize = "030")]
+    GornjiGrad,
+    #[strum(serialize = "031")]
+    GornjiPetrovci,
+    #[strum(serialize = "158")]
+    Grad,
+    #[strum(serialize = "032")]
+    Grosuplje,
+    #[strum(serialize = "159")]
+    Hajdina,
+    #[strum(serialize = "161")]
+    Hodoš,
+    #[strum(serialize = "162")]
+    Horjul,
+    #[strum(serialize = "160")]
+    HočeSlivnica,
+    #[strum(serialize = "034")]
+    Hrastnik,
+    #[strum(serialize = "035")]
+    HrpeljeKozina,
+    #[strum(serialize = "036")]
+    Idrija,
+    #[strum(serialize = "037")]
+    Ig,
+    #[strum(serialize = "039")]
+    IvančnaGorica,
+    #[strum(serialize = "040")]
+    Izola,
+    #[strum(serialize = "041")]
+    Jesenice,
+    #[strum(serialize = "163")]
+    Jezersko,
+    #[strum(serialize = "042")]
+    Jursinci,
+    #[strum(serialize = "043")]
+    Kamnik,
+    #[strum(serialize = "044")]
+    KanalObSoci,
+    #[strum(serialize = "045")]
+    Kidricevo,
+    #[strum(serialize = "046")]
+    Kobarid,
+    #[strum(serialize = "047")]
+    Kobilje,
+    #[strum(serialize = "049")]
+    Komen,
+    #[strum(serialize = "164")]
+    Komenda,
+    #[strum(serialize = "050")]
+    Koper,
+    #[strum(serialize = "197")]
+    KostanjevicaNaKrki,
+    #[strum(serialize = "165")]
+    Kostel,
+    #[strum(serialize = "051")]
+    Kozje,
+    #[strum(serialize = "048")]
+    Kocevje,
+    #[strum(serialize = "052")]
+    Kranj,
+    #[strum(serialize = "053")]
+    KranjskaGora,
+    #[strum(serialize = "166")]
+    Krizevci,
+    #[strum(serialize = "055")]
+    Kungota,
+    #[strum(serialize = "056")]
+    Kuzma,
+    #[strum(serialize = "057")]
+    Lasko,
+    #[strum(serialize = "058")]
+    Lenart,
+    #[strum(serialize = "059")]
+    Lendava,
+    #[strum(serialize = "060")]
+    Litija,
+    #[strum(serialize = "061")]
+    Ljubljana,
+    #[strum(serialize = "062")]
+    Ljubno,
+    #[strum(serialize = "063")]
+    Ljutomer,
+    #[strum(serialize = "064")]
+    Logatec,
+    #[strum(serialize = "208")]
+    LogDragomer,
+    #[strum(serialize = "167")]
+    LovrencNaPohorju,
+    #[strum(serialize = "065")]
+    LoskaDolina,
+    #[strum(serialize = "066")]
+    LoskiPotok,
+    #[strum(serialize = "068")]
+    Lukovica,
+    #[strum(serialize = "067")]
+    Luče,
+    #[strum(serialize = "069")]
+    Majsperk,
+    #[strum(serialize = "198")]
+    Makole,
+    #[strum(serialize = "070")]
+    Maribor,
+    #[strum(serialize = "168")]
+    Markovci,
+    #[strum(serialize = "071")]
+    Medvode,
+    #[strum(serialize = "072")]
+    Menges,
+    #[strum(serialize = "073")]
+    Metlika,
+    #[strum(serialize = "074")]
+    Mezica,
+    #[strum(serialize = "169")]
+    MiklavzNaDravskemPolju,
+    #[strum(serialize = "075")]
+    MirenKostanjevica,
+    #[strum(serialize = "212")]
+    Mirna,
+    #[strum(serialize = "170")]
+    MirnaPec,
+    #[strum(serialize = "076")]
+    Mislinja,
+    #[strum(serialize = "199")]
+    MokronogTrebelno,
+    #[strum(serialize = "078")]
+    MoravskeToplice,
+    #[strum(serialize = "077")]
+    Moravce,
+    #[strum(serialize = "079")]
+    Mozirje,
+    #[strum(serialize = "195")]
+    Apače,
+    #[strum(serialize = "196")]
+    Cirkulane,
+    #[strum(serialize = "038")]
+    IlirskaBistrica,
+    #[strum(serialize = "054")]
+    Krsko,
+    #[strum(serialize = "123")]
+    Skofljica,
+    #[strum(serialize = "080")]
+    MurskaSobota,
+    #[strum(serialize = "081")]
+    Muta,
+    #[strum(serialize = "082")]
+    Naklo,
+    #[strum(serialize = "083")]
+    Nazarje,
+    #[strum(serialize = "084")]
+    NovaGorica,
+    #[strum(serialize = "086")]
+    Odranci,
+    #[strum(serialize = "171")]
+    Oplotnica,
+    #[strum(serialize = "087")]
+    Ormoz,
+    #[strum(serialize = "088")]
+    Osilnica,
+    #[strum(serialize = "089")]
+    Pesnica,
+    #[strum(serialize = "090")]
+    Piran,
+    #[strum(serialize = "091")]
+    Pivka,
+    #[strum(serialize = "172")]
+    Podlehnik,
+    #[strum(serialize = "093")]
+    Podvelka,
+    #[strum(serialize = "092")]
+    Podcetrtek,
+    #[strum(serialize = "200")]
+    Poljcane,
+    #[strum(serialize = "173")]
+    Polzela,
+    #[strum(serialize = "094")]
+    Postojna,
+    #[strum(serialize = "174")]
+    Prebold,
+    #[strum(serialize = "095")]
+    Preddvor,
+    #[strum(serialize = "175")]
+    Prevalje,
+    #[strum(serialize = "096")]
+    Ptuj,
+    #[strum(serialize = "097")]
+    Puconci,
+    #[strum(serialize = "100")]
+    Radenci,
+    #[strum(serialize = "099")]
+    Radece,
+    #[strum(serialize = "101")]
+    RadljeObDravi,
+    #[strum(serialize = "102")]
+    Radovljica,
+    #[strum(serialize = "103")]
+    RavneNaKoroskem,
+    #[strum(serialize = "176")]
+    Razkrizje,
+    #[strum(serialize = "098")]
+    RaceFram,
+    #[strum(serialize = "201")]
+    RenčeVogrsko,
+    #[strum(serialize = "209")]
+    RecicaObSavinji,
+    #[strum(serialize = "104")]
+    Ribnica,
+    #[strum(serialize = "177")]
+    RibnicaNaPohorju,
+    #[strum(serialize = "107")]
+    Rogatec,
+    #[strum(serialize = "106")]
+    RogaskaSlatina,
+    #[strum(serialize = "105")]
+    Rogasovci,
+    #[strum(serialize = "108")]
+    Ruse,
+    #[strum(serialize = "178")]
+    SelnicaObDravi,
+    #[strum(serialize = "109")]
+    Semic,
+    #[strum(serialize = "110")]
+    Sevnica,
+    #[strum(serialize = "111")]
+    Sezana,
+    #[strum(serialize = "112")]
+    SlovenjGradec,
+    #[strum(serialize = "113")]
+    SlovenskaBistrica,
+    #[strum(serialize = "114")]
+    SlovenskeKonjice,
+    #[strum(serialize = "179")]
+    Sodrazica,
+    #[strum(serialize = "180")]
+    Solcava,
+    #[strum(serialize = "202")]
+    SredisceObDravi,
+    #[strum(serialize = "115")]
+    Starse,
+    #[strum(serialize = "203")]
+    Straza,
+    #[strum(serialize = "181")]
+    SvetaAna,
+    #[strum(serialize = "204")]
+    SvetaTrojica,
+    #[strum(serialize = "182")]
+    SvetiAndraz,
+    #[strum(serialize = "116")]
+    SvetiJurijObScavnici,
+    #[strum(serialize = "210")]
+    SvetiJurijVSlovenskihGoricah,
+    #[strum(serialize = "205")]
+    SvetiTomaz,
+    #[strum(serialize = "184")]
+    Tabor,
+    #[strum(serialize = "010")]
+    Tišina,
+    #[strum(serialize = "128")]
+    Tolmin,
+    #[strum(serialize = "129")]
+    Trbovlje,
+    #[strum(serialize = "130")]
+    Trebnje,
+    #[strum(serialize = "185")]
+    TrnovskaVas,
+    #[strum(serialize = "186")]
+    Trzin,
+    #[strum(serialize = "131")]
+    Tržič,
+    #[strum(serialize = "132")]
+    Turnišče,
+    #[strum(serialize = "187")]
+    VelikaPolana,
+    #[strum(serialize = "134")]
+    VelikeLašče,
+    #[strum(serialize = "188")]
+    Veržej,
+    #[strum(serialize = "135")]
+    Videm,
+    #[strum(serialize = "136")]
+    Vipava,
+    #[strum(serialize = "137")]
+    Vitanje,
+    #[strum(serialize = "138")]
+    Vodice,
+    #[strum(serialize = "139")]
+    Vojnik,
+    #[strum(serialize = "189")]
+    Vransko,
+    #[strum(serialize = "140")]
+    Vrhnika,
+    #[strum(serialize = "141")]
+    Vuzenica,
+    #[strum(serialize = "142")]
+    ZagorjeObSavi,
+    #[strum(serialize = "143")]
+    Zavrč,
+    #[strum(serialize = "144")]
+    Zreče,
+    #[strum(serialize = "015")]
+    Črenšovci,
+    #[strum(serialize = "016")]
+    ČrnaNaKoroškem,
+    #[strum(serialize = "017")]
+    Črnomelj,
+    #[strum(serialize = "033")]
+    Šalovci,
+    #[strum(serialize = "183")]
+    ŠempeterVrtojba,
+    #[strum(serialize = "118")]
+    Šentilj,
+    #[strum(serialize = "119")]
+    Šentjernej,
+    #[strum(serialize = "120")]
+    Šentjur,
+    #[strum(serialize = "211")]
+    Šentrupert,
+    #[strum(serialize = "117")]
+    Šenčur,
+    #[strum(serialize = "121")]
+    Škocjan,
+    #[strum(serialize = "122")]
+    ŠkofjaLoka,
+    #[strum(serialize = "124")]
+    ŠmarjePriJelšah,
+    #[strum(serialize = "206")]
+    ŠmarješkeToplice,
+    #[strum(serialize = "125")]
+    ŠmartnoObPaki,
+    #[strum(serialize = "194")]
+    ŠmartnoPriLitiji,
+    #[strum(serialize = "126")]
+    Šoštanj,
+    #[strum(serialize = "127")]
+    Štore,
+    #[strum(serialize = "190")]
+    Žalec,
+    #[strum(serialize = "146")]
+    Železniki,
+    #[strum(serialize = "191")]
+    Žetale,
+    #[strum(serialize = "147")]
+    Žiri,
+    #[strum(serialize = "192")]
+    Žirovnica,
+    #[strum(serialize = "193")]
+    Žužemberk,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SwedenStatesAbbreviation {
+    #[strum(serialize = "K")]
+    Blekinge,
+    #[strum(serialize = "W")]
+    DalarnaCounty,
+    #[strum(serialize = "I")]
+    GotlandCounty,
+    #[strum(serialize = "X")]
+    GävleborgCounty,
+    #[strum(serialize = "N")]
+    HallandCounty,
+    #[strum(serialize = "F")]
+    JönköpingCounty,
+    #[strum(serialize = "H")]
+    KalmarCounty,
+    #[strum(serialize = "G")]
+    KronobergCounty,
+    #[strum(serialize = "BD")]
+    NorrbottenCounty,
+    #[strum(serialize = "M")]
+    SkåneCounty,
+    #[strum(serialize = "AB")]
+    StockholmCounty,
+    #[strum(serialize = "D")]
+    SödermanlandCounty,
+    #[strum(serialize = "C")]
+    UppsalaCounty,
+    #[strum(serialize = "S")]
+    VärmlandCounty,
+    #[strum(serialize = "AC")]
+    VästerbottenCounty,
+    #[strum(serialize = "Y")]
+    VästernorrlandCounty,
+    #[strum(serialize = "U")]
+    VästmanlandCounty,
+    #[strum(serialize = "O")]
+    VästraGötalandCounty,
+    #[strum(serialize = "T")]
+    ÖrebroCounty,
+    #[strum(serialize = "E")]
+    ÖstergötlandCounty,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum UkraineStatesAbbreviation {
+    #[strum(serialize = "43")]
+    AutonomousRepublicOfCrimea,
+    #[strum(serialize = "71")]
+    CherkasyOblast,
+    #[strum(serialize = "74")]
+    ChernihivOblast,
+    #[strum(serialize = "77")]
+    ChernivtsiOblast,
+    #[strum(serialize = "12")]
+    DnipropetrovskOblast,
+    #[strum(serialize = "14")]
+    DonetskOblast,
+    #[strum(serialize = "26")]
+    IvanoFrankivskOblast,
+    #[strum(serialize = "63")]
+    KharkivOblast,
+    #[strum(serialize = "65")]
+    KhersonOblast,
+    #[strum(serialize = "68")]
+    KhmelnytskyOblast,
+    #[strum(serialize = "30")]
+    Kiev,
+    #[strum(serialize = "35")]
+    KirovohradOblast,
+    #[strum(serialize = "32")]
+    KyivOblast,
+    #[strum(serialize = "09")]
+    LuhanskOblast,
+    #[strum(serialize = "46")]
+    LvivOblast,
+    #[strum(serialize = "48")]
+    MykolaivOblast,
+    #[strum(serialize = "51")]
+    OdessaOblast,
+    #[strum(serialize = "56")]
+    RivneOblast,
+    #[strum(serialize = "59")]
+    SumyOblast,
+    #[strum(serialize = "61")]
+    TernopilOblast,
+    #[strum(serialize = "05")]
+    VinnytsiaOblast,
+    #[strum(serialize = "07")]
+    VolynOblast,
+    #[strum(serialize = "21")]
+    ZakarpattiaOblast,
+    #[strum(serialize = "23")]
+    ZaporizhzhyaOblast,
+    #[strum(serialize = "18")]
+    ZhytomyrOblast,
 }
 
 #[derive(
@@ -5386,6 +6502,7 @@ pub enum AuthenticationConnectors {
     Gpayments,
     CtpMastercard,
     UnifiedAuthenticationService,
+    Juspaythreedsserver,
 }
 
 impl AuthenticationConnectors {
@@ -5394,7 +6511,8 @@ impl AuthenticationConnectors {
             Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
-            | Self::UnifiedAuthenticationService => false,
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver => false,
             Self::Gpayments => true,
         }
     }
@@ -6268,6 +7386,19 @@ pub enum ConnectorMandateStatus {
     Inactive,
 }
 
+/// Connector Mandate Status
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorTokenStatus {
+    /// Indicates that the connector mandate is active and can be used for payments.
+    Active,
+    /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
+    Inactive,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -6479,4 +7610,29 @@ pub enum PaymentConnectorTransmission {
     ConnectorCallFailed,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TriggeredBy {
+    /// Denotes payment attempt is been created by internal system.
+    #[default]
+    Internal,
+    /// Denotes payment attempt is been created by external system.
+    External,
 }

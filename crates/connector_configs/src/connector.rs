@@ -118,6 +118,7 @@ pub struct ConfigMetadata {
     pub locale: Option<InputData>,
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
+    pub merchant_configuration_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -155,6 +156,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -171,8 +173,10 @@ pub struct ConnectorConfig {
     pub boku: Option<ConnectorTomlConfig>,
     pub braintree: Option<ConnectorTomlConfig>,
     pub cashtocode: Option<ConnectorTomlConfig>,
+    pub chargebee: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
+    pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -202,10 +206,12 @@ pub struct ConnectorConfig {
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
+    pub moneris: Option<ConnectorTomlConfig>,
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
+    pub nomupay_payout: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
     pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
@@ -216,6 +222,7 @@ pub struct ConnectorConfig {
     pub paypal: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
+    pub paystack: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -278,6 +285,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Nomupay => Ok(connector_data.nomupay_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
@@ -297,6 +305,7 @@ impl ConnectorConfig {
             AuthenticationConnectors::UnifiedAuthenticationService => {
                 Ok(connector_data.unified_authentication_service)
             }
+            AuthenticationConnectors::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
         }
     }
 
@@ -336,8 +345,10 @@ impl ConnectorConfig {
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Cashtocode => Ok(connector_data.cashtocode),
+            Connector::Chargebee => Ok(connector_data.chargebee),
             Connector::Checkout => Ok(connector_data.checkout),
             Connector::Coinbase => Ok(connector_data.coinbase),
+            Connector::Coingate => Ok(connector_data.coingate),
             Connector::Cryptopay => Ok(connector_data.cryptopay),
             Connector::Cybersource => Ok(connector_data.cybersource),
             Connector::Iatapay => Ok(connector_data.iatapay),
@@ -362,14 +373,17 @@ impl ConnectorConfig {
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
+            Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
+            Connector::Moneris => Ok(connector_data.moneris),
             Connector::Multisafepay => Ok(connector_data.multisafepay),
             Connector::Nexinets => Ok(connector_data.nexinets),
             Connector::Nexixpay => Ok(connector_data.nexixpay),
             Connector::Prophetpay => Ok(connector_data.prophetpay),
             Connector::Nmi => Ok(connector_data.nmi),
+            Connector::Nomupay => Err("Use get_payout_connector_config".to_string()),
             Connector::Novalnet => Ok(connector_data.novalnet),
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
@@ -377,6 +391,7 @@ impl ConnectorConfig {
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
+            Connector::Paystack => Ok(connector_data.paystack),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),
             Connector::Plaid => Ok(connector_data.plaid),
