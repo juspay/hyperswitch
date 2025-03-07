@@ -420,7 +420,7 @@ impl RevenueRecoveryAttempt {
         let payment_merchant_connector_account = payment_merchant_connector_account_id
             .as_ref()
             .async_map(|mca_id| async move {
-                db.find_merchant_connector_account_by_id(key_manager_state, &mca_id, &key_store)
+                db.find_merchant_connector_account_by_id(key_manager_state, mca_id, key_store)
                     .await
             })
             .await
