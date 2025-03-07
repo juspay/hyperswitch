@@ -1727,6 +1727,76 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
+pub async fn record_attempt_core(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    req: api_models::payments::PaymentsAttemptRecordRequest,
+    payment_id: id_type::GlobalPaymentId,
+    header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
+) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+    tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
+
+    let operation: &operations::payment_attempt_record::PaymentAttemptRecord =
+        &operations::payment_attempt_record::PaymentAttemptRecord;
+    let boxed_operation: BoxedOperation<
+        '_,
+        api::RecordAttempt,
+        api_models::payments::PaymentsAttemptRecordRequest,
+        domain_payments::PaymentAttemptRecordData<api::RecordAttempt>,
+    > = Box::new(operation);
+
+    let _validate_result = boxed_operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
+
+    tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
+
+    let operations::GetTrackerResponse { payment_data } = boxed_operation
+        .to_get_tracker()?
+        .get_trackers(
+            &state,
+            &payment_id,
+            &req,
+            &merchant_account,
+            &profile,
+            &key_store,
+            &header_payload,
+            platform_merchant_account.as_ref(),
+        )
+        .await?;
+
+    let (_operation, payment_data) = boxed_operation
+        .to_update_tracker()?
+        .update_trackers(
+            &state,
+            req_state,
+            payment_data,
+            None,
+            merchant_account.storage_scheme,
+            None,
+            &key_store,
+            None,
+            header_payload.clone(),
+        )
+        .await?;
+
+    transformers::GenerateResponse::generate_response(
+        payment_data,
+        &state,
+        None,
+        None,
+        header_payload.x_hs_latency,
+        &merchant_account,
+        &profile,
+    )
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn payments_intent_core<F, Res, Req, Op, D>(
     state: SessionState,
     req_state: ReqState,
@@ -7608,6 +7678,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 webhook_url,
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
+                payment_intent.payment_id,
+                business_profile.force_3ds_challenge,
             ))
             .await?
         };

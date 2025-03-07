@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.07.0
+
+### Features
+
+- **analytics:**
+  - Refactor and rewrite authentication related analytics ([#7433](https://github.com/juspay/hyperswitch/pull/7433)) ([`1ff273e`](https://github.com/juspay/hyperswitch/commit/1ff273e137dbf04dcb05ce4fd4baa9bcfdbce07b))
+  - Add new filters, dimensions and metrics for authentication analytics ([#7451](https://github.com/juspay/hyperswitch/pull/7451)) ([`7473182`](https://github.com/juspay/hyperswitch/commit/7473182b309c344d486aa5e363f49b71ca17e05a))
+- **connector:** Added ThreeDs server integration template pr ([#7424](https://github.com/juspay/hyperswitch/pull/7424)) ([`7e5da48`](https://github.com/juspay/hyperswitch/commit/7e5da488b34939bafe05b9223e1d49c25d279c7c))
+- **core:** Add additional revenue recovery call flow ([#7402](https://github.com/juspay/hyperswitch/pull/7402)) ([`9e4135c`](https://github.com/juspay/hyperswitch/commit/9e4135cd5e48532a95ac5f7e321978204155aa26))
+- **router:** Add capability to force challenge for 3DS Payments through Netcetera and send few optional fields ([#7429](https://github.com/juspay/hyperswitch/pull/7429)) ([`957a228`](https://github.com/juspay/hyperswitch/commit/957a22852522a10378fc06dd30521a3a0c530ee5))
+
+### Bug Fixes
+
+- **xendit:** Fix wasm changes ([#7419](https://github.com/juspay/hyperswitch/pull/7419)) ([`134c86e`](https://github.com/juspay/hyperswitch/commit/134c86ed623aa9e8d62385222c43edc31e131d12))
+
+### Refactors
+
+- **core:** Added payment id in authentication router data ([#7441](https://github.com/juspay/hyperswitch/pull/7441)) ([`ea81706`](https://github.com/juspay/hyperswitch/commit/ea817060cff879139909b36ad61814857b862866))
+
+### Miscellaneous Tasks
+
+- **postman:**
+  - Postman tests fixes ([#7159](https://github.com/juspay/hyperswitch/pull/7159)) ([`f9ead15`](https://github.com/juspay/hyperswitch/commit/f9ead15334fab4515ab2498b45c1d319a7fcc53f))
+  - Update Postman collection files ([`21421d7`](https://github.com/juspay/hyperswitch/commit/21421d79f22f60237203a0a57499d24e9b042f74))
+
+**Full Changelog:** [`2025.03.06.0...2025.03.07.0`](https://github.com/juspay/hyperswitch/compare/2025.03.06.0...2025.03.07.0)
+
+
+- - -
+
 ## 2025.03.06.0
 
 ### Features
