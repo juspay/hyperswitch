@@ -571,6 +571,20 @@ pub fn generate_payment_method_response(
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
         });
+        let network_token_pmd = payment_method
+        .network_token_payment_method_data
+        .clone()
+        .map(|data| data.into_inner())
+        .and_then(|data| match data {
+            domain::PaymentMethodsData::NetworkToken(token) => {
+                Some(api::NetworkTokenDetailsPaymentMethod::from(token))
+            }
+            _ => None,
+        });
+    
+    let network_token = network_token_pmd.map(|pmd| api::NetworkTokenResponse{
+        payment_method_data: pmd,
+    });
 
     let resp = api::PaymentMethodResponse {
         merchant_id: payment_method.merchant_id.to_owned(),
@@ -583,6 +597,7 @@ pub fn generate_payment_method_response(
         last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
         connector_tokens,
+        network_token,
     };
 
     Ok(resp)

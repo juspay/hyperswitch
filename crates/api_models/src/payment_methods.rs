@@ -952,6 +952,8 @@ pub struct PaymentMethodResponse {
 
     /// The connector token details if available
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+
+    pub network_token: Option<NetworkTokenResponse>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -967,6 +969,22 @@ pub struct CardDetailsPaymentMethod {
     pub issuer_country: Option<String>,
     pub expiry_month: Option<masking::Secret<String>>,
     pub expiry_year: Option<masking::Secret<String>>,
+    pub nick_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    #[serde(default = "saved_in_locker_default")]
+    pub saved_to_locker: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct NetworkTokenDetailsPaymentMethod {
+    pub last4_digits: Option<String>,
+    pub issuer_country: Option<String>,
+    pub network_token_expiry_month: Option<masking::Secret<String>>,
+    pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub nick_name: Option<masking::Secret<String>>,
     pub card_holder_name: Option<masking::Secret<String>>,
     pub card_isin: Option<String>,
@@ -1121,6 +1139,12 @@ pub struct CardDetailFromLocker {
     pub card_issuer: Option<String>,
     pub card_type: Option<String>,
     pub saved_to_locker: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct NetworkTokenResponse{
+    pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
 fn saved_in_locker_default() -> bool {

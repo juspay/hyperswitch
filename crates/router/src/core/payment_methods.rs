@@ -1196,6 +1196,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                                 .ok()
                                 .flatten()
                         }),
+                        card_cvc: card.card_cvc.clone(),
                     })
                 }
             }
@@ -1583,7 +1584,7 @@ fn create_connector_token_details_update(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_pm_additional_data_update(
-    pmd: &domain::PaymentMethodVaultingData,
+    pmd: Option<&domain::PaymentMethodVaultingData>,
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     vault_id: Option<String>,
@@ -1592,7 +1593,7 @@ pub async fn create_pm_additional_data_update(
     connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
-    let encrypted_payment_method_data = payment_method_vaulting_data
+    let encrypted_payment_method_data = pmd
         .map(
             |payment_method_vaulting_data| match payment_method_vaulting_data {
                 domain::PaymentMethodVaultingData::Card(card) => {
@@ -1898,7 +1899,7 @@ pub async fn update_payment_method_core(
     )?;
 
     let pmd: domain::PaymentMethodVaultingData =
-        vault::retrieve_payment_method_from_vault(&state, &merchant_account, &payment_method)
+        vault::retrieve_payment_method_from_vault(state, merchant_account, &payment_method)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method from vault")?
