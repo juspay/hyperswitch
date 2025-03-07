@@ -78,7 +78,7 @@ api_key = ""                      # Api key for making request to foreign exchan
 fallback_api_key = ""             # Api key for the fallback service
 call_delay_in_seconds = 21600     # Expiration time for data in cache as well as redis in seconds
 redis_lock_timeout_in_seconds = 100        # Redis remains write locked for 100 s once the acquire_redis_lock is called
-redis_cache_expiry_in_seconds = 172800     # Time to expire for forex data stored in Redis
+redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redis
 
 # Logging configuration. Logging can be either to file or console or both.
 

@@ -478,7 +478,7 @@ async fn save_forex_data_to_redis(
         .serialize_and_set_key_with_expiry(
             &REDIX_FOREX_CACHE_DATA.into(),
             forex_exchange_cache_entry,
-            forex_api.redis_cache_expiry_in_seconds,
+            forex_api.redis_ttl_in_seconds,
         )
         .await
         .change_context(ForexCacheError::RedisWriteError)

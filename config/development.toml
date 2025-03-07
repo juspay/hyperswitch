@@ -81,7 +81,7 @@ api_key = ""
 fallback_api_key = ""
 call_delay_in_seconds = 21600
 redis_lock_timeout_in_seconds = 100
-redis_cache_expiry_in_seconds = 172800
+redis_ttl_in_seconds = 172800
 
 [jwekey]
 vault_encryption_key = """

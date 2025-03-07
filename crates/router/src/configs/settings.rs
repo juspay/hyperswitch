@@ -411,7 +411,7 @@ pub struct ForexApi {
     pub fallback_api_key: Secret<String>,
     pub call_delay_in_seconds: i64,
     pub redis_lock_timeout_in_seconds: u64,
-    pub redis_cache_expiry_in_seconds: i64,
+    pub redis_ttl_in_seconds: i64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
