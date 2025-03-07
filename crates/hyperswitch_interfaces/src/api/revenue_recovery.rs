@@ -6,12 +6,11 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
 };
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use super::ConnectorCommon;
 use super::ConnectorIntegration;
 
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
-use super::ConnectorCommon;
-
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 /// trait RevenueRecovery
 pub trait RevenueRecovery: ConnectorCommon + AdditionalRevenueRecovery {}
 
@@ -25,6 +24,6 @@ pub trait AdditionalRevenueRecovery:
 {
 }
 
-#[cfg(not(all(feature="v2",feature="revenue_recovery")))]
+#[cfg(not(all(feature = "v2", feature = "revenue_recovery")))]
 /// trait RevenueRecovery
 pub trait RevenueRecovery {}

@@ -1,6 +1,5 @@
 #[cfg(feature = "v2")]
 use std::str::FromStr;
-use time::PrimitiveDateTime;
 
 use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
@@ -15,17 +14,17 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
     router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
     router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
-    types::AdditionalRevenueRecoveryDetailsRouterData
+    types::AdditionalRevenueRecoveryDetailsRouterData,
 };
-
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -308,13 +307,12 @@ pub struct StripebillingInvoiceObject {
     pub amount: common_utils::types::MinorUnit,
 }
 
-
 impl StripebillingWebhookBody {
     pub fn get_webhook_object_from_body(body: &[u8]) -> CustomResult<Self, errors::ConnectorError> {
         let webhook_body: Self = body
             .parse_struct::<Self>("StripebillingWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        
+
         Ok(webhook_body)
     }
 }
@@ -347,137 +345,143 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StripebillingRecoveryDetailsData {
-    #[serde(rename="id")]
-    pub charge_id : String,
-    pub status : StripebillingChargeStatus,
-    pub amount : common_utils::types::MinorUnit,
+    #[serde(rename = "id")]
+    pub charge_id: String,
+    pub status: StripebillingChargeStatus,
+    pub amount: common_utils::types::MinorUnit,
     #[serde(deserialize_with = "convert_uppercase")]
-    pub currency : enums::Currency,
-    pub customer : String,
-    pub payment_method : String,
-    pub failure_code : String,
-    pub failure_message : String,
+    pub currency: enums::Currency,
+    pub customer: String,
+    pub payment_method: String,
+    pub failure_code: String,
+    pub failure_message: String,
     #[serde(with = "common_utils::custom_serde::timestamp")]
-    pub created : PrimitiveDateTime,
-    pub payment_method_details : StripePaymentMethodDetails,
-    #[serde(rename="invoice")]
-    pub invoice_id : String
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripePaymentMethodDetails{
-    #[serde(rename="type")]
-    pub type_of_payment_method : StripebillingPaymentMethod,
-    #[serde(rename="card")]
-    pub card_funding_type : StripeCardFundingTypeDetails,
+    pub created: PrimitiveDateTime,
+    pub payment_method_details: StripePaymentMethodDetails,
+    #[serde(rename = "invoice")]
+    pub invoice_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all="snake_case")]
+pub struct StripePaymentMethodDetails {
+    #[serde(rename = "type")]
+    pub type_of_payment_method: StripebillingPaymentMethod,
+    #[serde(rename = "card")]
+    pub card_funding_type: StripeCardFundingTypeDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum StripebillingPaymentMethod {
     Card,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripeCardFundingTypeDetails{
-    pub funding : StripebillingFundingTypes
+pub struct StripeCardFundingTypeDetails {
+    pub funding: StripebillingFundingTypes,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename="snake_case")]
+#[serde(rename = "snake_case")]
 pub enum StripebillingFundingTypes {
-    #[serde(rename="credit")]
+    #[serde(rename = "credit")]
     Credit,
-    #[serde(rename="debit")]
+    #[serde(rename = "debit")]
     Debit,
-    #[serde(rename="prepaid")]
+    #[serde(rename = "prepaid")]
     Prepaid,
-    #[serde(rename="unknown")]
-    Unknown
+    #[serde(rename = "unknown")]
+    Unknown,
 }
 
-#[derive(Serialize, Deserialize, Debug,Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum StripebillingChargeStatus{
+pub enum StripebillingChargeStatus {
     Succeeded,
     Failed,
-    Pending
+    Pending,
 }
 
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
-impl TryFrom<
-    ResponseRouterData<
-        GetAdditionalRevenueRecoveryDetails,
-        StripebillingRecoveryDetailsData,
-        GetAdditionalRevenueRecoveryRequestData,
-        GetAdditionalRevenueRecoveryResponseData
-        >>
-    for AdditionalRevenueRecoveryDetailsRouterData
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl
+    TryFrom<
+        ResponseRouterData<
+            GetAdditionalRevenueRecoveryDetails,
+            StripebillingRecoveryDetailsData,
+            GetAdditionalRevenueRecoveryRequestData,
+            GetAdditionalRevenueRecoveryResponseData,
+        >,
+    > for AdditionalRevenueRecoveryDetailsRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: ResponseRouterData<
-                        GetAdditionalRevenueRecoveryDetails,
-                        StripebillingRecoveryDetailsData,
-                        GetAdditionalRevenueRecoveryRequestData,
-                        GetAdditionalRevenueRecoveryResponseData
-                        > 
-    ) -> Result<Self,Self::Error> {
-        let merchant_reference_id = 
+    fn try_from(
+        item: ResponseRouterData<
+            GetAdditionalRevenueRecoveryDetails,
+            StripebillingRecoveryDetailsData,
+            GetAdditionalRevenueRecoveryRequestData,
+            GetAdditionalRevenueRecoveryResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_reference_id =
             common_utils::id_type::PaymentReferenceId::from_str(&item.response.invoice_id)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(item
-            .response
-            .charge_id));
-        
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
+            item.response.charge_id,
+        ));
+
         Ok(Self {
             response: Ok(GetAdditionalRevenueRecoveryResponseData {
                 status: item.response.status.into(),
-                amount : item.response.amount,
-                currency : item.response.currency,
+                amount: item.response.amount,
+                currency: item.response.currency,
                 merchant_reference_id,
-                connector_account_reference_id : Some("Stripe".to_string()),
-                connector_transaction_id ,
-                error_code : Some(item.response.failure_code),
-                error_message : Some(item.response.failure_message),
-                processor_payment_method_token : Some(item.response.payment_method),
-                connector_customer_id : Some(item.response.customer),
-                transaction_created_at : Some(item.response.created),
-                payment_method_sub_type: common_enums::PaymentMethodType::from(item.response.payment_method_details.card_funding_type.funding),
-                payment_method_type : common_enums::PaymentMethod::from(item.response.payment_method_details.type_of_payment_method)
+                connector_account_reference_id: Some("Stripe".to_string()),
+                connector_transaction_id,
+                error_code: Some(item.response.failure_code),
+                error_message: Some(item.response.failure_message),
+                processor_payment_method_token: Some(item.response.payment_method),
+                connector_customer_id: Some(item.response.customer),
+                transaction_created_at: Some(item.response.created),
+                payment_method_sub_type: common_enums::PaymentMethodType::from(
+                    item.response
+                        .payment_method_details
+                        .card_funding_type
+                        .funding,
+                ),
+                payment_method_type: common_enums::PaymentMethod::from(
+                    item.response.payment_method_details.type_of_payment_method,
+                ),
             }),
             ..item.data
         })
     }
 }
 
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl From<StripebillingChargeStatus> for enums::AttemptStatus {
     fn from(status: StripebillingChargeStatus) -> Self {
         match status {
             StripebillingChargeStatus::Succeeded => Self::Charged,
-            StripebillingChargeStatus::Failed
-            | StripebillingChargeStatus::Pending=> Self::Pending,
+            StripebillingChargeStatus::Failed | StripebillingChargeStatus::Pending => Self::Pending,
         }
     }
 }
 
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl From<StripebillingFundingTypes> for common_enums::PaymentMethodType {
-    fn from(funding : StripebillingFundingTypes) -> Self {
+    fn from(funding: StripebillingFundingTypes) -> Self {
         match funding {
             StripebillingFundingTypes::Credit => Self::Credit,
-            StripebillingFundingTypes::Debit 
+            StripebillingFundingTypes::Debit
             | StripebillingFundingTypes::Prepaid
-            | StripebillingFundingTypes::Unknown => Self::Debit 
-
+            | StripebillingFundingTypes::Unknown => Self::Debit,
         }
     }
 }
 
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl From<StripebillingPaymentMethod> for common_enums::PaymentMethod {
-    fn from(method : StripebillingPaymentMethod) -> Self {
+    fn from(method: StripebillingPaymentMethod) -> Self {
         match method {
             StripebillingPaymentMethod::Card => Self::Card,
         }

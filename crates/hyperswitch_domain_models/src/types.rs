@@ -1,12 +1,14 @@
 pub use diesel_models::types::OrderDetailsWithAmount;
+
 use crate::{
-    router_data::{AccessToken, RouterData}, router_flow_types::{
+    router_data::{AccessToken, RouterData},
+    router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
         PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
-    }, 
+    },
     router_request_types::{
         revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
@@ -20,13 +22,12 @@ use crate::{
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
-    }, 
+    },
     router_response_types::{
         revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
-    }
+    },
 };
-
 #[cfg(feature = "payouts")]
 pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
 

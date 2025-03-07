@@ -1,24 +1,28 @@
+use std::{marker::PhantomData, str::FromStr};
+
 use api_models::webhooks;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{revenue_recovery, router_flow_types::GetAdditionalRevenueRecoveryDetails, router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData, router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData, types::AdditionalRevenueRecoveryDetailsRouterData};
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::{
+    revenue_recovery, router_flow_types::GetAdditionalRevenueRecoveryDetails,
+    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+    types::AdditionalRevenueRecoveryDetailsRouterData,
+};
 use hyperswitch_interfaces::webhooks as interface_webhooks;
-use crate::types;
-use std::marker::PhantomData;
-use common_utils::ext_traits::ValueExt;
-use std::str::FromStr;
+use router_env::{instrument, tracing};
 
 use crate::{
     core::{
         errors::{self, CustomResult},
-        payments::{self,helpers},
+        payments::{self, helpers},
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface},
+    types,
     types::{
-        api::{self,ConnectorData,GetToken}, 
-        domain
+        api::{self, ConnectorData, GetToken},
+        domain,
     },
 };
 
@@ -34,13 +38,12 @@ pub async fn recovery_incoming_webhook_flow(
     source_verified: bool,
     connector_enum: &connector_integration_interface::ConnectorEnum,
     merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-    connector_name : &str,
+    connector_name: &str,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     req_state: ReqState,
-    object_ref_id : &webhooks::ObjectReferenceId
+    object_ref_id: &webhooks::ObjectReferenceId,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
-
     // Source verification is necessary for revenue recovery webhooks flow since We don't have payment intent/attempt object created before in our system.
     common_utils::fp_utils::when(!source_verified, || {
         Err(report!(
@@ -48,59 +51,51 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
-    let connectors_with_additional_recovery_details_call = &state.conf.additional_revenue_recovery_details_call;
+    let connectors_with_additional_recovery_details_call =
+        &state.conf.additional_revenue_recovery_details_call;
 
     let connector = api_models::enums::Connector::from_str(connector_name)
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
-        .attach_printable_lazy(|| {
-            format!("unable to parse connector name {connector_name:?}")
-    })?;
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-    let recovery_details  = 
-        if connectors_with_additional_recovery_details_call
+    let recovery_details = if connectors_with_additional_recovery_details_call
         .connectors_with_additional_revenue_recovery_details_call
         .contains(&connector)
-        {
-        
-            let additional_revenue_recovery_id = match object_ref_id {
-                webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
-                    webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(ref id)
-                ) => Some(id.as_str()),
-                _ => None,
-            };
-
-            let additional_call_response = handle_additional_recovery_details_call(
-                connector_enum,
-                &state, 
-                &merchant_account, 
-                merchant_connector_account, 
-                connector_name, 
-                additional_revenue_recovery_id.unwrap_or("fake_id")
-            ).await?;
-            
-            Some(additional_call_response)
-
-        } else {
-            None
+    {
+        let additional_revenue_recovery_id = match object_ref_id {
+            webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
+                webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(ref id),
+            ) => Some(id.as_str()),
+            _ => None,
         };
-    
+
+        let additional_call_response = handle_additional_recovery_details_call(
+            connector_enum,
+            &state,
+            &merchant_account,
+            merchant_connector_account,
+            connector_name,
+            additional_revenue_recovery_id.unwrap_or("fake_id"),
+        )
+        .await?;
+
+        Some(additional_call_response)
+    } else {
+        None
+    };
+
     let invoice_details = match recovery_details.clone() {
-        Some(data)=> {
-            RevenueRecoveryInvoice(
-            revenue_recovery::RevenueRecoveryInvoiceData::from(data.clone())
-            )
-        },
-        None => 
-        {
-            RevenueRecoveryInvoice(
+        Some(data) => RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData::from(
+            data.clone(),
+        )),
+        None => RevenueRecoveryInvoice(
             interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
                 connector_enum,
                 request_details,
             )
             .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
             .attach_printable("Failed while getting revenue recovery invoice details")?,
-            )
-        }
+        ),
     };
 
     // Fetch the intent using merchant reference id, if not found create new intent.
@@ -127,28 +122,22 @@ pub async fn recovery_incoming_webhook_flow(
         })
         .await?;
 
-
     let payment_attempt = match event_type.is_recovery_transaction_event() {
         true => {
             let invoice_transaction_details = match recovery_details.clone() {
-                Some(data) => 
-                {
-                    RevenueRecoveryAttempt(
-                    revenue_recovery::RevenueRecoveryAttemptData::from(data)
-                    )
+                Some(data) => {
+                    RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData::from(data))
                 }
-                None =>  
-                {
-                    RevenueRecoveryAttempt(
+                None => RevenueRecoveryAttempt(
                     interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
                         connector_enum,
                         request_details,
                     )
-                    .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)?,
-                    )
-                }
+                    .change_context(
+                        errors::RevenueRecoveryError::TransactionWebhookProcessingFailed,
+                    )?,
+                ),
             };
-
 
             invoice_transaction_details
                 .get_payment_attempt(
@@ -385,9 +374,8 @@ async fn handle_additional_recovery_details_call(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     connector_name: &str,
-    id : &str 
+    id: &str,
 ) -> CustomResult<GetAdditionalRevenueRecoveryResponseData, errors::RevenueRecoveryError> {
-
     let connector_data = ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
@@ -396,7 +384,6 @@ async fn handle_additional_recovery_details_call(
     )
     .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
     .attach_printable("invalid connector name received in payment attempt")?;
-
 
     let connector_integration: services::BoxedGetAdditionalRecoveryRecoveryDetailsIntegrationInterface<
     GetAdditionalRevenueRecoveryDetails,
@@ -441,7 +428,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_ADDITIONAL_REVENUE_RECOVERY_CALL_FLOW: &str =
     "irrelevant_attempt_id_in_additional_revenue_recovery_flow";
 
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_ADDITIONAL_REVENUE_RECOVERY_CALL: &str =
-"irrelevant_connector_request_reference_id_in_additional_revenue_recovery_flow";
+    "irrelevant_connector_request_reference_id_in_additional_revenue_recovery_flow";
 
 async fn construct_router_data_for_additional_call(
     state: &SessionState,
@@ -449,14 +436,12 @@ async fn construct_router_data_for_additional_call(
     merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     merchant_account: &domain::MerchantAccount,
     additional_revenue_recovery_id: &str,
-) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::RevenueRecoveryError>{
-
+) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::RevenueRecoveryError> {
     let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone()))
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
             .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)?;
-    
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -464,9 +449,11 @@ async fn construct_router_data_for_additional_call(
         connector: connector_name.to_string(),
         customer_id: None,
         tenant_id: state.tenant.tenant_id.clone(),
-        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("additional revenue recovery details call flow")
-            .get_string_repr()
-            .to_owned(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id(
+            "additional revenue recovery details call flow",
+        )
+        .get_string_repr()
+        .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_ADDITIONAL_REVENUE_RECOVERY_CALL_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -478,8 +465,8 @@ async fn construct_router_data_for_additional_call(
         connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
-        request : GetAdditionalRevenueRecoveryRequestData{
-            additional_revenue_recovery_id : additional_revenue_recovery_id.to_string()
+        request: GetAdditionalRevenueRecoveryRequestData {
+            additional_revenue_recovery_id: additional_revenue_recovery_id.to_string(),
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,
@@ -490,7 +477,8 @@ async fn construct_router_data_for_additional_call(
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
         connector_request_reference_id:
-            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_ADDITIONAL_REVENUE_RECOVERY_CALL.to_string(),
+            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_ADDITIONAL_REVENUE_RECOVERY_CALL
+                .to_string(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -514,4 +502,4 @@ async fn construct_router_data_for_additional_call(
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
-}    
+}

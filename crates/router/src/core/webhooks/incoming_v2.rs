@@ -366,7 +366,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             &request_details,
                             event_type,
                             req_state,
-                            &object_ref_id
+                            &object_ref_id,
                         ))
                         .await
                         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)

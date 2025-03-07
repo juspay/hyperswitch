@@ -9,6 +9,8 @@ use common_utils::{
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -24,21 +26,16 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData
-    }
+        RefundSyncRouterData, RefundsRouterData,
+    },
 };
-use stripebilling::auth_headers;
-use masking::PeekInterface;
-
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
     router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
     router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
-    types::AdditionalRevenueRecoveryDetailsRouterData
+    types::AdditionalRevenueRecoveryDetailsRouterData,
 };
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
-use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -50,10 +47,12 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Mask;
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use masking::ExposeInterface;
+use masking::{Mask, PeekInterface};
+use stripebilling::auth_headers;
 use transformers as stripebilling;
+
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
@@ -81,7 +80,7 @@ impl api::Refund for Stripebilling {}
 impl api::RefundExecute for Stripebilling {}
 impl api::RefundSync for Stripebilling {}
 impl api::PaymentToken for Stripebilling {}
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::AdditionalRevenueRecovery for Stripebilling {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -569,13 +568,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripebil
     }
 }
 
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
-    GetAdditionalRevenueRecoveryDetails,
-    GetAdditionalRevenueRecoveryRequestData,
-    GetAdditionalRevenueRecoveryResponseData
-> for Stripebilling
+        GetAdditionalRevenueRecoveryDetails,
+        GetAdditionalRevenueRecoveryRequestData,
+        GetAdditionalRevenueRecoveryResponseData,
+    > for Stripebilling
 {
     fn get_headers(
         &self,
@@ -608,35 +607,38 @@ impl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Get)
-            .url(&types::AdditionalRevenueRecoveryCallType::get_url(self,req, connectors)?)
+            .url(&types::AdditionalRevenueRecoveryCallType::get_url(
+                self, req, connectors,
+            )?)
             .attach_default_headers()
-            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(self,req,connectors)?)
+            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
-
 
     fn handle_response(
         &self,
         data: &AdditionalRevenueRecoveryDetailsRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError>
-    {
-       let response : stripebilling::StripebillingRecoveryDetailsData = res
+    ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError> {
+        let response: stripebilling::StripebillingRecoveryDetailsData = res
             .response
-            .parse_struct::<stripebilling::StripebillingRecoveryDetailsData>("StripebillingRecoveryDetailsData")
+            .parse_struct::<stripebilling::StripebillingRecoveryDetailsData>(
+                "StripebillingRecoveryDetailsData",
+            )
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-       event_builder.map(|i| i.set_response_body(&response));
-       router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
-       AdditionalRevenueRecoveryDetailsRouterData::try_from( ResponseRouterData {
-        response,
-        data: data.clone(),
-        http_code: res.status_code,
-       })
-       
+        AdditionalRevenueRecoveryDetailsRouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -644,7 +646,7 @@ impl
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res,event_builder)
+        self.build_error_response(res, event_builder)
     }
 
     fn get_5xx_error_response(
@@ -676,7 +678,6 @@ impl
             connector_transaction_id: None,
         })
     }
-
 }
 
 #[async_trait::async_trait]
@@ -804,11 +805,11 @@ impl webhooks::IncomingWebhook for Stripebilling {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<revenue_recovery::RevenueRecoveryInvoiceData, errors::ConnectorError> {
-        let webhook =
-            stripebilling::StripebillingInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
+        let webhook = stripebilling::StripebillingInvoiceBody::get_invoice_webhook_data_from_body(
+            request.body,
+        )?;
         revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
     }
-
 }
 
 fn get_signature_elements_from_header(

@@ -234,7 +234,7 @@ pub struct ConnectorConfig {
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
-    pub stripebilling : Option<ConnectorTomlConfig>,
+    pub stripebilling: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
