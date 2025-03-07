@@ -463,4 +463,6 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
+    #[error("Additional Revenue Recovery Call Failed")]
+    AdditionalRevenueRecoveryCallFailed,
 }

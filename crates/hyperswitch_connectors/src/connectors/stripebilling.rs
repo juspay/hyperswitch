@@ -15,21 +15,30 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        revenue_recovery::GetAdditionalRevenueRecoveryDetails
     },
     router_request_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{revenue_recovery::GetAdditionalRevenueRecoveryResponseData,PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, AdditionalRevenueRecoveryDetailsRouterData
-    },
-    revenue_recovery
+        RefundSyncRouterData, RefundsRouterData
+    }
 };
+use stripebilling::auth_headers;
+use masking::PeekInterface;
+
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+    types::AdditionalRevenueRecoveryDetailsRouterData
+};
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -41,7 +50,9 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::Mask;
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
+use masking::ExposeInterface;
 use transformers as stripebilling;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -70,7 +81,7 @@ impl api::Refund for Stripebilling {}
 impl api::RefundExecute for Stripebilling {}
 impl api::RefundSync for Stripebilling {}
 impl api::PaymentToken for Stripebilling {}
-impl api::RevenueRecovery for Stripebilling {}
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
 impl api::AdditionalRevenueRecovery for Stripebilling {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -121,10 +132,16 @@ impl ConnectorCommon for Stripebilling {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = stripebilling::StripebillingAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", auth.api_key.peek()).into_masked(),
+            ),
+            (
+                auth_headers::STRIPE_API_VERSION.to_string(),
+                auth_headers::STRIPE_VERSION.to_string().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -552,6 +569,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripebil
     }
 }
 
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
 impl
     ConnectorIntegration<
     GetAdditionalRevenueRecoveryDetails,
@@ -710,8 +728,8 @@ impl webhooks::IncomingWebhook for Stripebilling {
         let webhook =
             stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.data.object.charge),
+        Ok(api_models::webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
+            api_models::webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(webhook.data.object.charge),
         ))
     }
 

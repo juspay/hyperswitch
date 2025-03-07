@@ -10,11 +10,19 @@ use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{revenue_recovery::GetAdditionalRevenueRecoveryDetails,refunds::{Execute, RSync}},
-    router_request_types::{ResponseId,revenue_recovery::GetAdditionalRevenueRecoveryRequestData},
-    router_response_types::{PaymentsResponseData, RefundsResponseData,revenue_recovery::GetAdditionalRevenueRecoveryResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData,AdditionalRevenueRecoveryDetailsRouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+    types::AdditionalRevenueRecoveryDetailsRouterData
+};
+
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -23,6 +31,11 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{convert_uppercase, PaymentsAuthorizeRequestData},
 };
+
+pub mod auth_headers {
+    pub const STRIPE_API_VERSION: &str = "stripe-version";
+    pub const STRIPE_VERSION: &str = "2022-11-15";
+}
 
 //TODO: Fill the struct with respective fields
 pub struct StripebillingRouterData<T> {
@@ -301,7 +314,7 @@ impl StripebillingWebhookBody {
         let webhook_body: Self = body
             .parse_struct::<Self>("StripebillingWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
+        
         Ok(webhook_body)
     }
 }
@@ -392,6 +405,7 @@ pub enum StripebillingChargeStatus{
     Pending
 }
 
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
 impl TryFrom<
     ResponseRouterData<
         GetAdditionalRevenueRecoveryDetails,
@@ -437,6 +451,7 @@ impl TryFrom<
     }
 }
 
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
 impl From<StripebillingChargeStatus> for enums::AttemptStatus {
     fn from(status: StripebillingChargeStatus) -> Self {
         match status {
@@ -447,22 +462,24 @@ impl From<StripebillingChargeStatus> for enums::AttemptStatus {
     }
 }
 
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
 impl From<StripebillingFundingTypes> for common_enums::PaymentMethodType {
     fn from(funding : StripebillingFundingTypes) -> Self {
         match funding {
-            StripebillingFundingTypes::Credit => common_enums::PaymentMethodType::Credit,
+            StripebillingFundingTypes::Credit => Self::Credit,
             StripebillingFundingTypes::Debit 
             | StripebillingFundingTypes::Prepaid
-            | StripebillingFundingTypes::Unknown => common_enums::PaymentMethodType::Debit 
+            | StripebillingFundingTypes::Unknown => Self::Debit 
 
         }
     }
 }
 
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
 impl From<StripebillingPaymentMethod> for common_enums::PaymentMethod {
     fn from(method : StripebillingPaymentMethod) -> Self {
         match method {
-            StripebillingPaymentMethod::Card => common_enums::PaymentMethod::Card,
+            StripebillingPaymentMethod::Card => Self::Card,
         }
     }
 }

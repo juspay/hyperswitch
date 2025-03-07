@@ -253,12 +253,20 @@ pub enum ObjectReferenceId {
     PayoutId(PayoutIdType),
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
+    #[cfg(all(feature="revenue_recovery",feature="v2"))]
+    AdditionalRevenueRecoveryId(AdditionalRevenueRecoveryIdType)
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 #[derive(Clone)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Clone)]
+pub enum AdditionalRevenueRecoveryIdType {
+    AdditionalRevenueRecoveryCallId(String),
 }
 
 pub struct IncomingWebhookDetails {

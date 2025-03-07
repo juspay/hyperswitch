@@ -1,6 +1,8 @@
 use api_models::webhooks;
 use time::PrimitiveDateTime;
 
+use crate::router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData;
+
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
@@ -185,6 +187,32 @@ impl From<&RevenueRecoveryInvoiceData> for api_models::payments::PaymentsCreateI
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+        }
+    }
+}
+
+impl From<GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryInvoiceData {
+    fn from(data: GetAdditionalRevenueRecoveryResponseData)-> Self{
+        Self { amount: data.amount, currency: data.currency, merchant_reference_id: data.merchant_reference_id }
+    }
+}
+
+impl From<GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryAttemptData{
+    fn from(data: GetAdditionalRevenueRecoveryResponseData)-> Self {
+        Self { 
+            amount: data.amount, 
+            currency: data.currency, 
+            merchant_reference_id: data.merchant_reference_id, 
+            connector_transaction_id: data.connector_transaction_id, 
+            error_code: data.error_code, 
+            error_message: data.error_message, 
+            processor_payment_method_token: data.processor_payment_method_token, 
+            connector_customer_id: data.connector_customer_id, 
+            connector_account_reference_id: data.connector_account_reference_id, 
+            transaction_created_at: data.transaction_created_at, 
+            status: data.status, 
+            payment_method_type: data.payment_method_type, 
+            payment_method_sub_type: data.payment_method_sub_type 
         }
     }
 }

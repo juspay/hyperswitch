@@ -234,7 +234,7 @@ pub struct ConnectorConfig {
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
-    // pub stripebilling : Option<ConnectorTomlConfig>,
+    pub stripebilling : Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -402,7 +402,7 @@ impl ConnectorConfig {
             Connector::Square => Ok(connector_data.square),
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
-            // Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Stripebilling => Ok(connector_data.stripebilling),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
