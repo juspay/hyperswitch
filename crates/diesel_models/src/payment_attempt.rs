@@ -322,6 +322,7 @@ pub struct PaymentAttemptNew {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
+    pub connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -3566,6 +3567,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -3604,7 +3606,6 @@ pub struct PaymentAttemptFeatureMetadata {
 pub struct PaymentAttemptRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
 }
-
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);
 

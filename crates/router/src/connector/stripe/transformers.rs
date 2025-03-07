@@ -720,6 +720,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Dana
             | enums::PaymentMethodType::DirectCarrierBilling
             | enums::PaymentMethodType::Efecty
+            | enums::PaymentMethodType::Eft
             | enums::PaymentMethodType::Evoucher
             | enums::PaymentMethodType::GoPay
             | enums::PaymentMethodType::Gcash
@@ -1041,6 +1042,7 @@ impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodType {
             }
             domain::BankRedirectData::Bizum {}
             | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::Eft { .. }
             | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | domain::BankRedirectData::OnlineBankingFinland { .. }
             | domain::BankRedirectData::OnlineBankingPoland { .. }
@@ -1622,6 +1624,7 @@ impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
                 .into())
             }
             domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Eft { .. }
             | domain::BankRedirectData::Interac { .. }
             | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | domain::BankRedirectData::OnlineBankingFinland { .. }

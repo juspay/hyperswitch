@@ -1964,6 +1964,9 @@ pub struct ProfileCreate {
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
 
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
+
     /// Indicates if the overcapture is always requested or not.
     #[serde(default)]
     pub always_request_overcapture: Option<bool>,
@@ -2239,6 +2242,9 @@ pub struct ProfileResponse {
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: bool,
 
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: bool,
+
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
     pub always_request_overcapture: Option<bool>,
@@ -2509,6 +2515,9 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if the overcapture is always requested or not.
     #[schema(example = false)]
@@ -2822,6 +2831,10 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2903,6 +2916,10 @@ pub struct PaymentLinkConfig {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

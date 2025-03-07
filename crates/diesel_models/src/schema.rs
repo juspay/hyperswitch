@@ -220,6 +220,7 @@ diesel::table! {
         card_testing_guard_config -> Nullable<Jsonb>,
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
+        force_3ds_challenge -> Nullable<Bool>,
         always_request_overcapture -> Nullable<Bool>,
     }
 }

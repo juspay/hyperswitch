@@ -188,6 +188,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .card_testing_guard_config
                 .map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+            force_3ds_challenge: item.force_3ds_challenge,
             always_request_overcapture: item.always_request_overcapture,
         })
     }
@@ -412,7 +413,7 @@ pub async fn create_profile_from_merchant_account(
         always_collect_shipping_details_from_wallet_connector: request
             .always_collect_shipping_details_from_wallet_connector
             .or(Some(false)),
-        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+        outgoing_webhook_custom_http_headers,
         tax_connector_id: request.tax_connector_id,
         is_tax_connector_enabled: request.is_tax_connector_enabled,
         dynamic_routing_algorithm: None,
@@ -439,6 +440,7 @@ pub async fn create_profile_from_merchant_account(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating card testing secret key")?,
         is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
+        force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
         always_request_overcapture: request.always_request_overcapture,
     }))
 }
