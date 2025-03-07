@@ -178,7 +178,7 @@ prefix_and_copy_migrations dir_1 dir_2 prefix resultant_dir:
     for dir in "{{dir_2}}"/*; do
         if [ -d "$dir" ]; then
             base_name=$(basename "$dir")
-            new_name="{{prefix}}$base_name" 
+            new_name="{{prefix}}${base_name}"
             cp -r "$dir" "{{resultant_dir}}/$new_name"
         fi
     done
@@ -214,7 +214,7 @@ migrate_v2 operation=default_operation *args='':
 
     EXIT_CODE=0
     just prefix_and_copy_migrations {{ v1_migration_dir }} {{ v2_compatible_migrations }} 8 {{ resultant_dir }}
-    just prefix_and_copy_migrations {{ resultant_dir }} {{ v2_migration_dir }} 9 {{ resultant_dir }} || EXIT_CODE=$?
+    just prefix_and_copy_migrations {{ resultant_dir }} {{ v2_migration_dir }} 9 {{ resultant_dir }}
     just run_migration {{ operation }} {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
     just delete_dir_if_exists
     exit $EXIT_CODE
