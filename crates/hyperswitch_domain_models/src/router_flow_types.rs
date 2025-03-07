@@ -17,5 +17,6 @@ pub use fraud_check::*;
 pub use payments::*;
 pub use payouts::*;
 pub use refunds::*;
+pub use revenue_recovery::*;
 pub use unified_authentication_service::*;
 pub use webhooks::*;

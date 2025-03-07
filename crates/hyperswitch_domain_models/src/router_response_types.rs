@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod revenue_recovery;
 use std::collections::HashMap;
 
 use common_utils::{request::Method, types::MinorUnit};
@@ -271,6 +272,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -351,10 +353,12 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             RedirectForm::Nmi {
                 amount,
@@ -433,10 +437,12 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             diesel_models::payment_attempt::RedirectForm::Nmi {
                 amount,
@@ -577,10 +583,6 @@ pub struct ConnectorInfo {
     pub connector_type: common_enums::PaymentConnectorCategory,
 }
 
-#[derive(Debug, Clone)]
-pub struct RevenueRecoveryRecordBackResponse {
-    merchant_reference_id: common_utils::id_type::PaymentReferenceId,
-}
 pub trait SupportedPaymentMethodsExt {
     fn add(
         &mut self,

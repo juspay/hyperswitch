@@ -138,6 +138,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::FraudCheck
             | AnalyticsCollection::PaymentIntent
             | AnalyticsCollection::PaymentIntentSessionized
+            | AnalyticsCollection::Authentications
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
@@ -457,6 +458,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::Dispute => Ok("dispute".to_string()),
             Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
+            Self::Authentications => Ok("authentications".to_string()),
         }
     }
 }

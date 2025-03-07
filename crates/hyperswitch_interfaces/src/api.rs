@@ -16,6 +16,8 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
+pub mod revenue_recovery;
+pub mod revenue_recovery_v2;
 
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
@@ -30,12 +32,12 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
-        flow_common_types::{RevenueRecoveryRecordBackData, WebhookSourceVerifyData},
-        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
+        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+        UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery, AccessTokenAuth, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -43,12 +45,10 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, MandateRevokeRequestData, RevenueRecoveryRecordBackRequest,
-        VerifyWebhookSourceRequestData,
+        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
-        RevenueRecoveryRecordBackResponse, SupportedPaymentMethods,
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -599,25 +599,4 @@ fn get_connector_payment_method_type_info(
             })
         })
         .transpose()
-}
-
-/// trait RevenueRecoveryRecordBack
-pub trait RevenueRecoveryRecordBack:
-    ConnectorIntegration<
-    revenue_recovery::RevenueRecoveryRecordBack,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
->
-{
-}
-
-/// trait ConnectorAdditionalRevenueRecoveryDetailsCallV2
-pub trait RevenueRecoveryRecordBackV2:
-    ConnectorIntegrationV2<
-    revenue_recovery::RevenueRecoveryRecordBack,
-    RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
->
-{
 }

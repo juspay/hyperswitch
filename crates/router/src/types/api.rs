@@ -46,10 +46,11 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
+    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
+    revenue_recovery_v2::RevenueRecoveryV2,
     ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
-    ConnectorVerifyWebhookSourceV2, CurrencyUnit, RevenueRecoveryRecordBack,
-    RevenueRecoveryRecordBackV2,
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
 use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 
@@ -109,7 +110,7 @@ pub trait Connector:
     + ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
-    + RevenueRecoveryRecordBack
+    + RevenueRecovery
 {
 }
 
@@ -130,7 +131,7 @@ impl<
             + ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + RevenueRecoveryRecordBack,
+            + RevenueRecovery,
     > Connector for T
 {
 }
@@ -151,7 +152,7 @@ pub trait ConnectorV2:
     + ConnectorMandateRevokeV2
     + ExternalAuthenticationV2
     + UnifiedAuthenticationServiceV2
-    + RevenueRecoveryRecordBackV2
+    + RevenueRecoveryV2
 {
 }
 impl<
@@ -170,7 +171,7 @@ impl<
             + ConnectorMandateRevokeV2
             + ExternalAuthenticationV2
             + UnifiedAuthenticationServiceV2
-            + RevenueRecoveryRecordBackV2,
+            + RevenueRecoveryV2,
     > ConnectorV2 for T
 {
 }
@@ -464,6 +465,9 @@ impl ConnectorData {
                 enums::Connector::Jpmorgan => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
+                enums::Connector::Juspaythreedsserver => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Juspaythreedsserver::new(),
+                ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
@@ -515,6 +519,7 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
+                // enums::Connector::Recurly => Ok(ConnectorEnum::Old(Box::new(connector::Recurly))),
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
@@ -524,6 +529,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
+                // enums::Connector::Stripebilling => Ok(ConnectorEnum::Old(Box::new(connector::Stripebilling))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
