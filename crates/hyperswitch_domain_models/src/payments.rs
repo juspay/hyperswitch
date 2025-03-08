@@ -778,7 +778,9 @@ where
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
-                total_retry_count: revenue_recovery.clone().map_or(1, |data| (data.total_retry_count + 1)),
+                total_retry_count: revenue_recovery
+                    .clone()
+                    .map_or(1, |data| (data.total_retry_count + 1)),
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,

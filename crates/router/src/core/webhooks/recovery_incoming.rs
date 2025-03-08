@@ -1,8 +1,8 @@
 use api_models::{payments as api_payments, webhooks};
-use common_utils::{ext_traits::AsyncExt,id_type};
+use common_utils::{ext_traits::AsyncExt, id_type};
 use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{revenue_recovery,errors::api_error_response};
+use hyperswitch_domain_models::{errors::api_error_response, revenue_recovery};
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
 
@@ -10,12 +10,12 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult},
         payments,
-        utils::GetProfileId
+        utils::GetProfileId,
     },
     db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
     services::{self, connector_integration_interface},
-    types::{api, domain,storage::passive_churn_recovery as pcr},
+    types::{api, domain, storage::passive_churn_recovery as pcr},
     workflows::passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments,
 };
 
@@ -125,7 +125,8 @@ pub async fn recovery_incoming_webhook_flow(
         false => None,
     };
 
-    let attempt_triggered_by = payment_attempt.clone()
+    let attempt_triggered_by = payment_attempt
+        .clone()
         .and_then(revenue_recovery::RecoveryPaymentAttempt::get_attempt_triggered_by);
 
     let action = revenue_recovery::RecoveryAction::get_action(event_type, attempt_triggered_by);
@@ -136,24 +137,20 @@ pub async fn recovery_incoming_webhook_flow(
             let payment_intent_clone = payment_intent.clone();
             RevenueRecoveryAttempt::insert_execute_pcr_task(
                 &*state.store,
-                merchant_account
-                .get_id()
-                .to_owned(),
+                merchant_account.get_id().to_owned(),
                 payment_intent.payment_id,
-                business_profile
-                .get_profile_id()
-                .cloned()
-                .ok_or(report!(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed))?,
-                payment_attempt
-                .map(|attempt| attempt.attempt_id),
-                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow
+                business_profile.get_profile_id().cloned().ok_or(report!(
+                    errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed
+                ))?,
+                payment_attempt.map(|attempt| attempt.attempt_id),
+                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
             )
             .await
             .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)?;
 
-            Ok(webhooks::WebhookResponseTracker::Payment{
+            Ok(webhooks::WebhookResponseTracker::Payment {
                 payment_id: payment_intent_clone.payment_id,
-                status: payment_intent_clone.status
+                status: payment_intent_clone.status,
             })
         }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
@@ -242,8 +239,7 @@ impl RevenueRecoveryInvoice {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<revenue_recovery::RecoveryPaymentIntent, errors::RevenueRecoveryError> {
         let payload = api_payments::PaymentsCreateIntentRequest::from(&self.0);
-        let global_payment_id =
-            id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
+        let global_payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
 
         let create_intent_response = Box::pin(payments::payments_intent_core::<
             hyperswitch_domain_models::router_flow_types::payments::PaymentCreateIntent,
@@ -456,7 +452,7 @@ impl RevenueRecoveryAttempt {
             )?;
         Ok(payment_merchant_connector_account)
     }
-    
+
     async fn insert_execute_pcr_task(
         db: &dyn StorageInterface,
         merchant_id: id_type::MerchantId,
@@ -467,21 +463,21 @@ impl RevenueRecoveryAttempt {
     ) -> RouterResult<storage::ProcessTracker> {
         let task = "EXECUTE_WORKFLOW";
         let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-        let schedule_time = match get_schedule_time_to_retry_mit_payments(
-            db,
-            &merchant_id,
-            0,
-        )
-        .await {
+        let schedule_time = match get_schedule_time_to_retry_mit_payments(db, &merchant_id, 0).await
+        {
             Some(time) => time,
             None => {
-            return Err(report!(api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get schedule time for pcr workflow"))
+                return Err(
+                    report!(api_error_response::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get schedule time for pcr workflow"),
+                )
             }
         };
 
         let payment_attempt_id = payment_attempt_id
-            .ok_or(report!(api_error_response::ApiErrorResponse::InternalServerError))
+            .ok_or(report!(
+                api_error_response::ApiErrorResponse::InternalServerError
+            ))
             .attach_printable("payment attempt id is required for pcr workflow tracking")?;
         let execute_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
             global_payment_id: payment_id,
@@ -500,15 +496,14 @@ impl RevenueRecoveryAttempt {
         )
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct delete tokenized data process tracker task")?;
-    
+
         let response = db
             .insert_process(process_tracker_entry)
             .await
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct delete tokenized data process tracker task")?;
         metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
-    
+
         Ok(response)
-    
     }
 }

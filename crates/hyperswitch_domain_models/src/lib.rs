@@ -287,7 +287,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .convert_back(),
             payment_method_type: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
-            connector:self.connector,
+            connector: self.connector,
         }
     }
 }

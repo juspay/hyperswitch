@@ -4,7 +4,7 @@ use common_utils::{id_type, types as util_types};
 use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct RevenueRecoveryAttemptData {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: util_types::MinorUnit,
