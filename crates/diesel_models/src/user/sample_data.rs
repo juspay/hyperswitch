@@ -2,10 +2,10 @@ use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
-use common_utils::types::{
-    ConnectorTransactionId, ExtendedAuthorizationAppliedBool, MinorUnit,
-    RequestExtendedAuthorizationBool,
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+use common_utils::types::{ConnectorTransactionId, MinorUnit};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
