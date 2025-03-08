@@ -778,7 +778,7 @@ where
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
-                total_retry_count: revenue_recovery.map_or(1, |data| (data.total_retry_count + 1)),
+                total_retry_count: revenue_recovery.clone().map_or(1, |data| (data.total_retry_count + 1)),
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
@@ -799,6 +799,7 @@ where
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,
+                connector: revenue_recovery.and_then(|data| data.connector),
             });
         Ok(Some(FeatureMetadata {
             redirect_response: payment_intent_feature_metadata
