@@ -14,14 +14,16 @@ use hyperswitch_domain_models::{
             Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+        revenue_recovery::{GetAdditionalRevenueRecoveryDetails, RevenueRecoveryRecordBackFlow},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -37,9 +39,11 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, AcceptDisputeResponse,
-        DefendDisputeResponse, MandateRevokeResponseData, PaymentsResponseData,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        },
+        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
@@ -224,6 +228,13 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     Authenticate,
     UasAuthenticationRequestData,
     UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<RevenueRecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
+    RevenueRecoveryRecordBackFlow,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<GetAdditionalRevenueRecoveryDetails, GetAdditionalRevenueRecoveryRequestData, GetAdditionalRevenueRecoveryResponseData>`

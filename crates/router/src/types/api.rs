@@ -46,7 +46,7 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
-    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
+    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
     revenue_recovery_v2::RevenueRecoveryV2,
     ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
