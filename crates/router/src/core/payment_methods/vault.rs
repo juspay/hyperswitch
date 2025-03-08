@@ -1402,6 +1402,7 @@ pub async fn add_delete_tokenized_data_task(
         tag,
         tracking_data,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;

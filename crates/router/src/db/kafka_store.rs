@@ -2580,7 +2580,6 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
-
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
