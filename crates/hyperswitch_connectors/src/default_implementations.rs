@@ -3649,6 +3649,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Globepay,
     connectors::Gocardless,
     connectors::Helcim,
+    connectors::Hipay,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
