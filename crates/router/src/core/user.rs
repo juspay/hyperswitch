@@ -1466,9 +1466,9 @@ pub async fn create_org_merchant_for_user(
         .insert_organization(db_organization)
         .await
         .change_context(UserErrors::InternalServerError)?;
-
+    let default_product_type = common_enums::MerchantProductType::Orchestration;
     let merchant_account_create_request =
-        utils::user::create_merchant_account_request_for_org(req, org)?;
+        utils::user::create_merchant_account_request_for_org(req, org, default_product_type)?;
 
     admin::create_merchant_account(state.clone(), merchant_account_create_request)
         .await
@@ -1478,19 +1478,50 @@ pub async fn create_org_merchant_for_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<()> {
+) -> UserResponse<user_api::CreateAndListMerchantsForUserInOrgResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
-    new_merchant
+    let domain_merchant_account = new_merchant
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        user_api::CreateAndListMerchantsForUserInOrgResponse {
+            merchant_id: domain_merchant_account.get_id().to_owned(),
+            merchant_name: domain_merchant_account.merchant_name,
+            product_type: domain_merchant_account.product_type,
+            version: domain_merchant_account.version,
+        },
+    ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn create_merchant_account(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    req: user_api::UserMerchantCreate,
+) -> UserResponse<user_api::CreateAndListMerchantsForUserInOrgResponse> {
+    let user_from_db = user_from_token.get_user_from_db(&state).await?;
+
+    let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
+    let domain_merchant_account = new_merchant
+        .create_new_merchant_and_insert_in_db(state.to_owned())
+        .await?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::CreateAndListMerchantsForUserInOrgResponse {
+            merchant_id: domain_merchant_account.get_id().to_owned(),
+            merchant_name: domain_merchant_account.merchant_name,
+            product_type: domain_merchant_account.product_type,
+            version: domain_merchant_account.version,
+        },
+    ))
 }
 
 pub async fn list_user_roles_details(
@@ -2858,7 +2889,7 @@ pub async fn list_orgs_for_user(
 pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
+) -> UserResponse<Vec<user_api::CreateAndListMerchantsForUserInOrgResponse>> {
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
@@ -2925,9 +2956,11 @@ pub async fn list_merchants_for_user_in_org(
         merchant_accounts
             .into_iter()
             .map(
-                |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
+                |merchant_account| user_api::CreateAndListMerchantsForUserInOrgResponse {
                     merchant_name: merchant_account.merchant_name.clone(),
                     merchant_id: merchant_account.get_id().to_owned(),
+                    product_type: merchant_account.product_type.clone(),
+                    version: merchant_account.version.clone(),
                 },
             )
             .collect::<Vec<_>>(),
