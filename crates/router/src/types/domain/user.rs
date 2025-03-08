@@ -391,6 +391,7 @@ pub struct NewUserMerchant {
     merchant_id: id_type::MerchantId,
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
+    product_type: Option<common_enums::MerchantProductType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -413,6 +414,10 @@ impl NewUserMerchant {
 
     pub fn get_new_organization(&self) -> NewUserOrganization {
         self.new_organization.clone()
+    }
+
+    pub fn get_product_type(&self) -> Option<common_enums::MerchantProductType> {
+        self.product_type.clone()
     }
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
@@ -550,7 +555,7 @@ impl NewUserMerchant {
             } else {
                 return Err(UserErrors::InternalServerError.into());
             };
-        let profile_request = admin_api::ProfileCreate {
+        let profile_create_request = admin_api::ProfileCreate {
             profile_name: "default".to_string(),
             ..Default::default()
         };
@@ -585,7 +590,7 @@ impl NewUserMerchant {
             .to_not_found_response(UserErrors::MerchantIdNotFound)?;
         Box::pin(admin::create_profile(
             state,
-            profile_request,
+            profile_create_request,
             merchant_account.clone(),
             key_store,
         ))
@@ -604,10 +609,13 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
 
         let new_organization = NewUserOrganization::from(value);
 
+        let product_type = Some(common_enums::MerchantProductType::Orchestration);
+
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
+            product_type,
         })
     }
 }
@@ -623,6 +631,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
             company_name: None,
             merchant_id,
             new_organization,
+            product_type: None,
         })
     }
 }
@@ -633,11 +642,13 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
         let company_name = Some(UserCompanyName::new(value.company_name.clone())?);
         let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
+        let product_type = Some(common_enums::MerchantProductType::Orchestration);
 
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
+            product_type,
         })
     }
 }
@@ -652,11 +663,13 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
         );
         let new_organization = NewUserOrganization::from(value);
+        let product_type = Some(common_enums::MerchantProductType::Orchestration);
 
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
+            product_type,
         })
     }
 }
@@ -670,6 +683,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
             company_name: None,
             merchant_id,
             new_organization,
+            product_type: None,
         })
     }
 }
@@ -682,6 +696,7 @@ impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for Ne
             company_name: None,
             merchant_id,
             new_organization,
+            product_type: None,
         }
     }
 }
@@ -701,6 +716,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
         Ok(Self {
             merchant_id,
             company_name: Some(UserCompanyName::new(value.1.company_name.clone())?),
+            product_type: value.1.product_type.clone(),
             new_organization: NewUserOrganization::from(value),
         })
     }
