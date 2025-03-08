@@ -3524,45 +3524,57 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        additional_data: PaymentAdditionalData<'_, F>,
+    ) -> Result<Self, Self::SdkPaymentsSessionUpdateDataError> {
         todo!()
     }
 }
 
 #[cfg(feature = "v1")]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthenticationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let order_tax_amount = payment_data
-            .payment_intent
-            .tax_details
+        let amount = payment_data.payment_attempt.get_total_amount();
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
+
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
             .clone()
-            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "order_tax_amount",
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
             })?;
-        let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .unwrap_or_default();
-        let shipping_cost = payment_data
-            .payment_intent
-            .shipping_cost
-            .unwrap_or_default();
-        // net_amount here would include amount, order_tax_amount, surcharge_amount and shipping_cost
-        let net_amount = payment_data.payment_intent.amount
-            + order_tax_amount
-            + shipping_cost
-            + surcharge_amount;
+        let next_action_three_ds_invoke =
+            next_action_three_ds_invoke(&payment_data.payment_attempt)?;
+
         Ok(Self {
-            amount: net_amount,
-            order_tax_amount,
+            amount,
+            payment_method_data: payment_data.payment_method_data.map(From::from),
             currency: payment_data.currency,
-            order_amount: payment_data.payment_intent.amount,
-            session_id: payment_data.session_id,
-            shipping_cost: payment_data.payment_intent.shipping_cost,
+            capture_method: payment_data.payment_attempt.capture_method,
+            browser_info,
+            connector_transaction_id: payment_data
+                .payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string),
+            connector_meta: payment_data.payment_attempt.connector_metadata,
+            complete_authorize_url,
+            metadata: payment_data.payment_intent.metadata,
+            threeds_server_transaction_id: next_action_three_ds_invoke
+                .map(|three_ds_invoke| three_ds_invoke.threeds_server_transaction_id),
+            threeds_method_comp_ind: payment_data.threeds_method_comp_ind.clone(),
+            minor_amount: amount,
         })
     }
 }

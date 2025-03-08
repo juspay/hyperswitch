@@ -137,7 +137,7 @@ pub struct GpaymentsAuthenticationRequest {
     pub notification_url: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(rename = "threeDSCompInd")]
-    pub three_ds_comp_ind: ThreeDsCompletionIndicator,
+    pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
     pub message_category: String,
     pub purchase_amount: String,
     pub purchase_date: String,

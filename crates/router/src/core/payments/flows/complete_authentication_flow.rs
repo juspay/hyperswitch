@@ -18,7 +18,7 @@ impl
         api::CompleteAuthentication,
         types::CompleteAuthenticationData,
         types::PaymentsResponseData,
-    > for PaymentData<api::CompleteAuthorize>
+    > for PaymentData<api::CompleteAuthentication>
 {
     #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
@@ -33,7 +33,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
         types::RouterData<
-            api::CompleteAuthorize,
+            api::CompleteAuthentication,
             types::CompleteAuthenticationData,
             types::PaymentsResponseData,
         >,
@@ -89,7 +89,7 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::CompleteAuthorize, types::CompleteAuthenticationData>
+impl Feature<api::CompleteAuthentication, types::CompleteAuthenticationData>
     for types::RouterData<
         api::CompleteAuthentication,
         types::CompleteAuthenticationData,
@@ -111,7 +111,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthenticationData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let mut complete_authentication_router_data = services::execute_connector_processing_step(
+        let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
             &self,
@@ -120,30 +120,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthenticationData>
         )
         .await
         .to_payment_failed_response()?;
-    
-        match complete_authentication_router_data.response.clone() {
-            Err(_) => Ok(complete_authentication_router_data),
-            Ok(complete_authentication_response) => {
-                // Check if the Capture API should be called based on the connector and other parameters
-                if super::should_initiate_complete_authorize(
-                    state,
-                    &connector.connector_name,
-                    &complete_authentication_response,
-                ) {
-                    complete_authentication_router_data = Box::pin(process_complete_authorization(
-                        complete_authentication_router_data,
-                        complete_authentication_response,
-                        state,
-                        connector,
-                        call_connector_action.clone(),
-                        business_profile,
-                        header_payload,
-                    ))
-                    .await?;
-                }
-                Ok(complete_authentication_router_data)
-            }
-        }
+    Ok(resp)
     }
 
     async fn add_access_token<'a>(
@@ -181,94 +158,4 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthenticationData>
 
         Ok((request, true))
     }
-}
-
-impl<F>
-    ForeignTryFrom<types::RouterData<F, types::CompleteAuthenticationData, types::PaymentsResponseData>>
-    for types::CompleteAuthorizeData
-{
-    type Error = error_stack::Report<ApiErrorResponse>;
-
-    fn foreign_try_from(
-        item: types::RouterData<F, types::CompleteAuthenticationData, types::PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let response = item
-            .response
-            .map_err(|err| ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: item.connector.clone().to_string(),
-                status_code: err.status_code,
-                reason: err.reason,
-            })?;
-
-        Ok(Self {
-            currency: item.request.currency,
-            connector_transaction_id: item.request.connector_transaction_id,
-            connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
-                .map(|secret| secret.expose()),
-            browser_info: None,
-            metadata: None,
-            capture_method: item.request.capture_method,
-            payment_method_data: item.request.payment_method_data,
-            amount: item.request.amount,
-            email: item.get_billing_email(),
-            confirm: item.request.confirm,
-            statement_descriptor_suffix: None,
-            setup_future_usage: None,
-            mandate_id: None,
-            off_session: None,
-            setup_mandate_details: None,
-            redirect_response: None,
-            complete_authorize_url: item.request.complete_authorize_url,
-            customer_acceptance: None,
-            minor_amount: item.request.minor_amount,
-        })
-    }
-}
-
-async fn process_complete_authorization(
-    mut router_data: types::RouterData<
-        api::CompleteAuthentication,
-        types::CompleteAuthenticationData,
-        types::PaymentsResponseData,
-    >,
-    complete_authorize_response: types::PaymentsResponseData,
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    call_connector_action: payments::CallConnectorAction,
-    business_profile: &domain::Profile,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-) -> RouterResult<
-    types::RouterData<
-        api::CompleteAuthorize,
-        types::CompleteAuthenticationData,
-        types::PaymentsResponseData,
-    >,
-> {
-    // Convert RouterData into Capture RouterData
-    let capture_router_data = helpers::router_data_type_conversion(
-        router_data.clone(),
-        types::CompleteAuthorizeData::foreign_try_from(router_data.clone())?,
-        Err(types::ErrorResponse::default()),
-    );
-
-    // Call capture request
-    let post_capture_router_data = super::call_complete_authorization_request(
-        capture_router_data,
-        state,
-        connector,
-        call_connector_action,
-        business_profile,
-        header_payload,
-    )
-    .await;
-
-    // Process capture response
-    let (updated_status, updated_response) =
-        super::handle_post_complete_authorize_response(complete_authorize_response, post_capture_router_data)?;
-
-    router_data.status = updated_status;
-    router_data.response = Ok(updated_response);
-    Ok(router_data)
 }

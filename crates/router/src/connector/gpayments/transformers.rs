@@ -193,7 +193,7 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticatio
                 .clone()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
                 .attach_printable("missing return_url")?,
-            three_ds_comp_ind: request.threeds_method_comp_ind.clone(),
+            threeds_method_comp_ind: request.threeds_method_comp_ind.clone(),
             purchase_amount: item.amount.to_string(),
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
                 .to_string(),

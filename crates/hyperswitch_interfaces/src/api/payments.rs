@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, Void,
+        SetupMandate, Void, CompleteAuthentication,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, CompleteAuthenticationData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -136,6 +136,12 @@ pub trait PaymentPostSessionTokens:
 /// trait PaymentsCompleteAuthorize
 pub trait PaymentsCompleteAuthorize:
     api::ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsCompleteAuthentication
+pub trait PaymentsCompleteAuthentication:
+    api::ConnectorIntegration<CompleteAuthentication, CompleteAuthenticationData, PaymentsResponseData>
 {
 }
 

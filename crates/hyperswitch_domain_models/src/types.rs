@@ -21,6 +21,7 @@ use crate::{
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
+        CompleteAuthenticationData,
     },
     router_response_types::{
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
@@ -50,6 +51,8 @@ pub type ConnectorCustomerRouterData =
     RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
+pub type PaymentsCompleteAuthenticate =
+    RouterData<CompleteAuthentication, CompleteAuthenticationData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;

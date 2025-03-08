@@ -779,6 +779,7 @@ where
     }
 }
 
+
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Data = D>>

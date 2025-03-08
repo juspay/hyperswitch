@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
-    router_request_types::{PaymentsCaptureData,CompleteAuthenticationData}
+    router_request_types::{PaymentsCaptureData}
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
@@ -2412,33 +2412,6 @@ pub fn should_initiate_capture_flow(
 }
 
 
-pub fn should_initiate_complete_authorize(
-    state: &SessionState,
-    connector_name: &router_types::Connector,
-    payments_response: &hyperswitch_domain_models::router_response_types::PaymentsResponseData,
-) -> bool {
-    match payments_response {
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::TransactionResponse { redirection_data, .. } => {
-            let network_tokenization_supported_connectors = &state
-            .conf
-            .post_auth_complete_authorize_connectors;
-
-            (*redirection_data).is_none() && network_tokenization_supported_connectors.is_some_and(|post_auth_complete_authorize_connectors| post_auth_complete_authorize_connectors.connector_list.contains(connector_name))
-        },
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::SessionResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::SessionTokenResponse {.. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::TransactionUnresolvedResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::TokenizationResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::ConnectorCustomerResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::PreProcessingResponse {..} |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::IncrementalAuthorizationResponse { .. } | 
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::PostProcessingResponse { .. } |
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => false
-    }
-}
-
 /// Executes a capture request by building a connector-specific request and deciding
 /// the appropriate flow to send it to the payment connector.
 pub async fn call_capture_request(
@@ -2471,38 +2444,6 @@ pub async fn call_capture_request(
         )
         .await
 }
-
-pub async fn call_complete_authorization_request(
-    mut capture_router_data: types::RouterData<
-        api::CompleteAuthentication,
-        CompleteAuthenticationData,
-        types::PaymentsResponseData,
-    >,
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    call_connector_action: payments::CallConnectorAction,
-    business_profile: &domain::Profile,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-) -> RouterResult<types::RouterData<api::CompleteAuthentication, CompleteAuthenticationData, types::PaymentsResponseData>>
-{
-    // Build capture-specific connector request
-    let (connector_request, _should_continue_further) = capture_router_data
-        .build_flow_specific_connector_request(state, connector, call_connector_action.clone())
-        .await?;
-
-    // Execute capture flow
-    capture_router_data
-        .decide_flows(
-            state,
-            connector,
-            call_connector_action,
-            connector_request,
-            business_profile,
-            header_payload.clone(),
-        )
-        .await
-}
-
 
 /// Processes the response from the capture flow and determines the final status and the response.
 fn handle_post_capture_response(
@@ -2544,58 +2485,6 @@ fn handle_post_capture_response(
                     Ok((
                         common_enums::AttemptStatus::Authorized,
                         authorize_router_data_response,
-                    ))
-                }
-            }
-        }
-    }
-}
-
-/// Processes the response from the capture flow and determines the final status and the response.
-fn handle_post_complete_authorize_response(
-    complete_authentication_router_data_response: types::PaymentsResponseData,
-    post_complete_authorize_router_data: Result<
-        types::RouterData<
-        api::CompleteAuthorize,
-        types::CompleteAuthenticationData,
-        types::PaymentsResponseData,
-        >,
-        error_stack::Report<ApiErrorResponse>,
-        
-    >,
-) -> RouterResult<(common_enums::AttemptStatus, types::PaymentsResponseData)> {
-    match post_complete_authorize_router_data {
-        Err(err) => {
-            logger::error!(
-                "Capture flow encountered an error: {:?}. Proceeding without updating.",
-                err
-            );
-            Ok((
-                common_enums::AttemptStatus::Authorized,
-                complete_authentication_router_data_response,
-            ))
-        }
-        Ok(post_complete_authorize_router_data) => {
-            match (
-                &post_complete_authorize_router_data.response,
-                post_complete_authorize_router_data.status,
-            ) {
-                (Ok(post_complete_authorize_resp), common_enums::AttemptStatus::Charged) => Ok((
-                    common_enums::AttemptStatus::Charged,
-                    types::PaymentsResponseData::merge_transaction_responses(
-                        &complete_authentication_router_data_response,
-                        post_complete_authorize_resp,
-                    )?,
-                )),
-                _ => {
-                    logger::error!(
-                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.", 
-                        post_complete_authorize_router_data.response,
-                        post_complete_authorize_router_data.status,
-                    );
-                    Ok((
-                        common_enums::AttemptStatus::Authorized,
-                        complete_authentication_router_data_response,
                     ))
                 }
             }

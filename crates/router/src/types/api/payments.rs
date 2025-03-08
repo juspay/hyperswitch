@@ -42,7 +42,7 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
     PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentSync,
     PaymentToken, PaymentVoid, PaymentsCompleteAuthorize, PaymentsPostProcessing,
-    PaymentsPreProcessing, TaxCalculation,
+    PaymentsPreProcessing, TaxCalculation, PaymentsCompleteAuthentication,
 };
 
 pub use super::payments_v2::{

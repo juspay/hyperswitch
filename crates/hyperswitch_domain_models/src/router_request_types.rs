@@ -425,7 +425,6 @@ pub struct CompleteAuthenticationData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: i64,
     pub currency: storage_enums::Currency,
-    pub confirm: bool,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub browser_info: Option<BrowserInformation>,
@@ -434,7 +433,7 @@ pub struct CompleteAuthenticationData {
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub threeds_server_transaction_id: Option<String>,
-    pub three_ds_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 }

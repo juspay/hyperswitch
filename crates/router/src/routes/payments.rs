@@ -1073,7 +1073,6 @@ pub async fn payments_complete_authorize_redirect(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
-
             <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentRedirectCompleteAuthorize {},
                 state,

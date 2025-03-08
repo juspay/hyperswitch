@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
-            PreProcessing, Reject, SdkSessionUpdate,
+            PreProcessing, Reject, SdkSessionUpdate, CompleteAuthentication,
         },
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -46,7 +46,7 @@ use hyperswitch_domain_models::{
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData, CompleteAuthenticationData
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -73,7 +73,7 @@ use hyperswitch_interfaces::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
             PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
-            PaymentsPreProcessing, TaxCalculation,
+            PaymentsPreProcessing, TaxCalculation, PaymentsCompleteAuthentication,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
         UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
@@ -578,6 +578,93 @@ default_imp_for_incremental_authorization!(
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
+);
+
+
+macro_rules! default_imp_for_complete_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl PaymentsCompleteAuthentication for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            CompleteAuthentication,
+            CompleteAuthenticationData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_complete_authentication!(
+    connectors::Aci,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Klarna,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Placetopay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
 );
 
 macro_rules! default_imp_for_create_customer {

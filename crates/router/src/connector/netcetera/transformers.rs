@@ -409,7 +409,7 @@ pub struct NetceteraAuthenticationRequest {
     ///                                86 -> MasterCard Identity Check, Production Validation NPA)
     pub message_category: netcetera_types::NetceteraMessageCategory,
     #[serde(rename = "threeDSCompInd")]
-    pub three_ds_comp_ind: Option<netcetera_types::ThreeDSMethodCompletionIndicator>,
+    pub threeds_method_comp_ind: Option<netcetera_types::ThreeDSMethodCompletionIndicator>,
     /**
      * Contains the 3DS Server Transaction ID used during the previous execution of the 3DS method. Accepted value
      * length is 36 characters. Accepted value is a Canonical format as defined in IETF RFC 4122. May utilise any of the
@@ -562,7 +562,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             message_category: netcetera_types::NetceteraMessageCategory::from(
                 request.message_category,
             ),
-            three_ds_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::from(
+            threeds_method_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::from(
                 request.threeds_method_comp_ind,
             )),
             three_ds_method_id: None,

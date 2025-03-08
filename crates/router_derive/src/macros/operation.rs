@@ -20,6 +20,7 @@ pub enum Derives {
     SyncData,
     CancelData,
     CaptureData,
+    CompleteAuthenticationData,
     CompleteAuthorizeData,
     RejectData,
     SetupMandateData,
@@ -93,6 +94,9 @@ impl Conversion {
             Derives::RejectData => syn::Ident::new("PaymentsRejectData", Span::call_site()),
             Derives::Capture => syn::Ident::new("PaymentsCaptureRequest", Span::call_site()),
             Derives::CaptureData => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
+            Derives::CompleteAuthenticationData => {
+                syn::Ident::new("CompleteAuthenticationData", Span::call_site())
+            }
             Derives::CompleteAuthorizeData => {
                 syn::Ident::new("CompleteAuthorizeData", Span::call_site())
             }
@@ -439,6 +443,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsRejectData,
                     PaymentsAuthorizeData,
                     PaymentsSessionData,
+                    CompleteAuthenticationData,
                     CompleteAuthorizeData,
                     PaymentsIncrementalAuthorizationData,
                     SdkPaymentsSessionUpdateData,

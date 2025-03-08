@@ -1242,6 +1242,15 @@ impl Authenticate for api_models::payments::PaymentsSessionRequest {
         Some(&self.client_secret)
     }
 }
+
+
+#[cfg(feature = "v1")]
+impl Authenticate for api_models::payments::PaymentsExternalAuthenticationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(&self.client_secret)
+    }
+}
+
 impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(self.client_secret.peek())

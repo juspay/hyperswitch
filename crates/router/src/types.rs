@@ -38,7 +38,7 @@ use hyperswitch_domain_models::router_flow_types::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, Void,
+        SetupMandate, Void, CompleteAuthentication,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -91,7 +91,7 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::types::{
     AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
-    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
+    PaymentsCompleteAuthorizeType, PaymentsCompleteAuthenticationType, PaymentsInitType, PaymentsPostProcessingType,
     PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
     PaymentsSessionType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
     RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
@@ -129,6 +129,8 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
+pub type PaymentsCompleteAuthenticationRouterData =
+    RouterData<CompleteAuthentication, CompleteAuthenticationData, PaymentsResponseData>;
 pub type PaymentsInitRouterData =
     RouterData<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsBalanceRouterData =
@@ -356,6 +358,57 @@ impl Capturable for CompleteAuthorizeData {
     where
         F: Clone,
     {
+        Some(
+            payment_data
+                .payment_attempt
+                .get_total_amount()
+                .get_amount_as_i64(),
+        )
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        match payment_data
+            .get_capture_method()
+            .unwrap_or_default()
+        {
+            common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic => {
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                match intent_status {
+                    common_enums::IntentStatus::Succeeded|
+                    common_enums::IntentStatus::Failed|
+                    common_enums::IntentStatus::Processing => Some(0),
+                    common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::RequiresCustomerAction
+                    | common_enums::IntentStatus::RequiresMerchantAction
+                    | common_enums::IntentStatus::RequiresPaymentMethod
+                    | common_enums::IntentStatus::RequiresConfirmation
+                    | common_enums::IntentStatus::RequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                }
+            },
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
+            // In case of manual multiple, amount capturable must be inferred from all captures.
+            common_enums::CaptureMethod::ManualMultiple |
+            // Scheduled capture is not supported as of now
+            common_enums::CaptureMethod::Scheduled => None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl Capturable for CompleteAuthenticationData {
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        //Handle for overcapture
         Some(
             payment_data
                 .payment_attempt
@@ -865,6 +918,10 @@ impl Tokenizable for PaymentsAuthorizeData {
 }
 
 impl Tokenizable for CompleteAuthorizeData {
+    fn set_session_token(&mut self, _token: Option<String>) {}
+}
+
+impl Tokenizable for CompleteAuthenticationData {
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
