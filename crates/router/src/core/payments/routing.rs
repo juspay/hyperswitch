@@ -1600,12 +1600,37 @@ pub async fn perform_contract_based_routing(
         .change_context(errors::RoutingError::ContractBasedRoutingConfigError)
         .attach_printable("unable to fetch contract based dynamic routing configs")?;
 
+        let label_info = contract_based_routing_configs
+            .label_info
+            .clone()
+            .ok_or(errors::RoutingError::ContractBasedRoutingConfigError)
+            .attach_printable("Label information not found in contract routing configs")?;
+
+        let contract_based_connectors = routable_connectors
+            .clone()
+            .into_iter()
+            .filter(|conn| {
+                label_info
+                    .iter()
+                    .any(|info| Some(info.mca_id.clone()) == conn.merchant_connector_id.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut other_connectors = routable_connectors
+            .into_iter()
+            .filter(|conn| {
+                label_info
+                    .iter()
+                    .all(|info| Some(info.mca_id.clone()) != conn.merchant_connector_id.clone())
+            })
+            .collect::<Vec<_>>();
+
         let contract_based_connectors_result = client
             .calculate_contract_score(
                 profile_id.get_string_repr().into(),
                 contract_based_routing_configs.clone(),
                 "".to_string(),
-                routable_connectors,
+                contract_based_connectors,
                 state.get_grpc_headers(),
             )
             .await
@@ -1617,13 +1642,6 @@ pub async fn perform_contract_based_routing(
             Ok(resp) => resp,
             Err(err) => match err.current_context() {
                 DynamicRoutingError::ContractNotFound => {
-                    let label_info = contract_based_routing_configs
-                        .label_info
-                        .ok_or(errors::RoutingError::ContractBasedRoutingConfigError)
-                        .attach_printable(
-                            "Label information not found in contract routing configs",
-                        )?;
-
                     client
                             .update_contracts(
                                 profile_id.get_string_repr().into(),
@@ -1682,6 +1700,8 @@ pub async fn perform_contract_based_routing(
                 ),
             });
         }
+
+        connectors.append(&mut other_connectors);
 
         logger::debug!(contract_based_routing_connectors=?connectors);
         Ok(connectors)
