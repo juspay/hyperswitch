@@ -172,6 +172,7 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
+        status: 200,
         body: {
           status: "pending",
         },
