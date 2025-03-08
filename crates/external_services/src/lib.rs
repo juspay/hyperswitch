@@ -8,6 +8,9 @@ pub mod email;
 #[cfg(feature = "aws_kms")]
 pub mod aws_kms;
 
+#[cfg(feature = "azure_key_vault")]
+pub mod azure_key_vault;
+
 pub mod file_storage;
 #[cfg(feature = "hashicorp-vault")]
 pub mod hashicorp_vault;
@@ -20,7 +23,7 @@ pub mod grpc_client;
 pub mod managers;
 
 /// Crate specific constants
-#[cfg(feature = "aws_kms")]
+#[cfg(any(feature = "aws_kms", feature = "azure_key_vault"))]
 pub mod consts {
     /// General purpose base64 engine
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -28,7 +31,7 @@ pub mod consts {
 }
 
 /// Metrics for interactions with external systems.
-#[cfg(feature = "aws_kms")]
+#[cfg(any(feature = "aws_kms", feature = "azure_key_vault"))]
 pub mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
@@ -43,4 +46,16 @@ pub mod metrics {
     histogram_metric_f64!(AWS_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for AWS KMS decryption time (in sec)
     #[cfg(feature = "aws_kms")]
     histogram_metric_f64!(AWS_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for AWS KMS encryption time (in sec)
+
+
+    #[cfg(feature = "azure_key_vault")]
+    counter_metric!(AZURE_KEY_VAULT_DECRYPTION_FAILURES, GLOBAL_METER); // No. of Azure Key Vault Decryption failures
+    #[cfg(feature = "azure_key_vault")]
+    counter_metric!(AZURE_KEY_VAULT_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of Azure Key Vault Encryption failures
+
+    #[cfg(feature = "azure_key_vault")]
+    histogram_metric_f64!(AZURE_KEY_VAULT_DECRYPT_TIME, GLOBAL_METER); // Histogram for Azure Key Vault decryption time (in sec)
+
+    #[cfg(feature = "azure_key_vault")]
+    histogram_metric_f64!(AZURE_KEY_VAULT_ENCRYPT_TIME, GLOBAL_METER); // Histogram for Azure Key Vault encryption time (in sec)
 }
