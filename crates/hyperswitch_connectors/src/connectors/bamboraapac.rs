@@ -22,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundExecuteRouterData, RefundSyncRouterData, SetupMandateRouterData,
@@ -40,12 +43,13 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use transformers as bamboraapac;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, construct_not_implemented_error_report, convert_amount},
+    utils::{self, convert_amount},
 };
 
 #[derive(Clone)]
@@ -98,23 +102,6 @@ where
 }
 
 impl ConnectorValidation for Bamboraapac {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -747,4 +734,82 @@ fn html_to_xml_string_conversion(res: String) -> String {
     res.replace("&lt;", "<").replace("&gt;", ">")
 }
 
-impl ConnectorSpecifications for Bamboraapac {}
+lazy_static! {
+    static ref BAMBORAAPAC_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let default_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::DinersClub,
+        ];
+
+        let mut bamboraapac_supported_payment_methods = SupportedPaymentMethods::new();
+
+        bamboraapac_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: default_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        bamboraapac_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: default_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        bamboraapac_supported_payment_methods
+    };
+
+    static ref BAMBORAAPAC_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Bambora Asia-Pacific",
+        description: "Bambora Asia-Pacific, provides comprehensive payment solutions, offering merchants smart and smooth payment processing capabilities.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
+
+impl ConnectorSpecifications for Bamboraapac {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*BAMBORAAPAC_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*BAMBORAAPAC_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
