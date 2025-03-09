@@ -4612,3 +4612,45 @@ required=true
 type="Text"
 [juspaythreedsserver.connector_auth.HeaderKey]
 api_key="API Key"
+
+
+[hipay]
+[[hipay.credit]]
+  payment_method_type = "Mastercard"
+[[hipay.credit]]
+  payment_method_type = "Visa"
+[[hipay.credit]]
+  payment_method_type = "Interac"
+[[hipay.credit]]
+  payment_method_type = "AmericanExpress"
+[[hipay.credit]]
+  payment_method_type = "JCB"
+[[hipay.credit]]
+  payment_method_type = "DinersClub"
+[[hipay.credit]]
+  payment_method_type = "Discover"
+[[hipay.credit]]
+  payment_method_type = "CartesBancaires"
+[[hipay.credit]]
+  payment_method_type = "UnionPay"
+[[hipay.debit]]
+  payment_method_type = "Mastercard"
+[[hipay.debit]]
+  payment_method_type = "Visa"
+[[hipay.debit]]
+  payment_method_type = "Interac"
+[[hipay.debit]]
+  payment_method_type = "AmericanExpress"
+[[hipay.debit]]
+  payment_method_type = "JCB"
+[[hipay.debit]]
+  payment_method_type = "DinersClub"
+[[hipay.debit]]
+  payment_method_type = "Discover"
+[[hipay.debit]]
+  payment_method_type = "CartesBancaires"
+[[hipay.debit]]
+  payment_method_type = "UnionPay"
+[hipay.connector_auth.BodyKey]
+api_key="API Login ID"
+key1="API password"

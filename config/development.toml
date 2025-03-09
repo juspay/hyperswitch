@@ -294,6 +294,8 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
+hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
@@ -680,6 +682,7 @@ checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
+hipay = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }
 payme = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
