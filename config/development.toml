@@ -176,10 +176,12 @@ cards = [
     "gocardless",
     "gpayments",
     "helcim",
+    "hipay",
     "iatapay",
     "inespay",
     "itaubank",
     "jpmorgan",
+    "juspaythreedsserver",
     "mollie",
     "moneris",
     "multisafepay",
@@ -291,10 +293,12 @@ globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
+hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
+juspaythreedsserver.base_url = "http://localhost:8000"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
@@ -327,6 +331,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+recurly.base_url = "https://{{merchant_subdomain_name}}.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
@@ -722,6 +727,9 @@ connectors_with_delayed_session_response = "trustpay,payme"
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
+
+[additional_revenue_recovery_details_call]
+connectors_with_additional_revenue_recovery_details_call = "stripebilling"
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }

@@ -19,11 +19,11 @@ pub mod routes {
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
         AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
-        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventMetricRequest,
-        GetDisputeMetricRequest, GetFrmFilterRequest, GetFrmMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventFilterRequest,
+        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetFrmFilterRequest,
+        GetFrmMetricRequest, GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest,
+        GetPaymentIntentMetricRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
     use common_utils::types::TimeRange;
@@ -105,6 +105,10 @@ pub mod routes {
                         .service(
                             web::resource("metrics/auth_events")
                                 .route(web::post().to(get_auth_event_metrics)),
+                        )
+                        .service(
+                            web::resource("filters/auth_events")
+                                .route(web::post().to(get_merchant_auth_events_filters)),
                         )
                         .service(
                             web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
@@ -975,7 +979,6 @@ pub mod routes {
                 analytics::auth_events::get_metrics(
                     &state.pool,
                     auth.merchant_account.get_id(),
-                    &auth.merchant_account.publishable_key,
                     req,
                 )
                 .await
@@ -1010,6 +1013,34 @@ pub mod routes {
                 analytics::payments::get_filters(&state.pool, req, &auth)
                     .await
                     .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantAnalyticsRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_merchant_auth_events_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetAuthEventFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetAuthEventFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::auth_events::get_filters(
+                    &state.pool,
+                    req,
+                    auth.merchant_account.get_id(),
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,

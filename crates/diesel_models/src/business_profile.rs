@@ -64,6 +64,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
     pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
@@ -114,6 +115,7 @@ pub struct ProfileNew {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -161,6 +163,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
     pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
@@ -207,6 +210,7 @@ impl ProfileUpdateInternal {
             card_testing_guard_config,
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
+            force_3ds_challenge,
             active_surcharge_algorithm_id,
         } = self;
         Profile {
@@ -278,6 +282,7 @@ impl ProfileUpdateInternal {
             card_testing_secret_key,
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
+            force_3ds_challenge,
             active_surcharge_algorithm_id: active_surcharge_algorithm_id
                 .or(source.active_surcharge_algorithm_id),
         }
@@ -333,6 +338,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -579,6 +585,7 @@ impl ProfileUpdateInternal {
             card_testing_secret_key: card_testing_secret_key.or(source.card_testing_secret_key),
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
+            force_3ds_challenge: None,
         }
     }
 }
@@ -649,6 +656,8 @@ pub struct PaymentLinkConfigRequest {
     pub skip_status_screen: Option<bool>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

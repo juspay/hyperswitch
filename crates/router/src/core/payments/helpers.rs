@@ -2997,6 +2997,7 @@ pub fn validate_payment_method_type_against_payment_method(
             api_enums::PaymentMethodType::Giropay
                 | api_enums::PaymentMethodType::Ideal
                 | api_enums::PaymentMethodType::Sofort
+                | api_enums::PaymentMethodType::Eft
                 | api_enums::PaymentMethodType::Eps
                 | api_enums::PaymentMethodType::BancontactCard
                 | api_enums::PaymentMethodType::Blik
@@ -4826,6 +4827,12 @@ pub async fn get_additional_payment_data(
             domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    details: None,
+                },
+            )),
+            domain::BankRedirectData::Eft { .. } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
                     details: None,
                 },
             )),
