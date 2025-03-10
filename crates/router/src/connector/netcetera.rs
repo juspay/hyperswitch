@@ -112,9 +112,12 @@ impl ConnectorCommon for Netcetera {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_details.error_code,
-            message: response.error_details.error_description,
-            reason: response.error_details.error_detail,
+            code: response
+                .error_message
+                .clone()
+                .unwrap_or("failure".to_string()),
+            message: response.error_message.unwrap_or("failure".to_string()),
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -548,6 +551,21 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            reason: None,
+            code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+            message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
     }
 }
 

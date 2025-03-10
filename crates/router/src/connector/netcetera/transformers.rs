@@ -102,9 +102,15 @@ impl
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => {
                 Err(types::ErrorResponse {
-                    code: error_response.error_details.error_code,
-                    message: error_response.error_details.error_description,
-                    reason: error_response.error_details.error_detail,
+                    code: error_response
+                        .error_message
+                        .clone()
+                        .unwrap_or("failure".to_string()),
+                    message: error_response
+                        .error_message
+                        .clone()
+                        .unwrap_or("failure".to_string()),
+                    reason: None,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -207,8 +213,7 @@ impl TryFrom<&types::ConnectorAuthType> for NetceteraAuthType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetceteraErrorResponse {
-    pub three_ds_server_trans_id: Option<String>,
-    pub error_details: NetceteraErrorDetails,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -462,6 +467,7 @@ pub struct NetceteraAuthenticationRequest {
     pub browser_information: Option<netcetera_types::Browser>,
     #[serde(rename = "threeRIInd")]
     pub three_ri_ind: Option<String>,
+    #[serde(rename = "sdkInfo")]
     pub sdk_information: Option<netcetera_types::Sdk>,
     pub device: Option<String>,
     pub multi_transaction: Option<String>,

@@ -1072,6 +1072,32 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 {
                     *should_continue_confirm_transaction = false;
                 }
+                let new_intent_status = match authentication.trans_status {
+                    Some(common_enums::TransactionStatus::Success) => {
+                        common_enums::IntentStatus::Succeeded
+                    }
+                    Some(common_enums::TransactionStatus::Failure) => {
+                        common_enums::IntentStatus::Failed
+                    }
+                    _ => common_enums::IntentStatus::RequiresCustomerAction,
+                };
+                payment_data.payment_intent = state
+                    .store
+                    .update_payment_intent(
+                        &(state).into(),
+                        payment_data.payment_intent.clone(),
+                        storage::PaymentIntentUpdate::ManualUpdate {
+                            status: Some(new_intent_status),
+                            updated_by: "postgres_only".to_string(),
+                        },
+                        key_store,
+                        common_enums::MerchantStorageScheme::PostgresOnly,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                    .attach_printable(
+                        "Failed to update status in Payment Intent during authentication",
+                    )?;
                 Some(authentication)
             }
             None => None,
@@ -1522,6 +1548,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
+        let prev_intent_status = payment_data.payment_intent.status.clone();
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
@@ -1814,7 +1841,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         amount: payment_data.payment_intent.amount,
                         currency: payment_data.currency,
                         setup_future_usage,
-                        status: intent_status,
+                        status: if !prev_intent_status.is_in_terminal_state() {
+                            intent_status
+                        } else {
+                            prev_intent_status
+                        },
                         customer_id: m_customer_id,
                         shipping_address_id: m_shipping_address_id,
                         billing_address_id: m_billing_address_id,

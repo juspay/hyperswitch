@@ -1799,6 +1799,11 @@ pub async fn payments_external_authentication(
     let mut payload = json_payload.into_inner();
     let payment_id = path.into_inner();
 
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     payload.payment_id = payment_id;
@@ -1813,7 +1818,7 @@ pub async fn payments_external_authentication(
                 hyperswitch_domain_models::router_flow_types::Authenticate,
             >(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &*auth_type,
         locking_action,
     ))
     .await

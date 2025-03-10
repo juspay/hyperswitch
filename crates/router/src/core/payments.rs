@@ -7650,10 +7650,28 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 webhook_url,
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
-                payment_intent.payment_id,
+                payment_intent.payment_id.clone(),
             ))
             .await?
         };
+    let new_intent_status = match authentication_response.trans_status {
+        common_enums::TransactionStatus::Success => common_enums::IntentStatus::Succeeded,
+        common_enums::TransactionStatus::Failure => common_enums::IntentStatus::Failed,
+        _ => common_enums::IntentStatus::RequiresCustomerAction,
+    };
+    db.update_payment_intent(
+        key_manager_state,
+        payment_intent.clone(),
+        storage::PaymentIntentUpdate::ManualUpdate {
+            status: Some(new_intent_status),
+            updated_by: merchant_account.storage_scheme.to_string(),
+        },
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+    .attach_printable("Failed to update status in Payment Intent during authentication")?;
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,
