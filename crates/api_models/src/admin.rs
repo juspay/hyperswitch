@@ -1986,7 +1986,6 @@ pub struct ProfileCreate {
     /// Indicates if debit routing is enabled or not
     #[serde(default)]
     pub is_debit_routing_enabled: bool,
-    
 }
 
 #[nutype::nutype(
