@@ -2111,6 +2111,10 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    #[serde(default)]
+    pub is_debit_routing_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2652,6 +2656,9 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    pub is_debit_routing_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
