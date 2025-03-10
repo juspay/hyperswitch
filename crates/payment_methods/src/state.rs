@@ -3,7 +3,7 @@
     not(feature = "payment_methods_v2")
 ))]
 use common_utils::errors::CustomResult;
-use common_utils::{id_type, types::keymanager::KeyManagerState};
+use common_utils::types::keymanager::KeyManagerState;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -36,9 +36,6 @@ impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for KVRouterStor
 pub struct PaymentMethodsState {
     pub store: Box<dyn PaymentMethodsStorageInterface>,
     pub key_store: Option<MerchantKeyStore>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub merchant_id: Option<id_type::MerchantId>,
-    pub limit: Option<i64>,
     pub key_manager_state: KeyManagerState,
 }
 impl From<&PaymentMethodsState> for KeyManagerState {
