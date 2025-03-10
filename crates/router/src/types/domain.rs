@@ -33,6 +33,7 @@ mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
+pub use hyperswitch_domain_models::bulk_tokenization::*;
 pub mod payment_methods {
     pub use hyperswitch_domain_models::payment_methods::*;
 }

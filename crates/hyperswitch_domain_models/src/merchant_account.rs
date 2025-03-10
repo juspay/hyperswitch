@@ -654,7 +654,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             version: crate::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
-            product_type: self.product_type,
+            product_type: self
+                .product_type
+                .or(Some(common_enums::MerchantProductType::Orchestration)),
         })
     }
 }
@@ -786,7 +788,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::merchant_account::MerchantAccountNew {
-            id: None,
+            id: Some(self.merchant_id.clone()),
             merchant_id: self.merchant_id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
@@ -815,7 +817,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             pm_collect_link_config: self.pm_collect_link_config,
             version: crate::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
-            product_type: self.product_type,
+            product_type: self
+                .product_type
+                .or(Some(common_enums::MerchantProductType::Orchestration)),
         })
     }
 }

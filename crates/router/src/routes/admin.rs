@@ -135,6 +135,7 @@ pub async fn merchant_account_create(
         merchant_details: json_payload.merchant_details,
         metadata: json_payload.metadata,
         organization_id: org_id,
+        product_type: json_payload.product_type,
     };
 
     Box::pin(api::server_wrap(
