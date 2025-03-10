@@ -304,6 +304,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
+        merchant_account_id: None,
+        merchant_config_currency: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1794,6 +1796,30 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentAttemptResponse>
+    for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        _state: &SessionState,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+        _profile: &domain::Profile,
+    ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+        let payment_attempt = self.payment_attempt;
+        let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
 where
@@ -3038,6 +3064,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_data
             .payment_intent
             .connector_metadata
+            .clone()
             .map(|cm| {
                 cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3045,6 +3072,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?
             .and_then(|cm| cm.noon.and_then(|noon| noon.order_category));
+
+        let braintree_metadata = additional_data
+            .payment_data
+            .payment_intent
+            .connector_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing ConnectorMetadata")
+            })
+            .transpose()?
+            .and_then(|cm| cm.braintree);
+
+        let merchant_account_id = braintree_metadata
+            .as_ref()
+            .and_then(|braintree| braintree.merchant_account_id.clone());
+        let merchant_config_currency =
+            braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
         let order_details = additional_data
             .payment_data
@@ -3185,6 +3231,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             integrity_object: None,
             additional_payment_method_data,
             shipping_cost,
+            merchant_account_id,
+            merchant_config_currency,
         })
     }
 }
@@ -4037,6 +4085,23 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             attempt,
             connector_name,
         ));
+        let braintree_metadata = payment_data
+            .payment_intent
+            .connector_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing ConnectorMetadata")
+            })
+            .transpose()?
+            .and_then(|cm| cm.braintree);
+
+        let merchant_account_id = braintree_metadata
+            .as_ref()
+            .and_then(|braintree| braintree.merchant_account_id.clone());
+        let merchant_config_currency =
+            braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -4050,7 +4115,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
-            payment_method_data: payment_data.payment_method_data.map(From::from),
+            payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data
                 .payment_attempt
                 .get_connector_payment_id()
@@ -4060,6 +4125,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             complete_authorize_url,
             metadata: payment_data.payment_intent.metadata,
             customer_acceptance: payment_data.customer_acceptance,
+            merchant_account_id,
+            merchant_config_currency,
         })
     }
 }
@@ -4144,7 +4211,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
         let amount = payment_data.payment_attempt.get_total_amount();
 
         Ok(Self {
-            payment_method_data: payment_method_data.map(From::from),
+            payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
@@ -4427,6 +4494,8 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
             payment_button_text_colour: config.payment_button_text_colour,
+            sdk_ui_rules: config.sdk_ui_rules,
+            payment_link_ui_rules: config.payment_link_ui_rules,
         }
     }
 }
@@ -4495,6 +4564,8 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
             payment_button_text_colour: config.payment_button_text_colour,
+            sdk_ui_rules: config.sdk_ui_rules,
+            payment_link_ui_rules: config.payment_link_ui_rules,
         }
     }
 }

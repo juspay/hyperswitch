@@ -361,7 +361,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             webhook_details,
                             source_verified,
                             &connector,
-                            &merchant_connector_account,
+                            merchant_connector_account,
                             &connector_name,
                             &request_details,
                             event_type,
