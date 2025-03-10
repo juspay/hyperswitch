@@ -11,7 +11,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -901,7 +901,37 @@ pub struct ConnectorTokenDetails {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
-    pub token: String,
+    pub token: masking::Secret<String>,
+}
+
+impl ConnectorTokenDetails{
+    // show only first and last two digits of the key and mask others with *
+    // mask the entire key if it's length is less than or equal to 4
+    fn mask_value(&self, val: String) -> masking::Secret<String> {
+        let val_len = val.len();
+        let masked_val = if val_len <= 4 {
+            "*".repeat(val_len)
+        } else {
+            // Show the first two and last two characters, mask the rest with '*'
+            let mut masked_val = String::new();
+            let val_len = val.len();
+            // Iterate through characters by their index
+            for (index, character) in val.chars().enumerate() {
+                if index < 2 || index >= val_len - 2 {
+                    masked_val.push(character); // Keep the first two and last two characters
+                } else {
+                    masked_val.push('*'); // Mask the middle characters
+                }
+            }
+            masked_val
+        };
+        masking::Secret::new(masked_val)
+    }
+
+    pub fn set_masked_token(&mut self){
+        self.token = self.mask_value(self.token.clone().expose())
+    }
+
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

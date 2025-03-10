@@ -1039,7 +1039,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
         } = item;
 
         Self {
-            connector_token: token,
+            connector_token: token.expose().clone(),
             // TODO: check why do we need this field
             payment_method_subtype: None,
             original_payment_authorized_amount,
@@ -1074,16 +1074,20 @@ impl
             ..
         } = mandate_reference_record;
 
-        Self {
+        let mut res = Self {
             connector_id,
             status: connector_token_status,
             connector_token_request_reference_id,
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
-            token: connector_token,
+            token: Secret::new(connector_token),
             // Token that is derived from payments mandate reference will always be multi use token
             token_type: common_enums::TokenizationType::MultiUse,
-        }
+        };
+        res.set_masked_token();
+        res
+        
+        
     }
 }
