@@ -774,7 +774,7 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
 
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-        let payment_attempt_connector=self.payment_attempt.connector.as_ref();
+        let payment_attempt_connector = self.payment_attempt.connector.as_ref();
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
