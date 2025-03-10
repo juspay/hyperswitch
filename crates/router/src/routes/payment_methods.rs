@@ -95,7 +95,7 @@ pub async fn create_payment_method_api(
             ))
             .await
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -214,7 +214,7 @@ pub async fn payment_method_retrieve_api(
                 auth.merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -246,7 +246,7 @@ pub async fn payment_method_delete_api(
                 auth.merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -613,7 +613,7 @@ pub async fn list_customer_payment_method_api(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth,
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
             },
