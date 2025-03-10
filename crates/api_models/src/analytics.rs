@@ -7,7 +7,7 @@ use masking::Secret;
 use self::{
     active_payments::ActivePaymentsMetrics,
     api_event::{ApiEventDimensions, ApiEventMetrics},
-    auth_events::AuthEventMetrics,
+    auth_events::{AuthEventDimensions, AuthEventFilters, AuthEventMetrics},
     disputes::{DisputeDimensions, DisputeMetrics},
     frm::{FrmDimensions, FrmMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
@@ -225,6 +225,10 @@ pub struct GetSdkEventMetricRequest {
 pub struct GetAuthEventMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<AuthEventDimensions>,
+    #[serde(default)]
+    pub filters: AuthEventFilters,
     #[serde(default)]
     pub metrics: HashSet<AuthEventMetrics>,
     #[serde(default)]
@@ -508,4 +512,37 @@ pub struct SankeyResponse {
     pub refunds_status: Option<String>,
     pub dispute_status: Option<String>,
     pub first_attempt: i64,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAuthEventFilterRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<AuthEventDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthEventFiltersResponse {
+    pub query_data: Vec<AuthEventFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthEventFilterValue {
+    pub dimension: AuthEventDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthEventMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [AuthEventsAnalyticsMetadata; 1],
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct AuthEventsAnalyticsMetadata {
+    pub total_error_message_count: Option<u64>,
 }

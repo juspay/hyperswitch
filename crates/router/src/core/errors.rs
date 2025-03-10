@@ -454,6 +454,26 @@ pub enum NetworkTokenizationError {
     NetworkTokenDetailsEncryptionFailed,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum BulkNetworkTokenizationError {
+    #[error("Failed to validate card details")]
+    CardValidationFailed,
+    #[error("Failed to validate payment method details")]
+    PaymentMethodValidationFailed,
+    #[error("Failed to assign a customer to the card")]
+    CustomerAssignmentFailed,
+    #[error("Failed to perform BIN lookup for the card")]
+    BinLookupFailed,
+    #[error("Failed to tokenize the card details with the network")]
+    NetworkTokenizationFailed,
+    #[error("Failed to store the card details in locker")]
+    VaultSaveFailed,
+    #[error("Failed to create a payment method entry")]
+    PaymentMethodCreationFailed,
+    #[error("Failed to update the payment method")]
+    PaymentMethodUpdationFailed,
+}
+
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 #[derive(Debug, thiserror::Error)]
 pub enum RevenueRecoveryError {
@@ -469,4 +489,6 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
+    #[error("Payment merchant connector account not found using acccount reference id")]
+    PaymentMerchantConnectorAccountNotFound,
 }

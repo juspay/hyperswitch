@@ -165,7 +165,7 @@ pub struct CardData {
     pub card_number: CardNumber,
     pub exp_month: Secret<String>,
     pub exp_year: Secret<String>,
-    pub card_security_code: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
