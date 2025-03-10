@@ -904,7 +904,7 @@ pub struct ConnectorTokenDetails {
     pub token: masking::Secret<String>,
 }
 
-impl ConnectorTokenDetails{
+impl ConnectorTokenDetails {
     // show only first and last two digits of the key and mask others with *
     // mask the entire key if it's length is less than or equal to 4
     fn mask_value(&self, val: String) -> masking::Secret<String> {
@@ -928,10 +928,9 @@ impl ConnectorTokenDetails{
         masking::Secret::new(masked_val)
     }
 
-    pub fn set_masked_token(&mut self){
+    pub fn set_masked_token(&mut self) {
         self.token = self.mask_value(self.token.clone().expose())
     }
-
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

@@ -1087,7 +1087,5 @@ impl
         };
         res.set_masked_token();
         res
-        
-        
     }
 }
