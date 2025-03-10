@@ -2827,6 +2827,8 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3237,6 +3239,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -4113,6 +4117,8 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 

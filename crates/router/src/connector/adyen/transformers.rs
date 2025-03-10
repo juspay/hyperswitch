@@ -3499,6 +3499,8 @@ pub fn get_adyen_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.psp_reference.clone()),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -3571,6 +3573,8 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -3640,6 +3644,8 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -3720,6 +3726,8 @@ pub fn get_present_to_shopper_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -3789,6 +3797,8 @@ pub fn get_qr_code_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -3847,6 +3857,8 @@ pub fn get_redirection_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: response.psp_reference.clone(),
+        issuer_error_code: None,
+        issuer_error_message: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -5381,6 +5393,8 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::AcceptDisputeRoute
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5419,6 +5433,8 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::SubmitEvidenceRout
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5459,6 +5475,8 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::DefendDisputeRoute
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..data.clone()
             })

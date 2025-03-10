@@ -2376,6 +2376,8 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 pub fn get_error_reason(
