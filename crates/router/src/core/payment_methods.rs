@@ -1145,11 +1145,13 @@ pub async fn populate_bin_details_for_payment_method(
         _ => payment_method_data.clone(),
     }
 }
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
 pub trait PaymentMethodExt {
     async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self;
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
 impl PaymentMethodExt for domain::PaymentMethodVaultingData {
     async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self {
