@@ -13918,6 +13918,14 @@
               }
             ],
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14148,6 +14156,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -26422,28 +26438,6 @@
           }
         }
       },
-      "TotalEventsResponse": {
-        "type": "object",
-        "description": "The response body of list initial delivery attempts api call.",
-        "required": [
-          "events",
-          "total_count"
-        ],
-        "properties": {
-          "events": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EventListItemResponse"
-            },
-            "description": "The list of events"
-          },
-          "total_count": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Count of total events"
-          }
-        }
-      },
       "TokenizeCardRequest": {
         "type": "object",
         "required": [
@@ -26548,6 +26542,28 @@
             "description": "The CVC number for the card",
             "example": "242",
             "nullable": true
+          }
+        }
+      },
+      "TotalEventsResponse": {
+        "type": "object",
+        "description": "The response body of list initial delivery attempts api call.",
+        "required": [
+          "events",
+          "total_count"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventListItemResponse"
+            },
+            "description": "The list of events"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Count of total events"
           }
         }
       },
