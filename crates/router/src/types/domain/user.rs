@@ -29,13 +29,15 @@ use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
+#[cfg(feature = "v2")]
+use crate::db::errors::StorageErrorExt;
 use crate::{
     consts,
     core::{
         admin,
         errors::{UserErrors, UserResult},
     },
-    db::{errors::StorageErrorExt, GlobalStorageInterface},
+    db::GlobalStorageInterface,
     routes::SessionState,
     services::{self, authentication::UserFromToken},
     types::{domain, transformers::ForeignFrom},
@@ -456,7 +458,7 @@ impl NewUserMerchant {
             organization_id: self.new_organization.get_organization_id(),
             metadata: None,
             merchant_details: None,
-            product_type: None,
+            product_type: self.get_product_type(),
         })
     }
 
@@ -483,7 +485,7 @@ impl NewUserMerchant {
             enable_payment_response_hash: None,
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
-            product_type: None,
+            product_type: self.get_product_type(),
         })
     }
 
