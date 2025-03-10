@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use utoipa::ToSchema;
 
 pub use super::enums::{PaymentMethod, PayoutType};
+pub use crate::PaymentMethodType;
 
 #[derive(
     Clone,
@@ -454,7 +455,7 @@ impl Connector {
     }
     pub fn get_payment_method_types_supporting_extended_authorization(
         self,
-    ) -> HashSet<crate::PaymentMethodType> {
+    ) -> HashSet<PaymentMethodType> {
         HashSet::new()
     }
 
