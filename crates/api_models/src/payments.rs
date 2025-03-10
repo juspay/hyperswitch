@@ -741,7 +741,7 @@ pub struct PaymentAmountDetailsResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct PaymentAttemptAmountDetails {
     /// The total amount of the order including tax, surcharge and shipping cost
@@ -5450,7 +5450,7 @@ pub struct PaymentsRetrieveRequest {
 
 /// Error details for the payment
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
     pub code: String,
@@ -8453,4 +8453,85 @@ pub struct BillingConnectorPaymentDetails {
     pub payment_processor_token: String,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsAttemptRecordRequest {
+    /// The amount details for the payment attempt.
+    pub amount_details: PaymentAttemptAmountDetails,
+
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub status: enums::AttemptStatus,
+
+    /// The billing details of the payment attempt. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// The shipping address for the payment attempt.
+    pub shipping: Option<Address>,
+
+    /// Error details provided by the billing processor.
+    pub error: Option<RecordAttemptErrorDetails>,
+
+    /// A description for the payment attempt.
+    #[schema(example = "It's my first payment request", value_type = Option<String>)]
+    pub description: Option<common_utils::types::Description>,
+
+    /// A unique identifier for a payment provided by the connector.
+    pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
+
+    /// The payment method type used for payment attempt.
+    #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Option<Connector>, example = "stripe")]
+    pub connector: Option<common_enums::connector_enums::Connector>,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The payment instrument data to be used for the payment attempt.
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+
+    /// The time at which payment attempt was created.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_created_at: Option<PrimitiveDateTime>,
+
+    /// payment method token at payment processor end.
+    #[schema(value_type = String, example = "1234567890")]
+    pub processor_payment_method_token: String,
+
+    /// customer id at payment connector for which mandate is attached.
+    #[schema(value_type = String, example = "cust_12345")]
+    pub connector_customer_id: String,
+}
+
+/// Error details for the payment
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct RecordAttemptErrorDetails {
+    /// error code sent by billing connector.
+    pub code: String,
+    /// error message sent by billing connector.
+    pub message: String,
 }
