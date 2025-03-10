@@ -1626,6 +1626,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1829,6 +1832,22 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
+    }
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_network
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_network",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_network"],
+            }
+            .into()),
+        }
     }
 }
 

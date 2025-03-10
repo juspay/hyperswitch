@@ -1228,9 +1228,16 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
+        let additional_card_network = item
+            .router_data
+            .request
+            .get_card_network_from_additional_payment_method_data()
+            .ok();
+
         let card_type = match ccard
             .card_network
             .clone()
+            .or(additional_card_network)
             .and_then(get_cybersource_card_type)
         {
             Some(card_network) => Some(card_network.to_string()),
@@ -1273,14 +1280,18 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("1".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
                     xid: authn_data.threeds_server_transaction_id.clone(),
