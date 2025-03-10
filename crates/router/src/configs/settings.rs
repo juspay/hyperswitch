@@ -210,7 +210,6 @@ impl TenantConfig {
         .into_iter()
         .collect()
     }
-
     /// # Panics
     ///
     /// Panics if Failed to create event handler
