@@ -72,7 +72,7 @@ pub struct HipayPaymentsRequest {
 pub struct HipayMaintenanceRequest {
     operation: Operation,
     currency: Option<enums::Currency>,
-    amount: StringMajorUnit,
+    amount: Option<StringMajorUnit>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -199,10 +199,13 @@ impl TryFrom<&ConnectorAuthType> for HipayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.clone(),
-                key1: key1.clone(),
-            }),
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
+                println!("api_key is {:?} key1 is {:?}", api_key, key1);
+                Ok(Self {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -272,20 +275,20 @@ impl<F> TryFrom<&HipayRouterData<&RefundsRouterData<F>>> for HipayMaintenanceReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &HipayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: Some(item.amount.to_owned()),
             operation: Operation::Refund,
             currency: Some(item.router_data.request.currency),
         })
     }
 }
-impl TryFrom<&HipayRouterData<&PaymentsCancelRouterData>> for HipayMaintenanceRequest {
+impl TryFrom<&PaymentsCancelRouterData> for HipayMaintenanceRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &HipayRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             operation: Operation::Cancel,
-            currency: item.router_data.request.currency,
-            amount: item.amount.clone(),
+            currency: item.request.currency,
+            amount: None,
         })
     }
 }
@@ -293,7 +296,7 @@ impl TryFrom<&HipayRouterData<&PaymentsCaptureRouterData>> for HipayMaintenanceR
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &HipayRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: Some(item.amount.to_owned()),
             operation: Operation::Capture,
             currency: Some(item.router_data.request.currency),
         })

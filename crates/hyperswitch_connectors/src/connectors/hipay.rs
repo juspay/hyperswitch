@@ -1,5 +1,6 @@
 pub mod transformers;
 use base64::Engine;
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::{self as common_errors, CustomResult},
@@ -247,7 +248,28 @@ impl ConnectorCommon for Hipay {
     }
 }
 
-impl ConnectorValidation for Hipay {}
+impl ConnectorValidation for Hipay {
+    fn validate_connector_against_payment_request(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic
+            | CaptureMethod::Manual
+            | CaptureMethod::SequentialAutomatic => Ok(()),
+            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into())
+            }
+        }
+    }
+}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Hipay {}
 
@@ -432,10 +454,21 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let capture_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = hipay::HipayRouterData::from((capture_amount, req));
+        let connector_req = hipay::HipayMaintenanceRequest::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -514,6 +547,17 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hi
             )?)
             .build();
         Ok(Some(request))
+    }
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = hipay::HipayMaintenanceRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn handle_response(
