@@ -157,7 +157,7 @@ pub struct Order {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomerInfo {
-    card_holder_name: Secret<String>,
+    card_holder_name: Option<Secret<String>>,
     billing_address: Option<BillingAddress>,
     shipping_address: Option<ShippingAddress>,
 }
@@ -492,8 +492,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                 post_code: item.router_data.get_optional_shipping_zip(),
                 country: item.router_data.get_optional_shipping_country(),
             });
+        let card_holder_name = match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(_) => Some(item.router_data.get_billing_full_name()?),
+            _ => None,
+        };
         let customer_info = CustomerInfo {
-            card_holder_name: item.router_data.get_billing_full_name()?,
+            card_holder_name,
             billing_address: billing_address.clone(),
             shipping_address: shipping_address.clone(),
         };
@@ -1052,8 +1056,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 post_code: item.router_data.get_optional_shipping_zip(),
                 country: item.router_data.get_optional_shipping_country(),
             });
+        let card_holder_name = match payment_method_data {
+            PaymentMethodData::Card(_) => Some(item.router_data.get_billing_full_name()?),
+            _ => None,
+        };
         let customer_info = CustomerInfo {
-            card_holder_name: item.router_data.get_billing_full_name()?,
+            card_holder_name,
             billing_address: billing_address.clone(),
             shipping_address: shipping_address.clone(),
         };
