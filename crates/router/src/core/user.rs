@@ -2960,7 +2960,7 @@ pub async fn list_merchants_for_user_in_org(
                     merchant_name: merchant_account.merchant_name.clone(),
                     merchant_id: merchant_account.get_id().to_owned(),
                     product_type: merchant_account.product_type.clone(),
-                    version: merchant_account.version.clone(),
+                    version: merchant_account.version,
                 },
             )
             .collect::<Vec<_>>(),

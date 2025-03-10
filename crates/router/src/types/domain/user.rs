@@ -510,6 +510,7 @@ impl NewUserMerchant {
             } else {
                 return Err(UserErrors::InternalServerError.into());
             };
+
         let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
@@ -519,7 +520,9 @@ impl NewUserMerchant {
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
@@ -528,7 +531,8 @@ impl NewUserMerchant {
                 &merchant_key_store,
             )
             .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to retrieve merchant account by merchant_id")?;
         Ok(merchant_account)
     }
 
@@ -559,6 +563,7 @@ impl NewUserMerchant {
             profile_name: "default".to_string(),
             ..Default::default()
         };
+
         let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
@@ -568,7 +573,9 @@ impl NewUserMerchant {
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
@@ -577,22 +584,14 @@ impl NewUserMerchant {
                 &merchant_key_store,
             )
             .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to retrieve merchant account by merchant_id")?;
 
-        let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_account_response.id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
             merchant_account.clone(),
-            key_store,
+            merchant_key_store,
         ))
         .await
         .change_context(UserErrors::InternalServerError)
