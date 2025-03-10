@@ -13,7 +13,10 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{types::ResponseRouterData, utils};
+use crate::{
+    types::ResponseRouterData,
+    utils::{self, PaymentsAuthorizeRequestData},
+};
 
 pub struct CoingateRouterData<T> {
     pub amount: StringMajorUnit,
@@ -34,7 +37,7 @@ pub struct CoingatePaymentsRequest {
     price_amount: StringMajorUnit,
     price_currency: Currency,
     receive_currency: String,
-    callback_url: Option<String>,
+    callback_url: String,
     success_url: Option<String>,
     cancel_url: Option<String>,
     title: String,
@@ -50,7 +53,8 @@ impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaym
                 price_amount: item.amount.clone(),
                 price_currency: item.router_data.request.currency,
                 receive_currency: "DO_NOT_CONVERT".to_string(),
-                callback_url: item.router_data.request.router_return_url.clone(),
+                // callback_url: item.router_data.request.get_webhook_url()?,
+                callback_url: "https://hyperswitch.requestcatcher.com/test".to_string(),
                 success_url: item.router_data.request.router_return_url.clone(),
                 cancel_url: item.router_data.request.router_return_url.clone(),
                 title: item.router_data.connector_request_reference_id.clone(),
