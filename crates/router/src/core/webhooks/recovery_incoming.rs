@@ -37,13 +37,12 @@ pub async fn recovery_incoming_webhook_flow(
     _webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector_enum: &connector_integration_interface::ConnectorEnum,
-    merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    billing_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     connector_name: &str,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     req_state: ReqState,
     object_ref_id: &webhooks::ObjectReferenceId,
-    billing_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     // Source verification is necessary for revenue recovery webhooks flow since We don't have payment intent/attempt object created before in our system.
     common_utils::fp_utils::when(!source_verified, || {
@@ -71,10 +70,9 @@ pub async fn recovery_incoming_webhook_flow(
         };
 
         let additional_call_response = handle_additional_recovery_details_call(
-            connector_enum,
             &state,
             &merchant_account,
-            merchant_connector_account,
+            &billing_connector_account,
             connector_name,
             additional_revenue_recovery_id.unwrap_or("fake_id"),
         )
@@ -213,7 +211,6 @@ pub async fn recovery_incoming_webhook_flow(
         }
     }
 }
-
 pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
 pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
 
@@ -470,10 +467,15 @@ impl RevenueRecoveryAttempt {
         key_store: &domain::MerchantKeyStore,
         billing_connector_account: &domain::MerchantConnectorAccount,
     ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::RevenueRecoveryError> {
-        let payment_merchant_connector_account_id = billing_connector_account
-            .get_payment_merchant_connector_account_id_using_account_reference_id(
-                self.0.connector_account_reference_id.clone(),
-            );
+        let payment_merchant_connector_account_id = match self.0.connector_account_reference_id.clone() == "stripebilling".to_string() {
+            true => Some(billing_connector_account.get_id()),
+            false => {
+                billing_connector_account
+                .get_payment_merchant_connector_account_id_using_account_reference_id(
+                    self.0.connector_account_reference_id.clone(),
+                )
+            }
+        };
         let db = &*state.store;
         let key_manager_state = &(state).into();
         let payment_merchant_connector_account = payment_merchant_connector_account_id
@@ -493,7 +495,6 @@ impl RevenueRecoveryAttempt {
 }
 
 async fn handle_additional_recovery_details_call(
-    connector: &connector_integration_interface::ConnectorEnum,
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
@@ -627,3 +628,4 @@ async fn construct_router_data_for_additional_call(
     };
     Ok(router_data)
 }
+

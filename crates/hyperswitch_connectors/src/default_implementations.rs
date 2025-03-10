@@ -27,7 +27,6 @@ use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
     router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
     router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
-    types::AdditionalRevenueRecoveryDetailsRouterData,
 };
 use hyperswitch_domain_models::{
     router_flow_types::{
@@ -3742,9 +3741,11 @@ default_imp_for_additional_revenue_recovery_call!(
     connectors::Globepay,
     connectors::Gocardless,
     connectors::Helcim,
+    connectors::Hipay,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
+    connectors::Juspaythreedsserver,
     connectors::Jpmorgan,
     connectors::Klarna,
     connectors::Nomupay,

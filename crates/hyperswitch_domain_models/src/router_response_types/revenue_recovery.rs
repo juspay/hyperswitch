@@ -15,11 +15,11 @@ pub struct GetAdditionalRevenueRecoveryResponseData {
     /// error message sent by billing connector.
     pub error_message: Option<String>,
     /// mandate token at payment processor end.
-    pub processor_payment_method_token: Option<String>,
+    pub processor_payment_method_token: String,
     /// customer id at payment connector for which mandate is attached.
-    pub connector_customer_id: Option<String>,
+    pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
-    pub connector_account_reference_id: Option<String>,
+    pub connector_account_reference_id: String,
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
     /// transaction status at billing connector equivalent to payment attempt status.

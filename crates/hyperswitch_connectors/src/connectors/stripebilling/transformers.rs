@@ -435,12 +435,12 @@ impl
                 amount: item.response.amount,
                 currency: item.response.currency,
                 merchant_reference_id,
-                connector_account_reference_id: Some("Stripe".to_string()),
+                connector_account_reference_id: "stripebilling".to_string(),
                 connector_transaction_id,
                 error_code: Some(item.response.failure_code),
                 error_message: Some(item.response.failure_message),
-                processor_payment_method_token: Some(item.response.payment_method),
-                connector_customer_id: Some(item.response.customer),
+                processor_payment_method_token: item.response.payment_method,
+                connector_customer_id: item.response.customer,
                 transaction_created_at: Some(item.response.created),
                 payment_method_sub_type: common_enums::PaymentMethodType::from(
                     item.response
