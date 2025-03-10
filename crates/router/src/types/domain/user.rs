@@ -29,8 +29,6 @@ use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
-#[cfg(feature = "v2")]
-use crate::db::errors::StorageErrorExt;
 use crate::{
     consts,
     core::{
@@ -500,18 +498,15 @@ impl NewUserMerchant {
             .create_merchant_account_request()
             .attach_printable("unable to construct merchant account create request")?;
 
-        let merchant_account_response =
-            if let ApplicationResponse::Json(merchant_account) = Box::pin(
-                admin::create_merchant_account(state.clone(), merchant_account_create_request),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while creating a merchant")?
-            {
-                merchant_account
-            } else {
-                return Err(UserErrors::InternalServerError.into());
-            };
+        let ApplicationResponse::Json(merchant_account_response) = Box::pin(
+            admin::create_merchant_account(state.clone(), merchant_account_create_request),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error while creating a merchant")?
+        else {
+            return Err(UserErrors::InternalServerError.into());
+        };
 
         let key_manager_state = &(&state).into();
         let merchant_key_store = state
@@ -549,18 +544,16 @@ impl NewUserMerchant {
             .create_merchant_account_request()
             .attach_printable("unable to construct merchant account create request")?;
 
-        let merchant_account_response =
-            if let ApplicationResponse::Json(merchant_account) = Box::pin(
-                admin::create_merchant_account(state.clone(), merchant_account_create_request),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while creating a merchant")?
-            {
-                merchant_account
-            } else {
-                return Err(UserErrors::InternalServerError.into());
-            };
+        let ApplicationResponse::Json(merchant_account_response) = Box::pin(
+            admin::create_merchant_account(state.clone(), merchant_account_create_request),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error while creating a merchant")?
+        else {
+            return Err(UserErrors::InternalServerError.into());
+        };
+
         let profile_create_request = admin_api::ProfileCreate {
             profile_name: "default".to_string(),
             ..Default::default()
