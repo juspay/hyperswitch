@@ -5,27 +5,24 @@ use super::{
     PaymentStartRedirectionRequest, PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest,
     PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
 };
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+#[cfg(any(
+    all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ),
+    all(feature = "v2", feature = "payment_methods_v2")
 ))]
-use crate::payment_methods::CustomerPaymentMethodsListResponse;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::payment_methods::CustomerPaymentMethodsListResponse;
+use crate::payment_methods;
 #[cfg(feature = "v1")]
-use crate::{
-    payment_methods::{self},
-    payments::{
-        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-        PaymentsStartRequest,
-    },
+use crate::payments::{
+    ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints, PaymentListResponseV2,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+    PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
+    PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+    PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+    PaymentsStartRequest,
 };
 use crate::{
     payment_methods::{
@@ -299,7 +296,7 @@ impl ApiEventMetric for PaymentMethodDeleteResponse {
     }
 }
 
-impl ApiEventMetric for CustomerPaymentMethodsListResponse {}
+impl ApiEventMetric for payment_methods::CustomerPaymentMethodsListResponse {}
 
 impl ApiEventMetric for PaymentMethodListRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

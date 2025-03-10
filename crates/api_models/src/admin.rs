@@ -16,8 +16,6 @@ use common_utils::{
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "v1")]
-use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
