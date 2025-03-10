@@ -153,7 +153,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         &self.master_encryption_key
     }
 
-    pub async fn call_database<DFut, D, R, M>(
+    pub async fn call_database<D, R, M>(
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
@@ -161,12 +161,11 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> error_stack::Result<D, StorageError>
     where
         D: Debug + Sync + Conversion,
-        DFut: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
+        R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
             + Send,
-        R: FnOnce() -> DFut,
         M: ReverseConversion<D>,
     {
-        execute_query()
+        execute_query
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
@@ -181,7 +180,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
-    pub async fn find_resources<DFut, D, R, M>(
+    pub async fn find_resources<D, R, M>(
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
@@ -189,13 +188,12 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> error_stack::Result<Vec<D>, StorageError>
     where
         D: Debug + Sync + Conversion,
-        DFut: futures::Future<
+        R: futures::Future<
                 Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
             > + Send,
-        R: FnOnce() -> DFut,
         M: ReverseConversion<D>,
     {
-        let resource_futures = execute_query()
+        let resource_futures = execute_query
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());

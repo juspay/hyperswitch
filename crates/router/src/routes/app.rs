@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
 
-use ::payment_methods::state::{PaymentMethodsState, PaymentMethodsStorageInterface};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
@@ -8,7 +7,7 @@ use api_models::routing::RoutingRetrieveQuery;
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::{id_type, types::keymanager::KeyManagerState};
+use common_utils::id_type;
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -123,7 +122,6 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
-    pub payment_methods_state: PaymentMethodsState,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -217,7 +215,6 @@ pub struct AppState {
     // TODO: use a separate schema for accounts_store
     pub accounts_store: HashMap<id_type::TenantId, Box<dyn AccountsStorageInterface>>,
     pub stores: HashMap<id_type::TenantId, Box<dyn StorageInterface>>,
-    pub pm_stores: HashMap<id_type::TenantId, Box<dyn PaymentMethodsStorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
@@ -377,16 +374,6 @@ impl AppState {
                 .tenants
                 .get_store_interface_map(&storage_impl, &conf, Arc::clone(&cache_store), testable)
                 .await;
-            let pm_stores = conf
-                .multitenancy
-                .tenants
-                .get_pm_store_interface_map(
-                    &storage_impl,
-                    &conf,
-                    Arc::clone(&cache_store),
-                    testable,
-                )
-                .await;
             let accounts_store = conf
                 .multitenancy
                 .tenants
@@ -409,7 +396,6 @@ impl AppState {
             Self {
                 flow_name: String::from("default"),
                 stores,
-                pm_stores,
                 global_store,
                 accounts_store,
                 conf: Arc::new(conf),
@@ -499,7 +485,6 @@ impl AppState {
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
         let store = self.stores.get(tenant).ok_or_else(err)?.clone();
-        let pm_store = self.pm_stores.get(tenant).ok_or_else(err)?;
         Ok(SessionState {
             store,
             global_store: self.global_store.clone(),
@@ -520,42 +505,10 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
-            payment_methods_state: PaymentMethodsState {
-                store: pm_store.clone(),
-                key_store: None,
-                customer_id: None,
-                merchant_id: None,
-                limit: None,
-                key_manager_state: keymanager_conf(
-                    Arc::clone(&self.conf),
-                    self.request_id,
-                    tenant_conf.clone(),
-                ),
-            },
         })
     }
 }
 
-fn keymanager_conf(
-    conf: Arc<settings::Settings<RawSecret>>,
-    request_id: Option<RequestId>,
-    tenant: Tenant,
-) -> KeyManagerState {
-    let km_conf = conf.key_manager.get_inner();
-    KeyManagerState {
-        global_tenant_id: conf.multitenancy.global_tenant.tenant_id.clone(),
-        tenant_id: tenant.tenant_id.clone(),
-        enabled: km_conf.enabled,
-        url: km_conf.url.clone(),
-        client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
-        #[cfg(feature = "km_forward_x_request_id")]
-        request_id,
-        #[cfg(feature = "keymanager_mtls")]
-        cert: km_conf.cert.clone(),
-        #[cfg(feature = "keymanager_mtls")]
-        ca: km_conf.ca.clone(),
-    }
-}
 pub struct Health;
 
 impl Health {

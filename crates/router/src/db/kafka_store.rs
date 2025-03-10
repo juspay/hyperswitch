@@ -3188,9 +3188,6 @@ impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
-    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface> {
-        Box::new(self.clone())
-    }
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }

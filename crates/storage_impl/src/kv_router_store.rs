@@ -169,12 +169,12 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .change_context(RedisError::StreamAppendFailed)
     }
 
-    pub async fn find_resource_by_id<DFut, D, R, M>(
+    pub async fn find_resource_by_id<D, R, M>(
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-        find_resource_db_fn: R,
+        find_resource_db_fut: R,
         lookup_id: String,
     ) -> error_stack::Result<D, errors::StorageError>
     where
@@ -186,11 +186,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             + UniqueConstraints
             + Sync
             + ReverseConversion<D>,
-        DFut: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
-        R: FnOnce() -> DFut,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
     {
         let database_call = || async {
-            find_resource_db_fn().await.map_err(|error| {
+            find_resource_db_fut.await.map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })
@@ -238,12 +237,12 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    pub async fn insert_resource<DFut, D, R, M>(
+    pub async fn insert_resource<D, R, M>(
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-        create_resource_fn: R,
+        create_resource_fut: R,
         resource_new: M,
         InsertResourceParams {
             insertable,
@@ -262,8 +261,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             + UniqueConstraints
             + Sync
             + ReverseConversion<D>,
-        DFut: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
-        R: FnOnce() -> DFut,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
     {
         let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
             self,
@@ -272,7 +270,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         ))
         .await;
         match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => create_resource_fn().await.map_err(|error| {
+            MerchantStorageScheme::PostgresOnly => create_resource_fut.await.map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             }),
@@ -324,12 +322,12 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    pub async fn update_resource<DFut, D, R, M>(
+    pub async fn update_resource<D, R, M>(
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-        update_resource_fn: R,
+        update_resource_fut: R,
         updated_resource: M,
         UpdateResourceParams {
             updateable,
@@ -345,8 +343,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             + UniqueConstraints
             + Sync
             + ReverseConversion<D>,
-        DFut: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
-        R: FnOnce() -> DFut,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
     {
         match operation {
             Op::Update(key, field, updated_by) => {
@@ -358,7 +355,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 .await;
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => {
-                        update_resource_fn().await.map_err(|error| {
+                        update_resource_fut.await.map_err(|error| {
                             let new_err = diesel_error_to_data_error(*error.current_context());
                             error.change_context(new_err)
                         })
@@ -396,12 +393,12 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .await
         .change_context(errors::StorageError::DecryptionError)
     }
-    pub async fn filter_resources<DFut, D, R, M>(
+    pub async fn filter_resources<D, R, M>(
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
-        filter_resource_db_fn: R,
+        filter_resource_db_fut: R,
         filter_fn: impl Fn(&M) -> bool,
         FilterResourceParams {
             key,
@@ -418,11 +415,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             + UniqueConstraints
             + Sync
             + ReverseConversion<D>,
-        DFut: futures::Future<Output = error_stack::Result<Vec<M>, DatabaseError>> + Send,
-        R: FnOnce() -> DFut,
+        R: futures::Future<Output = error_stack::Result<Vec<M>, DatabaseError>> + Send,
     {
         let db_call = || async {
-            filter_resource_db_fn().await.map_err(|error| {
+            filter_resource_db_fut.await.map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })

@@ -172,7 +172,6 @@ pub trait CommonStorageInterface:
     + PaymentMethodsStorageInterface
 {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
-    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface>;
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
     fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface>;
 }
@@ -233,9 +232,6 @@ impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }
-    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface> {
-        Box::new(self.clone())
-    }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
@@ -247,9 +243,6 @@ impl CommonStorageInterface for MockDb {
 
 impl CommonStorageInterface for Store {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
-        Box::new(self.clone())
-    }
-    fn get_pm_interface(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {

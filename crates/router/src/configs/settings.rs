@@ -210,39 +210,6 @@ impl TenantConfig {
         .into_iter()
         .collect()
     }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_pm_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn PaymentMethodsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            )
-            .await
-            .get_pm_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
 
     /// # Panics
     ///
