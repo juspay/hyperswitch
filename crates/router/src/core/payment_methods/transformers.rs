@@ -571,7 +571,7 @@ pub fn generate_payment_method_response(
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
         });
-        let network_token_pmd = payment_method
+    let network_token_pmd = payment_method
         .network_token_payment_method_data
         .clone()
         .map(|data| data.into_inner())
@@ -581,8 +581,8 @@ pub fn generate_payment_method_response(
             }
             _ => None,
         });
-    
-    let network_token = network_token_pmd.map(|pmd| api::NetworkTokenResponse{
+
+    let network_token = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
         payment_method_data: pmd,
     });
 

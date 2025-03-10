@@ -1143,7 +1143,7 @@ pub struct CardDetailFromLocker {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct NetworkTokenResponse{
+pub struct NetworkTokenResponse {
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
