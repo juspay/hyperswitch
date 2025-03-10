@@ -1466,7 +1466,7 @@ pub async fn create_org_merchant_for_user(
         .insert_organization(db_organization)
         .await
         .change_context(UserErrors::InternalServerError)?;
-    let default_product_type = common_enums::MerchantProductType::Orchestration;
+    let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
     let merchant_account_create_request =
         utils::user::create_merchant_account_request_for_org(req, org, default_product_type)?;
 
@@ -1478,30 +1478,6 @@ pub async fn create_org_merchant_for_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
-#[cfg(feature = "v1")]
-pub async fn create_merchant_account(
-    state: SessionState,
-    user_from_token: auth::UserFromToken,
-    req: user_api::UserMerchantCreate,
-) -> UserResponse<user_api::UserMerchantAccountResponse> {
-    let user_from_db = user_from_token.get_user_from_db(&state).await?;
-
-    let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
-    let domain_merchant_account = new_merchant
-        .create_new_merchant_and_insert_in_db(state.to_owned())
-        .await?;
-
-    Ok(ApplicationResponse::Json(
-        user_api::UserMerchantAccountResponse {
-            merchant_id: domain_merchant_account.get_id().to_owned(),
-            merchant_name: domain_merchant_account.merchant_name,
-            product_type: domain_merchant_account.product_type,
-            version: domain_merchant_account.version,
-        },
-    ))
-}
-
-#[cfg(feature = "v2")]
 pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,

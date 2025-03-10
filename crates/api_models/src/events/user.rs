@@ -40,6 +40,7 @@ common_utils::impl_api_event_type!(
         CreateInternalUserRequest,
         CreateTenantUserRequest,
         UserOrgMerchantCreateRequest,
+        UserMerchantAccountResponse,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,
@@ -85,5 +86,3 @@ common_utils::impl_api_event_type!(
 
 #[cfg(feature = "dummy_connector")]
 common_utils::impl_api_event_type!(Miscellaneous, (SampleDataRequest));
-
-impl ApiEventMetric for UserMerchantAccountResponse {}

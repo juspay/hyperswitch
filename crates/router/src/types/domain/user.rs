@@ -600,11 +600,8 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
 
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
         let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
-
         let new_organization = NewUserOrganization::from(value);
-
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
-
         Ok(Self {
             company_name: None,
             merchant_id,
@@ -620,12 +617,12 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
         let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
         let new_organization = NewUserOrganization::from(value);
-
+        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
-            product_type: None,
+            product_type,
         })
     }
 }
@@ -686,11 +683,12 @@ impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for Ne
     fn from(value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier)) -> Self {
         let merchant_id = value.1.merchant_id.clone();
         let new_organization = NewUserOrganization::from(value);
+        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
         Self {
             company_name: None,
             merchant_id,
             new_organization,
-            product_type: None,
+            product_type,
         }
     }
 }
