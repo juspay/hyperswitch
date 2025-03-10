@@ -51,6 +51,7 @@ pub struct ConnectorAuthentication {
     pub gocardless: Option<HeaderKey>,
     pub gpayments: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
+    pub hipay: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub inespay: Option<HeaderKey>,
     pub itaubank: Option<MultiAuthKey>,

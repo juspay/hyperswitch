@@ -91,6 +91,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             default_profile: item.default_profile,
             recon_status: item.recon_status,
             pm_collect_link_config,
+            product_type: item.product_type,
         })
     }
 }
@@ -116,6 +117,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             metadata: item.metadata,
             organization_id: item.organization_id,
             recon_status: item.recon_status,
+            product_type: item.product_type,
         })
     }
 }
