@@ -39,8 +39,9 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
+    CardNetworkTokenization,
     Hypersense,
-    PaymentMethodsSession,
+    PaymentMethodSession,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -150,6 +151,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsUpdateIntent
             | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection
+            | Flow::ProxyConfirmIntent
             | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
 
             Flow::PayoutsCreate
@@ -196,7 +198,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
-            Flow::CardsInfo => Self::CardsInfo,
+            Flow::CardsInfo
+            | Flow::CardsInfoCreate
+            | Flow::CardsInfoUpdate
+            | Flow::CardsInfoMigrate => Self::CardsInfo,
 
             Flow::CreateFile | Flow::DeleteFile | Flow::RetrieveFile => Self::Files,
 
@@ -313,13 +318,19 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FeatureMatrix => Self::Documentation,
 
+            Flow::TokenizeCard
+            | Flow::TokenizeCardUsingPaymentMethodId
+            | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
+
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
             | Flow::HypersenseSignoutToken => Self::Hypersense,
 
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
-            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
+            | Flow::PaymentMethodSessionConfirm
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
         }
     }
 }

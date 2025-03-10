@@ -63,6 +63,8 @@ pub struct Profile {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -111,6 +113,8 @@ pub struct ProfileNew {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -157,6 +161,8 @@ pub struct ProfileUpdateInternal {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -201,6 +207,8 @@ impl ProfileUpdateInternal {
             authentication_product_ids,
             card_testing_guard_config,
             card_testing_secret_key,
+            is_clear_pan_retries_enabled,
+            force_3ds_challenge,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -269,6 +277,9 @@ impl ProfileUpdateInternal {
             card_testing_guard_config: card_testing_guard_config
                 .or(source.card_testing_guard_config),
             card_testing_secret_key,
+            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
+                .unwrap_or(source.is_clear_pan_retries_enabled),
+            force_3ds_challenge,
         }
     }
 }
@@ -310,14 +321,6 @@ pub struct Profile {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
-    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
-    pub frm_routing_algorithm_id: Option<String>,
-    pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub should_collect_cvv_during_payment: bool,
-    pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
@@ -327,9 +330,19 @@ pub struct Profile {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
-    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub order_fulfillment_time: Option<i64>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
+    pub frm_routing_algorithm_id: Option<String>,
+    pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub should_collect_cvv_during_payment: bool,
+    pub id: common_utils::id_type::ProfileId,
 }
 
 impl Profile {
@@ -394,6 +407,7 @@ pub struct ProfileNew {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -442,6 +456,7 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -488,6 +503,7 @@ impl ProfileUpdateInternal {
             three_ds_decision_manager_config,
             card_testing_guard_config,
             card_testing_secret_key,
+            is_clear_pan_retries_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -562,6 +578,9 @@ impl ProfileUpdateInternal {
             card_testing_guard_config: card_testing_guard_config
                 .or(source.card_testing_guard_config),
             card_testing_secret_key: card_testing_secret_key.or(source.card_testing_secret_key),
+            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
+                .unwrap_or(source.is_clear_pan_retries_enabled),
+            force_3ds_challenge: None,
         }
     }
 }
@@ -629,6 +648,11 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
     pub payment_button_colour: Option<String>,
+    pub skip_status_screen: Option<bool>,
+    pub payment_button_text_colour: Option<String>,
+    pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

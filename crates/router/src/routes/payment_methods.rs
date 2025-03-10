@@ -1,13 +1,15 @@
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
+    all(not(feature = "customer_v2"), not(feature = "payment_methods_v2"))
 ))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{errors::CustomResult, id_type};
+use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use hyperswitch_domain_models::{
+    bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
+};
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
@@ -17,7 +19,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards},
     },
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
@@ -29,7 +31,10 @@ use crate::{
     not(feature = "customer_v2")
 ))]
 use crate::{
-    core::{customers, payment_methods::migration},
+    core::{
+        customers,
+        payment_methods::{migration, tokenize},
+    },
     types::api::customers::CustomerRequest,
 };
 
@@ -79,9 +84,10 @@ pub async fn create_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, req, _| async move {
+        |state, auth: auth::AuthenticationData, req, req_state| async move {
             Box::pin(payment_methods_routes::create_payment_method(
                 &state,
+                &req_state,
                 req,
                 &auth.merchant_account,
                 &auth.key_store,
@@ -926,6 +932,129 @@ impl ParentPaymentMethodToken {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
+pub async fn tokenize_card_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::CardNetworkTokenizeRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCard;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            let res = Box::pin(cards::tokenize_card_flow(
+                &state,
+                CardNetworkTokenizeRequest::foreign_from(req),
+                &merchant_account,
+                &key_store,
+            ))
+            .await?;
+            Ok(services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCardUsingPaymentMethodId))]
+pub async fn tokenize_card_using_pm_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<payment_methods::CardNetworkTokenizeRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCardUsingPaymentMethodId;
+    let pm_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    if let payment_methods::TokenizeDataRequest::ExistingPaymentMethod(ref mut pm_data) =
+        payload.data
+    {
+        pm_data.payment_method_id = pm_id;
+    } else {
+        return api::log_and_return_error_response(error_stack::report!(
+            errors::ApiErrorResponse::InvalidDataValue { field_name: "card" }
+        ));
+    }
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            let res = Box::pin(cards::tokenize_card_flow(
+                &state,
+                CardNetworkTokenizeRequest::foreign_from(req),
+                &merchant_account,
+                &key_store,
+            ))
+            .await?;
+            Ok(services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
+pub async fn tokenize_card_batch_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<tokenize::CardNetworkTokenizeForm>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCardBatch;
+    let (merchant_id, records) = match tokenize::get_tokenize_card_form_records(form) {
+        Ok(res) => res,
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                Box::pin(tokenize::tokenize_cards(
+                    &state,
+                    req,
+                    &merchant_account,
+                    &key_store,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionCreate))]
 pub async fn payment_methods_session_create(
@@ -949,6 +1078,41 @@ pub async fn payment_methods_session_create(
                 request,
             )
             .await
+        },
+        &auth::V2ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdate))]
+pub async fn payment_methods_session_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodsSessionUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionUpdate;
+    let payment_method_session_id = path.into_inner();
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let value = payment_method_session_id.clone();
+            async move {
+                payment_methods_routes::payment_methods_session_update(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    value.clone(),
+                    req,
+                )
+                .await
+            }
         },
         &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
@@ -1045,6 +1209,49 @@ impl<T: serde::Serialize> common_utils::events::ApiEventMetric
             payment_method_session_id: self.payment_method_session_id.clone(),
         })
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionConfirm))]
+pub async fn payment_method_session_confirm(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodSessionConfirmRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionConfirm;
+    let payload = json_payload.into_inner();
+    let payment_method_session_id = path.into_inner();
+
+    let request = PaymentMethodsSessionGenericRequest {
+        payment_method_session_id: payment_method_session_id.clone(),
+        request: payload,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        request,
+        |state, auth: auth::AuthenticationData, request, req_state| {
+            payment_methods_routes::payment_methods_session_confirm(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                request.payment_method_session_id,
+                request.request,
+            )
+        },
+        &auth::V2ClientAuth(
+            common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                payment_method_session_id,
+            ),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

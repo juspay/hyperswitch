@@ -55,6 +55,17 @@ pub enum PayoutConnectors {
     Wise,
 }
 
+#[cfg(feature = "v2")]
+/// Whether active attempt is to be set/unset
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum UpdateActiveAttempt {
+    /// Request to set the active attempt id
+    #[schema(value_type = Option<String>)]
+    Set(common_utils::id_type::GlobalAttemptId),
+    /// To unset the active attempt id
+    Unset,
+}
+
 #[cfg(feature = "payouts")]
 impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
@@ -147,6 +158,12 @@ pub enum FrmConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum TaxConnectors {
     Taxjar,
+}
+
+#[derive(Clone, Debug, serde::Serialize, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingConnectors {
+    Chargebee,
 }
 
 #[derive(
@@ -405,6 +422,9 @@ pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
     TaxConnectors::from_str(connector_name).ok()
 }
 
+pub fn convert_billing_connector(connector_name: &str) -> Option<BillingConnectors> {
+    BillingConnectors::from_str(connector_name).ok()
+}
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
