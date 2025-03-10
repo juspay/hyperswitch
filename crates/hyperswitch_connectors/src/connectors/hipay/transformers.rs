@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::types::PaymentsCancelResponseRouterData;
 use crate::types::PaymentsSyncResponseRouterData;
-use crate::utils::PaymentsSyncRequestData;
+use crate::utils::CardData;
 use common_enums::{enums, CardNetwork};
 use common_utils::{request::Method, types::StringMajorUnit};
 use hyperswitch_domain_models::router_data::ErrorResponse;
@@ -45,6 +45,7 @@ impl<T> From<(StringMajorUnit, T)> for HipayRouterData<T> {
     }
 }
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Operation {
     Authorization,
     Sale,
@@ -145,9 +146,9 @@ impl TryFrom<&TokenizationRouterData> for HiPayTokenRequest {
     fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_data) => Ok(Self {
-                card_number: card_data.card_number,
-                card_expiry_month: card_data.card_exp_month,
-                card_expiry_year: card_data.card_exp_year,
+                card_number: card_data.card_number.clone(),
+                card_expiry_month: card_data.card_exp_month.clone(),
+                card_expiry_year: card_data.get_expiry_year_4_digit(),
                 card_holder: card_data.card_holder_name.ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "card_holder_name",
@@ -199,13 +200,10 @@ impl TryFrom<&ConnectorAuthType> for HipayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => {
-                println!("api_key is {:?} key1 is {:?}", api_key, key1);
-                Ok(Self {
-                    api_key: api_key.clone(),
-                    key1: key1.clone(),
-                })
-            }
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.clone(),
+                key1: key1.clone(),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -365,10 +363,6 @@ pub enum HipayPaymentStatus {
     PendingPayment,
     #[serde(rename = "101")]
     Created,
-    // #[serde(rename = "103")]
-    // CardholderEnrolled,
-    // #[serde(rename = "104")]
-    // CardholderNotEnrolled,
     #[serde(rename = "105")]
     UnableToAuthenticate,
     #[serde(rename = "106")]
@@ -385,20 +379,12 @@ pub enum HipayPaymentStatus {
     Settled,
     #[serde(rename = "123")]
     PartiallySettled,
-    // #[serde(rename = "131")]
-    // Debited,
-    // #[serde(rename = "132")]
-    // PartiallyDebited,
     #[serde(rename = "140")]
     AuthenticationRequested,
     #[serde(rename = "141")]
     Authenticated,
-    // #[serde(rename = "150")]
-    // AcquirerFound = 150,
     #[serde(rename = "151")]
     AcquirerNotFound,
-    // #[serde(rename = "160")]
-    // // CardholderEnrollmentUnknown = 160,
     #[serde(rename = "161")]
     RiskAccepted,
     #[serde(rename = "163")]
@@ -426,8 +412,6 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
             HipayPaymentStatus::PendingPayment => Self::Pending,
             HipayPaymentStatus::ChargedBack => Self::Failure,
             HipayPaymentStatus::Created => Self::Started,
-            // HipayPaymentStatus::CardholderEnrolled =>
-            // HipayPaymentStatus::CardholderNotEnrolled => todo!(),
             HipayPaymentStatus::UnableToAuthenticate | HipayPaymentStatus::CouldNotAuthenticate => {
                 Self::AuthenticationFailed
             }
@@ -437,13 +421,9 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
             | HipayPaymentStatus::PartiallySettled
             | HipayPaymentStatus::PartiallyCollected
             | HipayPaymentStatus::Settled => Self::Charged,
-            // HipayPaymentStatus::Debited => todo!(),
-            // HipayPaymentStatus::PartiallyDebited => todo!(),
             HipayPaymentStatus::AuthenticationRequested => Self::AuthenticationPending,
             HipayPaymentStatus::Authenticated => Self::AuthenticationSuccessful,
-            // HipayPaymentStatus::AcquirerFound => todo!(),
             HipayPaymentStatus::AcquirerNotFound => Self::Failure,
-            // HipayPaymentStatus::CardholderEnrollmentUnknown => todo!(),
             HipayPaymentStatus::RiskAccepted => Self::Pending,
             HipayPaymentStatus::AuthorizationRefused => Self::AuthorizationFailed,
         }
@@ -452,8 +432,8 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    id: u64,
+    status: u16,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, HipayMaintenanceResponse<RefundStatus>>>
@@ -481,7 +461,11 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: match item.response.status {
+                    25 | 26 => enums::RefundStatus::Success,
+                    65 => enums::RefundStatus::Failure,
+                    24 | _ => enums::RefundStatus::Pending,
+                },
             }),
             ..item.data
         })
@@ -557,27 +541,44 @@ pub struct Reason {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HipaySyncResponse {
-    Response {
-        state: HipaySyncState,
-        reason: Reason,
-    },
-    Error {
-        message: String,
-        code: u32,
-    },
+    Response { status: i32, reason: Reason },
+    Error { message: String, code: u32 },
 }
-fn get_sync_status(state: HipaySyncState, is_auto_capture: bool) -> enums::AttemptStatus {
+fn get_sync_status(state: i32) -> enums::AttemptStatus {
     match state {
-        HipaySyncState::Completed => {
-            if is_auto_capture {
-                enums::AttemptStatus::Charged
-            } else {
-                enums::AttemptStatus::Authorized
-            }
-        }
-        HipaySyncState::Waiting | HipaySyncState::Pending => enums::AttemptStatus::Pending,
-        HipaySyncState::Declined | HipaySyncState::Error => enums::AttemptStatus::Failure,
-        HipaySyncState::Forwarding => enums::AttemptStatus::AuthenticationPending,
+        9 => enums::AttemptStatus::AuthenticationFailed,
+        10 => enums::AttemptStatus::Failure,
+        11 => enums::AttemptStatus::Failure,
+        12 => enums::AttemptStatus::Authorizing,
+        13 => enums::AttemptStatus::Failure,
+        14 => enums::AttemptStatus::Failure,
+        15 => enums::AttemptStatus::Voided,
+        16 => enums::AttemptStatus::Authorized,
+        17 => enums::AttemptStatus::CaptureInitiated,
+        18 => enums::AttemptStatus::Charged,
+        19 => enums::AttemptStatus::PartialCharged,
+        29 => enums::AttemptStatus::Failure,
+        73 => enums::AttemptStatus::CaptureFailed,
+        74 => enums::AttemptStatus::Pending,
+        75 => enums::AttemptStatus::VoidInitiated,
+        77 => enums::AttemptStatus::AuthenticationPending,
+        78 => enums::AttemptStatus::AuthorizationFailed,
+        200 => enums::AttemptStatus::Pending,
+        1 => enums::AttemptStatus::Started,
+        5 => enums::AttemptStatus::AuthenticationFailed,
+        6 => enums::AttemptStatus::Pending,
+        7 => enums::AttemptStatus::AuthenticationPending,
+        8 => enums::AttemptStatus::AuthenticationFailed,
+        20 => enums::AttemptStatus::Charged,
+        21 => enums::AttemptStatus::Charged,
+        22 => enums::AttemptStatus::Charged,
+        23 => enums::AttemptStatus::Charged,
+        40 => enums::AttemptStatus::AuthenticationPending,
+        41 => enums::AttemptStatus::AuthenticationSuccessful,
+        51 => enums::AttemptStatus::Failure,
+        61 => enums::AttemptStatus::Pending,
+        63 => enums::AttemptStatus::AuthorizationFailed,
+        _ => enums::AttemptStatus::Failure,
     }
 }
 
@@ -602,8 +603,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     ..item.data
                 })
             }
-            HipaySyncResponse::Response { state, reason } => {
-                let status = get_sync_status(state, item.data.request.is_auto_capture()?);
+            HipaySyncResponse::Response { status, reason } => {
+                let status = get_sync_status(status);
                 let response = if status == enums::AttemptStatus::Failure {
                     let error_code = reason
                         .code

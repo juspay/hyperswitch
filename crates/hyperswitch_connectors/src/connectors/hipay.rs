@@ -62,7 +62,8 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
             Value::String(s) => s.clone(),
             Value::Number(n) => n.to_string(),
             Value::Bool(b) => b.to_string(),
-            Value::Array(_) | Value::Object(_) | Value::Null => {
+            Value::Null => "".to_string(),
+            Value::Array(_) | Value::Object(_) => {
                 router_env::logger::error!(serialization_error =? "Form Construction Failed.");
                 "".to_string()
             }
@@ -520,6 +521,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hipay {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
     fn get_url(
         &self,
         req: &PaymentsCancelRouterData,
@@ -540,7 +548,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hi
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-            .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .set_body(types::PaymentsVoidType::get_request_body(
                 self, req, connectors,
@@ -568,7 +575,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hi
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let response: hipay::HipayMaintenanceResponse<hipay::HipayPaymentStatus> = res
             .response
-            .parse_struct("Hipay HipayCancelResponse")
+            .parse_struct("Hipay HipayMaintenanceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -678,10 +685,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}v3/transaction/{}",
+            connectors.hipay.third_base_url.clone(),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -710,7 +722,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: hipay::RefundResponse = res
             .response
-            .parse_struct("hipay RefundSyncResponse")
+            .parse_struct("hipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

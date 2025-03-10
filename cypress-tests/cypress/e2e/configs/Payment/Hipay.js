@@ -1,31 +1,25 @@
-import {
-  customerAcceptance,
-  connectorDetails as commonConnectorDetails,
-} from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
-  card_exp_month: "01",
+  card_number: "4111111111111111",
+  card_exp_month: "06",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
-
-const successfulThreeDSTestCardDetails = {
-  card_number: "4000000000002701",
-  card_exp_month: "01",
+const successful3DSCardDetails = {
+  card_number: "4000000000000002",
+  card_exp_month: "06",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
-
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
-      currency: "USD",
+      currency: "EUR",
     },
   },
 };
@@ -35,106 +29,470 @@ const multiUseMandateData = {
   mandate_type: {
     multi_use: {
       amount: 8000,
-      currency: "USD",
+      currency: "EUR",
     },
   },
 };
-
-const payment_method_data_no3ds = {
-  card: {
-    last4: "4242",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
-    card_extended_bin: null,
-    card_exp_month: "01",
-    card_exp_year: "50",
-    card_holder_name: "joseph Doe",
-    payment_checks: {
-      avs_response: {
-        code: "Y",
-        codeRaw: "Y",
-      },
-      card_verification: null,
-    },
-    authentication_data: null,
-  },
-  billing: null,
-};
-
-const payment_method_data_3ds = {
-  card: {
-    last4: "2701",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "400000",
-    card_extended_bin: null,
-    card_exp_month: "01",
-    card_exp_year: "50",
-    card_holder_name: "joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
-
-const billing_with_newline = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street\nApt 101",
-    line3: "Harrison Street\nApt 101",
-    city: "San Fransico\n city",
-    state: "California",
-    zip: "94122",
-    country: "NL",
-    first_name: "joseph",
-    last_name: "Doe",
-  },
-  phone: {
-    number: "9123456789",
-    country_code: "+91",
-  },
-};
-
 export const connectorDetails = {
   card_pm: {
+
     PaymentIntent: {
       Request: {
-        currency: "USD",
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "CA",
+            line3: "CA",
+            city: "Florence",
+            state: "Tuscany",
+            zip: "12345",
+            country: "IT",
+            first_name: "Max",
+            last_name: "Mustermann",
+          },
+          email: "mauro.morandi@nexi.it",
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    No3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        billing: {
+          email: "mauro.morandi@nexi.it",
+        },
+        currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
-          setup_future_usage: "on_session",
+          status: "requires_capture",
         },
       },
     },
-    PaymentIntentOffSession: {
+
+    No3DSAutoCapture: {
       Request: {
-        currency: "USD",
-        amount: 6000,
-        authentication_type: "no_three_ds",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        billing: {
+          email: "mauro.morandi@nexi.it",
+        },
+        currency: "EUR",
         customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            email: "johndoe@gmail.com",
+          },
+        },
+        currency: "EUR",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            email: "johndoe@gmail.com",
+          },
+        },
+        currency: "EUR",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        currency: "EUR",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
         setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        currency: "EUR",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        currency: "EUR",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            email: "mauro.morandi@nexi.it",
+          },
+        },
+        currency: "EUR",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    Capture: {
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 6000,
+        },
+      },
+    },
+    PartialCapture: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 2000,
+        },
+      },
+    },
+    Refund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    VoidAfterConfirm: {
+      Request: {
+        cancellation_reason: "user_cancel",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    PartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    SyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        billing: {
+          email: "mauro.morandi@nexi.it",
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing: {
+          email: "mauro.morandi@nexi.it",
+        },
+        currency: "EUR",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "USD",
+        currency: "EUR",
         shipping_cost: 50,
       },
       Response: {
@@ -167,12 +525,18 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
-        currency: "USD",
+        currency: "EUR",
+        billing: {
+          email: "mauro.morandi@nexi.it",
+        },
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -180,18 +544,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
         },
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
-        currency: "USD",
+        billing: {
+          email: "mauro.morandi@nexi.it",
+        },
+        currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -199,613 +567,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
         },
       },
     },
-    No3DSManualCapture: {
-
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-          payment_method: "card",
-          attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
-        },
-      },
-    },
-    No3DSAutoCapture: {
-
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: billing_with_newline,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
-        },
-      },
-    },
-    Capture: {
-
-      Request: {
-        amount_to_capture: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
-        },
-      },
-    },
-    PartialCapture: {
-
-      Request: {
-        amount_to_capture: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
-        },
-      },
-    },
-    Void: {
-
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "cancelled",
-        },
-      },
-    },
-    Refund: {
-
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    manualPaymentRefund: {
-
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
-    manualPaymentPartialRefund: {
-
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-    },
-    PartialRefund: {
-
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    SyncRefund: {
-
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    IncrementalAuth: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-          amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
-        },
-      },
-    },
-    MandateSingleUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateSingleUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MITAutoCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      ...commonConnectorDetails.card_pm.MITAutoCapture,
-    }),
-    MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    ZeroAuthMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    ZeroAuthPaymentIntent: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 0,
-        setup_future_usage: "off_session",
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_type: "setup_mandate",
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    SaveCardUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUse3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardConfirmManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    PaymentMethodIdMandate3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-  }
+  },
 };
