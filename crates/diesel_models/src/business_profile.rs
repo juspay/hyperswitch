@@ -513,7 +513,7 @@ impl ProfileUpdateInternal {
             card_testing_guard_config,
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
-            is_debit_routing_enabled,   
+            is_debit_routing_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -591,7 +591,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
-            is_debit_routing_enabled: is_debit_routing_enabled.unwrap_or(source.is_debit_routing_enabled),
+            is_debit_routing_enabled: is_debit_routing_enabled
+                .unwrap_or(source.is_debit_routing_enabled),
         }
     }
 }
