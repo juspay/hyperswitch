@@ -1,5 +1,5 @@
 /* eslint-disable cypress/unsafe-to-chain-command */
-/* eslint-disable cypress/no-unnecessary-waiting */
+
 import jsQR from "jsqr";
 
 // Define constants for wait times

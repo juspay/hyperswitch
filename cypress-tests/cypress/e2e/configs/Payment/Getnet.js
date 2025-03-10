@@ -190,7 +190,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
+          status: "succeeded",
         },
       },
     },
@@ -204,7 +204,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
+          status: "succeeded",
         },
       },
     },
@@ -325,6 +325,6 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }
+    },
   },
 };
