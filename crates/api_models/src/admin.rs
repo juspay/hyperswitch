@@ -25,7 +25,6 @@ use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
-    user::CreateAndListMerchantsForUserInOrgResponse,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -2942,8 +2941,6 @@ pub struct ConnectorAgnosticMitChoice {
 impl common_utils::events::ApiEventMetric for ConnectorAgnosticMitChoice {}
 
 impl common_utils::events::ApiEventMetric for payment_methods::PaymentMethodMigrate {}
-
-impl common_utils::events::ApiEventMetric for CreateAndListMerchantsForUserInOrgResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExtendedCardInfoConfig {

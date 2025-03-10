@@ -1,3 +1,4 @@
+use common_enums::MerchantProductType;
 use common_utils::consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH;
 
 pub const MAX_NAME_LENGTH: usize = 70;
@@ -47,3 +48,4 @@ pub const EMAIL_SUBJECT_WELCOME_TO_COMMUNITY: &str =
     "Thank you for signing up on Hyperswitch Dashboard!";
 
 pub const DEFAULT_PROFILE_NAME: &str = "default";
+pub const DEFAULT_PRODUCT_TYPE: MerchantProductType = MerchantProductType::Orchestration;

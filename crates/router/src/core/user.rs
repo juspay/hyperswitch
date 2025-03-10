@@ -1483,7 +1483,7 @@ pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<user_api::CreateAndListMerchantsForUserInOrgResponse> {
+) -> UserResponse<user_api::UserMerchantAccountResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
@@ -1492,7 +1492,7 @@ pub async fn create_merchant_account(
         .await?;
 
     Ok(ApplicationResponse::Json(
-        user_api::CreateAndListMerchantsForUserInOrgResponse {
+        user_api::UserMerchantAccountResponse {
             merchant_id: domain_merchant_account.get_id().to_owned(),
             merchant_name: domain_merchant_account.merchant_name,
             product_type: domain_merchant_account.product_type,
@@ -1506,7 +1506,7 @@ pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<user_api::CreateAndListMerchantsForUserInOrgResponse> {
+) -> UserResponse<user_api::UserMerchantAccountResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
@@ -1515,7 +1515,7 @@ pub async fn create_merchant_account(
         .await?;
 
     Ok(ApplicationResponse::Json(
-        user_api::CreateAndListMerchantsForUserInOrgResponse {
+        user_api::UserMerchantAccountResponse {
             merchant_id: domain_merchant_account.get_id().to_owned(),
             merchant_name: domain_merchant_account.merchant_name,
             product_type: domain_merchant_account.product_type,
@@ -2889,7 +2889,7 @@ pub async fn list_orgs_for_user(
 pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<user_api::CreateAndListMerchantsForUserInOrgResponse>> {
+) -> UserResponse<Vec<user_api::UserMerchantAccountResponse>> {
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
@@ -2955,14 +2955,12 @@ pub async fn list_merchants_for_user_in_org(
     Ok(ApplicationResponse::Json(
         merchant_accounts
             .into_iter()
-            .map(
-                |merchant_account| user_api::CreateAndListMerchantsForUserInOrgResponse {
-                    merchant_name: merchant_account.merchant_name.clone(),
-                    merchant_id: merchant_account.get_id().to_owned(),
-                    product_type: merchant_account.product_type.clone(),
-                    version: merchant_account.version,
-                },
-            )
+            .map(|merchant_account| user_api::UserMerchantAccountResponse {
+                merchant_name: merchant_account.merchant_name.clone(),
+                merchant_id: merchant_account.get_id().to_owned(),
+                product_type: merchant_account.product_type.clone(),
+                version: merchant_account.version,
+            })
             .collect::<Vec<_>>(),
     ))
 }

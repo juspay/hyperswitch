@@ -7,7 +7,7 @@ use std::{
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::EntityType;
+use common_enums::{EntityType, MerchantProductType};
 use common_utils::{
     crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
@@ -391,7 +391,7 @@ pub struct NewUserMerchant {
     merchant_id: id_type::MerchantId,
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
-    product_type: Option<common_enums::MerchantProductType>,
+    product_type: Option<MerchantProductType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -416,7 +416,7 @@ impl NewUserMerchant {
         self.new_organization.clone()
     }
 
-    pub fn get_product_type(&self) -> Option<common_enums::MerchantProductType> {
+    pub fn get_product_type(&self) -> Option<MerchantProductType> {
         self.product_type.clone()
     }
 
@@ -603,7 +603,7 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
 
         let new_organization = NewUserOrganization::from(value);
 
-        let product_type = Some(common_enums::MerchantProductType::Orchestration);
+        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
 
         Ok(Self {
             company_name: None,
@@ -636,7 +636,7 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
         let company_name = Some(UserCompanyName::new(value.company_name.clone())?);
         let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
-        let product_type = Some(common_enums::MerchantProductType::Orchestration);
+        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
 
         Ok(Self {
             company_name,
@@ -657,7 +657,7 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
         );
         let new_organization = NewUserOrganization::from(value);
-        let product_type = Some(common_enums::MerchantProductType::Orchestration);
+        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
 
         Ok(Self {
             company_name: None,
