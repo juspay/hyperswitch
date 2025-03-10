@@ -3,12 +3,12 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::RevenueRecoveryRecordBackFlow,
-        AccessTokenAuth, Authenticate, AuthenticationConfirmation, Authorize,
-        AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer,
-        Execute, GetAdditionalRevenueRecoveryDetails, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, Session, SetupMandate, Void,
+        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
+        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken, CalculateTax,
+        Capture, CompleteAuthorize, CreateConnectorCustomer, Execute,
+        GetAdditionalRevenueRecoveryDetails, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -86,8 +86,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
-pub type RevenueRecoveryRecordBackData = RouterData<
-    RevenueRecoveryRecordBackFlow,
+pub type RevenueRecoveryRecordBackRouterData = RouterData<
+    RecoveryRecordBack,
     RevenueRecoveryRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
 >;

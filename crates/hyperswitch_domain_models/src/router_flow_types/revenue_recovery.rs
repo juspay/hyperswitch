@@ -1,2 +1,2 @@
 pub struct GetAdditionalRevenueRecoveryDetails;
-pub struct RevenueRecoveryRecordBackFlow;
+pub struct RecoveryRecordBack;

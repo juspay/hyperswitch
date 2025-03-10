@@ -1,7 +1,7 @@
 //! Revenue Recovery Interface
 
 use hyperswitch_domain_models::{
-    router_flow_types::{GetAdditionalRevenueRecoveryDetails, RevenueRecoveryRecordBackFlow},
+    router_flow_types::{GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack},
     router_request_types::revenue_recovery::{
         GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
     },
@@ -30,7 +30,7 @@ pub trait AdditionalRevenueRecovery:
 /// trait RevenueRecoveryRecordBack
 pub trait RevenueRecoveryRecordBack:
     ConnectorIntegration<
-    RevenueRecoveryRecordBackFlow,
+    RecoveryRecordBack,
     RevenueRecoveryRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
 >

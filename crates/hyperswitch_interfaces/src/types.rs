@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
             Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::{GetAdditionalRevenueRecoveryDetails, RevenueRecoveryRecordBackFlow},
+        revenue_recovery::{GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -232,7 +232,7 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
 
 /// Type alias for `ConnectorIntegration<RevenueRecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
 pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
-    RevenueRecoveryRecordBackFlow,
+    RecoveryRecordBack,
     RevenueRecoveryRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
 >;

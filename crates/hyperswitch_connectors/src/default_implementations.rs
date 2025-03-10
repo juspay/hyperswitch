@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate,
         },
-        revenue_recovery::RevenueRecoveryRecordBackFlow,
+        revenue_recovery::RecoveryRecordBack,
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, GetAdditionalRevenueRecoveryDetails,
         PostAuthenticate, PreAuthenticate,
@@ -3605,7 +3605,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
         $( impl RevenueRecoveryRecordBack for $path::$connector {}
             impl
             ConnectorIntegration<
-            RevenueRecoveryRecordBackFlow,
+            RecoveryRecordBack,
             RevenueRecoveryRecordBackRequest,
             RevenueRecoveryRecordBackResponse
             > for $path::$connector
