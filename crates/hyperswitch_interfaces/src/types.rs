@@ -230,7 +230,7 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
-/// Type alias for `ConnectorIntegration<RevenueRecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+/// Type alias for `ConnectorIntegration<RecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
 pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
     RecoveryRecordBack,
     RevenueRecoveryRecordBackRequest,
