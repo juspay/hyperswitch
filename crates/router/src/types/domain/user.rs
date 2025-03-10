@@ -555,7 +555,7 @@ impl NewUserMerchant {
         };
 
         let profile_create_request = admin_api::ProfileCreate {
-            profile_name: "default".to_string(),
+            profile_name: consts::user::DEFAULT_PROFILE_NAME.to_string(),
             ..Default::default()
         };
 

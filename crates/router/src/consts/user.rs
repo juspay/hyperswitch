@@ -45,3 +45,5 @@ pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset 
 pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";
 pub const EMAIL_SUBJECT_WELCOME_TO_COMMUNITY: &str =
     "Thank you for signing up on Hyperswitch Dashboard!";
+    
+pub const DEFAULT_PROFILE_NAME: &str = "default";
