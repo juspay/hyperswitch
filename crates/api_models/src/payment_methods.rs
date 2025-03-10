@@ -2798,12 +2798,18 @@ pub struct PaymentMethodSessionResponse {
     pub authentication_details: Option<AuthenticationDetails>,
 
     /// The payment method that was created using this payment method session
+    #[schema(value_type = Option<Vec<String>>)]
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema, Clone)]
 pub struct AuthenticationDetails {
+    /// The status of authentication for the payment method
+    #[schema(value_type = IntentStatus)]
     pub status: common_enums::IntentStatus,
+
+    /// Error details of the authentication
+    #[schema(value_type = ErrorDetails)]
     pub error: Option<payments::ErrorDetails>,
 }

@@ -699,6 +699,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentAmountDetailsResponse,
         api_models::payment_methods::PaymentMethodSessionConfirmRequest,
         api_models::payment_methods::PaymentMethodSessionResponse,
+        api_models::payment_methods::AuthenticationDetails,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)
