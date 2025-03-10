@@ -1368,7 +1368,8 @@ fn create_amazon_pay_session_token(
             return Err(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "ledger_currency".to_string(),
                 expected_format: "USD".to_string(),
-            }.into())
+            }
+            .into())
         }
     };
     // currently supports only the 'automatic' capture_method
@@ -1419,8 +1420,10 @@ fn create_amazon_pay_session_token(
                                 e
                             })
                         })
-                        .collect::<Result<Vec<payment_types::AmazonPayDeliveryOptions>, errors::ApiErrorResponse>>(
-                        )
+                        .collect::<Result<
+                            Vec<payment_types::AmazonPayDeliveryOptions>,
+                            errors::ApiErrorResponse,
+                        >>()
                 })
         })
         .transpose()?
