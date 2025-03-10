@@ -8,15 +8,15 @@ use router_env::{instrument, tracing};
 
 use crate::{
     core::{
-        errors::{self, CustomResult, RouterResult},
+        errors::{self, CustomResult},
         payments,
         utils::GetProfileId,
     },
     db::StorageInterface,
-    routes::{app::ReqState, metrics, SessionState},
+    routes::{app::ReqState,metrics, SessionState},
     services::{self, connector_integration_interface},
-    types::{api, domain, storage::passive_churn_recovery as pcr},
-    workflows::passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments,
+    types::{api, domain, storage::passive_churn_recovery as storage_churn_recovery},
+    workflows::passive_churn_recovery_workflow,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -126,32 +126,27 @@ pub async fn recovery_incoming_webhook_flow(
     };
 
     let attempt_triggered_by = payment_attempt
-        .clone()
+        .as_ref()
         .and_then(revenue_recovery::RecoveryPaymentAttempt::get_attempt_triggered_by);
-
+    
     let action = revenue_recovery::RecoveryAction::get_action(event_type, attempt_triggered_by);
-
+    
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
         revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
-            let payment_intent_clone = payment_intent.clone();
-            RevenueRecoveryAttempt::insert_execute_pcr_task(
+            Ok(RevenueRecoveryAttempt::insert_execute_pcr_task(
                 &*state.store,
                 merchant_account.get_id().to_owned(),
                 payment_intent.payment_id,
                 business_profile.get_profile_id().cloned().ok_or(report!(
                     errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed
                 ))?,
-                payment_attempt.map(|attempt| attempt.attempt_id),
+                payment_attempt.map(|attempt| attempt.attempt_id.clone()),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
             )
             .await
-            .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)?;
-
-            Ok(webhooks::WebhookResponseTracker::Payment {
-                payment_id: payment_intent_clone.payment_id,
-                status: payment_intent_clone.status,
-            })
+            .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)?
+        )
         }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
             todo!()
@@ -460,32 +455,33 @@ impl RevenueRecoveryAttempt {
         profile_id: id_type::ProfileId,
         payment_attempt_id: Option<id_type::GlobalAttemptId>,
         runner: storage::ProcessTrackerRunner,
-    ) -> RouterResult<storage::ProcessTracker> {
+    ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError>  {
         let task = "EXECUTE_WORKFLOW";
+
         let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-        let schedule_time = match get_schedule_time_to_retry_mit_payments(db, &merchant_id, 0).await
-        {
-            Some(time) => time,
-            None => {
-                return Err(
-                    report!(api_error_response::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get schedule time for pcr workflow"),
-                )
-            }
-        };
+
+        let schedule_time = passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments(db, &merchant_id, 0)
+            .await
+            .map_or_else(
+                || {
+                    Err(report!(errors::RevenueRecoveryError::PrimitiveDateTimeNotFound)
+                        .attach_printable("Failed to get schedule time for pcr workflow"))
+                },
+                Ok, // Simply returns `time` wrapped in `Ok`
+            )?;
 
         let payment_attempt_id = payment_attempt_id
-            .ok_or(report!(
-                api_error_response::ApiErrorResponse::InternalServerError
-            ))
+            .ok_or(report!(errors::RevenueRecoveryError::PaymentAttemptIdNotFound))
             .attach_printable("payment attempt id is required for pcr workflow tracking")?;
-        let execute_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
-            global_payment_id: payment_id,
+
+        let execute_workflow_tracking_data = storage_churn_recovery::PcrWorkflowTrackingData {
+            global_payment_id: payment_id.clone(),
             merchant_id,
             profile_id,
             payment_attempt_id,
         };
         let tag = ["PCR"];
+
         let process_tracker_entry = storage::ProcessTrackerNew::new(
             process_tracker_id,
             task,
@@ -494,16 +490,20 @@ impl RevenueRecoveryAttempt {
             execute_workflow_tracking_data,
             schedule_time,
         )
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct delete tokenized data process tracker task")?;
+        .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
+        .attach_printable("Failed to construct process tracker entry")?;
 
-        let response = db
+        db
             .insert_process(process_tracker_entry)
             .await
-            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct delete tokenized data process tracker task")?;
+            .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
+            .attach_printable("Failed to enter process_tracker_entry in DB")?;
         metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
 
-        Ok(response)
+        Ok(webhooks::WebhookResponseTracker::Payment {
+            payment_id,
+            status: common_enums::IntentStatus::Succeeded, // Update with appropriate status
+        })
+    
     }
 }

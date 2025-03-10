@@ -774,12 +774,12 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
 
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-
+        let payment_attempt_connector=self.payment_attempt.connector.as_ref();
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
                 total_retry_count: revenue_recovery
-                    .clone()
+                    .as_ref()
                     .map_or(1, |data| (data.total_retry_count + 1)),
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
@@ -801,7 +801,7 @@ where
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,
-                connector: revenue_recovery.and_then(|data| data.connector),
+                connector: payment_attempt_connector.and_then(|connector| connector.parse().ok()),
             });
         Ok(Some(FeatureMetadata {
             redirect_response: payment_intent_feature_metadata

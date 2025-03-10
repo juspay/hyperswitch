@@ -4,7 +4,7 @@ use common_utils::{id_type, types as util_types};
 use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: util_types::MinorUnit,
@@ -61,13 +61,12 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
-#[derive(Clone)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
     pub feature_metadata: Option<api_payments::FeatureMetadata>,
 }
-#[derive(Clone)]
+
 pub struct RecoveryPaymentAttempt {
     pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,
@@ -75,10 +74,11 @@ pub struct RecoveryPaymentAttempt {
 }
 
 impl RecoveryPaymentAttempt {
-    pub fn get_attempt_triggered_by(self) -> Option<common_enums::TriggeredBy> {
-        self.feature_metadata.and_then(|metadata| {
+    pub fn get_attempt_triggered_by(&self) -> Option<common_enums::TriggeredBy> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
             metadata
                 .revenue_recovery
+                .as_ref()
                 .map(|recovery| recovery.attempt_triggered_by)
         })
     }
