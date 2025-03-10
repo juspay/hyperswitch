@@ -1,58 +1,44 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
-use api_models::{enums, payments, webhooks::IncomingWebhookEvent};
+use api_models::{enums, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-use common_utils::{
-    consts,
-    errors::CustomResult,
-    request::Method,
-    types::{SemanticVersion, StringMajorUnit},
-};
+use common_utils::{consts, errors::CustomResult, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    address::{AddressDetails, PhoneDetails},
-    router_flow_types::{PoFulfill, VerifyWebhookSource},
-    router_response_types::{MandateReference, PayoutsResponseData},
-    types::PayoutsRouterData,
-};
 use hyperswitch_domain_models::{
     payment_method_data::{
-        ApplePayWalletData, BankDebitData, BankRedirectData, BankTransferData, GiftCardData,
-        GooglePayWalletData, NetworkTokenData, PayLaterData, PaymentMethodData,
-        SamsungPayWalletData, VoucherData, WalletData,
+        BankDebitData, BankRedirectData, BankTransferData, CardRedirectData, GiftCardData,
+        PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
-    router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData,
-        ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayDecryptedData,
-        PaymentMethodToken, RouterData,
-    },
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSyncData, ResponseId,
-        SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsAuthorizeData, PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         PaymentsResponseData, RedirectForm, RefundsResponseData, VerifyWebhookSourceResponseData,
         VerifyWebhookStatus,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
-        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
-        SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsPostSessionTokensRouterData, RefreshTokenRouterData, RefundsRouterData,
+        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{PoFulfill, VerifyWebhookSource},
+    router_response_types::{MandateReference, PayoutsResponseData},
+    types::PayoutsRouterData,
+};
+use hyperswitch_interfaces::errors;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -60,17 +46,13 @@ use utils::ForeignTryFrom;
 
 #[cfg(feature = "payouts")]
 use crate::types::PayoutsResponseRouterData;
-#[cfg(feature = "payouts")]
-use crate::utils::PayoutsData;
 use crate::{
     constants,
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
-    unimplemented_payment_method,
     utils::{
-        self, missing_field_err, to_connector_meta, ApplePayDecrypt, CardData, CardIssuer,
-        NetworkTokenData as _, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
-        RecurringMandateData, RouterData as OtherRouterData,
+        self, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
+        CardData, PaymentsAuthorizeRequestData, PaymentsPostSessionTokensRequestData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -1270,19 +1252,17 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
     }
 }
 
-impl TryFrom<&payments::CardRedirectData> for PaypalPaymentsRequest {
+impl TryFrom<&CardRedirectData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &payments::CardRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &CardRedirectData) -> Result<Self, Self::Error> {
         match value {
-            payments::CardRedirectData::Knet {}
-            | payments::CardRedirectData::Benefit {}
-            | payments::CardRedirectData::MomoAtm {}
-            | payments::CardRedirectData::CardRedirect {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
-            }
+            CardRedirectData::Knet {}
+            | CardRedirectData::Benefit {}
+            | CardRedirectData::MomoAtm {}
+            | CardRedirectData::CardRedirect {} => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into()),
         }
     }
 }

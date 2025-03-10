@@ -2,7 +2,7 @@ use common_enums::enums::{self, AttemptStatus};
 use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{Execute, RSync},
     router_request_types::{MandateRevokeRequestData, ResponseId},
@@ -22,8 +22,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, CardData, PaymentsAuthorizeRequestData, RevokeMandateRequestData,
-        RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, CardData, GooglePayWalletData, PaymentsAuthorizeRequestData,
+        RevokeMandateRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 

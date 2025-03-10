@@ -45,8 +45,9 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
-        RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::CaptureSyncResponse,
     types::OrderDetailsWithAmount,
@@ -1892,7 +1893,7 @@ pub trait PaymentsPostSessionTokensRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 
-impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensData {
+impl PaymentsPostSessionTokensRequestData for PaymentsPostSessionTokensData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(enums::CaptureMethod::Automatic)
@@ -1942,7 +1943,6 @@ pub trait RefundsRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_connector_metadata(&self) -> Result<Value, Error>;
-    fn get_connector_refund_id(&self) -> Result<String, Error>;
 }
 
 impl RefundsRequestData for RefundsData {
@@ -1972,12 +1972,6 @@ impl RefundsRequestData for RefundsData {
         self.connector_metadata
             .clone()
             .ok_or_else(missing_field_err("connector_metadata"))
-    }
-    fn get_connector_refund_id(&self) -> Result<String, Error> {
-        self.connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
     }
 }
 

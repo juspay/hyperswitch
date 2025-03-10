@@ -53,7 +53,7 @@ use hyperswitch_interfaces::types::{PaymentsPreProcessingType, PayoutFulfillType
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorSpecifications, ConnectorValidation, MandateSetup,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -65,7 +65,7 @@ use hyperswitch_interfaces::{
         RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType, SetupMandateType,
         VerifyWebhookSourceType,
     },
-    webhooks::{self, IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
@@ -81,7 +81,7 @@ use crate::{
     utils::{
         self as connector_utils, to_connector_meta, ConnectorErrorType, ConnectorErrorTypeMapping,
         ForeignTryFrom, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RefundsRequestData,
     },
 };
 
@@ -698,7 +698,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &SetupMandateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
