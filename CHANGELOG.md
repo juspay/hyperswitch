@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.10.0
+
+### Features
+
+- **core:**
+  - Add bulk tokenization flows ([#7066](https://github.com/juspay/hyperswitch/pull/7066)) ([`2ff0d4f`](https://github.com/juspay/hyperswitch/commit/2ff0d4f956112ea71f4ecb2a48fd756a12578dab))
+  - Add record attempt operation for revenue recovery webhooks ([#7236](https://github.com/juspay/hyperswitch/pull/7236)) ([`24aa003`](https://github.com/juspay/hyperswitch/commit/24aa00341f907e7b77df9348f62d1416cc098691))
+- **hipay:** Add Template PR ([#7360](https://github.com/juspay/hyperswitch/pull/7360)) ([`add5152`](https://github.com/juspay/hyperswitch/commit/add51526de9594f34c71809077fb2fe27ba0868d))
+
+### Bug Fixes
+
+- **dashboard:** Added auth key to juspay threeds server ([#7457](https://github.com/juspay/hyperswitch/pull/7457)) ([`15ad6da`](https://github.com/juspay/hyperswitch/commit/15ad6da0793be4bc149ae2e92f4805735be8712a))
+- **openapi_v2:** Add missing struct in openapi v2 ([#7383](https://github.com/juspay/hyperswitch/pull/7383)) ([`3cf529c`](https://github.com/juspay/hyperswitch/commit/3cf529c4dc9eb7bf2753398f629b72d2655aae73))
+
+### Miscellaneous Tasks
+
+- Make v1 merchant account forward compatible ([#7426](https://github.com/juspay/hyperswitch/pull/7426)) ([`b63439a`](https://github.com/juspay/hyperswitch/commit/b63439a0936c02902ae5256ec853935fecff6fca))
+- Add migrate_v2_compatible recipe in justfile ([#7415](https://github.com/juspay/hyperswitch/pull/7415)) ([`9cbe384`](https://github.com/juspay/hyperswitch/commit/9cbe38459681784d37ec2a6588a2618ae941a667))
+
+**Full Changelog:** [`2025.03.07.0...2025.03.10.0`](https://github.com/juspay/hyperswitch/compare/2025.03.07.0...2025.03.10.0)
+
+
+- - -
+
 ## 2025.03.07.0
 
 ### Features
