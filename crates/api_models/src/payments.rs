@@ -430,6 +430,40 @@ pub struct PaymentsUpdateIntentRequest {
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
 }
 
+#[cfg(feature = "v2")]
+impl PaymentsUpdateIntentRequest {
+    pub fn update_feature_metadata_and_active_attempt_with_api(
+        feature_metadata: Option<FeatureMetadata>,
+        set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
+    ) -> Self {
+        Self {
+            feature_metadata,
+            set_active_attempt_id,
+            amount_details: None,
+            routing_algorithm_id: None,
+            capture_method: None,
+            authentication_type: None,
+            billing: None,
+            shipping: None,
+            customer_present: None,
+            description: None,
+            return_url: None,
+            setup_future_usage: None,
+            apply_mit_exemption: None,
+            statement_descriptor: None,
+            order_details: None,
+            allowed_payment_method_types: None,
+            metadata: None,
+            connector_metadata: None,
+            payment_link_config: None,
+            request_incremental_authorization: None,
+            session_expiry: None,
+            frm_metadata: None,
+            request_external_three_ds_authentication: None,
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
@@ -7459,7 +7493,7 @@ pub struct PaymentsStartRequest {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
@@ -7471,6 +7505,17 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+}
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn set_payment_revenue_recovery_metadata_using_api(
+        payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+    ) -> Self {
+        Self {
+            payment_revenue_recovery_metadata,
+            ..Default::default()
+        }
+    }
 }
 
 /// additional data that might be required by hyperswitch
@@ -8379,6 +8424,28 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 }
+#[cfg(feature = "v2")]
+impl PaymentRevenueRecoveryMetadata {
+    pub fn set_payment_transmission_field_for_api_request(
+        &mut self,
+        payment_connector_transmission: PaymentConnectorTransmission,
+    ) {
+        self.payment_connector_transmission = payment_connector_transmission;
+    }
+    pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
+        ProcessorPaymentToken {
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone(),
+            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+        }
+    }
+    pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
+        self.active_attempt_payment_connector_id.clone()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {

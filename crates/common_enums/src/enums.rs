@@ -7605,7 +7605,7 @@ pub enum AdyenSplitType {
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
     /// Failed to call the payment connector
-    ConnectorCallFailed,
+    ConnectorCallUnsuccessful,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
 }

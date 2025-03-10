@@ -1,12 +1,14 @@
 pub mod transformers;
 pub mod types;
-use api_models::payments::PaymentsRetrieveRequest;
-use common_utils::{self, id_type, types::keymanager::KeyManagerState};
+use api_models::payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest};
+use common_utils::{self, ext_traits::OptionExt, id_type, types::keymanager::KeyManagerState};
 use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
+    behaviour::ReverseConversion,
     errors::api_error_response,
     payments::{PaymentIntent, PaymentStatusData},
+    ApiModelToDieselModelConvertor,
 };
 use scheduler::errors;
 
@@ -35,32 +37,41 @@ pub async fn perform_execute_payment(
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
+
+    let pcr_metadata = payment_intent
+        .feature_metadata
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata)
+        .get_required_value("Payment Revenue Recovery Metadata")?;
+
     let decision = pcr_types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
-        false,
+        pcr_metadata.payment_connector_transmission,
         payment_intent.active_attempt_id.clone(),
         pcr_data,
         &tracking_data.global_payment_id,
     )
     .await?;
+
     // TODO decide if its a global failure or is it requeueable error
     match decision {
         pcr_types::Decision::Execute => {
             let action = pcr_types::Action::execute_payment(
-                db,
+                state,
                 pcr_data.merchant_account.get_id(),
                 payment_intent,
                 execute_task_process,
+                pcr_data,
+                pcr_metadata.convert_back(),
             )
             .await?;
             action
                 .execute_payment_task_response_handler(
-                    db,
-                    &pcr_data.merchant_account,
+                    state,
                     payment_intent,
                     execute_task_process,
-                    &pcr_data.profile,
+                    &pcr_data,
+                    pcr_metadata.convert_back(),
                 )
                 .await?;
         }

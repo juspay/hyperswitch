@@ -433,7 +433,7 @@ impl PaymentIntent {
             let mut updated_metadata = fm;
             if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
                 rrm.payment_connector_transmission = if status {
-                    common_enums::PaymentConnectorTransmission::ConnectorCallFailed
+                    common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
                 } else {
                     common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
                 };
