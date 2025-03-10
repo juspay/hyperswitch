@@ -467,15 +467,14 @@ impl RevenueRecoveryAttempt {
         key_store: &domain::MerchantKeyStore,
         billing_connector_account: &domain::MerchantConnectorAccount,
     ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::RevenueRecoveryError> {
-        let payment_merchant_connector_account_id = match self.0.connector_account_reference_id.clone() == "stripebilling".to_string() {
-            true => Some(billing_connector_account.get_id()),
-            false => {
-                billing_connector_account
-                .get_payment_merchant_connector_account_id_using_account_reference_id(
-                    self.0.connector_account_reference_id.clone(),
-                )
-            }
-        };
+        let payment_merchant_connector_account_id =
+            match self.0.connector_account_reference_id.clone() == "stripebilling".to_string() {
+                true => Some(billing_connector_account.get_id()),
+                false => billing_connector_account
+                    .get_payment_merchant_connector_account_id_using_account_reference_id(
+                        self.0.connector_account_reference_id.clone(),
+                    ),
+            };
         let db = &*state.store;
         let key_manager_state = &(state).into();
         let payment_merchant_connector_account = payment_merchant_connector_account_id
@@ -628,4 +627,3 @@ async fn construct_router_data_for_additional_call(
     };
     Ok(router_data)
 }
-
