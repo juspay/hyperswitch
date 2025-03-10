@@ -1064,6 +1064,44 @@ where
     }
 }
 
+#[derive(Debug, Default)]
+pub struct V2AdminApiAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for V2AdminApiAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let header_map_struct = HeaderMapStruct::new(&request_headers);
+        let auth_string = header_map_struct.get_auth_string_from_header()?;
+        let request_admin_api_key = auth_string
+            .split(',')
+            .find_map(|part| part.trim().strip_prefix("admin-api-key="))
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Unable to parse admin_api_key")
+            })?;
+        if request_admin_api_key.is_empty() {
+            return Err(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Admin Api key is empty");
+        }
+        let conf = state.conf();
+
+        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
+
+        if request_admin_api_key != admin_api_key.peek() {
+            Err(report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Admin Authentication Failure"))?;
+        }
+
+        Ok(((), AuthenticationType::AdminApiKey))
+    }
+}
 #[derive(Debug)]
 pub struct AdminApiAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
@@ -1130,7 +1168,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1180,8 +1218,7 @@ where
 
 #[cfg(feature = "v2")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A>
-    for AdminApiAuthWithMerchantIdFromRoute
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A> for AdminApiAuthWithMerchantIdFromRoute
 where
     A: SessionStateInfo + Sync,
 {
@@ -1194,7 +1231,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1400,7 +1437,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1465,7 +1502,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1917,6 +1954,8 @@ where
                 report!(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Unable to parse client_secret")
             })?;
+
+        println!(">> publishable_key : {} and client_secret : {}",publishable_key,client_secret);
 
         let key_manager_state: &common_utils::types::keymanager::KeyManagerState =
             &(&state.session_state()).into();
