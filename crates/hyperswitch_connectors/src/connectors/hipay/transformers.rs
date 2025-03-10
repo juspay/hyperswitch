@@ -1,34 +1,32 @@
 use std::collections::HashMap;
 
-use crate::types::PaymentsCancelResponseRouterData;
-use crate::types::PaymentsSyncResponseRouterData;
-use crate::utils::CardData;
 use common_enums::{enums, CardNetwork};
 use common_utils::{request::Method, types::StringMajorUnit};
-use hyperswitch_domain_models::router_data::ErrorResponse;
-use hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData;
-use hyperswitch_domain_models::types::PaymentsCancelRouterData;
-use hyperswitch_domain_models::types::PaymentsCaptureRouterData;
-use hyperswitch_domain_models::types::PaymentsSyncRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData, TokenizationRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, TokenizationRouterData,
+    },
 };
-use hyperswitch_interfaces::consts::NO_ERROR_CODE;
-use hyperswitch_interfaces::consts::NO_ERROR_MESSAGE;
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::types::PaymentsCaptureResponseRouterData;
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     unimplemented_payment_method,
-    utils::{self, PaymentsAuthorizeRequestData, RouterData as _},
+    utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub struct HipayRouterData<T> {
@@ -464,7 +462,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 refund_status: match item.response.status {
                     25 | 26 => enums::RefundStatus::Success,
                     65 => enums::RefundStatus::Failure,
-                    24 | _ => enums::RefundStatus::Pending,
+                    24 => enums::RefundStatus::Pending,
+                    _ => enums::RefundStatus::Pending,
                 },
             }),
             ..item.data

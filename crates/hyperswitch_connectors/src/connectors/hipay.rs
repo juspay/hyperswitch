@@ -38,8 +38,7 @@ use hyperswitch_interfaces::{
     types::{self, Response, TokenizationType},
     webhooks,
 };
-use masking::Mask;
-use masking::PeekInterface;
+use masking::{Mask, PeekInterface};
 use reqwest::multipart::Form;
 use serde::Serialize;
 use serde_json::Value;
