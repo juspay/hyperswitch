@@ -65,6 +65,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -115,6 +116,7 @@ pub struct ProfileNew {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -163,6 +165,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -209,6 +212,7 @@ impl ProfileUpdateInternal {
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
             force_3ds_challenge,
+            is_debit_routing_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -280,6 +284,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
+            is_debit_routing_enabled: is_debit_routing_enabled.unwrap_or(source.is_debit_routing_enabled),
         }
     }
 }
