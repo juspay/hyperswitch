@@ -37,8 +37,8 @@ pub struct SurchargeRoutingId(RoutingId);
 crate::impl_serializable_secret_id_type!(SurchargeRoutingId);
 crate::impl_queryable_id_type!(SurchargeRoutingId);
 
-impl <DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for SurchargeRoutingId
-where 
+impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for SurchargeRoutingId
+where
     DB: diesel::backend::Backend,
     RoutingId: diesel::serialize::ToSql<diesel::sql_types::Text, DB>,
 {

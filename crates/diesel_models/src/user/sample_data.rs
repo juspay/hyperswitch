@@ -211,7 +211,6 @@ pub struct PaymentAttemptBatchNew {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
     pub surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
-    
 }
 
 #[cfg(feature = "v1")]
@@ -294,7 +293,7 @@ impl PaymentAttemptBatchNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
-            surcharge_algorithm_id: self.surcharge_algorithm_id
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
         }
     }
 }

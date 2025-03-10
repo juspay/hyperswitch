@@ -1,14 +1,18 @@
 use api_models::{
     routing::RoutingKind,
     surcharge_decision_configs::{
-        SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord,
+        SurchargeDecisionConfigReq, SurchargeDecisionManagerConfig, SurchargeDecisionManagerRecord,
         SurchargeDecisionManagerResponse,
     },
 };
 use common_enums::AlgorithmType;
-use common_utils::{ext_traits::StringExt, id_type};
+use common_utils::{
+    ext_traits::{OptionExt, StringExt},
+    id_type,
+};
 use error_stack::ResultExt;
 
+use super::{errors::StorageErrorExt, utils};
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
@@ -23,7 +27,7 @@ pub async fn upsert_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
-    use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+    use common_utils::ext_traits::{Encode, ValueExt};
     use diesel_models::configs;
     use storage_impl::redis::cache;
 
@@ -235,7 +239,7 @@ pub async fn list_surcharge_decision_configs(
             &profile_id,
             limit,
             offset,
-            AlgorithmType::Routing,
+            AlgorithmType::Surcharge,
         )
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
@@ -248,4 +252,81 @@ pub async fn list_surcharge_decision_configs(
     Ok(service_api::ApplicationResponse::Json(
         RoutingKind::RoutingAlgorithm(result),
     ))
+}
+
+pub async fn add_surcharge_decision_config(
+    state: SessionState,
+    key_store: domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+    profile_id: id_type::ProfileId,
+    request: SurchargeDecisionConfigReq,
+    transaction_type: api_models::enums::TransactionType,
+    algorithm_type: AlgorithmType,
+) -> RouterResponse<SurchargeDecisionManagerRecord> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let name = request
+        .name
+        .get_required_value("name")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
+        .attach_printable("Name of config not given")?;
+
+    let description = request
+        .description
+        .get_required_value("description")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "description",
+        })
+        .attach_printable("Description of config not given")?;
+
+    let algorithm = SurchargeDecisionManagerConfig {
+        merchant_surcharge_configs: request.merchant_surcharge_configs.clone(),
+        algorithm: request.algorithm.clone(),
+    };
+
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+
+    let business_profile = utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    utils::validate_profile_id_from_auth_layer(Some(profile_id.clone()), &business_profile)?;
+
+    let timestamp = common_utils::date_time::now();
+
+    let algo = diesel_models::routing_algorithm::RoutingAlgorithm {
+        algorithm_id: algorithm_id.clone(),
+        profile_id,
+        merchant_id: merchant_account.get_id().to_owned(),
+        name: name.clone(),
+        description: Some(description.clone()),
+        kind: diesel_models::enums::RoutingAlgorithmKind::Advanced,
+        algorithm_data: serde_json::json!(algorithm),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: transaction_type.to_owned(),
+        algorithm_type: algorithm_type.to_owned(),
+    };
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let new_record = SurchargeDecisionManagerRecord {
+        name,
+        merchant_surcharge_configs: request.merchant_surcharge_configs,
+        algorithm: request.algorithm.unwrap(),
+        created_at: record.created_at.assume_utc().unix_timestamp(),
+        modified_at: record.modified_at.assume_utc().unix_timestamp(),
+    };
+
+    Ok(service_api::ApplicationResponse::Json(new_record))
 }

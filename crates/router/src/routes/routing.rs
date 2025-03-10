@@ -724,6 +724,51 @@ pub async fn list_surcharge_decision_manager_configs(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
+pub async fn add_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+    payload: web::Json<api_models::surcharge_decision_configs::SurchargeDecisionConfigReq>,
+    transaction_type: enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    let profile_id = path.into_inner();
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            surcharge_decision_config::add_surcharge_decision_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                profile_id.clone(),
+                payload,
+                transaction_type,
+                algorithm_type,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSurchargeDecisionManagerWrite,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileSurchargeDecisionManagerWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
 pub async fn upsert_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,

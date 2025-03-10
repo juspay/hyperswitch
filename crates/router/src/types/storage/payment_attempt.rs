@@ -222,6 +222,7 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
+            surcharge_algorithm_id: Default::default(),
         };
 
         let store = state
@@ -309,6 +310,7 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
+            surcharge_algorithm_id: Default::default(),
         };
         let store = state
             .stores
@@ -409,6 +411,7 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
+            surcharge_algorithm_id: Default::default(),
         };
         let store = state
             .stores

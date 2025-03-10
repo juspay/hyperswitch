@@ -65,6 +65,7 @@ pub struct SurchargeDecisionConfigReq {
     pub name: Option<String>,
     pub merchant_surcharge_configs: MerchantSurchargeConfigs,
     pub algorithm: Option<Program<SurchargeDecisionConfigs>>,
+    pub description: Option<String>,
 }
 
 impl events::ApiEventMetric for SurchargeDecisionConfigReq {
@@ -73,6 +74,18 @@ impl events::ApiEventMetric for SurchargeDecisionConfigReq {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SurchargeDecisionManagerConfig {
+    pub merchant_surcharge_configs: MerchantSurchargeConfigs,
+    pub algorithm: Option<Program<SurchargeDecisionConfigs>>,
+}
+
+impl events::ApiEventMetric for SurchargeDecisionManagerConfig {
+    fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
+        Some(events::ApiEventsType::Routing)
+    }
+}
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MerchantSurchargeConfigs {
     pub show_surcharge_breakup_screen: Option<bool>,

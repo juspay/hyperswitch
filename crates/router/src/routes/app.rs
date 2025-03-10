@@ -897,6 +897,20 @@ impl Routing {
                 )),
             )
             .service(
+                web::resource("/decision/surcharge/{profile_id}").route(web::post().to(
+                    |state, req, path, payload| {
+                        routing::add_surcharge_decision_manager_config(
+                            state,
+                            req,
+                            path,
+                            payload,
+                            TransactionType::Payment,
+                            AlgorithmType::Surcharge,
+                        )
+                    },
+                )),
+            )
+            .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(
                     |state, req, path, payload| {
                         routing::routing_update_default_config_for_profile(
