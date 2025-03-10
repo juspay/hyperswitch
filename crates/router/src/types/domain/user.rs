@@ -654,13 +654,12 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
         );
         let new_organization = NewUserOrganization::from(value);
-        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
 
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
-            product_type,
+            product_type: None,
         })
     }
 }
@@ -683,12 +682,11 @@ impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for Ne
     fn from(value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier)) -> Self {
         let merchant_id = value.1.merchant_id.clone();
         let new_organization = NewUserOrganization::from(value);
-        let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
         Self {
             company_name: None,
             merchant_id,
             new_organization,
-            product_type,
+            product_type: None,
         }
     }
 }
