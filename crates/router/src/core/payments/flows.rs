@@ -217,7 +217,6 @@ impl<const T: u8>
 
 default_imp_for_complete_authorize!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -258,7 +257,6 @@ impl<const T: u8>
 }
 default_imp_for_webhook_source_verification!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -302,7 +300,6 @@ impl<const T: u8>
 
 default_imp_for_create_customer!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -347,7 +344,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -732,7 +728,6 @@ impl<const T: u8>
 
 default_imp_for_post_processing_steps!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Nmi,
     connector::Stripe,
     connector::Ebanx,
@@ -839,7 +834,6 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1009,7 +1003,6 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
@@ -1052,7 +1045,6 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
@@ -1097,7 +1089,6 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1140,7 +1131,6 @@ impl<const T: u8>
 
 default_imp_for_approve!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1184,7 +1174,6 @@ impl<const T: u8>
 
 default_imp_for_reject!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1337,7 +1326,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1381,7 +1369,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1425,7 +1412,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1469,7 +1455,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1513,7 +1498,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1555,7 +1539,6 @@ impl<const T: u8>
 
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1597,7 +1580,6 @@ impl<const T: u8>
 }
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -1817,7 +1799,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_authorize_session_token!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -1859,7 +1840,6 @@ impl<const T: u8>
 }
 
 default_imp_for_calculate_tax!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -1901,7 +1881,6 @@ impl<const T: u8>
 }
 
 default_imp_for_session_update!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -1943,7 +1922,6 @@ impl<const T: u8>
 }
 
 default_imp_for_post_session_tokens!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -1989,7 +1967,6 @@ impl<const T: u8>
 
 default_imp_for_uas_pre_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -2031,7 +2008,6 @@ impl<const T: u8>
 
 default_imp_for_uas_post_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -2062,7 +2038,6 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 
 default_imp_for_uas_authentication_confirmation!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -2117,7 +2092,6 @@ impl<const T: u8>
 
 default_imp_for_uas_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -2272,7 +2246,6 @@ impl<const T: u8>
 
 default_imp_for_additional_revenue_recovery_call!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
