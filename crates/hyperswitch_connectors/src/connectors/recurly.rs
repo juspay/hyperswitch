@@ -67,12 +67,12 @@ impl Recurly {
         let security_header_str = security_header
             .to_str()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let header_parts: Vec<Vec<u8>>= security_header_str
+        let header_parts: Vec<Vec<u8>> = security_header_str
             .split(',')
             .map(|part| part.trim().as_bytes().to_vec())
             .collect();
-    
-        Ok(header_parts)  
+
+        Ok(header_parts)
     }
 }
 
@@ -581,7 +581,9 @@ impl webhooks::IncomingWebhook for Recurly {
         /// The `recurly-signature` header consists of a Unix timestamp (in milliseconds) followed by one or more HMAC-SHA256 signatures, separated by commas.  
         /// Multiple signatures exist when a secret key is regenerated, with the old key remaining active for 24 hours.  
         let header_values = Recurly::get_signature_elements_from_header(request.headers)?;
-        let signature = header_values.get(1).ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let signature = header_values
+            .get(1)
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
@@ -592,7 +594,9 @@ impl webhooks::IncomingWebhook for Recurly {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header_values = Recurly::get_signature_elements_from_header(request.headers)?;
-        let timestamp = header_values.get(0).ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let timestamp = header_values
+            .get(0)
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(format!(
             "{}.{}",
             String::from_utf8_lossy(&timestamp),
@@ -655,7 +659,5 @@ impl webhooks::IncomingWebhook for Recurly {
         Ok(Box::new(webhook))
     }
 }
-
-
 
 impl ConnectorSpecifications for Recurly {}
