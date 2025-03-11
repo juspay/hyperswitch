@@ -4,6 +4,7 @@ use api_models::analytics::{
     auth_events::{AuthEventDimensions, AuthEventFilters, AuthEventMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
+use common_enums::DecoupledAuthenticationType;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -67,7 +68,10 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("trans_status", "C".to_string())
+            .add_filter_clause(
+                "authentication_type",
+                DecoupledAuthenticationType::Challenge,
+            )
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
@@ -99,6 +103,7 @@ where
                     AuthEventMetricsBucketIdentifier::new(
                         i.authentication_status.as_ref().map(|i| i.0),
                         i.trans_status.as_ref().map(|i| i.0.clone()),
+                        i.authentication_type.as_ref().map(|i| i.0.clone()),
                         i.error_message.clone(),
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),
