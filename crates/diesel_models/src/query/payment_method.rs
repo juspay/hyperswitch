@@ -1,23 +1,9 @@
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 use async_bb8_diesel::AsyncRunQueryDsl;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use diesel::Table;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use diesel::{debug_query, pg::Pg, QueryDsl};
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+use diesel::{Table, associations::HasTable, BoolExpressionMethods, ExpressionMethods, debug_query, pg::Pg, QueryDsl};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -138,6 +124,31 @@ impl PaymentMethod {
                 dsl::customer_id
                     .eq(customer_id.to_owned())
                     .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                    .and(dsl::status.eq(status.to_owned())),
+            )
+            .into_boxed();
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            generics::db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to get a count of payment methods")
+    }
+
+    pub async fn get_count_by_merchant_id_status(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> StorageResult<i64> {
+        let filter = <Self as HasTable>::table()
+            .count()
+            .filter(
+                    dsl::merchant_id
+                    .eq(merchant_id.to_owned())
                     .and(dsl::status.eq(status.to_owned())),
             )
             .into_boxed();
@@ -274,5 +285,30 @@ impl PaymentMethod {
             dsl::locker_fingerprint_id.eq(fingerprint_id.to_owned()),
         )
         .await
+    }
+
+    pub async fn get_count_by_merchant_id_status(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> StorageResult<i64> {
+        let filter = <Self as HasTable>::table()
+            .count()
+            .filter(
+                    dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::status.eq(status.to_owned())),
+            )
+            .into_boxed();
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            generics::db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to get a count of payment methods")
     }
 }

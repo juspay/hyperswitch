@@ -1881,8 +1881,18 @@ pub struct CustomerPaymentMethodsListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<CustomerPaymentMethod>, //
 }
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct TotalPaymentMethodCountResponse {
+    /// total count of payment methods under the merchant
+    pub total_count: i64,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl common_utils::events::ApiEventMetric for TotalPaymentMethodCountResponse {}
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -1980,6 +1990,8 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+    
+    
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

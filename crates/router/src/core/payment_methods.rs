@@ -1308,6 +1308,22 @@ pub async fn list_saved_payment_methods_for_customer(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn get_total_saved_payment_methods_for_merchant(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+) -> RouterResponse<api::TotalPaymentMethodCountResponse> {
+    let total_payment_method_count =
+    get_total_payment_method_count_core(&state, &merchant_account, &key_store)
+            .await?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        total_payment_method_count,
+    ))
+}
+
 #[cfg(feature = "v2")]
 /// Container for the inputs required for the required fields
 struct RequiredFieldsInput {
@@ -1776,6 +1792,31 @@ pub async fn list_customer_payment_method_core(
 
     Ok(response)
 }
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn get_total_payment_method_count_core(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<api::TotalPaymentMethodCountResponse> {
+    let db = &*state.store;
+    // let key_manager_state = &(state).into();
+
+    let total_count = db
+        .get_payment_method_count_by_merchant_id_status(
+            merchant_account.get_id(),
+            common_enums::PaymentMethodStatus::Active,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let response = api::TotalPaymentMethodCountResponse {
+        total_count,
+    };
+
+    Ok(response)
+}
+
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]

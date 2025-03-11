@@ -110,6 +110,12 @@ pub trait PaymentMethodInterface {
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError>;
 
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError>;
+
     async fn insert_payment_method(
         &self,
         state: &KeyManagerState,
@@ -409,6 +415,22 @@ mod storage {
             storage_types::PaymentMethod::get_count_by_customer_id_merchant_id_status(
                 &conn,
                 customer_id,
+                merchant_id,
+                status,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        async fn get_payment_method_count_by_merchant_id_status(
+            &self,
+            merchant_id: &id_type::MerchantId,
+            status: common_enums::PaymentMethodStatus,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::PaymentMethod::get_count_by_merchant_id_status(
+                &conn,
                 merchant_id,
                 status,
             )
@@ -1062,6 +1084,22 @@ mod storage {
         }
 
         #[instrument(skip_all)]
+        async fn get_payment_method_count_by_merchant_id_status(
+            &self,
+            merchant_id: &id_type::MerchantId,
+            status: common_enums::PaymentMethodStatus,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::PaymentMethod::get_count_merchant_id_status(
+                &conn,
+                merchant_id,
+                status,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
         async fn insert_payment_method(
             &self,
             state: &KeyManagerState,
@@ -1505,6 +1543,22 @@ impl PaymentMethodInterface for MockDb {
             .filter(|pm| {
                 pm.customer_id == *customer_id
                     && pm.merchant_id == *merchant_id
+                    && pm.status == status
+            })
+            .count();
+        i64::try_from(count).change_context(errors::StorageError::MockDbError)
+    }
+
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let count = payment_methods
+            .iter()
+            .filter(|pm| {
+                    pm.merchant_id == *merchant_id
                     && pm.status == status
             })
             .count();

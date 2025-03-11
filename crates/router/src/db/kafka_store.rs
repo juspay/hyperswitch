@@ -2175,6 +2175,19 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_method_count_by_merchant_id_status(
+                merchant_id,
+                status,
+            )
+            .await
+    }
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
