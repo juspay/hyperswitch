@@ -488,7 +488,7 @@ pub enum RevenueRecoveryError {
     #[error("Payment merchant connector account not found using acccount reference id")]
     PaymentMerchantConnectorAccountNotFound,
     #[error("Failed to fetch primitive date_time")]
-    PrimitiveDateTimeNotFound,
+    ScheduleTimeFetchFailed,
     #[error("Failed to create process tracker")]
     ProcessTrackerCreationError,
     #[error("Failed to get the response from process tracker")]

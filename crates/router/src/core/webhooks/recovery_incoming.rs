@@ -1,16 +1,16 @@
 use api_models::{payments as api_payments, webhooks};
 use common_utils::{ext_traits::AsyncExt, id_type};
-use diesel_models::process_tracker as storage;
+use diesel_models::{process_tracker as storage, schema::process_tracker::retry_count};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{errors::api_error_response, revenue_recovery};
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
+use serde_with::rust::unwrap_or_skip;
 
 use crate::{
     core::{
         errors::{self, CustomResult},
         payments,
-        utils::GetProfileId,
     },
     db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
@@ -137,10 +137,8 @@ pub async fn recovery_incoming_webhook_flow(
             Ok(RevenueRecoveryAttempt::insert_execute_pcr_task(
                 &*state.store,
                 merchant_account.get_id().to_owned(),
-                payment_intent.payment_id,
-                business_profile.get_profile_id().cloned().ok_or(report!(
-                    errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed
-                ))?,
+                payment_intent,
+                business_profile.get_id().to_owned(),
                 payment_attempt.map(|attempt| attempt.attempt_id.clone()),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
             )
@@ -148,7 +146,11 @@ pub async fn recovery_incoming_webhook_flow(
             .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)?)
         }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
-            todo!()
+            // Need to add recovery stop flow for this scenario
+            router_env::logger::info!(
+                "Payment has been succeeded via external system"
+            );
+            Ok(webhooks::WebhookResponseTracker::NoEffect)
         }
         revenue_recovery::RecoveryAction::PendingPayment => {
             router_env::logger::info!(
@@ -450,26 +452,33 @@ impl RevenueRecoveryAttempt {
     async fn insert_execute_pcr_task(
         db: &dyn StorageInterface,
         merchant_id: id_type::MerchantId,
-        payment_id: id_type::GlobalPaymentId,
+        payment_intent: revenue_recovery::RecoveryPaymentIntent,
         profile_id: id_type::ProfileId,
         payment_attempt_id: Option<id_type::GlobalAttemptId>,
         runner: storage::ProcessTrackerRunner,
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
         let task = "EXECUTE_WORKFLOW";
 
-        let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
+        let payment_id=payment_intent.payment_id.clone();
 
+        let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
+        
+        let total_retry_count= payment_intent
+            .feature_metadata
+            .and_then(|feature_metadata|feature_metadata.get_retry_count())
+            .unwrap_or(0);
+            
         let schedule_time =
             passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments(
                 db,
                 &merchant_id,
-                0,
+                total_retry_count.into(),
             )
             .await
             .map_or_else(
                 || {
                     Err(
-                        report!(errors::RevenueRecoveryError::PrimitiveDateTimeNotFound)
+                        report!(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
                             .attach_printable("Failed to get schedule time for pcr workflow"),
                     )
                 },
@@ -488,6 +497,7 @@ impl RevenueRecoveryAttempt {
             profile_id,
             payment_attempt_id,
         };
+
         let tag = ["PCR"];
 
         let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -509,7 +519,7 @@ impl RevenueRecoveryAttempt {
 
         Ok(webhooks::WebhookResponseTracker::Payment {
             payment_id,
-            status: common_enums::IntentStatus::Succeeded, // Update with appropriate status
+            status: payment_intent.status,
         })
     }
 }
