@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0-hotfix5
+
+### Bug Fixes
+
+- **router:** Pass card network for external 3DS from additional_payment_method_data ([#7481](https://github.com/juspay/hyperswitch/pull/7481)) ([`98ce5f4`](https://github.com/juspay/hyperswitch/commit/98ce5f422273c4e13264212ad9a775baa26e7d5e))
+
+**Full Changelog:** [`2025.03.05.0-hotfix4...2025.03.05.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0-hotfix4...2025.03.05.0-hotfix5)
+
+
+- - -
+
 ## 2025.03.05.0-hotfix4
 
 ### Bug Fixes
