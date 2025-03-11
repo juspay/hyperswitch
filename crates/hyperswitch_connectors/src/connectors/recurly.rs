@@ -57,6 +57,23 @@ impl Recurly {
             amount_converter: &StringMinorUnitForConnector,
         }
     }
+
+    fn get_signature_elements_from_header(
+        headers: &actix_web::http::header::HeaderMap,
+    ) -> CustomResult<Vec<Vec<u8>>, errors::ConnectorError> {
+        let security_header = headers
+            .get("recurly-signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let security_header_str = security_header
+            .to_str()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let header_parts: Vec<Vec<u8>>= security_header_str
+            .split(',')
+            .map(|part| part.trim().as_bytes().to_vec())
+            .collect();
+    
+        Ok(header_parts)  
+    }
 }
 
 impl api::Payment for Recurly {}
@@ -561,12 +578,10 @@ impl webhooks::IncomingWebhook for Recurly {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        //signature contains the timestamp and the signature and signature will have the versions we need only v1
-        //handled where the signature is needed
-        let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
-        let signature = header_hashmap
-            .remove("v1")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        /// The `recurly-signature` header consists of a Unix timestamp (in milliseconds) followed by one or more HMAC-SHA256 signatures, separated by commas.  
+        /// Multiple signatures exist when a secret key is regenerated, with the old key remaining active for 24 hours.  
+        let header_values = Recurly::get_signature_elements_from_header(request.headers)?;
+        let signature = header_values.get(1).ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
@@ -576,10 +591,8 @@ impl webhooks::IncomingWebhook for Recurly {
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let mut header_hashmap = get_signature_elements_from_header(request.headers)?;
-        let timestamp = header_hashmap
-            .remove("t")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let header_values = Recurly::get_signature_elements_from_header(request.headers)?;
+        let timestamp = header_values.get(0).ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(format!(
             "{}.{}",
             String::from_utf8_lossy(&timestamp),
@@ -643,28 +656,6 @@ impl webhooks::IncomingWebhook for Recurly {
     }
 }
 
-fn get_signature_elements_from_header(
-    headers: &actix_web::http::header::HeaderMap,
-) -> CustomResult<HashMap<String, Vec<u8>>, errors::ConnectorError> {
-    let security_header = headers
-        .get("recurly-signature")
-        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
-    let security_header_str = security_header
-        .to_str()
-        .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-    let header_parts = security_header_str.split(',').collect::<Vec<&str>>();
-    let mut header_hashmap: HashMap<String, Vec<u8>> = HashMap::with_capacity(header_parts.len());
 
-    for (index, header_part) in header_parts.iter().enumerate() {
-        let key = if index == 0 {
-            "t".to_string()
-        } else {
-            format!("v{}", index)
-        };
-
-        header_hashmap.insert(key, header_part.bytes().collect());
-    }
-    Ok(header_hashmap)
-}
 
 impl ConnectorSpecifications for Recurly {}
