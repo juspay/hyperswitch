@@ -7,7 +7,7 @@ use std::{
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::{EntityType, MerchantProductType};
+use common_enums::EntityType;
 use common_utils::{
     crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
@@ -391,7 +391,7 @@ pub struct NewUserMerchant {
     merchant_id: id_type::MerchantId,
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
-    product_type: Option<MerchantProductType>,
+    product_type: Option<common_enums::MerchantProductType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -416,7 +416,7 @@ impl NewUserMerchant {
         self.new_organization.clone()
     }
 
-    pub fn get_product_type(&self) -> Option<MerchantProductType> {
+    pub fn get_product_type(&self) -> Option<common_enums::MerchantProductType> {
         self.product_type.clone()
     }
 

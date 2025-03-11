@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{ApiVersion, EntityType, MerchantProductType, TokenPurpose};
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
@@ -133,7 +133,7 @@ pub struct UserOrgMerchantCreateRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
-    pub product_type: Option<MerchantProductType>,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -386,8 +386,8 @@ pub struct ListOrgsForUserResponse {
 pub struct UserMerchantAccountResponse {
     pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
-    pub product_type: Option<MerchantProductType>,
-    pub version: ApiVersion,
+    pub product_type: Option<common_enums::MerchantProductType>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[derive(Debug, serde::Serialize)]
