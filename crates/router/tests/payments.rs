@@ -448,9 +448,12 @@ async fn payments_create_core() {
         split_payments: None,
         frm_metadata: None,
         merchant_order_reference_id: None,
+        capture_before: None,
+        extended_authorization_applied: None,
         order_tax_amount: None,
         connector_mandate_id: None,
         shipping_cost: None,
+        card_discovery: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -712,9 +715,12 @@ async fn payments_create_core_adyen_no_redirect() {
             split_payments: None,
             frm_metadata: None,
             merchant_order_reference_id: None,
+            capture_before: None,
+            extended_authorization_applied: None,
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,
+            card_discovery: None,
         },
         vec![],
     ));

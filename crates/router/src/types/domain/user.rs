@@ -245,7 +245,7 @@ pub struct NewUserOrganization(diesel_org::OrganizationNew);
 impl NewUserOrganization {
     pub async fn insert_org_in_db(self, state: SessionState) -> UserResult<Organization> {
         state
-            .store
+            .accounts_store
             .insert_organization(self.0)
             .await
             .map_err(|e| {
@@ -450,6 +450,7 @@ impl NewUserMerchant {
             organization_id: self.new_organization.get_organization_id(),
             metadata: None,
             merchant_details: None,
+            product_type: None,
         })
     }
 
@@ -476,6 +477,7 @@ impl NewUserMerchant {
             enable_payment_response_hash: None,
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
+            product_type: None,
         })
     }
 

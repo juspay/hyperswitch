@@ -200,24 +200,6 @@ impl SecretsHandler for settings::PazeDecryptConfig {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::GooglePayDecryptConfig {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let google_pay_decrypt_keys = value.get_inner();
-
-        let google_pay_root_signing_keys = secret_management_client
-            .get_secret(google_pay_decrypt_keys.google_pay_root_signing_keys.clone())
-            .await?;
-
-        Ok(value.transition_state(|_| Self {
-            google_pay_root_signing_keys,
-        }))
-    }
-}
-
-#[async_trait::async_trait]
 impl SecretsHandler for settings::ApplepayMerchantConfigs {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -439,20 +421,6 @@ pub(crate) async fn fetch_raw_secrets(
     };
 
     #[allow(clippy::expect_used)]
-    let google_pay_decrypt_keys = if let Some(google_pay_keys) = conf.google_pay_decrypt_keys {
-        Some(
-            settings::GooglePayDecryptConfig::convert_to_raw_secret(
-                google_pay_keys,
-                secret_management_client,
-            )
-            .await
-            .expect("Failed to decrypt google pay decrypt configs"),
-        )
-    } else {
-        None
-    };
-
-    #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
         conf.applepay_merchant_configs,
         secret_management_client,
@@ -538,13 +506,14 @@ pub(crate) async fn fetch_raw_secrets(
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
+        // additional_revenue_recovery_details_call: conf.additional_revenue_recovery_details_call,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]
         payouts: conf.payouts,
         applepay_decrypt_keys,
         paze_decrypt_keys,
-        google_pay_decrypt_keys,
+        google_pay_decrypt_keys: conf.google_pay_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
