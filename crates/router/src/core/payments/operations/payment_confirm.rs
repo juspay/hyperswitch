@@ -1081,6 +1081,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     }
                     _ => common_enums::IntentStatus::RequiresCustomerAction,
                 };
+                let new_attempt_status = match new_intent_status {
+                    common_enums::IntentStatus::Succeeded => storage_enums::AttemptStatus::Charged,
+                    common_enums::IntentStatus::Failed => storage_enums::AttemptStatus::Failure,
+                    _ => storage_enums::AttemptStatus::AuthenticationPending,
+                };
                 payment_data.payment_intent = state
                     .store
                     .update_payment_intent(
@@ -1097,6 +1102,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                     .attach_printable(
                         "Failed to update status in Payment Intent during authentication",
+                    )?;
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        storage::PaymentAttemptUpdate::StatusUpdate {
+                            status: new_attempt_status,
+                            updated_by: "postgres_only".to_string(),
+                        },
+                        common_enums::MerchantStorageScheme::PostgresOnly,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update status in Payment attempt during authentication",
                     )?;
                 Some(authentication)
             }
@@ -1549,6 +1569,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         F: 'b + Send,
     {
         let prev_intent_status = payment_data.payment_intent.status.clone();
+        let prev_attempt_status = payment_data.payment_attempt.status.clone();
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
@@ -1740,7 +1761,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
                         currency: payment_data.currency,
-                        status: attempt_status,
+                        status: if prev_attempt_status.is_terminal_status() {
+                            prev_attempt_status
+                        } else {
+                            attempt_status
+                        },
                         payment_method,
                         authentication_type,
                         capture_method: m_capture_method,

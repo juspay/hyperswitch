@@ -7659,6 +7659,11 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         common_enums::TransactionStatus::Failure => common_enums::IntentStatus::Failed,
         _ => common_enums::IntentStatus::RequiresCustomerAction,
     };
+    let new_attempt_status = match new_intent_status {
+        common_enums::IntentStatus::Succeeded => storage_enums::AttemptStatus::Charged,
+        common_enums::IntentStatus::Failed => storage_enums::AttemptStatus::Failure,
+        _ => storage_enums::AttemptStatus::AuthenticationPending,
+    };
     db.update_payment_intent(
         key_manager_state,
         payment_intent.clone(),
@@ -7672,6 +7677,17 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
     .attach_printable("Failed to update status in Payment Intent during authentication")?;
+    db.update_payment_attempt_with_attempt_id(
+        payment_attempt,
+        storage::PaymentAttemptUpdate::StatusUpdate {
+            status: new_attempt_status,
+            updated_by: storage_scheme.to_string(),
+        },
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update status in Payment attempt during authentication")?;
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,

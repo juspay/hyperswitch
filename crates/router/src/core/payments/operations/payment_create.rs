@@ -1324,7 +1324,7 @@ impl PaymentCreate {
                     MinorUnit::from(amount),
                 ),
                 save_to_locker: None,
-                connector: Some("juspay".to_string()),
+                connector: Some("juspaythreedsserver".to_string()),
                 error_message: None,
                 offer_amount: None,
                 payment_method_id: payment_method_info
