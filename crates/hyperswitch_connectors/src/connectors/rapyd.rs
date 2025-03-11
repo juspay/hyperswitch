@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -59,12 +59,12 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Rapyd {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 impl Rapyd {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -101,7 +101,7 @@ impl ConnectorCommon for Rapyd {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
