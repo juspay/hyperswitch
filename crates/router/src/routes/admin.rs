@@ -135,6 +135,7 @@ pub async fn merchant_account_create(
         merchant_details: json_payload.merchant_details,
         metadata: json_payload.metadata,
         organization_id: org_id,
+        product_type: json_payload.product_type,
     };
 
     Box::pin(api::server_wrap(
@@ -456,7 +457,7 @@ pub async fn connector_retrieve(
     let id = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -477,7 +478,7 @@ pub async fn connector_retrieve(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -491,7 +492,7 @@ pub async fn connector_list(
     let flow = Flow::MerchantConnectorsList;
     let profile_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -507,7 +508,7 @@ pub async fn connector_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

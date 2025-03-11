@@ -1,10 +1,12 @@
 pub mod transformers;
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::{enums, CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
 use common_utils::{
     consts::BASE64_ENGINE,
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
@@ -43,8 +45,9 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, Response},
     webhooks,
 };
+use image::EncodableLayout;
 use masking::{Mask, PeekInterface};
-use transformers as xendit;
+use transformers::{self as xendit, XenditEventType, XenditWebhookEvent};
 
 use crate::{
     constants::headers,
@@ -483,10 +486,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: xendit::XenditPaymentResponse = res
-            .response
-            .parse_struct("xendit XenditPaymentResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: xendit::XenditResponse =
+            res.response
+                .parse_struct("xendit XenditResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -803,25 +806,101 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Xendit {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Xendit {
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value = utils::get_header_key_value("X-CALLBACK-TOKEN", request.headers)?;
+        Ok(header_value.into())
+    }
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let secret_key = connector_webhook_secrets.secret;
+        Ok(secret_key.as_bytes() == (signature).as_bytes())
+    }
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: XenditWebhookEvent = request
+            .body
+            .parse_struct("XenditWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        match details.event {
+            XenditEventType::PaymentSucceeded
+            | XenditEventType::PaymentAwaitingCapture
+            | XenditEventType::PaymentFailed
+            | XenditEventType::CaptureSucceeded
+            | XenditEventType::CaptureFailed => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details
+                            .data
+                            .payment_request_id
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                ))
+            }
+        }
     }
-
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        let body: XenditWebhookEvent = request
+            .body
+            .parse_struct("XenditWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        match body.event {
+            XenditEventType::PaymentSucceeded => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
+            XenditEventType::CaptureSucceeded => {
+                Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess)
+            }
+            XenditEventType::PaymentAwaitingCapture => {
+                Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+            }
+            XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
+                Ok(IncomingWebhookEvent::PaymentIntentFailure)
+            }
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: XenditWebhookEvent = request
+            .body
+            .parse_struct("XenditWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(Box::new(body))
     }
 }
 
@@ -838,25 +917,6 @@ impl ConnectorRedirectResponse for Xendit {
             PaymentAction::PSync
             | PaymentAction::PaymentAuthenticateCompleteAuthorize
             | PaymentAction::CompleteAuthorize => Ok(CallConnectorAction::Trigger),
-            // PaymentAction::CompleteAuthorize => {
-            //     let parsed_query: Vec<(String, String)> =
-            //         form_urlencoded::parse(query_params.as_bytes())
-            //             .into_owned()
-            //             .collect();
-            //     let status = parsed_query
-            //         .iter()
-            //         .find(|(key, _)| key == "status")
-            //         .map(|(_, value)| value.as_str());
-
-            //     match status {
-            //         Some("VERIFIED") => Ok(CallConnectorAction::Trigger),
-            //         _ => Ok(CallConnectorAction::StatusUpdate {
-            //             status: enums::AttemptStatus::AuthenticationFailed,
-            //             error_code: Some("INVALID_STATUS".to_string()),
-            //             error_message: Some("INVALID_STATUS".to_string()),
-            //         }),
-            //     }
-            // }
         }
     }
 }

@@ -67,3 +67,6 @@ pub struct PaymentUpdateIntent;
 
 #[derive(Debug, Clone)]
 pub struct PostSessionTokens;
+
+#[derive(Debug, Clone)]
+pub struct RecordAttempt;

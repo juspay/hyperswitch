@@ -6,6 +6,11 @@ pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub mod tokenize;
 pub mod transformers;
 pub mod utils;
 mod validator;
@@ -922,7 +927,7 @@ pub async fn create_payment_method_core(
         merchant_id,
         key_store,
         merchant_account.storage_scheme,
-        payment_method_billing_address.map(Into::into),
+        payment_method_billing_address,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -1213,7 +1218,7 @@ pub async fn payment_method_intent_create(
         merchant_id,
         key_store,
         merchant_account.storage_scheme,
-        payment_method_billing_address.map(Into::into),
+        payment_method_billing_address,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;

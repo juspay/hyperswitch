@@ -4,6 +4,7 @@ use api_models::{
     analytics::{frm::FrmTransactionType, refunds::RefundType},
     enums::{DisputeStage, DisputeStatus},
 };
+use common_enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     DbConnectionParams,
@@ -96,6 +97,9 @@ db_type!(FraudCheckStatus);
 db_type!(FrmTransactionType);
 db_type!(DisputeStage);
 db_type!(DisputeStatus);
+db_type!(AuthenticationStatus);
+db_type!(TransactionStatus);
+db_type!(AuthenticationConnectors);
 
 impl<'q, Type> Encode<'q, Postgres> for DBEnumWrapper<Type>
 where
@@ -159,6 +163,8 @@ impl super::disputes::filters::DisputeFilterAnalytics for SqlxClient {}
 impl super::disputes::metrics::DisputeMetricAnalytics for SqlxClient {}
 impl super::frm::metrics::FrmMetricAnalytics for SqlxClient {}
 impl super::frm::filters::FrmFilterAnalytics for SqlxClient {}
+impl super::auth_events::metrics::AuthEventMetricAnalytics for SqlxClient {}
+impl super::auth_events::filters::AuthEventFilterAnalytics for SqlxClient {}
 
 #[async_trait::async_trait]
 impl AnalyticsDataSource for SqlxClient {
@@ -187,6 +193,94 @@ impl HealthCheck for SqlxClient {
             .await
             .map(|_| ())
             .change_context(QueryExecutionError::DatabaseError)
+    }
+}
+
+impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let authentication_status: Option<DBEnumWrapper<AuthenticationStatus>> =
+            row.try_get("authentication_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let trans_status: Option<DBEnumWrapper<TransactionStatus>> =
+            row.try_get("trans_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let error_message: Option<String> = row.try_get("error_message").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let authentication_connector: Option<DBEnumWrapper<AuthenticationConnectors>> = row
+            .try_get("authentication_connector")
+            .or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let message_version: Option<String> =
+            row.try_get("message_version").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let count: Option<i64> = row.try_get("count").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        // Removing millisecond precision to get accurate diffs against clickhouse
+        let start_bucket: Option<PrimitiveDateTime> = row
+            .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
+            .and_then(|dt| dt.replace_millisecond(0).ok());
+        let end_bucket: Option<PrimitiveDateTime> = row
+            .try_get::<Option<PrimitiveDateTime>, _>("end_bucket")?
+            .and_then(|dt| dt.replace_millisecond(0).ok());
+        Ok(Self {
+            authentication_status,
+            trans_status,
+            error_message,
+            authentication_connector,
+            message_version,
+            count,
+            start_bucket,
+            end_bucket,
+        })
+    }
+}
+
+impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let authentication_status: Option<DBEnumWrapper<AuthenticationStatus>> =
+            row.try_get("authentication_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let trans_status: Option<DBEnumWrapper<TransactionStatus>> =
+            row.try_get("trans_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let error_message: Option<String> = row.try_get("error_message").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let authentication_connector: Option<DBEnumWrapper<AuthenticationConnectors>> = row
+            .try_get("authentication_connector")
+            .or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let message_version: Option<String> =
+            row.try_get("message_version").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        Ok(Self {
+            authentication_status,
+            trans_status,
+            error_message,
+            authentication_connector,
+            message_version,
+        })
     }
 }
 
@@ -1034,6 +1128,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::Dispute => Ok("dispute".to_string()),
             Self::DisputeSessionized => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,
+            Self::Authentications => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("Authentications table is not implemented for Sqlx"))?,
         }
     }
 }
