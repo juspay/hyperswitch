@@ -162,23 +162,24 @@ default_db_url := 'postgresql://' + db_user + ':' + db_password + '@' + db_host 
 database_url := env_var_or_default('DATABASE_URL', default_db_url)
 default_migration_params := ''
 v2_migration_dir := source_directory() / 'v2_migrations'
+v2_compatible_migrations := source_directory() / 'v2_compatible_migrations'
 v1_migration_dir := source_directory() / 'migrations'
 resultant_dir := source_directory() / 'final-migrations'
 
-# Copy v1 and v2 migrations to a single directory
+# Copy migrations in {{dir_1}} and {{dir_2}} to a single directory {{resultant_dir}} after prefixing the subdirectories of {{dir_2}} with {{prefix}}
 [private]
-copy_migrations:
+prefix_and_copy_migrations dir_1 dir_2 prefix resultant_dir:
     #! /usr/bin/env bash
     mkdir -p {{resultant_dir}}
-    cp -r {{v1_migration_dir}}/* {{resultant_dir}}/
+    cp -r {{dir_1}}/* {{resultant_dir}}/ > /dev/null 2>&1
 
-    # Prefix v2 migrations with 9
+    # Prefix v2 migrations with {{prefix}}
     sh -c '
-    for dir in "{{v2_migration_dir}}"/*; do
-        if [ -d "$dir" ]; then
-            base_name=$(basename "$dir")
-            new_name="9$base_name" 
-            cp -r "$dir" "{{resultant_dir}}/$new_name"
+    for dir in "{{dir_2}}"/*; do
+        if [ -d "${dir}" ]; then
+            base_name=$(basename "${dir}")
+            new_name="{{prefix}}${base_name}"
+            cp -r "${dir}" "{{resultant_dir}}/${new_name}"
         fi
     done
     '
@@ -212,13 +213,28 @@ migrate_v2 operation=default_operation *args='':
     set -euo pipefail
 
     EXIT_CODE=0
-    just copy_migrations
+    just prefix_and_copy_migrations {{ v1_migration_dir }} {{ v2_compatible_migrations }} 8 {{ resultant_dir }}
+    just prefix_and_copy_migrations {{ resultant_dir }} {{ v2_migration_dir }} 9 {{ resultant_dir }}
     just run_migration {{ operation }} {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
     just delete_dir_if_exists
     exit $EXIT_CODE
 
+# Run database migrations compatible with both v1 and v2
+migrate_v2_compatible:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    EXIT_CODE=0
+    just prefix_and_copy_migrations {{ v1_migration_dir }} {{ v2_compatible_migrations }} 8 {{ resultant_dir }}
+
+    # Run the compatible migrations
+    just run_migration run {{ resultant_dir }} {{ database_url }} || EXIT_CODE=$?
+
+    just delete_dir_if_exists
+    exit $EXIT_CODE
+
 # Drop database if exists and then create a new 'hyperswitch_db' Database
-resurrect database_name='hyperswitch_db':
+resurrect database_name=db_name:
     psql -U postgres -c 'DROP DATABASE IF EXISTS  {{ database_name }}';
     psql -U postgres -c 'CREATE DATABASE {{ database_name }}';
 

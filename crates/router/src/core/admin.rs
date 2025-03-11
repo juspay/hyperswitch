@@ -404,7 +404,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
                     is_platform_account: false,
-                    product_type: None,
+                    product_type: self.product_type,
                 },
             )
         }
@@ -673,7 +673,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
-                    product_type: None,
+                    product_type: self.product_type,
                 }),
             )
         }
@@ -1402,6 +1402,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            // api_enums::Connector::Hipay => {
+            //     hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Helcim => {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())
