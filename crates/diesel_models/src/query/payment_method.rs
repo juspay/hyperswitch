@@ -3,7 +3,10 @@ use async_bb8_diesel::AsyncRunQueryDsl;
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use diesel::{Table, associations::HasTable, BoolExpressionMethods, ExpressionMethods, debug_query, pg::Pg, QueryDsl};
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    QueryDsl, Table,
+};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -147,7 +150,7 @@ impl PaymentMethod {
         let filter = <Self as HasTable>::table()
             .count()
             .filter(
-                    dsl::merchant_id
+                dsl::merchant_id
                     .eq(merchant_id.to_owned())
                     .and(dsl::status.eq(status.to_owned())),
             )
@@ -295,7 +298,7 @@ impl PaymentMethod {
         let filter = <Self as HasTable>::table()
             .count()
             .filter(
-                    dsl::merchant_id
+                dsl::merchant_id
                     .eq(merchant_id.to_owned())
                     .and(dsl::status.eq(status.to_owned())),
             )

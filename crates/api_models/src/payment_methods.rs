@@ -1990,8 +1990,6 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-    
-    
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

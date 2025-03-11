@@ -1316,8 +1316,7 @@ pub async fn get_total_saved_payment_methods_for_merchant(
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api::TotalPaymentMethodCountResponse> {
     let total_payment_method_count =
-    get_total_payment_method_count_core(&state, &merchant_account, &key_store)
-            .await?;
+        get_total_payment_method_count_core(&state, &merchant_account, &key_store).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         total_payment_method_count,
@@ -1810,13 +1809,10 @@ pub async fn get_total_payment_method_count_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let response = api::TotalPaymentMethodCountResponse {
-        total_count,
-    };
+    let response = api::TotalPaymentMethodCountResponse { total_count };
 
     Ok(response)
 }
-
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]

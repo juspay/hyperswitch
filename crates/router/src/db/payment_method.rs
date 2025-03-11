@@ -1090,13 +1090,9 @@ mod storage {
             status: common_enums::PaymentMethodStatus,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::PaymentMethod::get_count_merchant_id_status(
-                &conn,
-                merchant_id,
-                status,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            storage_types::PaymentMethod::get_count_merchant_id_status(&conn, merchant_id, status)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -1557,10 +1553,7 @@ impl PaymentMethodInterface for MockDb {
         let payment_methods = self.payment_methods.lock().await;
         let count = payment_methods
             .iter()
-            .filter(|pm| {
-                    pm.merchant_id == *merchant_id
-                    && pm.status == status
-            })
+            .filter(|pm| pm.merchant_id == *merchant_id && pm.status == status)
             .count();
         i64::try_from(count).change_context(errors::StorageError::MockDbError)
     }
