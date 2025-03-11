@@ -41,7 +41,9 @@ use crate::{
         user_role::ListUserRolesByUserIdPayload,
     },
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication as auth, authorization::roles, openidconnect, ApiClient, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
@@ -127,6 +129,57 @@ pub async fn get_user_details(
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
+
+    let key_manager_state = &(&state).into();
+
+    let merchant_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await;
+
+    if let Ok(merchant_key_store) = merchant_key_store {
+        let merchant_account =  state
+            .store
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &user_from_token.merchant_id,
+                &merchant_key_store,
+            )
+            .await;
+
+        if let Ok(merchant_account) = merchant_account {
+            merchant_account.version
+        } else if merchant_account
+            .as_ref()
+            .map_err(|e| e.current_context().is_db_not_found())
+            .err()
+            .unwrap_or(false)
+        {
+            common_enums::ApiVersion::V1;
+        } else {
+            Err(merchant_account
+                .err()
+                .map(|e| e.change_context(UserErrors::InternalServerError))
+                .unwrap_or(UserErrors::InternalServerError.into()))
+        }
+
+    } else if merchant_key_store
+        .as_ref()
+        .map_err(|e| e.current_context().is_db_not_found())
+        .err()
+        .unwrap_or(false)
+    {
+        common_enums::ApiVersion::V1;
+    } else {
+        Err(merchant_key_store
+            .err()
+            .map(|e| e.change_context(UserErrors::InternalServerError))
+            .unwrap_or(UserErrors::InternalServerError.into()))
+    }
 
     let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
         &state,
