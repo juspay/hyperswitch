@@ -646,8 +646,8 @@ adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,hal
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
-wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica,novalnet" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,novalnet" }
+wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica,authorizedotnet,novalnet" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,novalnet" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet" }
 card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac" }
