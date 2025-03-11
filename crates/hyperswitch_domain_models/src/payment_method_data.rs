@@ -1,9 +1,7 @@
 use api_models::{
-    mandates,
-    payment_methods::{self},
-    payments::{
+    admin::MerchantConnectorId, mandates, payment_methods::{self}, payments::{
         additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
-    },
+    }
 };
 use common_enums::enums as api_enums;
 use common_utils::{
@@ -13,11 +11,10 @@ use common_utils::{
     },
     pii::{self, Email},
 };
-use diesel_models::schema::locker_mock_up::card_number;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
+use common_utils::ext_traits::OptionExt;
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -651,10 +648,12 @@ pub enum MobilePaymentData {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<api_models::payment_methods::PaymentMethodCreateData> for PaymentMethodData {
-    fn from(value: api_model::payment_methods::PaymentMethodCreateData) -> Self{
+impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+    
+    fn try_from(value: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error>{
         match value{
-            api_models::payment_methods::PaymentMethodCreateData::Card(CardDetail{
+            payment_methods::PaymentMethodCreateData::Card(payment_methods::CardDetail{
                 card_number,
                 card_exp_month,
                 card_exp_year,
@@ -663,22 +662,22 @@ impl From<api_models::payment_methods::PaymentMethodCreateData> for PaymentMetho
                 card_network,
                 card_type,
                 card_issuing_country,
-                bank_code,
                 nick_name,
                 card_holder_name,
-            }) => Self::Card(Card{
+            }) => {
+                Ok(Self::Card(Card{
                 card_number,
                 card_exp_month,
                 card_exp_year,
-                card_cvc,
+                card_cvc: card_cvc.get_required_value("card_cvc")?,
                 card_issuer,
                 card_network,
-                card_type,
-                card_issuing_country,
-                bank_code,
+                card_type: card_type.map(|card_type| card_type.to_string()),
+                card_issuing_country: card_issuing_country.map(|country| country.to_string()),
+                bank_code:None,
                 nick_name,
                 card_holder_name,
-            }),
+            }))},
         }
     }
 }
@@ -1875,6 +1874,26 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodTokenSingleUse {
+    pub token: Option<String>,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+impl PaymentMethodTokenSingleUse
+{ 
+    pub fn get_single_use_token_from_payment_method_token(
+    token: Option<String>,
+    mca_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
+        Self{
+            token,
+            merchant_connector_id: mca_id,
         }
     }
 }

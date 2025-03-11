@@ -189,7 +189,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-) -> RouterResult<types::TokenizationRouterData> {
+) -> RouterResult<types::PaymentsAuthorizeRouterData> {
     use masking::ExposeOptionInterface;
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
