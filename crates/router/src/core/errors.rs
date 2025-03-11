@@ -483,6 +483,6 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
-    #[error("Payment merchant connector account not found using acccount reference id")]
+    #[error("Payment merchant connector account not found using account reference id")]
     PaymentMerchantConnectorAccountNotFound,
 }
