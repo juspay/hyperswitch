@@ -2099,13 +2099,29 @@ impl User {
             web::resource("/create_merchant")
                 .route(web::post().to(user::user_merchant_account_create)),
         );
-        route = route.service(web::scope("/list").service(
-            web::resource("/merchant").route(web::get().to(user::list_merchants_for_user_in_org)),
-        ));
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                )
+        );
 
-        route = route.service(web::scope("/switch").service(
-            web::resource("/merchant").route(web::post().to(user::switch_merchant_for_user_in_org)),
-        ));
+        route = route.service(
+            web::scope("/switch")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(user::switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
+                )
+        );
 
         route
     }
