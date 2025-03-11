@@ -1797,6 +1797,30 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentAttemptResponse>
+    for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        _state: &SessionState,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+        _profile: &domain::Profile,
+    ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+        let payment_attempt = self.payment_attempt;
+        let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
 where

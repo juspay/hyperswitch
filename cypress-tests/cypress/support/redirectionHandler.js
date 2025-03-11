@@ -131,7 +131,7 @@ function bankRedirectRedirection(
     redirectionUrl,
     expectedUrl,
     connectorId,
-    ({ connectorId, paymentMethodType, constants }) => {
+    ({ connectorId, constants, paymentMethodType }) => {
       switch (connectorId) {
         case "adyen":
           switch (paymentMethodType) {
@@ -637,37 +637,33 @@ function handleFlow(
   callback,
   options = {}
 ) {
+  // Extract the host from the redirection URL
   const originalHost = new URL(redirectionUrl.href).host;
   cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
+    const callbackArgs = {
+      connectorId,
+      constants: CONSTANTS,
+      expectedUrl: expectedUrl.origin,
+      ...options, // e.g. paymentMethodType if provided
+    };
+
     if (currentHost !== originalHost) {
-      // Regular redirection flow - host changed, use cy.origin()
+      // For a regular redirection flow: host changed, use cy.origin
       cy.url().then((currentUrl) => {
-        cy.origin(
-          new URL(currentUrl).origin,
-          {
-            args: {
-              connectorId,
-              constants: CONSTANTS,
-              expectedUrl: expectedUrl.origin,
-              ...options, // optional params like paymentMethodType
-            },
-          },
-          callback
-        );
+        cy.origin(new URL(currentUrl).origin, { args: callbackArgs }, callback);
       });
     } else {
-      // Embedded flow - host unchanged, use cy.get("iframe")
+      // For embedded flows using an iframe:
       cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
         .should("be.visible")
-        .should("exist");
-
-      // Execute callback within the iframe context
-      callback({
-        connectorId,
-        constants: CONSTANTS,
-        expectedUrl: expectedUrl.origin,
-        ...options, // optional params like paymentMethodType
-      });
+        .should("exist")
+        .then((iframes) => {
+          if (iframes.length === 0) {
+            throw new Error("No iframe found for embedded flow.");
+          }
+          // Execute the callback directly for the embedded flow
+          callback(callbackArgs);
+        });
     }
   });
 }
