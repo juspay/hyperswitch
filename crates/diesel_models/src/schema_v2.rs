@@ -965,6 +965,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        force_3ds_challenge -> Nullable<Bool>,
     }
 }
 

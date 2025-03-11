@@ -187,6 +187,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+            force_3ds_challenge: None,
         }
     }
 }
