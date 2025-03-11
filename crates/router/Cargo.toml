@@ -148,6 +148,7 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
