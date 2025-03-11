@@ -6,6 +6,11 @@ pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub mod tokenize;
 pub mod transformers;
 pub mod utils;
 mod validator;
@@ -25,7 +30,7 @@ use api_models::enums::Currency;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::ext_traits::Encode;
+use common_utils::ext_traits::{Encode, OptionExt};
 use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
@@ -48,7 +53,9 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data;
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::payments::{
+    payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
+};
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -494,6 +501,7 @@ pub async fn add_payment_method_status_update_task(
         tag,
         tracking_data,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
@@ -548,6 +556,8 @@ pub async fn retrieve_payment_method_with_token(
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
+    vault_data: Option<&VaultData>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -591,7 +601,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::Permanent(card_token) => {
-            payment_helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
@@ -603,9 +613,14 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 storage_scheme,
                 mandate_id,
-                payment_method_info,
+                payment_method_info
+                    .get_required_value("PaymentMethod")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("PaymentMethod not found")?,
                 business_profile,
                 payment_attempt.connector.clone(),
+                should_retry_with_pan,
+                vault_data,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -626,7 +641,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::PermanentCard(card_token) => {
-            payment_helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
@@ -638,9 +653,14 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 storage_scheme,
                 mandate_id,
-                payment_method_info,
+                payment_method_info
+                    .get_required_value("PaymentMethod")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("PaymentMethod not found")?,
                 business_profile,
                 payment_attempt.connector.clone(),
+                should_retry_with_pan,
+                vault_data,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -844,29 +864,6 @@ pub async fn create_payment_method(
     key_store: &domain::MerchantKeyStore,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let response = create_payment_method_core(
-        state,
-        request_state,
-        req,
-        merchant_account,
-        key_store,
-        profile,
-    )
-    .await?;
-
-    Ok(services::ApplicationResponse::Json(response))
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn create_payment_method_core(
-    state: &SessionState,
-    request_state: &routes::app::ReqState,
-    req: api::PaymentMethodCreate,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    profile: &domain::Profile,
-) -> RouterResult<api::PaymentMethodResponse> {
     use common_utils::ext_traits::ValueExt;
 
     req.validate()?;
@@ -915,7 +912,7 @@ pub async fn create_payment_method_core(
         merchant_id,
         key_store,
         merchant_account.storage_scheme,
-        payment_method_billing_address.map(Into::into),
+        payment_method_billing_address,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -1206,7 +1203,7 @@ pub async fn payment_method_intent_create(
         merchant_id,
         key_store,
         merchant_account.storage_scheme,
-        payment_method_billing_address.map(Into::into),
+        payment_method_billing_address,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -1276,6 +1273,23 @@ pub async fn list_payment_methods_for_session(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn list_saved_payment_methods_for_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    customer_id: id_type::GlobalCustomerId,
+) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let customer_payment_methods =
+        list_customer_payment_method_core(&state, &merchant_account, &key_store, &customer_id)
+            .await?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        customer_payment_methods,
     ))
 }
 
@@ -1712,11 +1726,7 @@ fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn list_customer_payment_method_core(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -2432,7 +2442,7 @@ pub async fn payment_methods_session_confirm(
     let payment_method = create_payment_method_core(
         &state,
         &req_state,
-        create_payment_method_request.clone(),
+        create_payment_method_request,
         &merchant_account,
         &key_store,
         &profile,
@@ -2465,22 +2475,7 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::SingleUse,
             ..
         }) => {
-            // todo!("single use tokenization are not implemented")
-            Box::pin(add_token_call_to_store(
-                state.clone(),
-                req_state.clone(),
-                merchant_account.clone(),
-                profile.clone(),
-                key_store.clone(),
-                &create_payment_method_request,
-                &payment_method,
-                &payment_method_session
-            ))
-            .await?;
-            
-            // Some(connector_router_data)
-            // let 
-            None
+            todo!("single use tokenization are not implemented")
         }
         None => None,
     };

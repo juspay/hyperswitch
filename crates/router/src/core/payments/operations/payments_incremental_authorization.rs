@@ -177,6 +177,8 @@ impl<F: Send + Clone + Sync>
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -347,6 +349,7 @@ impl<F: Clone + Send + Sync>
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'a, F>,
         Option<domain::PaymentMethodData>,

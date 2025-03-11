@@ -505,6 +505,7 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Bizum {}

@@ -291,6 +291,21 @@ impl CardsInfoInterface for KafkaStore {
     ) -> CustomResult<Option<storage::CardInfo>, errors::StorageError> {
         self.diesel_store.get_card_info(card_iin).await
     }
+
+    async fn add_card_info(
+        &self,
+        data: storage::CardInfo,
+    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        self.diesel_store.add_card_info(data).await
+    }
+
+    async fn update_card_info(
+        &self,
+        card_iin: String,
+        data: storage::UpdateCardInfo,
+    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        self.diesel_store.update_card_info(card_iin, data).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -2565,7 +2580,6 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
-
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
