@@ -2108,7 +2108,7 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
-                )
+                ),
         );
 
         route = route.service(
@@ -2120,7 +2120,7 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
-                )
+                ),
         );
 
         route
