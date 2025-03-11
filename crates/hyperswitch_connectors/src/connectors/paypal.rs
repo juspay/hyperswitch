@@ -20,9 +20,8 @@ use hyperswitch_domain_models::{
             Authorize, Capture, PSync, PaymentMethodToken, PostSessionTokens, PreProcessing,
             SdkSessionUpdate, Session, SetupMandate, Void,
         },
-        payouts::{PoCreate, PoSync},
         refunds::{Execute, RSync},
-        CompleteAuthorize,
+        CompleteAuthorize, VerifyWebhookSource,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
@@ -44,12 +43,12 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::{payouts::PoFulfill, VerifyWebhookSource},
+    router_flow_types::payouts::{PoCreate, PoFulfill, PoSync},
     router_response_types::PayoutsResponseData,
     types::{PayoutsData, PayoutsRouterData},
 };
 #[cfg(feature = "payouts")]
-use hyperswitch_interfaces::types::{PaymentsPreProcessingType, PayoutFulfillType, PayoutSyncType};
+use hyperswitch_interfaces::types::{PayoutFulfillType, PayoutSyncType};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
@@ -61,9 +60,9 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPostSessionTokensType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType,
-        RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType, SetupMandateType,
-        VerifyWebhookSourceType,
+        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSyncType,
+        PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
+        SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -74,7 +73,6 @@ use transformers::{
     self as paypal, auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType,
 };
 
-// use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
 use crate::{
     constants::{self, headers},
     types::ResponseRouterData,

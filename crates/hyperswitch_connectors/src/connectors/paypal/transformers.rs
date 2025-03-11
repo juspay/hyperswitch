@@ -16,14 +16,15 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
         refunds::{Execute, RSync},
+        VerifyWebhookSource,
     },
     router_request_types::{
         PaymentsAuthorizeData, PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RedirectForm, RefundsResponseData, VerifyWebhookSourceResponseData,
-        VerifyWebhookStatus,
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
@@ -33,8 +34,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::{PoFulfill, VerifyWebhookSource},
-    router_response_types::{MandateReference, PayoutsResponseData},
+    router_flow_types::PoFulfill, router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
@@ -45,9 +45,8 @@ use url::Url;
 use utils::ForeignTryFrom;
 
 #[cfg(feature = "payouts")]
-use crate::types::PayoutsResponseRouterData;
+use crate::{constants, types::PayoutsResponseRouterData};
 use crate::{
-    constants,
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
@@ -1517,26 +1516,6 @@ pub enum PaypalOrderStatus {
     PayerActionRequired,
     Approved,
 }
-
-// impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::AttemptStatus {
-//     fn foreign_from(item: (PaypalOrderStatus, PaypalPaymentIntent)) -> Self {
-//         match item.0 {
-//             PaypalOrderStatus::Completed => {
-//                 if item.1 == PaypalPaymentIntent::Authorize {
-//                     Self::Authorized
-//                 } else {
-//                     Self::Charged
-//                 }
-//             }
-//             PaypalOrderStatus::Voided => Self::Voided,
-//             PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
-//                 Self::Pending
-//             }
-//             PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
-//             PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
-//         }
-//     }
-// }
 
 pub(crate) fn get_order_status(
     item: PaypalOrderStatus,

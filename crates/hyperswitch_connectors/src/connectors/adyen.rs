@@ -20,7 +20,6 @@ use hyperswitch_domain_models::{
             Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
             Void,
         },
-        payouts::PoCreate,
         refunds::{Execute, RSync},
         Accept, Defend, Evidence, Retrieve, Upload,
     },
@@ -43,14 +42,13 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::payouts::{PoCancel, PoEligibility, PoFulfill},
+    router_flow_types::payouts::{PoCancel, PoCreate, PoEligibility, PoFulfill},
     router_response_types::PayoutsResponseData,
     types::{PayoutsData, PayoutsRouterData},
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::{
-    PaymentsPreProcessingType, PayoutCancelType, PayoutCreateType, PayoutEligibilityType,
-    PayoutFulfillType,
+    PayoutCancelType, PayoutCreateType, PayoutEligibilityType, PayoutFulfillType,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -66,16 +64,18 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         AcceptDisputeType, DefendDisputeType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
-        SubmitEvidenceType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response,
+        SetupMandateType, SubmitEvidenceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
-#[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
-use transformers as adyen;
+use transformers::{
+    self as adyen, convert_payment_authorize_router_response,
+    convert_setup_mandate_router_data_to_authorize_router_data,
+};
 
 #[cfg(feature = "payouts")]
 use crate::utils::PayoutsData as UtilsPayoutData;
@@ -83,9 +83,8 @@ use crate::{
     capture_method_not_supported,
     constants::{self, headers},
     types::{
-        convert_payment_authorize_router_response,
-        convert_setup_mandate_router_data_to_authorize_router_data, AcceptDisputeRouterData,
-        DefendDisputeRouterData, ResponseRouterData, SubmitEvidenceRouterData,
+        AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
+        SubmitEvidenceRouterData,
     },
     utils::{self as connector_utils, is_mandate_supported, ForeignTryFrom, PaymentMethodDataType},
 };

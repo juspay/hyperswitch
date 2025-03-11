@@ -2251,7 +2251,6 @@ default_imp_for_additional_revenue_recovery_call!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    // connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
