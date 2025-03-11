@@ -48,7 +48,7 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   xendit: xenditConnectorDetails,
   paypal: paypalConnectorDetails,
-  hipay:HipayConnectorDetails,
+  hipay: HipayConnectorDetails,
   stripe: stripeConnectorDetails,
   elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,

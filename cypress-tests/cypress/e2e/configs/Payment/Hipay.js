@@ -35,7 +35,6 @@ const multiUseMandateData = {
 };
 export const connectorDetails = {
   card_pm: {
-
     PaymentIntent: {
       Request: {
         currency: "EUR",
@@ -201,7 +200,7 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
-            Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
