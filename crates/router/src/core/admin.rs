@@ -4233,7 +4233,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
+                force_3ds_challenge: self.force_3ds_challenge,
             },
         )))
     }
