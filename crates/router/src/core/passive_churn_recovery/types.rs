@@ -6,7 +6,6 @@ use api_models::{
         PaymentsUpdateIntentRequest, ProxyPaymentsRequest,
     },
 };
-
 use common_utils::{self, ext_traits::OptionExt, id_type};
 use diesel_models::{enums, process_tracker::business_status, types as diesel_types};
 use error_stack::{self, ResultExt};
