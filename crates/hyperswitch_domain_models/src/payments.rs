@@ -801,10 +801,12 @@ where
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,
-                connector: payment_attempt_connector.and_then(|connector| connector.parse().ok()).or_else(|| {
-                    router_env::logger::error!("Connector not found");
-                    None
-                }),
+                connector: payment_attempt_connector
+                    .and_then(|connector| connector.parse().ok())
+                    .or_else(|| {
+                        router_env::logger::error!("Connector not found");
+                        None
+                    }),
             });
         Ok(Some(FeatureMetadata {
             redirect_response: payment_intent_feature_metadata

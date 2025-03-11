@@ -7474,10 +7474,11 @@ pub struct FeatureMetadata {
 }
 
 #[cfg(feature = "v2")]
-impl FeatureMetadata{
+impl FeatureMetadata {
     pub fn get_retry_count(&self) -> Option<u16> {
-        self.payment_revenue_recovery_metadata.as_ref()
-        .map(|metadata| metadata.total_retry_count)
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|metadata| metadata.total_retry_count)
     }
 }
 

@@ -147,9 +147,7 @@ pub async fn recovery_incoming_webhook_flow(
         }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
             // Need to add recovery stop flow for this scenario
-            router_env::logger::info!(
-                "Payment has been succeeded via external system"
-            );
+            router_env::logger::info!("Payment has been succeeded via external system");
             Ok(webhooks::WebhookResponseTracker::NoEffect)
         }
         revenue_recovery::RecoveryAction::PendingPayment => {
@@ -459,15 +457,15 @@ impl RevenueRecoveryAttempt {
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
         let task = "EXECUTE_WORKFLOW";
 
-        let payment_id=payment_intent.payment_id.clone();
+        let payment_id = payment_intent.payment_id.clone();
 
         let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-        
-        let total_retry_count= payment_intent
+
+        let total_retry_count = payment_intent
             .feature_metadata
-            .and_then(|feature_metadata|feature_metadata.get_retry_count())
+            .and_then(|feature_metadata| feature_metadata.get_retry_count())
             .unwrap_or(0);
-            
+
         let schedule_time =
             passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments(
                 db,
