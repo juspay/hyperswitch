@@ -31,7 +31,8 @@ if (!isFramed) {
   function initializeSDK() {
     // @ts-ignore
     var paymentDetails = window.__PAYMENT_DETAILS;
-    var client_secret = paymentDetails.client_secret;
+    var clientSecret = paymentDetails.client_secret;
+    var sdkUiRules = paymentDetails.sdk_ui_rules;
     var appearance = {
       variables: {
         colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -45,6 +46,9 @@ if (!isFramed) {
         colorBackground: "rgb(255, 255, 255)",
       },
     };
+    if (sdkUiRules !== null && typeof sdkUiRules === "object" && Object.getPrototypeOf(sdkUiRules) === Object.prototype) {
+      appearance.rules = sdkUiRules;
+    }
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
@@ -58,12 +62,12 @@ if (!isFramed) {
     // @ts-ignore
     widgets = hyper.widgets({
       appearance: appearance,
-      clientSecret: client_secret,
+      clientSecret: clientSecret,
       locale: paymentDetails.locale,
     });
     var type =
       paymentDetails.sdk_layout === "spaced_accordion" ||
-      paymentDetails.sdk_layout === "accordion"
+        paymentDetails.sdk_layout === "accordion"
         ? "accordion"
         : paymentDetails.sdk_layout;
 
@@ -87,6 +91,7 @@ if (!isFramed) {
       },
       hideCardNicknameField: hideCardNicknameField,
       showCardFormByDefault: paymentDetails.show_card_form_by_default,
+      customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
     };
     // @ts-ignore
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);

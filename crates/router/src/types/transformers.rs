@@ -1,8 +1,8 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
-    routing::ConnectorSelection,
+    cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
+    payments, routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -225,10 +225,10 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Cashtocode => Self::Cashtocode,
-            // api_enums::Connector::Chargebee => Self::Chargebee,
+            api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
-            // api_enums::Connector::Coingate => Self::Coingate,
+            api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::CtpMastercard => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -255,14 +255,21 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                     message: "gpayments is not a routable connector".to_string(),
                 })?
             }
+            // api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
+            api_enums::Connector::Juspaythreedsserver => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "juspaythreedsserver is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
+            api_enums::Connector::Moneris => Self::Moneris,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -272,7 +279,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
-            // api_enums::Connector::Nomupay => Self::Nomupay,
+            api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
@@ -281,6 +288,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
+            api_enums::Connector::Paystack => Self::Paystack,
             api_enums::Connector::Payu => Self::Payu,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
             api_enums::Connector::Plaid => Self::Plaid,
@@ -288,6 +296,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Razorpay => Self::Razorpay,
+            // api_enums::Connector::Recurly => Self::Recurly,
             // api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
@@ -303,6 +312,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
+            // api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
             api_enums::Connector::Trustpay => Self::Trustpay,
@@ -488,6 +498,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
             | api_enums::PaymentMethodType::Sofort
+            | api_enums::PaymentMethodType::Eft
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
@@ -1836,6 +1847,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
+            clear_pan_possible: value.clear_pan_possible,
         }
     }
 }
@@ -1855,6 +1867,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
+            clear_pan_possible: value.clear_pan_possible,
         }
     }
 }
@@ -2018,6 +2031,56 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
     }
 }
 
+impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
+    for diesel_models::business_profile::CardTestingGuardConfig
+{
+    fn foreign_from(item: api_models::admin::CardTestingGuardConfig) -> Self {
+        Self {
+            is_card_ip_blocking_enabled: match item.card_ip_blocking_status {
+                api_models::admin::CardTestingGuardStatus::Enabled => true,
+                api_models::admin::CardTestingGuardStatus::Disabled => false,
+            },
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            is_guest_user_card_blocking_enabled: match item.guest_user_card_blocking_status {
+                api_models::admin::CardTestingGuardStatus::Enabled => true,
+                api_models::admin::CardTestingGuardStatus::Disabled => false,
+            },
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            is_customer_id_blocking_enabled: match item.customer_id_blocking_status {
+                api_models::admin::CardTestingGuardStatus::Enabled => true,
+                api_models::admin::CardTestingGuardStatus::Disabled => false,
+            },
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
+    for api_models::admin::CardTestingGuardConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::CardTestingGuardConfig) -> Self {
+        Self {
+            card_ip_blocking_status: match item.is_card_ip_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            },
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            guest_user_card_blocking_status: match item.is_guest_user_card_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            },
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            customer_id_blocking_status: match item.is_customer_id_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            },
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::WebhookDetails>
     for diesel_models::business_profile::WebhookDetails
 {
@@ -2104,6 +2167,13 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            skip_status_screen: item.skip_status_screen,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
+            sdk_ui_rules: item.sdk_ui_rules,
+            payment_link_ui_rules: item.payment_link_ui_rules,
         }
     }
 }
@@ -2127,6 +2197,13 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
             payment_button_text: item.payment_button_text,
+            skip_status_screen: item.skip_status_screen,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
+            sdk_ui_rules: item.sdk_ui_rules,
+            payment_link_ui_rules: item.payment_link_ui_rules,
         }
     }
 }
@@ -2201,6 +2278,44 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
             ui_config: item.ui_config,
+        }
+    }
+}
+
+impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
+    fn foreign_from(value: card_info_types::CardInfoCreateRequest) -> Self {
+        Self {
+            card_iin: value.card_iin,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_subtype: value.card_subtype,
+            card_issuing_country: value.card_issuing_country,
+            bank_code_id: value.bank_code_id,
+            bank_code: value.bank_code,
+            country_code: value.country_code,
+            date_created: common_utils::date_time::now(),
+            last_updated: Some(common_utils::date_time::now()),
+            last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
+    fn foreign_from(value: card_info_types::CardInfoUpdateRequest) -> Self {
+        Self {
+            card_iin: value.card_iin,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_subtype: value.card_subtype,
+            card_issuing_country: value.card_issuing_country,
+            bank_code_id: value.bank_code_id,
+            bank_code: value.bank_code,
+            country_code: value.country_code,
+            date_created: common_utils::date_time::now(),
+            last_updated: Some(common_utils::date_time::now()),
+            last_updated_provider: value.last_updated_provider,
         }
     }
 }

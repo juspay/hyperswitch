@@ -197,10 +197,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
-        let address_details = address.map(api_models::payments::AddressDetails::from);
-
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
+            customers::CustomerResponse::foreign_from((customer.clone(), address)),
         ))
     }
 }
@@ -679,19 +677,20 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             redacted_encrypted_value.clone().into_encrypted(),
         );
 
-        let updated_customer = storage::CustomerUpdate::Update {
-            name: Some(redacted_encrypted_value.clone()),
-            email: Box::new(Some(redacted_encrypted_email)),
-            phone: Box::new(Some(redacted_encrypted_value.clone())),
-            description: Some(Description::from_str_unchecked(REDACTED)),
-            phone_country_code: Some(REDACTED.to_string()),
-            metadata: None,
-            connector_customer: Box::new(None),
-            default_billing_address: None,
-            default_shipping_address: None,
-            default_payment_method_id: None,
-            status: Some(common_enums::DeleteStatus::Redacted),
-        };
+        let updated_customer =
+            storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
+                name: Some(redacted_encrypted_value.clone()),
+                email: Box::new(Some(redacted_encrypted_email)),
+                phone: Box::new(Some(redacted_encrypted_value.clone())),
+                description: Some(Description::from_str_unchecked(REDACTED)),
+                phone_country_code: Some(REDACTED.to_string()),
+                metadata: None,
+                connector_customer: Box::new(None),
+                default_billing_address: None,
+                default_shipping_address: None,
+                default_payment_method_id: None,
+                status: Some(common_enums::DeleteStatus::Redacted),
+            }));
 
         db.update_customer_by_global_id(
             key_manager_state,
@@ -1264,10 +1263,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
-        let address_details = address.map(api_models::payments::AddressDetails::from);
-
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
+            customers::CustomerResponse::foreign_from((customer.clone(), address)),
         ))
     }
 }
@@ -1338,7 +1335,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 &domain_customer.id,
                 domain_customer.to_owned(),
                 merchant_account.get_id(),
-                storage::CustomerUpdate::Update {
+                storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {
                         let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
@@ -1357,7 +1354,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
-                },
+                })),
                 key_store,
                 merchant_account.storage_scheme,
             )

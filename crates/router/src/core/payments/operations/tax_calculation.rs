@@ -79,6 +79,8 @@ impl<F: Send + Clone + Sync>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
             &[
@@ -181,6 +183,8 @@ impl<F: Send + Clone + Sync>
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
             service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -335,6 +339,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,

@@ -724,6 +724,7 @@ impl TryFrom<&BankRedirectData> for ZenPaymentsRequest {
             | BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Trustly { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Eps { .. }
             | BankRedirectData::Giropay { .. }
             | BankRedirectData::Przelewy24 { .. }

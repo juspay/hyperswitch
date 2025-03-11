@@ -60,6 +60,7 @@ pub trait PayoutSyncV2:
 {
 }
 
+#[cfg(feature = "payouts")]
 /// trait Payouts
 pub trait PayoutsV2:
     ConnectorCommon

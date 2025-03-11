@@ -41,7 +41,9 @@ use api_models::analytics::{
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
-    auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
+    auth_events::{
+        AuthEventDimensions, AuthEventFilters, AuthEventMetrics, AuthEventMetricsBucketIdentifier,
+    },
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     frm::{FrmDimensions, FrmFilters, FrmMetrics, FrmMetricsBucketIdentifier},
     payment_intents::{
@@ -908,8 +910,9 @@ impl AnalyticsProvider {
     pub async fn get_auth_event_metrics(
         &self,
         metric: &AuthEventMetrics,
+        dimensions: &[AuthEventDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
-        publishable_key: &str,
+        filters: &AuthEventFilters,
         granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
@@ -917,14 +920,22 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(
+                        merchant_id,
+                        dimensions,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
                     .load_metrics(
                         merchant_id,
-                        publishable_key,
+                        dimensions,
+                        filters,
                         granularity,
                         // Since API events are ckh only use ckh here
                         time_range,
@@ -1128,6 +1139,7 @@ pub enum AnalyticsFlow {
     GetFrmMetrics,
     GetSdkMetrics,
     GetAuthMetrics,
+    GetAuthEventFilters,
     GetActivePaymentsMetrics,
     GetPaymentFilters,
     GetPaymentIntentFilters,

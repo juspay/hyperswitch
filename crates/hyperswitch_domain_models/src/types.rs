@@ -3,15 +3,18 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, Authorize,
-        AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer,
-        Execute, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate,
-        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
+        Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
+        PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
+        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData,
@@ -21,8 +24,8 @@ use crate::{
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData,
+        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
+        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -60,6 +63,12 @@ pub type UasPostAuthenticationRouterData =
 pub type UasPreAuthenticationRouterData =
     RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>;
 
+pub type UasAuthenticationConfirmationRouterData = RouterData<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>;
+
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
 pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
@@ -73,3 +82,9 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
+
+pub type AdditionalRevenueRecoveryDetailsRouterData = RouterData<
+    GetAdditionalRevenueRecoveryDetails,
+    GetAdditionalRevenueRecoveryRequestData,
+    GetAdditionalRevenueRecoveryResponseData,
+>;

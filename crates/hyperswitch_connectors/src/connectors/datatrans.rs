@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -26,7 +27,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -47,7 +48,10 @@ use transformers as datatrans;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, convert_amount, RefundsRequestData, RouterData as OtherRouterData},
+    utils::{
+        self, convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
+        RouterData as OtherRouterData,
+    },
 };
 
 impl api::Payment for Datatrans {}
@@ -191,6 +195,22 @@ impl ConnectorValidation for Datatrans {
             }
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        _pm_type: Option<PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_data {
+            PaymentMethodData::Card(_) => Ok(()),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Datatrans {
@@ -202,6 +222,75 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Datatrans
 {
+    fn get_headers(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/transactions", self.base_url(connectors)))
+    }
+    fn get_request_body(
+        &self,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = datatrans::DatatransPaymentsRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
+        let response: datatrans::DatatransResponse = res
+            .response
+            .parse_struct("Datatrans PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Datatrans {
@@ -223,10 +312,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        if req.is_three_ds() && req.request.authentication_data.is_none() {
+        if req.request.payment_method_data == PaymentMethodData::MandatePayment {
+            // MIT
+            Ok(format!("{base_url}v1/transactions/authorize"))
+        } else if req.request.is_mandate_payment() {
+            // CIT
             Ok(format!("{base_url}v1/transactions"))
         } else {
-            Ok(format!("{base_url}v1/transactions/authorize"))
+            // Direct
+            if req.is_three_ds() && req.request.authentication_data.is_none() {
+                Ok(format!("{base_url}v1/transactions"))
+            } else {
+                Ok(format!("{base_url}v1/transactions/authorize"))
+            }
         }
     }
 

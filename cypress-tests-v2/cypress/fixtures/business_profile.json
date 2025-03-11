@@ -1,7 +1,7 @@
 {
   "bp_create": {
     "profile_name": "HyperS",
-    "return_url": "https://duck.com/success",
+    "return_url": "https://hyperswitch.io",
     "enable_payment_response_hash": true,
     "redirect_to_merchant_with_http_post": false,
     "metadata": null,
@@ -31,7 +31,7 @@
   },
   "bp_update": {
     "profile_name": "Hyperswitch",
-    "return_url": "https://duck.com/success",
+    "return_url": "https://hyperswitch.io",
     "enable_payment_response_hash": true,
     "redirect_to_merchant_with_http_post": false,
     "metadata": null,
