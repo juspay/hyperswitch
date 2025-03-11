@@ -32,7 +32,7 @@ pool_size = 5
 [forex_api]
 api_key = ""
 fallback_api_key = ""
-call_delay_in_seconds = 21600
+data_expiration_delay_in_seconds = 21600
 redis_lock_timeout_in_seconds = 100
 redis_ttl_in_seconds = 172800
 
