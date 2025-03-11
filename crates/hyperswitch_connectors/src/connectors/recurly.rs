@@ -575,8 +575,8 @@ impl webhooks::IncomingWebhook for Recurly {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        // The `recurly-signature` header consists of a Unix timestamp (in milliseconds) followed by one or more HMAC-SHA256 signatures, separated by commas.  
-        // Multiple signatures exist when a secret key is regenerated, with the old key remaining active for 24 hours.  
+        // The `recurly-signature` header consists of a Unix timestamp (in milliseconds) followed by one or more HMAC-SHA256 signatures, separated by commas.
+        // Multiple signatures exist when a secret key is regenerated, with the old key remaining active for 24 hours.
         let header_values = Self::get_signature_elements_from_header(request.headers)?;
         let signature = header_values
             .get(1)
