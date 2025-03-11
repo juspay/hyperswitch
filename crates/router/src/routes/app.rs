@@ -71,7 +71,9 @@ use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
-use crate::routes::cards_info::card_iin_info;
+use crate::routes::cards_info::{
+    card_iin_info, create_cards_info, migrate_cards_info, update_cards_info,
+};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
@@ -600,6 +602,10 @@ impl Payments {
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/proxy-confirm-intent")
+                        .route(web::post().to(payments::proxy_confirm_intent)),
                 )
                 .service(
                     web::resource("/get-intent")
@@ -1255,6 +1261,14 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::migrate_payment_methods)),
                 )
                 .service(
+                    web::resource("/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_api)),
+                )
+                .service(
+                    web::resource("/tokenize-card-batch")
+                        .route(web::post().to(payment_methods::tokenize_card_batch_api)),
+                )
+                .service(
                     web::resource("/collect")
                         .route(web::post().to(payment_methods::initiate_pm_collect_link_flow)),
                 )
@@ -1266,6 +1280,10 @@ impl PaymentMethods {
                     web::resource("/{payment_method_id}")
                         .route(web::get().to(payment_methods::payment_method_retrieve_api))
                         .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_using_pm_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/update")
@@ -1794,11 +1812,14 @@ impl Disputes {
 
 pub struct Cards;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
+            .service(web::resource("/create").route(web::post().to(create_cards_info)))
+            .service(web::resource("/update").route(web::post().to(update_cards_info)))
+            .service(web::resource("/update-batch").route(web::post().to(migrate_cards_info)))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }

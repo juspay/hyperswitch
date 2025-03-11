@@ -267,7 +267,8 @@ pub async fn generate_network_token(
 ))]
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
-    card: &domain::Card,
+    card: &domain::CardDetail,
+    optional_cvc: Option<Secret<String>>,
     customer_id: &id_type::CustomerId,
 ) -> CustomResult<
     (domain::CardNetworkTokenResponsePayload, Option<String>),
@@ -277,7 +278,7 @@ pub async fn make_card_network_tokenization_request(
         card_number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
         exp_year: card.card_exp_year.clone(),
-        card_security_code: card.card_cvc.clone(),
+        card_security_code: optional_cvc,
     };
 
     let payload = card_data
