@@ -160,7 +160,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// PaymentMethod Subtype
     pub payment_method_subtype: common_enums::enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
-    pub connector: Option<common_enums::connector_enums::Connector>,
+    pub connector: common_enums::connector_enums::Connector,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

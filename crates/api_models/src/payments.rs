@@ -8389,7 +8389,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub payment_method_subtype: common_enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Option<Connector>, example = "stripe")]
-    pub connector: Option<common_enums::connector_enums::Connector>,
+    pub connector: common_enums::connector_enums::Connector,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]

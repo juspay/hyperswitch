@@ -774,40 +774,39 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
 
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-        let payment_attempt_connector = self.payment_attempt.connector.as_ref();
+        let payment_attempt_connector = self.payment_attempt.connector.clone();
         let payment_revenue_recovery_metadata =
-            Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
-                // Update retry count by one.
-                total_retry_count: revenue_recovery
-                    .as_ref()
-                    .map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
-                payment_connector_transmission:
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
-                billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
-                active_attempt_payment_connector_id: self
-                    .payment_attempt
-                    .get_attempt_merchant_connector_account_id()?,
-                billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
-                        payment_processor_token: self
-                            .revenue_recovery_data
-                            .processor_payment_method_token
-                            .clone(),
-                        connector_customer_id: self
-                            .revenue_recovery_data
-                            .connector_customer_id
-                            .clone(),
-                    },
-                payment_method_type: self.payment_attempt.payment_method_type,
-                payment_method_subtype: self.payment_attempt.payment_method_subtype,
-                connector: payment_attempt_connector
-                    .and_then(|connector| connector.parse().ok())
-                    .or_else(|| {
-                        router_env::logger::error!("Connector not found");
-                        None
-                    }),
-            });
+            match payment_attempt_connector {
+                Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+                    // Update retry count by one.
+                    total_retry_count: revenue_recovery
+                        .as_ref()
+                        .map_or(1, |data| (data.total_retry_count + 1)),
+                    // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
+                    payment_connector_transmission:
+                        common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                    billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
+                    active_attempt_payment_connector_id: self
+                        .payment_attempt
+                        .get_attempt_merchant_connector_account_id()?,
+                    billing_connector_payment_details:
+                        diesel_models::types::BillingConnectorPaymentDetails {
+                            payment_processor_token: self
+                                .revenue_recovery_data
+                                .processor_payment_method_token
+                                .clone(),
+                            connector_customer_id: self
+                                .revenue_recovery_data
+                                .connector_customer_id
+                                .clone(),
+                        },
+                    payment_method_type: self.payment_attempt.payment_method_type,
+                    payment_method_subtype: self.payment_attempt.payment_method_subtype,
+                    connector: connector.parse().map_err(|_| errors::api_error_response::ApiErrorResponse::InternalServerError)?,
+                }),
+                None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Connector not found in payment attempt")?,
+            };
         Ok(Some(FeatureMetadata {
             redirect_response: payment_intent_feature_metadata
                 .as_ref()
