@@ -38,10 +38,12 @@ pub async fn perform_execute_payment(
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
 
-    let pcr_metadata = payment_intent
+    let mut pcr_metadata = payment_intent
         .feature_metadata
-        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata)
-        .get_required_value("Payment Revenue Recovery Metadata")?;
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .get_required_value("Payment Revenue Recovery Metadata")?
+        .convert_back();
 
     let decision = pcr_types::Decision::get_decision_based_on_params(
         state,
@@ -62,7 +64,7 @@ pub async fn perform_execute_payment(
                 payment_intent,
                 execute_task_process,
                 pcr_data,
-                pcr_metadata.convert_back(),
+                &pcr_metadata,
             )
             .await?;
             action
@@ -71,7 +73,7 @@ pub async fn perform_execute_payment(
                     payment_intent,
                     execute_task_process,
                     &pcr_data,
-                    pcr_metadata.convert_back(),
+                    &mut pcr_metadata,
                 )
                 .await?;
         }
