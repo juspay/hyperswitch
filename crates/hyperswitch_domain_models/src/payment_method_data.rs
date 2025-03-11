@@ -1,10 +1,14 @@
 use api_models::{
-    admin::MerchantConnectorId, mandates, payment_methods::{self}, payments::{
+    admin::MerchantConnectorId,
+    mandates,
+    payment_methods::{self},
+    payments::{
         additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
-    }
+    },
 };
 use common_enums::enums as api_enums;
 use common_utils::{
+    ext_traits::OptionExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -14,7 +18,6 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-use common_utils::ext_traits::OptionExt;
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -688,10 +691,10 @@ pub enum MobilePaymentData {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
-    
-    fn try_from(value: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error>{
-        match value{
-            payment_methods::PaymentMethodCreateData::Card(payment_methods::CardDetail{
+
+    fn try_from(value: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
+        match value {
+            payment_methods::PaymentMethodCreateData::Card(payment_methods::CardDetail {
                 card_number,
                 card_exp_month,
                 card_exp_year,
@@ -702,8 +705,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_issuing_country,
                 nick_name,
                 card_holder_name,
-            }) => {
-                Ok(Self::Card(Card{
+            }) => Ok(Self::Card(Card {
                 card_number,
                 card_exp_month,
                 card_exp_year,
@@ -712,10 +714,10 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_network,
                 card_type: card_type.map(|card_type| card_type.to_string()),
                 card_issuing_country: card_issuing_country.map(|country| country.to_string()),
-                bank_code:None,
+                bank_code: None,
                 nick_name,
                 card_holder_name,
-            }))},
+            })),
         }
     }
 }
@@ -1925,13 +1927,12 @@ pub struct PaymentMethodTokenSingleUse {
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
-impl PaymentMethodTokenSingleUse
-{ 
+impl PaymentMethodTokenSingleUse {
     pub fn get_single_use_token_from_payment_method_token(
-    token: Option<String>,
-    mca_id: id_type::MerchantConnectorAccountId,
+        token: Option<String>,
+        mca_id: id_type::MerchantConnectorAccountId,
     ) -> Self {
-        Self{
+        Self {
             token,
             merchant_connector_id: mca_id,
         }
