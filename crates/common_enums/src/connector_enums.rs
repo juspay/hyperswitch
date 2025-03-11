@@ -437,8 +437,9 @@ impl Connector {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
-            | Self::Stripe => false,
-            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
+            | Self::Stripe
+            | Self::Datatrans => false,
+            Self::Checkout | Self::Nmi |Self::Cybersource => true,
         }
     }
 
