@@ -4054,11 +4054,16 @@ pub async fn retrieve_profile(
         business_profile.card_testing_guard_config = Some(CardTestingGuardConfig {
             is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
             card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
-            is_guest_user_card_blocking_enabled: common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
-            guest_user_card_blocking_threshold: common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
-            is_customer_id_blocking_enabled: common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
-            customer_id_blocking_threshold: common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
-            card_testing_guard_expiry: common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            is_guest_user_card_blocking_enabled:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+            guest_user_card_blocking_threshold:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+            is_customer_id_blocking_enabled:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+            customer_id_blocking_threshold:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+            card_testing_guard_expiry:
+                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
         })
     };
 
