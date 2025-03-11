@@ -157,7 +157,7 @@ pub async fn get_user_details(
             .err()
             .unwrap_or(false)
         {
-            common_enums::ApiVersion::V1
+            common_enums::ApiVersion::V2
         } else {
             Err(merchant_account
                 .err()
@@ -170,7 +170,7 @@ pub async fn get_user_details(
         .err()
         .unwrap_or(false)
     {
-        common_enums::ApiVersion::V1
+        common_enums::ApiVersion::V2
     } else {
         Err(merchant_key_store
             .err()
