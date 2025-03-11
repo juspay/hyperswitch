@@ -864,6 +864,29 @@ pub async fn create_payment_method(
     key_store: &domain::MerchantKeyStore,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
+    let response = create_payment_method_core(
+        state,
+        request_state,
+        req,
+        merchant_account,
+        key_store,
+        profile,
+    )
+    .await?;
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn create_payment_method_core(
+    state: &SessionState,
+    _request_state: &routes::app::ReqState,
+    req: api::PaymentMethodCreate,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    profile: &domain::Profile,
+) -> RouterResult<api::PaymentMethodResponse> {
     use common_utils::ext_traits::ValueExt;
 
     req.validate()?;
@@ -2442,7 +2465,7 @@ pub async fn payment_methods_session_confirm(
     let payment_method = create_payment_method_core(
         &state,
         &req_state,
-        create_payment_method_request,
+        create_payment_method_request.clone(),
         &merchant_account,
         &key_store,
         &profile,
@@ -2475,7 +2498,19 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::SingleUse,
             ..
         }) => {
-            todo!("single use tokenization are not implemented")
+
+            Box::pin(add_token_call_to_store(
+                state.clone(),
+                req_state.clone(),
+                merchant_account.clone(),
+                profile.clone(),
+                key_store.clone(),
+                &create_payment_method_request.clone(),
+                &payment_method,
+                &payment_method_session
+            ))
+            .await?;
+            None
         }
         None => None,
     };
