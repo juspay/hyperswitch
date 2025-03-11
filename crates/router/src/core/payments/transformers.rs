@@ -2210,7 +2210,7 @@ where
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_three_ds_invoke =  next_action_three_ds_invoke(&payment_attempt)?;
+        let next_action_three_ds_invoke = next_action_three_ds_invoke(&payment_attempt)?;
 
         if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
             || bank_transfer_next_steps.is_some()
@@ -2655,51 +2655,32 @@ pub fn wait_screen_next_steps_check(
 
 pub fn next_action_three_ds_invoke(
     payment_attempt: &storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::PaymentConnectorThreeDsInvokeData>> {
+) -> RouterResult<Option<api_models::payments::PaymentsConnectorThreeDsInvokeData>> {
     let connector_three_ds_invoke_data: Option<
-        Result<api_models::payments::PaymentConnectorThreeDsInvokeData, _>,
+        Result<api_models::payments::PaymentsConnectorThreeDsInvokeData, _>,
     > = payment_attempt
-        .connector_metadata.clone()
-        .map(|metadata| metadata.parse_value("PaymentConnectorThreeDsInvokeData"));
+        .connector_metadata
+        .clone()
+        .map(|metadata| metadata.parse_value("PaymentsConnectorThreeDsInvokeData"));
 
-    let three_ds_invoke_data =
-    connector_three_ds_invoke_data.transpose().ok().flatten();
+    let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
     Ok(three_ds_invoke_data)
 }
 
 pub fn construct_connector_three_ds_invoke_data(
     payment_attempt: &storage::PaymentAttempt,
-    connector_three_ds_invoke_data: api_models::payments::PaymentConnectorThreeDsInvokeData,
+    connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
     base_url: &str,
 ) -> RouterResult<api_models::payments::NextActionData> {
-    let payment_connector = payment_attempt.connector.clone().ok_or(   errors::ApiErrorResponse::InternalServerError)
-    .attach_printable(
-        "Connector name not found",
-    )?;
-    let three_ds_authorize_url =  helpers::create_authorize_url(
-        base_url,
-        &payment_attempt,
-        payment_connector.clone(),
-    );
-
-    let three_ds_method_details = api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData{
-            three_ds_method_data_submission: connector_three_ds_invoke_data.three_ds_method_data_submission,
-            three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
-            three_ds_method_url: Some(connector_three_ds_invoke_data.three_ds_method_url),
-    };
-
-    let three_ds_data = api_models::payments::ThreeDsData {
-        three_ds_authentication_url:  helpers::create_authentication_url(base_url, &payment_attempt),
-        three_ds_authorize_url,
-        three_ds_method_details,
-        poll_config: None,
+    let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {
+        three_ds_method_data_submission: connector_three_ds_invoke_data.three_ds_method_data_submission,
+        three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
+        three_ds_method_url: connector_three_ds_invoke_data.three_ds_method_url,
+        directory_server_id:  connector_three_ds_invoke_data.directory_server_id,
         message_version: connector_three_ds_invoke_data.message_version,
-        directory_server_id: Some(connector_three_ds_invoke_data.directory_server_id),
     };
 
-    Ok(api_models::payments::NextActionData::ThreeDsInvoke {
-        three_ds_data,
-    })
+    Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
 }
 
 #[cfg(feature = "v1")]
@@ -4071,6 +4052,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             complete_authorize_url,
             metadata: payment_data.payment_intent.metadata,
             customer_acceptance: payment_data.customer_acceptance,
+            threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
         })
     }
 }

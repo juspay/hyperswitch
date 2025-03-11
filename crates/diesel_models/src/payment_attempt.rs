@@ -3520,7 +3520,7 @@ pub enum RedirectForm {
         method: common_utils::request::Method,
         form_fields: std::collections::HashMap<String, String>,
         collection_id: Option<String>,
-    },
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(RedirectForm);

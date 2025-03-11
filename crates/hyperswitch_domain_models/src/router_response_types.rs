@@ -384,7 +384,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 method,
                 form_fields,
                 collection_id,
-            },
+            }
         }
     }
 }
@@ -466,7 +466,7 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 method,
                 form_fields,
                 collection_id,
-            },
+            }
         }
     }
 }

@@ -648,6 +648,7 @@ payme = { payment_method = "card" }
 deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
+redsys = { payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"

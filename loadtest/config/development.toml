@@ -432,3 +432,4 @@ sts_role_session_name = ""
 
 [temp_locker_enable_config]
 paybox = { payment_method = "card" }
+redsys = { payment_method = "card" }

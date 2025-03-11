@@ -2205,6 +2205,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                         api_models::payments::NextActionData::CollectOtp{ .. } => None,
+                        api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -4202,7 +4203,9 @@ where
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
-            } else if connector.connector_name == router_types::Connector::Xendit {
+            } else if connector.connector_name == router_types::Connector::Xendit
+                && is_operation_confirm(&operation)
+            {
                 match payment_data.get_payment_intent().split_payments {
                     Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                         common_types::payments::XenditSplitRequest::MultipleSplits(_),
@@ -4215,18 +4218,26 @@ where
                 }
             } else if connector.connector_name == router_types::Connector::Redsys
                 && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && is_operation_confirm(&operation)
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
-                // router_data = router_data.handle_threeds_authentication(state, connector).await?;
-                // let should_continue = match  router_data.response {
-                //     Ok(router_types::PaymentsResponseData::TransactionResponse {
-                //     redirection_data,
-                //         ..
-                //     }) => {redirection_data.is_none()},
-                //     Err(_) => false,
-                //     _ => true,
-                // };
-                (router_data, false)
+                let should_continue = match router_data.response {
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        ref connector_metadata,
+                        ..
+                    }) => {
+                        let three_ds_invoke_data: Option<
+                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
+                        > = connector_metadata.clone().and_then(|metadata| {
+                            metadata.parse_value("PaymentsConnectorThreeDsInvokeData").ok()
+                        });
+                        three_ds_invoke_data
+                            .is_none()
+                    }
+                    _ => false,
+                };
+                router_env::logger::info!(sssssssssss=?should_continue);
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -4996,6 +5007,7 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

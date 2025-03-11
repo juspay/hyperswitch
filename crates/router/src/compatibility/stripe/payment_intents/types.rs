@@ -841,6 +841,9 @@ pub enum StripeNextAction {
     CollectOtp {
         consent_data_required: payments::MobilePaymentConsent,
     },
+    InvokeHiddenIframe {
+        iframe_data: payments::IframeData,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -900,6 +903,11 @@ pub(crate) fn into_stripe_next_action(
             consent_data_required,
         } => StripeNextAction::CollectOtp {
             consent_data_required,
+        },
+        payments::NextActionData::InvokeHiddenIframe  {
+            iframe_data,
+        } => StripeNextAction::InvokeHiddenIframe  {
+            iframe_data,
         },
     })
 }

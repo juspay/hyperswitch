@@ -479,7 +479,6 @@ default_imp_for_complete_authorize!(
     connectors::Placetopay,
     connectors::Rapyd,
     connectors::Razorpay,
-    connectors::Redsys,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,

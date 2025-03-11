@@ -285,6 +285,7 @@ where
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     let json = connector_meta_secret.expose();
+    router_env::logger::info!(sssssssssssddd6=?json);
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
@@ -1025,6 +1026,7 @@ pub enum CardIssuer {
 
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
@@ -1050,6 +1052,9 @@ impl CardData for Card {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -2016,6 +2021,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2074,6 +2081,16 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error> {
+        self.threeds_method_comp_ind
+        .clone()
+        .ok_or_else(missing_field_err("threeds_method_comp_ind"))
+    }
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
@@ -2126,6 +2143,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_optional_browser_info(&self) -> Option<BrowserInformation>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
 }
@@ -2180,6 +2198,9 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_optional_browser_info(&self) -> Option<BrowserInformation> {
+        self.browser_info.clone()
     }
     fn get_complete_authorize_url(&self) -> Result<String, Error> {
         self.complete_authorize_url

@@ -814,6 +814,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
     where
         F: 'b + Send,
     {
+        logger::debug!("ssssssssssssssaaaaa=?PaymentSessionTokenCalled");
         match router_data.response.clone() {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata, ..
@@ -1537,6 +1538,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             charges,
                             ..
                         } => {
+                            logger::debug!(ssssssssssssssaaaaa=?connector_metadata);
                             payment_data
                                 .payment_intent
                                 .incremental_authorization_allowed =
