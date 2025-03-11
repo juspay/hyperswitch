@@ -2974,9 +2974,8 @@ pub async fn list_merchants_for_user_in_org(
         }
     };
 
-    if merchant_accounts.is_empty() {
-        Err(UserErrors::InternalServerError).attach_printable("No merchant found for a user")?;
-    }
+    // TODO: Add a check to see if merchant accounts are empty, and handle accordingly, when a single route will be used instead
+    // of having two separate routes.
 
     Ok(ApplicationResponse::Json(
         merchant_accounts
