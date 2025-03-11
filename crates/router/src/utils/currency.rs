@@ -180,7 +180,9 @@ async fn call_api_if_redis_forex_data_expired(
     data_expiration_delay: u32,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexError> {
     match retrieve_forex_data_from_redis(state).await {
-        Ok(Some(data)) => call_forex_api_if_redis_data_expired(state, data, data_expiration_delay).await,
+        Ok(Some(data)) => {
+            call_forex_api_if_redis_data_expired(state, data, data_expiration_delay).await
+        }
         Ok(None) => {
             // No data in local as well as redis
             call_forex_api_and_save_data_to_cache_and_redis(state, None).await?;
@@ -454,9 +456,7 @@ async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexErr
         .set_key_if_not_exists_with_expiry(
             &REDIX_FOREX_CACHE_KEY.into(),
             "",
-            Some(
-                i64::from(forex_api.redis_lock_timeout_in_seconds)
-            ),
+            Some(i64::from(forex_api.redis_lock_timeout_in_seconds)),
         )
         .await
         .map(|val| matches!(val, redis_interface::SetnxReply::KeySet))
