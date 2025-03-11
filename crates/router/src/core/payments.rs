@@ -7652,6 +7652,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .await?;
             authentication::AuthenticationResponse::try_from(authentication)?
         } else {
+            let force_3ds_challenge = payment_intent
+                .force_3ds_challenge
+                .unwrap_or(business_profile.force_3ds_challenge);
             Box::pin(authentication_core::perform_authentication(
                 &state,
                 business_profile.merchant_id,
@@ -7680,7 +7683,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
                 payment_intent.payment_id,
-                business_profile.force_3ds_challenge,
+                force_3ds_challenge,
             ))
             .await?
         };

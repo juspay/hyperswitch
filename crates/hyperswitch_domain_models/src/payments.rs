@@ -112,6 +112,7 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 impl PaymentIntent {

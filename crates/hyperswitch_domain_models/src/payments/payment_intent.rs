@@ -1867,6 +1867,7 @@ impl behaviour::Conversion for PaymentIntent {
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: self.platform_merchant_id,
+            force_3ds_challenge: self.force_3ds_challenge,
         })
     }
 
@@ -1957,6 +1958,7 @@ impl behaviour::Conversion for PaymentIntent {
                 request_extended_authorization: storage_model.request_extended_authorization,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
                 platform_merchant_id: storage_model.platform_merchant_id,
+                force_3ds_challenge: storage_model.force_3ds_challenge,
             })
         }
         .await
@@ -2023,6 +2025,7 @@ impl behaviour::Conversion for PaymentIntent {
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: self.platform_merchant_id,
+            force_3ds_challenge: self.force_3ds_challenge,
         })
     }
 }

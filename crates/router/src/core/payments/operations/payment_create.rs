@@ -1575,6 +1575,7 @@ impl PaymentCreate {
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             platform_merchant_id: platform_merchant_account
                 .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
+            force_3ds_challenge: request.force_3ds_challenge,
         })
     }
 

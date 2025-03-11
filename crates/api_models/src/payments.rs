@@ -1114,6 +1114,9 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
