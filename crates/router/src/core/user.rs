@@ -157,12 +157,12 @@ pub async fn get_user_details(
             .err()
             .unwrap_or(false)
         {
-            common_enums::ApiVersion::V1;
+            common_enums::ApiVersion::V1
         } else {
             Err(merchant_account
                 .err()
                 .map(|e| e.change_context(UserErrors::InternalServerError))
-                .unwrap_or(UserErrors::InternalServerError.into()))
+                .unwrap_or(UserErrors::InternalServerError.into()))?
         }
     } else if merchant_key_store
         .as_ref()
@@ -170,20 +170,20 @@ pub async fn get_user_details(
         .err()
         .unwrap_or(false)
     {
-        common_enums::ApiVersion::V1;
+        common_enums::ApiVersion::V1
     } else {
         Err(merchant_key_store
             .err()
             .map(|e| e.change_context(UserErrors::InternalServerError))
-            .unwrap_or(UserErrors::InternalServerError.into()))
-    }
+            .unwrap_or(UserErrors::InternalServerError.into()))?
+    };
+
     let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
         &state,
         &user_from_token,
         EntityType::Profile,
     )
     .await?;
-
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
             merchant_id: user_from_token.merchant_id,
@@ -198,6 +198,7 @@ pub async fn get_user_details(
             profile_id: user_from_token.profile_id,
             entity_type: role_info.get_entity_type(),
             theme_id: theme.map(|theme| theme.theme_id),
+            version,
         },
     ))
 }
