@@ -505,6 +505,7 @@ impl RevenueRecoveryAttempt {
             tag,
             execute_workflow_tracking_data,
             schedule_time,
+            common_enums::ApiVersion::V2,
         )
         .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
         .attach_printable("Failed to construct process tracker entry")?;
