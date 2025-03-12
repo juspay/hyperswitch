@@ -48,7 +48,6 @@ pub trait RefundDbExt: Sized {
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
-
     #[cfg(feature = "v2")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
@@ -56,7 +55,7 @@ impl RefundDbExt for Refund {
         refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError>{
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         todo!()
     }
 
@@ -177,7 +176,7 @@ impl RefundDbExt for Refund {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
-    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>{
+    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         todo!();
     }
 
@@ -242,7 +241,7 @@ impl RefundDbExt for Refund {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
-    ) -> CustomResult<i64, errors::DatabaseError>{
+    ) -> CustomResult<i64, errors::DatabaseError> {
         todo!()
     }
 
@@ -341,7 +340,7 @@ impl RefundDbExt for Refund {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
-    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>{
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
         todo!()
     }
 

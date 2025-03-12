@@ -159,7 +159,7 @@ impl super::KafkaMessage for KafkaRefund<'_> {
             self.merchant_reference_id.get_string_repr()
         )
     }
-    
+
     fn event_type(&self) -> crate::events::EventType {
         crate::events::EventType::Refund
     }

@@ -9,14 +9,10 @@ use time::PrimitiveDateTime;
 use crate::enums as storage_enums;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 use crate::schema::refund;
-
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use crate::schema_v2::refund;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(
     Clone,
     Debug,
@@ -122,10 +118,7 @@ pub struct Refund {
     pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(
     Clone,
     Debug,

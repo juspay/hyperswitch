@@ -2637,10 +2637,7 @@ impl CaptureInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl RefundInterface for KafkaStore {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "refunds_v2")
-    ))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
@@ -2683,10 +2680,7 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "refunds_v2")
-    ))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_refund_id(
         &self,
         merchant_id: &id_type::MerchantId,
