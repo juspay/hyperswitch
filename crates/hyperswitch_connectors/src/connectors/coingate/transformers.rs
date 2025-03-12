@@ -7,14 +7,14 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm},
-    types::PaymentsAuthorizeRouterData,
+    types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::ResponseRouterData,
+    types::{PaymentsSyncResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData},
 };
 
@@ -41,6 +41,7 @@ pub struct CoingatePaymentsRequest {
     success_url: Option<String>,
     cancel_url: Option<String>,
     title: String,
+    token: Secret<String>,
 }
 
 impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaymentsRequest {
@@ -48,16 +49,17 @@ impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaym
     fn try_from(
         item: &CoingateRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let auth = CoingateAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(match item.router_data.request.payment_method_data {
             PaymentMethodData::Crypto(_) => Ok(Self {
                 price_amount: item.amount.clone(),
                 price_currency: item.router_data.request.currency,
                 receive_currency: "DO_NOT_CONVERT".to_string(),
-                // callback_url: item.router_data.request.get_webhook_url()?,
-                callback_url: "https://hyperswitch.requestcatcher.com/test".to_string(),
+                callback_url: item.router_data.request.get_webhook_url()?,
                 success_url: item.router_data.request.router_return_url.clone(),
                 cancel_url: item.router_data.request.router_return_url.clone(),
                 title: item.router_data.connector_request_reference_id.clone(),
+                token: auth.api_key,
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Coingate"),
@@ -65,7 +67,32 @@ impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaym
         }?)
     }
 }
-
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CoingateSyncResponse {
+    status: CoingatePaymentStatus,
+    id: i64,
+}
+impl TryFrom<PaymentsSyncResponseRouterData<CoingateSyncResponse>> for PaymentsSyncRouterData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsSyncResponseRouterData<CoingateSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
 pub struct CoingateAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -113,8 +140,8 @@ impl From<CoingatePaymentStatus> for common_enums::AttemptStatus {
 pub struct CoingatePaymentsResponse {
     status: CoingatePaymentStatus,
     id: i64,
-    payment_url: String,
-    order_id: String,
+    payment_url: Option<String>,
+    order_id: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>>
@@ -129,14 +156,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
                 redirection_data: Box::new(Some(RedirectForm::Form {
-                    endpoint: item.response.payment_url.clone(),
+                    endpoint: item.response.payment_url.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "payment_url",
+                        },
+                    )?,
                     method: Method::Get,
                     form_fields: HashMap::new(),
                 })),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id.clone()),
+                connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -149,4 +180,10 @@ pub struct CoingateErrorResponse {
     pub status_code: u16,
     pub message: String,
     pub reason: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CoingateWebhookBody {
+    pub token: Secret<String>,
+    pub status: CoingatePaymentStatus,
+    pub id: i64,
 }
