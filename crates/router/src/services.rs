@@ -12,6 +12,7 @@ pub mod kafka;
 pub mod logger;
 pub mod pm_auth;
 
+pub mod card_testing_guard;
 #[cfg(feature = "olap")]
 pub mod openidconnect;
 
@@ -24,7 +25,7 @@ pub use hyperswitch_interfaces::connector_integration_v2::{
 };
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
-use storage_impl::KVRouterStore;
+use storage_impl::kv_router_store::KVRouterStore;
 use storage_impl::{config::TenantConfig, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 

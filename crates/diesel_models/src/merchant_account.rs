@@ -52,6 +52,8 @@ pub struct MerchantAccount {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub id: Option<common_utils::id_type::MerchantId>,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v1")]
@@ -85,12 +87,14 @@ pub struct MerchantAccountSetter {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v1")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
+            id: Some(item.merchant_id.clone()),
             merchant_id: item.merchant_id,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -120,6 +124,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
             is_platform_account: item.is_platform_account,
+            product_type: item.product_type,
         }
     }
 }
@@ -150,8 +155,9 @@ pub struct MerchantAccount {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
-    pub id: common_utils::id_type::MerchantId,
     pub is_platform_account: bool,
+    pub id: common_utils::id_type::MerchantId,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -170,6 +176,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             version: item.version,
             is_platform_account: item.is_platform_account,
+            product_type: item.product_type,
         }
     }
 }
@@ -188,6 +195,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 impl MerchantAccount {
@@ -235,6 +243,8 @@ pub struct MerchantAccountNew {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub id: Option<common_utils::id_type::MerchantId>,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -252,6 +262,7 @@ pub struct MerchantAccountNew {
     pub id: common_utils::id_type::MerchantId,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -267,6 +278,7 @@ pub struct MerchantAccountUpdateInternal {
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub is_platform_account: Option<bool>,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -282,6 +294,7 @@ impl MerchantAccountUpdateInternal {
             organization_id,
             recon_status,
             is_platform_account,
+            product_type,
         } = self;
 
         MerchantAccount {
@@ -297,6 +310,7 @@ impl MerchantAccountUpdateInternal {
             version: source.version,
             id: source.id,
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
+            product_type: product_type.or(source.product_type),
         }
     }
 }
@@ -331,6 +345,7 @@ pub struct MerchantAccountUpdateInternal {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub is_platform_account: Option<bool>,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v1")]
@@ -363,6 +378,7 @@ impl MerchantAccountUpdateInternal {
             payment_link_config,
             pm_collect_link_config,
             is_platform_account,
+            product_type,
         } = self;
 
         MerchantAccount {
@@ -399,6 +415,8 @@ impl MerchantAccountUpdateInternal {
             pm_collect_link_config: pm_collect_link_config.or(source.pm_collect_link_config),
             version: source.version,
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
+            id: source.id,
+            product_type: product_type.or(source.product_type),
         }
     }
 }

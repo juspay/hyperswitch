@@ -1257,8 +1257,8 @@ pub async fn get_fingerprint_id_from_vault<
 >(
     state: &routes::SessionState,
     data: &D,
+    key: String,
 ) -> CustomResult<String, errors::VaultError> {
-    let key = data.get_vaulting_data_key();
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
@@ -1402,6 +1402,7 @@ pub async fn add_delete_tokenized_data_task(
         tag,
         tracking_data,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
