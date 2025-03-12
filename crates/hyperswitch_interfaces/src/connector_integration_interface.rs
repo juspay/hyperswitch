@@ -28,7 +28,7 @@ use crate::{
 
 /// RouterDataConversion trait
 ///
-/// This trait must be implemented for conversion betwenn Router data and RouterDataV2
+/// This trait must be implemented for conversion between Router data and RouterDataV2
 pub trait RouterDataConversion<T, Req: Clone, Resp: Clone> {
     /// Convert RouterData to RouterDataV2
     ///
