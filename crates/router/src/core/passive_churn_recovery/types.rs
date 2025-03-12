@@ -135,7 +135,6 @@ impl Action {
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
-        // call the proxy api
         let response =
             call_proxy_api(state, payment_intent, pcr_data, revenue_recovery_metadata).await;
         // handle proxy api's response
@@ -225,7 +224,10 @@ impl Action {
                         )),
                         Some(api_enums::UpdateActiveAttempt::Unset),
                     );
-
+                logger::info!(
+                    "Call made to payments update intent api , with the request body {:?}",
+                    payment_update_req
+                );
                 update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
@@ -309,6 +311,10 @@ async fn call_proxy_api(
         connector: "stripe".to_string(),
         merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
     };
+    logger::info!(
+        "Call made to payments proxy api , with the request body {:?}",
+        req
+    );
 
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
