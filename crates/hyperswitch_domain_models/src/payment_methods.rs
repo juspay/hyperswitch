@@ -786,6 +786,12 @@ pub trait PaymentMethodInterface {
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError>;
 
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError>;
+
     async fn insert_payment_method(
         &self,
         state: &keymanager::KeyManagerState,
