@@ -7,9 +7,7 @@ use common_utils::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    router_request_types as domain_request_types,
-};
+use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
@@ -137,10 +135,7 @@ pub async fn tokenize_cards(
 }
 
 // Data types
-type NetworkTokenizationResponse = (
-    pm_types::CardNetworkTokenResponsePayload,
-    Option<String>,
-);
+type NetworkTokenizationResponse = (pm_types::CardNetworkTokenResponsePayload, Option<String>);
 
 pub struct StoreLockerResponse {
     pub store_card_resp: pm_transformers::StoreCardRespPayload,
