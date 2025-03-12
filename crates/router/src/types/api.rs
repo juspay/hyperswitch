@@ -587,7 +587,8 @@ impl ConnectorData {
                 | enums::Connector::Riskified
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
-                | enums::Connector::Taxjar => {
+                | enums::Connector::Taxjar
+                | enums::Connector::Chargebee => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

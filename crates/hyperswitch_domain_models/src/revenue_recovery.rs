@@ -69,6 +69,7 @@ pub struct RecoveryPaymentIntent {
 }
 
 pub struct RecoveryPaymentAttempt {
+    pub connector: Option<String>,
     pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,
     pub feature_metadata: Option<api_payments::PaymentAttemptFeatureMetadata>,
