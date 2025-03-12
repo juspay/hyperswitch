@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
 use common_enums::enums;
@@ -44,7 +46,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers::{
     self as billwerk, BillwerkAuthType, BillwerkCaptureRequest, BillwerkErrorResponse,
@@ -805,8 +806,8 @@ impl IncomingWebhook for Billwerk {
     }
 }
 
-lazy_static! {
-    static ref BILLWERK_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static BILLWERK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -830,7 +831,7 @@ lazy_static! {
         billwerk_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -843,13 +844,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         billwerk_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -862,20 +863,21 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         billwerk_supported_payment_methods
-    };
+    });
 
-    static ref BILLWERK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Billwerk",
-        description: "Billwerk+ Pay is an acquirer independent payment gateway that's easy to setup with more than 50 recurring and non-recurring payment methods.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-
-    static ref BILLWERK_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+static BILLWERK_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
+    display_name: "Billwerk",
+    description: "Billwerk+ Pay is an acquirer independent payment gateway that's easy to setup with more than 50 recurring and non-recurring payment methods.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 }
+});
+
+static BILLWERK_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Billwerk {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

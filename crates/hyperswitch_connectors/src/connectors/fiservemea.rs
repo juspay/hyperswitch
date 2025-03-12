@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -41,7 +43,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
 use time::OffsetDateTime;
@@ -778,8 +779,8 @@ impl webhooks::IncomingWebhook for Fiservemea {
     }
 }
 
-lazy_static! {
-    static ref FISERVEMEA_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static FISERVEMEA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -803,7 +804,7 @@ lazy_static! {
         fiservemea_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -816,13 +817,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         fiservemea_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -835,20 +836,22 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         fiservemea_supported_payment_methods
-    };
+    });
 
-    static ref FISERVEMEA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Fiservemea",
-        description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.",
-        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    };
-
-    static ref FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+static FISERVEMEA_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
+    display_name: "Fiservemea",
+    description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.",
+    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
 }
+});
+
+static FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Fiservemea {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
