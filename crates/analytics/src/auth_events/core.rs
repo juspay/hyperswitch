@@ -165,6 +165,7 @@ pub async fn get_filters(
         .filter_map(|fil: AuthEventFilterRow| match dim {
             AuthEventDimensions::AuthenticationStatus => fil.authentication_status.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::TransactionStatus => fil.trans_status.map(|i| i.as_ref().to_string()),
+            AuthEventDimensions::AuthenticationType => fil.authentication_type.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::ErrorMessage => fil.error_message,
             AuthEventDimensions::AuthenticationConnector => fil.authentication_connector.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::MessageVersion => fil.message_version,
