@@ -5383,7 +5383,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .clone(),
-            force_3ds_challenge: request.force_3ds_challenge.clone(),
+            force_3ds_challenge: request.force_3ds_challenge,
         }
     }
 }
