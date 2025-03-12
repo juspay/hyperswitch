@@ -977,7 +977,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
                 }
                 _ => None,
             });
-   
+
         let network_token_resp = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
             payment_method_data: pmd,
         });
@@ -998,7 +998,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
-            network_tokenization: network_token_resp
+            network_tokenization: network_token_resp,
         })
     }
 }
