@@ -1881,7 +1881,7 @@ pub struct CustomerPaymentMethodsListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>, //
+    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

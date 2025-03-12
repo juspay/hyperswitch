@@ -1799,7 +1799,6 @@ pub async fn get_total_payment_method_count_core(
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<api::TotalPaymentMethodCountResponse> {
     let db = &*state.store;
-    // let key_manager_state = &(state).into();
 
     let total_count = db
         .get_payment_method_count_by_merchant_id_status(
