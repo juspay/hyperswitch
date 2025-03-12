@@ -6,8 +6,17 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::refund};
+use crate::enums as storage_enums;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+use crate::schema::refund;
 
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+use crate::schema_v2::refund;
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "refunds_v2")
+))]
 #[derive(
     Clone,
     Debug,
@@ -62,6 +71,61 @@ pub struct Refund {
     pub processor_transaction_data: Option<String>,
 }
 
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Identifiable,
+    Queryable,
+    Selectable,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[diesel(table_name = refund, primary_key(merchant_reference_id), check_for_backend(diesel::pg::Pg))]
+pub struct Refund {
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector_transaction_id: ConnectorTransactionId,
+    pub connector: String,
+    pub connector_refund_id: Option<ConnectorTransactionId>,
+    pub external_reference_id: Option<String>,
+    pub refund_type: storage_enums::RefundType,
+    pub total_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub refund_amount: MinorUnit,
+    pub refund_status: storage_enums::RefundStatus,
+    pub sent_to_gateway: bool,
+    pub refund_error_message: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub refund_arn: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+    pub description: Option<String>,
+    pub attempt_id: String,
+    pub refund_reason: Option<String>,
+    pub refund_error_code: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub updated_by: String,
+    pub charges: Option<ChargeRefunds>,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
+    pub processor_refund_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
+    pub id: common_utils::id_type::GlobalRefundId,
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+    pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "refunds_v2")
+))]
 #[derive(
     Clone,
     Debug,
@@ -101,6 +165,53 @@ pub struct RefundNew {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub updated_by: String,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub charges: Option<ChargeRefunds>,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    pub processor_refund_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+    router_derive::Setter,
+)]
+#[diesel(table_name = refund)]
+pub struct RefundNew {
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub id: common_utils::id_type::GlobalRefundId,
+    pub external_reference_id: Option<String>,
+    pub connector_transaction_id: ConnectorTransactionId,
+    pub connector: String,
+    pub connector_refund_id: Option<ConnectorTransactionId>,
+    pub refund_type: storage_enums::RefundType,
+    pub total_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub refund_amount: MinorUnit,
+    pub refund_status: storage_enums::RefundStatus,
+    pub sent_to_gateway: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub refund_arn: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+    pub description: Option<String>,
+    pub attempt_id: String,
+    pub refund_reason: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub updated_by: String,
+    pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub split_refunds: Option<common_types::refunds::SplitRefund>,

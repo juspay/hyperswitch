@@ -2637,9 +2637,29 @@ impl CaptureInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl RefundInterface for KafkaStore {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2")
+    ))]
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
+        self.diesel_store
+            .find_refund_by_internal_reference_id_merchant_id(
+                internal_reference_id,
+                merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn find_refund_by_internal_reference_id_merchant_id(
+        &self,
+        internal_reference_id: &id_type::GlobalRefundId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Refund, errors::StorageError> {
@@ -2663,10 +2683,26 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2")
+    ))]
     async fn find_refund_by_merchant_id_refund_id(
         &self,
         merchant_id: &id_type::MerchantId,
         refund_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
+        self.diesel_store
+            .find_refund_by_merchant_id_refund_id(merchant_id, refund_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn find_refund_by_merchant_id_refund_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_id: &id_type::RefundReferenceId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Refund, errors::StorageError> {
         self.diesel_store

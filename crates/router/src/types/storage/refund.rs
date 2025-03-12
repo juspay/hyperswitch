@@ -48,6 +48,19 @@ pub trait RefundDbExt: Sized {
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
+
+    #[cfg(feature = "v2")]
+    async fn filter_by_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError>{
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -159,6 +172,16 @@ impl RefundDbExt for Refund {
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
+    #[cfg(feature = "v2")]
+    async fn filter_by_meta_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &common_utils::types::TimeRange,
+    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>{
+        todo!();
+    }
+
+    #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -214,6 +237,16 @@ impl RefundDbExt for Refund {
         Ok(meta)
     }
 
+    #[cfg(feature = "v2")]
+    async fn get_refunds_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
+    ) -> CustomResult<i64, errors::DatabaseError>{
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -302,6 +335,17 @@ impl RefundDbExt for Refund {
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }
 
+    #[cfg(feature = "v2")]
+    async fn get_refund_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>{
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

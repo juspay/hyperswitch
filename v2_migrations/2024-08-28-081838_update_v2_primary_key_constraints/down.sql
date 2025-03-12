@@ -65,3 +65,7 @@ ALTER TABLE payment_attempt ALTER COLUMN id DROP NOT NULL;
 ------------------------ Payment Methods -----------------------
 ALTER TABLE payment_methods DROP CONSTRAINT payment_methods_pkey;
 ALTER TABLE payment_methods ALTER COLUMN id DROP NOT NULL;
+
+------------------------ Refunds -----------------------
+ALTER TABLE refund DROP CONSTRAINT refund_pkey;
+ALTER TABLE refund ALTER COLUMN merchant_reference_id DROP NOT NULL;
