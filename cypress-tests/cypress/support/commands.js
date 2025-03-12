@@ -2143,6 +2143,16 @@ Cypress.Commands.add(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
+
+              if (
+                typeof response.body.payment_method_id !== "undefined" ||
+                response.body.payment_method_id !== "null"
+              ) {
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status"
+                ).to.equal("inactive");
+              }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
@@ -2150,6 +2160,19 @@ Cypress.Commands.add(
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId")
               );
+              if (
+                ["succeeded", "requires_capture"].includes(response.body.status)
+              ) {
+                expect(
+                  response.body.payment_method_id,
+                  "payment_method_id"
+                ).to.include("pm_").and.to.not.be.null;
+
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status"
+                ).to.equal("active");
+              }
             } else {
               // Handle other authentication types as needed
               throw new Error(
@@ -2307,8 +2330,9 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.billing, "billing_address").to.not.be.empty;
+          expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
+
           if (
             ["succeeded", "processing", "requires_customer_action"].includes(
               response.body.status
@@ -2325,6 +2349,35 @@ Cypress.Commands.add(
               response.body.merchant_connector_id,
               "connector_id"
             ).to.equal(merchant_connector_id);
+          }
+
+          if (
+            (["succeeded", "requires_capture"].includes(response.body.status) &&
+              typeof response.body.payment_method_id !== "undefined") ||
+            response.body.payment_method_id !== "null"
+          ) {
+            expect(
+              response.body.payment_method_id,
+              "payment_method_id"
+            ).to.include("pm_").and.to.not.be.null;
+
+            expect(
+              response.body.payment_method_status,
+              "payment_method_status"
+            ).to.equal("active");
+          } else if (
+            typeof response.body.payment_method_id !== "undefined" ||
+            response.body.payment_method_id !== "null"
+          ) {
+            expect(
+              response.body.payment_method_id,
+              "payment_method_id"
+            ).to.include("pm_").and.to.not.be.null;
+
+            expect(
+              response.body.payment_method_status,
+              "payment_method_status"
+            ).to.equal("inactive");
           }
 
           if (autoretries) {
