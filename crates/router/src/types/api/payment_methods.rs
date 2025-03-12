@@ -11,7 +11,8 @@ pub use api_models::payment_methods::{
     PaymentMethodListResponse, PaymentMethodMigrate, PaymentMethodMigrateResponse,
     PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
     PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, TotalPaymentMethodCountResponse,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    TotalPaymentMethodCountResponse,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
