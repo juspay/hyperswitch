@@ -709,7 +709,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
+                Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
                     (None, None, None)
                 }
             }

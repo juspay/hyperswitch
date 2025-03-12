@@ -550,14 +550,14 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
 impl
     TryFrom<(
         &AciRouterData<&PaymentsAuthorizeRouterData>,
-        api_models::payments::MandateIds,
+        hyperswitch_domain_models::payments::MandateIds,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&PaymentsAuthorizeRouterData>,
-            api_models::payments::MandateIds,
+            hyperswitch_domain_models::payments::MandateIds,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, _mandate_data) = value;

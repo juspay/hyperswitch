@@ -43,7 +43,7 @@ pub struct PaymentsAuthorizeData {
     pub complete_authorize_url: Option<String>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<payments::MandateIds>,
     pub off_session: Option<bool>,
     pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
@@ -289,7 +289,7 @@ pub struct PaymentsPreProcessingData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<payments::MandateIds>,
     pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub metadata: Option<Secret<serde_json::Value>>,
@@ -408,7 +408,7 @@ pub struct CompleteAuthorizeData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,

@@ -621,13 +621,13 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
             .clone()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
+            Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
                 TransactionRequest::try_from((item, network_trans_id))?
             }
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+            Some(hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
-            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+            Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -766,14 +766,14 @@ impl
 impl
     TryFrom<(
         &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
-        api_models::payments::ConnectorMandateReferenceId,
+        hyperswitch_domain_models::payments::ConnectorMandateReferenceId,
     )> for TransactionRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, connector_mandate_id): (
             &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
-            api_models::payments::ConnectorMandateReferenceId,
+            hyperswitch_domain_models::payments::ConnectorMandateReferenceId,
         ),
     ) -> Result<Self, Self::Error> {
         let mandate_id = connector_mandate_id

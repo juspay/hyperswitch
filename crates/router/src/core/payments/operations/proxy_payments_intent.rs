@@ -228,11 +228,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .map(|address| address.into_inner()),
             Some(true),
         );
-        let mandate_data_input = api_models::payments::MandateIds {
+        let mandate_data_input = hyperswitch_domain_models::payments::MandateIds {
             mandate_id: None,
             mandate_reference_id: Some(
-                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    api_models::payments::ConnectorMandateReferenceId::new(
+                hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
+                    hyperswitch_domain_models::payments::ConnectorMandateReferenceId::new(
                         Some(processor_payment_token),
                         None,
                         None,

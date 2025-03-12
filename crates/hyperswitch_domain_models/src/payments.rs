@@ -673,6 +673,106 @@ where
     pub sessions_token: Vec<SessionToken>,
 }
 
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct MandateIds {
+    pub mandate_id: Option<String>,
+    pub mandate_reference_id: Option<MandateReferenceId>,
+}
+
+impl MandateIds {
+    pub fn is_network_transaction_id_flow(&self) -> bool {
+        matches!(
+            self.mandate_reference_id,
+            Some(MandateReferenceId::NetworkMandateId(_))
+        )
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateReferenceId {
+    ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
+    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkTokenWithNTIRef {
+    pub network_transaction_id: String,
+    pub token_exp_month: Option<Secret<String>>,
+    pub token_exp_year: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct ConnectorMandateReferenceId {
+    connector_mandate_id: Option<String>,
+    payment_method_id: Option<String>,
+    update_history: Option<Vec<UpdateHistory>>,
+    mandate_metadata: Option<pii::SecretSerdeValue>,
+    connector_mandate_request_reference_id: Option<String>,
+}
+
+impl ConnectorMandateReferenceId {
+    pub fn new(
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) -> Self {
+        Self {
+            connector_mandate_id,
+            payment_method_id,
+            update_history,
+            mandate_metadata,
+            connector_mandate_request_reference_id,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.connector_mandate_id.clone()
+    }
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        self.payment_method_id.clone()
+    }
+    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.mandate_metadata.clone()
+    }
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn update(
+        &mut self,
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) {
+        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
+        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
+        self.update_history = update_history.or(self.update_history.clone());
+        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
+        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
+            .or(self.connector_mandate_request_reference_id.clone());
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct UpdateHistory {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: String,
+    pub original_payment_id: Option<id_type::PaymentId>,
+}
+
+impl MandateIds {
+    pub fn new(mandate_id: String) -> Self {
+        Self {
+            mandate_id: Some(mandate_id),
+            mandate_reference_id: None,
+        }
+    }
+}
+
 // TODO: Check if this can be merged with existing payment data
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
@@ -685,7 +785,7 @@ where
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
-    pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub mandate_data: Option<MandateIds>,
 }
 
 #[cfg(feature = "v2")]
