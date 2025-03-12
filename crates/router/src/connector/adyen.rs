@@ -824,7 +824,6 @@ impl
         )?;
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
-       
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
