@@ -1039,7 +1039,7 @@ impl Customers {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
                 .service(
-                    web::resource("/payment_methods")
+                    web::resource("/payment-methods")
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
                 )
         }
