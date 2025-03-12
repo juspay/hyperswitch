@@ -316,7 +316,7 @@ async fn call_proxy_api(
         .to_get_tracker()?
         .get_trackers(
             state,
-            &payment_intent.get_id(),
+            payment_intent.get_id(),
             &req,
             &pcr_data.merchant_account,
             &pcr_data.profile,
@@ -362,12 +362,12 @@ pub async fn update_payment_intent_api(
         _,
         PaymentIntentData<api_types::PaymentUpdateIntent>,
     >(
-        &state,
+        state,
         state.get_req_state(),
         pcr_data.merchant_account.clone(),
         pcr_data.profile.clone(),
         pcr_data.key_store.clone(),
-        operation.clone(),
+        operation,
         update_req,
         global_payment_id,
         hyperswitch_domain_models::payments::HeaderPayload::default(),

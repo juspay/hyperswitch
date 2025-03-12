@@ -72,7 +72,7 @@ pub async fn perform_execute_payment(
                     state,
                     payment_intent,
                     execute_task_process,
-                    &pcr_data,
+                    pcr_data,
                     &mut pcr_metadata,
                 )
                 .await?;
