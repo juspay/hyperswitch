@@ -226,6 +226,7 @@ pub struct ConnectorConfig {
     pub razorpay: Option<ConnectorTomlConfig>,
     pub riskified: Option<ConnectorTomlConfig>,
     pub rapyd: Option<ConnectorTomlConfig>,
+    pub redsys: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -387,6 +388,7 @@ impl ConnectorConfig {
             Connector::Powertranz => Ok(connector_data.powertranz),
             Connector::Razorpay => Ok(connector_data.razorpay),
             Connector::Rapyd => Ok(connector_data.rapyd),
+            Connector::Redsys => Ok(connector_data.redsys),
             Connector::Riskified => Ok(connector_data.riskified),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),

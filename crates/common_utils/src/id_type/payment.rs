@@ -54,7 +54,7 @@ impl PaymentId {
         format!("external_authentication_{}", self.get_string_repr())
     }
 
-        /// Get threeds authentication request poll id
+    /// Get threeds authentication request poll id
     pub fn get_threeds_authentication_request_poll_id(&self) -> String {
         format!("threeds_authentication_{}", self.get_string_repr())
     }

@@ -904,11 +904,9 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::CollectOtp {
             consent_data_required,
         },
-        payments::NextActionData::InvokeHiddenIframe  {
-            iframe_data,
-        } => StripeNextAction::InvokeHiddenIframe  {
-            iframe_data,
-        },
+        payments::NextActionData::InvokeHiddenIframe { iframe_data } => {
+            StripeNextAction::InvokeHiddenIframe { iframe_data }
+        }
     })
 }
 

@@ -59,6 +59,7 @@ use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;
 use time::PrimitiveDateTime;
+use rand::Rng;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
@@ -285,14 +286,13 @@ where
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     let json = connector_meta_secret.expose();
-    router_env::logger::info!(sssssssssssddd6=?json);
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
-    (0..length).map(|_| rand::Rng::gen(&mut rng)).collect()
+    (0..length).map(|_| Rng::gen(&mut rng)).collect()
 }
 
 pub(crate) fn missing_field_err(
@@ -1054,7 +1054,15 @@ impl CardData for Card {
         ))
     }
     fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        
+        let month = self.card_exp_month.clone().expose();
+        let month_length = month.len();
+        match month_length {
+            2 => Ok(self.card_exp_month.clone()),
+            1 => Ok(Secret::new(format!("0{}", month))),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }),
+        }
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -1146,6 +1154,17 @@ impl CardData for CardDetailsForNetworkTransactionId {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let month = self.card_exp_month.clone().expose();
+        let month_length = month.len();
+        match month_length {
+            2 => Ok(self.card_exp_month.clone()),
+            1 => Ok(Secret::new(format!("0{}", month))),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }),
+        }
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -2088,8 +2107,8 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error> {
         self.threeds_method_comp_ind
-        .clone()
-        .ok_or_else(missing_field_err("threeds_method_comp_ind"))
+            .clone()
+            .ok_or_else(missing_field_err("threeds_method_comp_ind"))
     }
 }
 pub trait AddressData {
@@ -2143,7 +2162,6 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
-    fn get_optional_browser_info(&self) -> Option<BrowserInformation>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
 }
@@ -2198,9 +2216,6 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
-    }
-    fn get_optional_browser_info(&self) -> Option<BrowserInformation> {
-        self.browser_info.clone()
     }
     fn get_complete_authorize_url(&self) -> Result<String, Error> {
         self.complete_authorize_url
@@ -5522,6 +5537,17 @@ impl CardData for api_models::payouts::CardPayout {
                 .to_string(),
         ))
     }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let month = self.expiry_month.clone().expose();
+        let month_length = month.len();
+        match month_length {
+            2 => Ok(self.expiry_month.clone()),
+            1 => Ok(Secret::new(format!("0{}", month))),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }),
+        }
+    }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
     }
@@ -5682,4 +5708,9 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }
+}
+
+pub fn generate_12_digit_number() -> u64 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(100_000_000_000..=999_999_999_999)
 }

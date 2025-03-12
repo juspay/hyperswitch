@@ -2307,9 +2307,7 @@ where
                         })
                         .or(match next_action_three_ds_invoke{
                             Some(threeds_invoke_data) => Some(construct_connector_three_ds_invoke_data(
-                                &payment_attempt,
                                 threeds_invoke_data,
-                                base_url,
                             )?),
                             None => None
 
@@ -2668,15 +2666,14 @@ pub fn next_action_three_ds_invoke(
 }
 
 pub fn construct_connector_three_ds_invoke_data(
-    payment_attempt: &storage::PaymentAttempt,
     connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
-    base_url: &str,
 ) -> RouterResult<api_models::payments::NextActionData> {
     let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {
-        three_ds_method_data_submission: connector_three_ds_invoke_data.three_ds_method_data_submission,
+        three_ds_method_data_submission: connector_three_ds_invoke_data
+            .three_ds_method_data_submission,
         three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
         three_ds_method_url: connector_three_ds_invoke_data.three_ds_method_url,
-        directory_server_id:  connector_three_ds_invoke_data.directory_server_id,
+        directory_server_id: connector_three_ds_invoke_data.directory_server_id,
         message_version: connector_three_ds_invoke_data.message_version,
     };
 

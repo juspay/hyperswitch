@@ -4229,14 +4229,14 @@ where
                         let three_ds_invoke_data: Option<
                             api_models::payments::PaymentsConnectorThreeDsInvokeData,
                         > = connector_metadata.clone().and_then(|metadata| {
-                            metadata.parse_value("PaymentsConnectorThreeDsInvokeData").ok()
+                            metadata
+                                .parse_value("PaymentsConnectorThreeDsInvokeData")
+                                .ok()
                         });
-                        three_ds_invoke_data
-                            .is_none()
+                        three_ds_invoke_data.is_none()
                     }
                     _ => false,
                 };
-                router_env::logger::info!(sssssssssss=?should_continue);
                 (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)

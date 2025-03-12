@@ -147,14 +147,13 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         &self,
         data: &RouterData<T, Req, Resp>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
+        _res: types::Response,
     ) -> CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
     where
         T: Clone,
         Req: Clone,
         Resp: Clone,
     {
-        println!("sssssssssssssssssssss {:?}", res);
         event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
         Ok(data.clone())
     }
