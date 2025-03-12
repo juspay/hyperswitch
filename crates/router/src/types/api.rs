@@ -521,7 +521,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
                 enums::Connector::Recurly => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                    Err(report!(errors::ConnectorError::InvalidConnectorName)
+                        .attach_printable(format!("invalid connector name: {connector_name}")))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
