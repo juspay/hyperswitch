@@ -57,7 +57,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
-use serde::Serializer;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -342,16 +341,6 @@ pub(crate) fn construct_not_implemented_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
         .into()
-}
-
-pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let float_value = value.parse::<f64>().map_err(|_| {
-        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
-    })?;
-    serializer.serialize_f64(float_value)
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
@@ -1626,6 +1615,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1829,6 +1821,22 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
+    }
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_network
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_network",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_network"],
+            }
+            .into()),
+        }
     }
 }
 
