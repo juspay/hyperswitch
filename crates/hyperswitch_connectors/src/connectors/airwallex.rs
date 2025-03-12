@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -46,7 +46,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use router_env::logger;
 use transformers as airwallex;
@@ -1094,8 +1093,8 @@ impl ConnectorRedirectResponse for Airwallex {
     }
 }
 
-lazy_static! {
-    static ref AIRWALLEX_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -1117,7 +1116,7 @@ lazy_static! {
         airwallex_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1130,13 +1129,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         airwallex_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1149,31 +1148,38 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         airwallex_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         airwallex_supported_payment_methods
-    };
+    });
 
-    static ref AIRWALLEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Airwallex",
-        description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-
-    static ref AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Disputes];
+static AIRWALLEX_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
+    display_name: "Airwallex",
+    description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 }
+});
+
+static AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
+    vec![
+        enums::EventClass::Payments,
+        enums::EventClass::Refunds,
+        enums::EventClass::Disputes,
+    ]
+});
 
 impl ConnectorSpecifications for Airwallex {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

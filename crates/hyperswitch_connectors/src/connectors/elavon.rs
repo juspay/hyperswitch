@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::{collections::HashMap, str};
+use std::{collections::HashMap, str, sync::LazyLock};
 
 use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
@@ -40,7 +40,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{Secret, WithoutType};
 use serde::Serialize;
 use transformers as elavon;
@@ -582,77 +581,77 @@ impl webhooks::IncomingWebhook for Elavon {
 
 impl ConnectorValidation for Elavon {}
 
-lazy_static! {
-    static ref ELAVON_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            CaptureMethod::Automatic,
-            CaptureMethod::Manual,
-            CaptureMethod::SequentialAutomatic,
-        ];
+static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        CaptureMethod::Automatic,
+        CaptureMethod::Manual,
+        CaptureMethod::SequentialAutomatic,
+    ];
 
-        let supported_card_network = vec![
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::UnionPay,
-            common_enums::CardNetwork::Discover,
-            common_enums::CardNetwork::CartesBancaires,
-            common_enums::CardNetwork::Interac,
-        ];
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::Interac,
+    ];
 
-        let mut elavon_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut elavon_supported_payment_methods = SupportedPaymentMethods::new();
 
-        elavon_supported_payment_methods.add(
-            PaymentMethod::Card,
-            PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::Supported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    elavon_supported_payment_methods.add(
+        PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        elavon_supported_payment_methods.add(
-            PaymentMethod::Card,
-            PaymentMethodType::Debit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::Supported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    elavon_supported_payment_methods.add(
+        PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        elavon_supported_payment_methods
-    };
+    elavon_supported_payment_methods
+});
 
-    static ref ELAVON_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Elavon",
-        description: "Elavon, a wholly owned subsidiary of U.S. Bank, has been a global leader in payment processing for more than 30 years.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-
-    static ref ELAVON_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+static ELAVON_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
+    display_name: "Elavon",
+    description: "Elavon, a wholly owned subsidiary of U.S. Bank, has been a global leader in payment processing for more than 30 years.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 }
+});
+
+static ELAVON_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Elavon {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::sync::LazyLock;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::{enums, CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
@@ -49,7 +51,6 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use image::EncodableLayout;
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers::{self as xendit, XenditEventType, XenditWebhookEvent};
 
@@ -892,76 +893,73 @@ impl webhooks::IncomingWebhook for Xendit {
     }
 }
 
-lazy_static! {
-    static ref XENDIT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            CaptureMethod::Automatic,
-            CaptureMethod::Manual,
-        ];
+static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
 
-        let supported_card_network = vec![
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::Interac,
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::Discover,
-            common_enums::CardNetwork::CartesBancaires,
-            common_enums::CardNetwork::UnionPay,
-        ];
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+    ];
 
-        let mut xendit_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut xendit_supported_payment_methods = SupportedPaymentMethods::new();
 
-        xendit_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::Supported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    xendit_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        xendit_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            PaymentMethodType::Debit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::Supported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    xendit_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        xendit_supported_payment_methods
-    };
+    xendit_supported_payment_methods
+});
 
-    static ref XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Xendit",
-        description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-
-    static ref XENDIT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+static XENDIT_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
+    display_name: "Xendit",
+    description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 }
+});
+
+static XENDIT_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Xendit {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

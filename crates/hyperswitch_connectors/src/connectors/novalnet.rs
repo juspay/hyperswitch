@@ -1,6 +1,6 @@
 pub mod transformers;
 use core::str;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::LazyLock};
 
 use base64::Engine;
 use common_enums::enums;
@@ -45,7 +45,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as novalnet;
 
@@ -982,8 +981,8 @@ impl webhooks::IncomingWebhook for Novalnet {
     }
 }
 
-lazy_static! {
-    static ref NOVALNET_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static NOVALNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -1007,7 +1006,7 @@ lazy_static! {
         novalnet_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1020,13 +1019,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         novalnet_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1039,53 +1038,61 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         novalnet_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,  // three-ds needed for googlepay
-            }
+                specific_features: None, // three-ds needed for googlepay
+            },
         );
 
         novalnet_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         novalnet_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::Paypal,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         novalnet_supported_payment_methods
-    };
+    });
 
-    static ref NOVALNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Novalnet",
-        description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-
-    static ref NOVALNET_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Disputes, enums::EventClass::Mandates];
+static NOVALNET_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
+    display_name: "Novalnet",
+    description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 }
+});
+
+static NOVALNET_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
+    vec![
+        enums::EventClass::Payments,
+        enums::EventClass::Refunds,
+        enums::EventClass::Disputes,
+        enums::EventClass::Mandates,
+    ]
+});
 
 impl ConnectorSpecifications for Novalnet {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
