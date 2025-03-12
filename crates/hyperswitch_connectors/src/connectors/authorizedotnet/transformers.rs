@@ -621,17 +621,17 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
             .clone()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
-            Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
-                TransactionRequest::try_from((item, network_trans_id))?
-            }
+            Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(
+                network_trans_id,
+            )) => TransactionRequest::try_from((item, network_trans_id))?,
             Some(hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
-            Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                ))?
-            }
+            Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(
+                _,
+            )) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+            ))?,
             None => {
                 match &item.router_data.request.payment_method_data {
                     PaymentMethodData::Card(ccard) => TransactionRequest::try_from((item, ccard)),

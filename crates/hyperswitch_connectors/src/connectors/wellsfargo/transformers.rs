@@ -709,9 +709,10 @@ impl
                         }),
                     )
                 }
-                Some(hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
-                    (None, None, None)
-                }
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_),
+                )
+                | None => (None, None, None),
             }
         } else {
             (None, None, None)

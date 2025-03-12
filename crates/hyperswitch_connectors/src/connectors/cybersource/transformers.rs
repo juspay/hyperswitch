@@ -731,7 +731,9 @@ impl
                 .clone()
                 .and_then(|mandate_id| mandate_id.mandate_reference_id)
             {
-                Some(hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(_)) => {
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(_),
+                ) => {
                     let original_amount = item
                         .router_data
                         .recurring_mandate_payment_data
