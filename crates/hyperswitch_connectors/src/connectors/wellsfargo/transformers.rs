@@ -581,36 +581,35 @@ impl
             .unwrap_or("internet")
             .to_string();
 
-        let (action_list, action_token_types, authorization_options) = if item
-            .router_data
-            .request
-            .setup_future_usage
-            == Some(FutureUsage::OffSession)
-            && (item.router_data.request.customer_acceptance.is_some()
-                || item
-                    .router_data
-                    .request
-                    .setup_mandate_details
-                    .clone()
-                    .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
-        {
-            (
-                Some(vec![WellsfargoActionsList::TokenCreate]),
-                Some(vec![
-                    WellsfargoActionsTokenType::PaymentInstrument,
-                    WellsfargoActionsTokenType::Customer,
-                ]),
-                Some(WellsfargoAuthorizationOptions {
-                    initiator: Some(WellsfargoPaymentInitiator {
-                        initiator_type: Some(WellsfargoPaymentInitiatorTypes::Customer),
-                        credential_stored_on_file: Some(true),
-                        stored_credential_used: None,
+        let (action_list, action_token_types, authorization_options) =
+            if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
+                && (item.router_data.request.customer_acceptance.is_some()
+                    || item
+                        .router_data
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .is_some_and(|mandate_details| {
+                            mandate_details.customer_acceptance.is_some()
+                        }))
+            {
+                (
+                    Some(vec![WellsfargoActionsList::TokenCreate]),
+                    Some(vec![
+                        WellsfargoActionsTokenType::PaymentInstrument,
+                        WellsfargoActionsTokenType::Customer,
+                    ]),
+                    Some(WellsfargoAuthorizationOptions {
+                        initiator: Some(WellsfargoPaymentInitiator {
+                            initiator_type: Some(WellsfargoPaymentInitiatorTypes::Customer),
+                            credential_stored_on_file: Some(true),
+                            stored_credential_used: None,
+                        }),
+                        merchant_intitiated_transaction: None,
                     }),
-                    merchant_intitiated_transaction: None,
-                }),
-            )
-        } else if item.router_data.request.mandate_id.is_some() {
-            match item
+                )
+            } else if item.router_data.request.mandate_id.is_some() {
+                match item
                 .router_data
                 .request
                 .mandate_id
@@ -714,9 +713,9 @@ impl
                 )
                 | None => (None, None, None),
             }
-        } else {
-            (None, None, None)
-        };
+            } else {
+                (None, None, None)
+            };
         // this logic is for external authenticated card
         let commerce_indicator_for_external_authentication = item
             .router_data
