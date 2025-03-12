@@ -520,11 +520,6 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
-                enums::Connector::Recurly => {
-                    Err(report!(errors::ConnectorError::InvalidConnectorName)
-                        .attach_printable(format!("invalid connector name: {connector_name}")))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                }
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
@@ -589,6 +584,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Signifyd
                 | enums::Connector::Riskified
+                | enums::Connector::Recurly
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Taxjar => {
