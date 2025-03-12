@@ -1090,7 +1090,7 @@ impl
             ..
         } = mandate_reference_record;
 
-        let mut res = Self {
+        Self {
             connector_id,
             status: connector_token_status,
             connector_token_request_reference_id,
@@ -1100,8 +1100,6 @@ impl
             token: Secret::new(connector_token),
             // Token that is derived from payments mandate reference will always be multi use token
             token_type: common_enums::TokenizationType::MultiUse,
-        };
-        res.set_masked_token();
-        res
+        }
     }
 }

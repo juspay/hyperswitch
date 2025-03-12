@@ -65,7 +65,6 @@ pub use merchant_key_store::*;
 pub use network_tokenization::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use payments::*;
 #[cfg(feature = "olap")]
 pub use user::*;

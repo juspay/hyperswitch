@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use api_models::payment_methods;
 use serde::{Deserialize, Serialize};
 
