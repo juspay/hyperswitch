@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.10.0-hotfix1
+
+### Features
+
+- **analytics:** Modified authentication queries and added generate report for authentications ([#7499](https://github.com/juspay/hyperswitch/pull/7499)) ([`7395881`](https://github.com/juspay/hyperswitch/commit/739588163388a0aa4e3b1d7923d582743468bd1d))
+
+**Full Changelog:** [`2025.03.10.0...2025.03.10.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.03.10.0...2025.03.10.0-hotfix1)
+
+
+- - -
+
 ## 2025.03.10.0
 
 ### Features
