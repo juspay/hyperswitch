@@ -25,6 +25,15 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::connectors::recurly::transformers::RecurlyRecoveryDetailsData;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+    types::AdditionalRevenueRecoveryDetailsRouterData,
+};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -66,6 +75,8 @@ impl api::Refund for Recurly {}
 impl api::RefundExecute for Recurly {}
 impl api::RefundSync for Recurly {}
 impl api::PaymentToken for Recurly {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl api::AdditionalRevenueRecovery for Recurly{}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Recurly
@@ -540,6 +551,121 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Recurly {
         self.build_error_response(res, event_builder)
     }
 }
+
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl
+    ConnectorIntegration<
+        GetAdditionalRevenueRecoveryDetails,
+        GetAdditionalRevenueRecoveryRequestData,
+        GetAdditionalRevenueRecoveryResponseData,
+    > for Recurly
+{
+    fn get_headers(
+        &self,
+        req: &AdditionalRevenueRecoveryDetailsRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &AdditionalRevenueRecoveryDetailsRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/transactions/uuid-{}",
+            self.base_url(connectors),
+            req.request.additional_revenue_recovery_id
+        ))
+    }
+
+
+    fn build_request(
+        &self,
+        req: &AdditionalRevenueRecoveryDetailsRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::AdditionalRevenueRecoveryCallType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &AdditionalRevenueRecoveryDetailsRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError> {
+       let response : RecurlyRecoveryDetailsData = res
+            .response
+            .parse_struct::<RecurlyRecoveryDetailsData>("RecurlyRecoveryDetailsData")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+       event_builder.map(|i| i.set_response_body(&response));
+       router_env::logger::info!(connector_response=?response);
+
+       AdditionalRevenueRecoveryDetailsRouterData::try_from(ResponseRouterData {
+           response,
+           data: data.clone(),
+           http_code: res.status_code,
+       })
+       
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+        let error_message = match res.status_code {
+            500 => "internal_server_error",
+            501 => "not_implemented",
+            502 => "bad_gateway",
+            503 => "service_unavailable",
+            504 => "gateway_timeout",
+            505 => "http_version_not_supported",
+            506 => "variant_also_negotiates",
+            507 => "insufficient_storage",
+            508 => "loop_detected",
+            510 => "not_extended",
+            511 => "network_authentication_required",
+            _ => "unknown_error",
+        };
+        Ok(ErrorResponse {
+            code: res.status_code.to_string(),
+            message: error_message.to_string(),
+            reason: String::from_utf8(res.response.to_vec()).ok(),
+            status_code: res.status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
+    }
+
+}
+
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Recurly {

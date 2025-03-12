@@ -468,7 +468,7 @@ impl RevenueRecoveryAttempt {
         billing_connector_account: &domain::MerchantConnectorAccount,
     ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::RevenueRecoveryError> {
         let payment_merchant_connector_account_id =
-            match self.0.connector_account_reference_id.clone() == "stripebilling".to_string() {
+            match self.0.connector_account_reference_id.clone() == *"stripebilling" {
                 true => Some(billing_connector_account.get_id()),
                 false => billing_connector_account
                     .get_payment_merchant_connector_account_id_using_account_reference_id(
