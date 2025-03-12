@@ -484,8 +484,9 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
+        let store = self.stores.get(tenant).ok_or_else(err)?.clone();
         Ok(SessionState {
-            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            store,
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
