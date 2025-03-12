@@ -1797,6 +1797,30 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentAttemptResponse>
+    for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        _state: &SessionState,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+        _profile: &domain::Profile,
+    ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+        let payment_attempt = self.payment_attempt;
+        let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
 where
@@ -3112,18 +3136,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.creds_identifier.as_deref(),
         ));
 
-        let additional_payment_method_data = if payment_data.mandate_id.is_some() {
-            let parsed_additional_payment_data: Option<api_models::payments::AdditionalPaymentData> =
-                payment_data.payment_attempt
-                    .payment_method_data
-                    .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
-            parsed_additional_payment_data
-        } else {
-            None
-        };
+        let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+            payment_data.payment_attempt
+                .payment_method_data
+                .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
+
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)

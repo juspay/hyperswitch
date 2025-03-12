@@ -544,6 +544,12 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Card tokenization flow
+    TokenizeCard,
+    /// Card tokenization using payment method flow
+    TokenizeCardUsingPaymentMethodId,
+    /// Cards batch tokenization flow
+    TokenizeCardBatch,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
     /// Generate Hypersense Token

@@ -159,6 +159,21 @@ impl MerchantConnectorAccount {
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone().to_string()
     }
+
+    pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
+        &self,
+        account_reference_id: String,
+    ) -> Option<id_type::MerchantConnectorAccountId> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
+            metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                recovery
+                    .mca_reference
+                    .billing_to_recovery
+                    .get(&account_reference_id)
+                    .cloned()
+            })
+        })
+    }
 }
 
 #[cfg(feature = "v2")]

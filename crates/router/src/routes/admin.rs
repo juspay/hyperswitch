@@ -135,6 +135,7 @@ pub async fn merchant_account_create(
         merchant_details: json_payload.merchant_details,
         metadata: json_payload.metadata,
         organization_id: org_id,
+        product_type: json_payload.product_type,
     };
 
     Box::pin(api::server_wrap(
@@ -288,7 +289,7 @@ pub async fn delete_merchant_account(
     let mid = mid.into_inner();
 
     let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -296,7 +297,7 @@ pub async fn delete_merchant_account(
         |state, _, req, _| merchant_account_delete(state, req.merchant_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

@@ -110,6 +110,10 @@ pub struct MerchantAccountCreate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v1")]
@@ -192,6 +196,8 @@ pub struct MerchantAccountCreateWithoutOrgId {
     /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 // In v2 the struct used in the API is MerchantAccountCreateWithoutOrgId
@@ -204,6 +210,8 @@ pub struct MerchantAccountCreate {
     pub merchant_details: Option<MerchantDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub organization_id: id_type::OrganizationId,
+    /// Product Type of this merchant account
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -549,6 +557,10 @@ pub struct MerchantAccountResponse {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -581,6 +593,10 @@ pub struct MerchantAccountResponse {
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: api_enums::ReconStatus,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1962,6 +1978,9 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2233,6 +2252,9 @@ pub struct ProfileResponse {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: bool,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2500,6 +2522,9 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

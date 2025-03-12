@@ -7,7 +7,7 @@ use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -642,6 +642,18 @@ impl PaymentIntent {
             split_payments: None,
         })
     }
+
+    pub fn get_revenue_recovery_metadata(
+        &self,
+    ) -> Option<diesel_models::types::PaymentRevenueRecoveryMetadata> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
+        self.feature_metadata.clone()
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -776,6 +788,78 @@ where
 {
     pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
         &self.payment_intent.id
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+    pub revenue_recovery_data: RevenueRecoveryData,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct RevenueRecoveryData {
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+    pub processor_payment_method_token: String,
+    pub connector_customer_id: String,
+}
+
+#[cfg(feature = "v2")]
+impl<F> PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    pub fn get_updated_feature_metadata(
+        &self,
+    ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
+        let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
+
+        let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
+
+        let payment_revenue_recovery_metadata =
+            Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+                // Update retry count by one.
+                total_retry_count: revenue_recovery.map_or(1, |data| (data.total_retry_count + 1)),
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
+                payment_connector_transmission:
+                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
+                active_attempt_payment_connector_id: self
+                    .payment_attempt
+                    .get_attempt_merchant_connector_account_id()?,
+                billing_connector_payment_details:
+                    diesel_models::types::BillingConnectorPaymentDetails {
+                        payment_processor_token: self
+                            .revenue_recovery_data
+                            .processor_payment_method_token
+                            .clone(),
+                        connector_customer_id: self
+                            .revenue_recovery_data
+                            .connector_customer_id
+                            .clone(),
+                    },
+                payment_method_type: self.payment_attempt.payment_method_type,
+                payment_method_subtype: self.payment_attempt.payment_method_subtype,
+            });
+        Ok(Some(FeatureMetadata {
+            redirect_response: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.redirect_response.clone()),
+            search_tags: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.search_tags.clone()),
+            apple_pay_recurring_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.apple_pay_recurring_details.clone()),
+            payment_revenue_recovery_metadata,
+        }))
     }
 }
 
