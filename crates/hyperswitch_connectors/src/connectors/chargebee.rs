@@ -1,6 +1,8 @@
 pub mod transformers;
 
 use base64::Engine;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use common_utils::types::{StringMinorUnit, StringMinorUnitForConnector};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
@@ -8,7 +10,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{report,ResultExt};
+use error_stack::{report, ResultExt};
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
@@ -17,7 +19,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        RecoveryRecordBack
+        RecoveryRecordBack,
     },
     router_request_types::{
         revenue_recovery::RevenueRecoveryRecordBackRequest, AccessTokenRequestData,
@@ -47,9 +49,6 @@ use hyperswitch_interfaces::{
 };
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use masking::ExposeInterface;
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use common_utils::types::{StringMinorUnit, StringMinorUnitForConnector};
-
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
