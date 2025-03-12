@@ -392,7 +392,7 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
             | HipayPaymentStatus::Refused
             | HipayPaymentStatus::Expired
             | HipayPaymentStatus::Denied => Self::Failure,
-            HipayPaymentStatus::AuthorizedAndPending => Self::Authorizing,
+            HipayPaymentStatus::AuthorizedAndPending => Self::Pending,
             HipayPaymentStatus::Cancelled => Self::Voided,
             HipayPaymentStatus::Authorized => Self::Authorized,
             HipayPaymentStatus::CaptureRequested => Self::CaptureInitiated,
@@ -534,7 +534,7 @@ fn get_sync_status(state: i32) -> enums::AttemptStatus {
         9 => enums::AttemptStatus::AuthenticationFailed,
         10 => enums::AttemptStatus::Failure,
         11 => enums::AttemptStatus::Failure,
-        12 => enums::AttemptStatus::Authorizing,
+        12 => enums::AttemptStatus::Pending,
         13 => enums::AttemptStatus::Failure,
         14 => enums::AttemptStatus::Failure,
         15 => enums::AttemptStatus::Voided,
@@ -547,7 +547,7 @@ fn get_sync_status(state: i32) -> enums::AttemptStatus {
         74 => enums::AttemptStatus::Pending,
         75 => enums::AttemptStatus::VoidInitiated,
         77 => enums::AttemptStatus::AuthenticationPending,
-        78 => enums::AttemptStatus::AuthorizationFailed,
+        78 => enums::AttemptStatus::Failure,
         200 => enums::AttemptStatus::Pending,
         1 => enums::AttemptStatus::Started,
         5 => enums::AttemptStatus::AuthenticationFailed,
@@ -562,7 +562,7 @@ fn get_sync_status(state: i32) -> enums::AttemptStatus {
         41 => enums::AttemptStatus::AuthenticationSuccessful,
         51 => enums::AttemptStatus::Failure,
         61 => enums::AttemptStatus::Pending,
-        63 => enums::AttemptStatus::AuthorizationFailed,
+        63 => enums::AttemptStatus::Failure,
         _ => enums::AttemptStatus::Failure,
     }
 }
