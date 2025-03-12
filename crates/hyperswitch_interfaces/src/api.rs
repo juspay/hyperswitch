@@ -20,6 +20,8 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
+pub mod revenue_recovery;
+pub mod revenue_recovery_v2;
 
 use std::fmt::Debug;
 
@@ -65,8 +67,8 @@ use serde_json::json;
 pub use self::payouts::*;
 pub use self::{payments::*, refunds::*};
 use crate::{
-    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::revenue_recovery::RevenueRecovery, connector_integration_v2::ConnectorIntegrationV2,
+    consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -87,6 +89,7 @@ pub trait Connector:
     + authentication::ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
+    + RevenueRecovery
 {
 }
 
@@ -106,7 +109,8 @@ impl<
             + ConnectorMandateRevoke
             + authentication::ExternalAuthentication
             + TaxCalculation
-            + UnifiedAuthenticationService,
+            + UnifiedAuthenticationService
+            + RevenueRecovery,
     > Connector for T
 {
 }

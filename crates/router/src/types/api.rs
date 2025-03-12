@@ -56,6 +56,8 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
+        revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
+        revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
         ConnectorTransactionId, ConnectorVerifyWebhookSource, ConnectorVerifyWebhookSourceV2,
@@ -473,6 +475,7 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
+                // enums::Connector::Recurly => Ok(ConnectorEnum::Old(Box::new(connector::Recurly))),
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))

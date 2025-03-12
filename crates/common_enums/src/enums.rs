@@ -429,8 +429,8 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
-    /// Represents billing processors that handle subscription management, invoicing,  
-    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.  
+    /// Represents billing processors that handle subscription management, invoicing,
+    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
 }
 
@@ -1587,6 +1587,7 @@ pub enum PaymentMethodType {
     Debit,
     DuitNow,
     Efecty,
+    Eft,
     Eps,
     Fps,
     Evoucher,

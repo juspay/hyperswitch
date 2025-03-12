@@ -255,6 +255,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+recurly.base_url = "https://{{merchant_subdomain_name}}.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
@@ -882,3 +883,6 @@ entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be 
 foreground_color = "#000000"                     # Foreground color of email text
 primary_color = "#006DF9"                        # Primary color of email body
 background_color = "#FFFFFF"                     # Background color of email body
+
+[additional_revenue_recovery_details_call]
+connectors_with_additional_revenue_recovery_details_call = "stripebilling" # List of connectors which has additional revenue recovery details api-call

@@ -3753,8 +3753,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector
                 .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
+            outgoing_webhook_custom_http_headers,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             always_collect_billing_details_from_wallet_connector: self
@@ -3902,8 +3901,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector_if_required
                 .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
+            outgoing_webhook_custom_http_headers,
             always_collect_billing_details_from_wallet_connector: self
                 .always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: self
@@ -4209,8 +4207,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 collect_billing_details_from_wallet_connector: self
                     .collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                    .map(Into::into),
+                outgoing_webhook_custom_http_headers,
                 always_collect_billing_details_from_wallet_connector: self
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
@@ -4343,8 +4340,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 collect_billing_details_from_wallet_connector: self
                     .collect_billing_details_from_wallet_connector_if_required,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                    .map(Into::into),
+                outgoing_webhook_custom_http_headers,
                 order_fulfillment_time: self
                     .order_fulfillment_time
                     .map(|order_fulfillment_time| order_fulfillment_time.into_inner()),

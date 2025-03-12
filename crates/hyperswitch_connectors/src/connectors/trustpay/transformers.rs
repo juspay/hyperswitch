@@ -1,24 +1,37 @@
 use std::collections::HashMap;
 
+use api_models::payments::SessionToken;
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
+    request::Method,
     types::StringMajorUnit,
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{
+    payment_method_data::{BankRedirectData, Card, PaymentMethodData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
+    router_response_types::{
+        PaymentsResponseData, PreprocessingResponseId, RedirectForm, RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefreshTokenRouterData,
+        RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingData, RouterData,
+        PaymentsPreProcessingRequestData, RouterData as OtherRouterData,
     },
-    consts,
-    core::errors,
-    services,
-    types::{self, domain, storage::enums, BrowserInformation},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -45,10 +58,10 @@ pub struct TrustpayAuthType {
     pub(super) secret_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
+impl TryFrom<&ConnectorAuthType> for TrustpayAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -214,28 +227,29 @@ pub struct TrustpayMandatoryParams {
     pub billing_first_name: Secret<String>,
 }
 
-impl TryFrom<&domain::BankRedirectData> for TrustpayPaymentMethod {
+impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
     type Error = Error;
-    fn try_from(value: &domain::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(value: &BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            domain::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
-            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            domain::BankRedirectData::Blik { .. } => Ok(Self::Blik),
-            domain::BankRedirectData::BancontactCard { .. }
-            | domain::BankRedirectData::Bizum {}
-            | domain::BankRedirectData::Interac { .. }
-            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | domain::BankRedirectData::OnlineBankingFinland { .. }
-            | domain::BankRedirectData::OnlineBankingPoland { .. }
-            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
-            | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::Przelewy24 { .. }
-            | domain::BankRedirectData::Trustly { .. }
-            | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. }
-            | domain::BankRedirectData::LocalBankRedirect {} => {
+            BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
+            BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            BankRedirectData::Blik { .. } => Ok(Self::Blik),
+            BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::Bizum {}
+            | BankRedirectData::Eft { .. }
+            | BankRedirectData::Interac { .. }
+            | BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | BankRedirectData::OnlineBankingFinland { .. }
+            | BankRedirectData::OnlineBankingPoland { .. }
+            | BankRedirectData::OnlineBankingSlovakia { .. }
+            | BankRedirectData::OpenBankingUk { .. }
+            | BankRedirectData::Przelewy24 { .. }
+            | BankRedirectData::Trustly { .. }
+            | BankRedirectData::OnlineBankingFpx { .. }
+            | BankRedirectData::OnlineBankingThailand { .. }
+            | BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
@@ -246,7 +260,7 @@ impl TryFrom<&domain::BankRedirectData> for TrustpayPaymentMethod {
 }
 
 fn get_mandatory_fields(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &PaymentsAuthorizeRouterData,
 ) -> Result<TrustpayMandatoryParams, Error> {
     let billing_address = item
         .get_billing()?
@@ -263,11 +277,11 @@ fn get_mandatory_fields(
 }
 
 fn get_card_request_data(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &PaymentsAuthorizeRouterData,
     browser_info: &BrowserInformation,
     params: TrustpayMandatoryParams,
     amount: StringMajorUnit,
-    ccard: &domain::payments::Card,
+    ccard: &Card,
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
@@ -321,7 +335,7 @@ fn get_full_name(
 }
 
 fn get_debtor_info(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &PaymentsAuthorizeRouterData,
     pm: TrustpayPaymentMethod,
     params: TrustpayMandatoryParams,
 ) -> CustomResult<Option<DebtorInformation>, errors::ConnectorError> {
@@ -343,8 +357,8 @@ fn get_debtor_info(
 }
 
 fn get_bank_redirection_request_data(
-    item: &types::PaymentsAuthorizeRouterData,
-    bank_redirection_data: &domain::BankRedirectData,
+    item: &PaymentsAuthorizeRouterData,
+    bank_redirection_data: &BankRedirectData,
     params: TrustpayMandatoryParams,
     amount: StringMajorUnit,
     auth: TrustpayAuthType,
@@ -376,10 +390,10 @@ fn get_bank_redirection_request_data(
     Ok(payment_request)
 }
 
-impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for TrustpayPaymentsRequest {
+impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaymentsRequest {
     type Error = Error;
     fn try_from(
-        item: &TrustpayRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &TrustpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let browser_info = item
             .router_data
@@ -408,7 +422,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
         let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         match item.router_data.request.payment_method_data {
-            domain::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
+            PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item.router_data,
                 &default_browser_info,
                 params,
@@ -416,7 +430,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                 ccard,
                 item.router_data.request.get_router_return_url()?,
             )?),
-            domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
+            PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(
                     item.router_data,
                     bank_redirection_data,
@@ -425,23 +439,23 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                     auth,
                 )
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
@@ -667,18 +681,12 @@ pub enum TrustpayPaymentsResponse {
     WebhookResponse(Box<WebhookPaymentInformation>),
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, TrustpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            TrustpayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data) =
             get_trustpay_response(item.response, item.http_code)?;
@@ -696,8 +704,8 @@ fn handle_cards_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
@@ -707,15 +715,13 @@ fn handle_cards_response(
     )?;
 
     let form_fields = response.redirect_params.unwrap_or_default();
-    let redirection_data = response
-        .redirect_url
-        .map(|url| services::RedirectForm::Form {
-            endpoint: url.to_string(),
-            method: services::Method::Post,
-            form_fields,
-        });
+    let redirection_data = response.redirect_url.map(|url| RedirectForm::Form {
+        endpoint: url.to_string(),
+        method: Method::Post,
+        form_fields,
+    });
     let error = if msg.is_some() {
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: response
                 .payment_status
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
@@ -730,8 +736,8 @@ fn handle_cards_response(
     } else {
         None
     };
-    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
+    let payment_response_data = PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(response.instance_id.clone()),
         redirection_data: Box::new(redirection_data),
         mandate_reference: Box::new(None),
         connector_metadata: None,
@@ -748,20 +754,18 @@ fn handle_bank_redirects_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::AuthenticationPending;
     let error = None;
-    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(
-            response.payment_request_id.to_string(),
-        ),
-        redirection_data: Box::new(Some(services::RedirectForm::from((
+    let payment_response_data = PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(response.payment_request_id.to_string()),
+        redirection_data: Box::new(Some(RedirectForm::from((
             response.gateway_url,
-            services::Method::Get,
+            Method::Get,
         )))),
         mandate_reference: Box::new(None),
         connector_metadata: None,
@@ -779,13 +783,13 @@ fn handle_bank_redirects_error_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::AuthorizationFailed;
-    let error = Some(types::ErrorResponse {
+    let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),
@@ -794,8 +798,8 @@ fn handle_bank_redirects_error_response(
         attempt_status: None,
         connector_transaction_id: None,
     });
-    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+    let payment_response_data = PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::NoResponseId,
         redirection_data: Box::new(None),
         mandate_reference: Box::new(None),
         connector_metadata: None,
@@ -813,8 +817,8 @@ fn handle_bank_redirects_sync_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
@@ -824,7 +828,7 @@ fn handle_bank_redirects_sync_response(
             .payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -849,8 +853,8 @@ fn handle_bank_redirects_sync_response(
     } else {
         None
     };
-    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(
+    let payment_response_data = PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(
             response
                 .payment_information
                 .references
@@ -874,8 +878,8 @@ pub fn handle_webhook_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
@@ -884,7 +888,7 @@ pub fn handle_webhook_response(
         let reason_info = payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -903,8 +907,8 @@ pub fn handle_webhook_response(
     } else {
         None
     };
-    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+    let payment_response_data = PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::NoResponseId,
         redirection_data: Box::new(None),
         mandate_reference: Box::new(None),
         connector_metadata: None,
@@ -922,8 +926,8 @@ pub fn get_trustpay_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
@@ -951,9 +955,9 @@ pub struct TrustpayAuthUpdateRequest {
     pub grant_type: String,
 }
 
-impl TryFrom<&types::RefreshTokenRouterData> for TrustpayAuthUpdateRequest {
+impl TryFrom<&RefreshTokenRouterData> for TrustpayAuthUpdateRequest {
     type Error = Error;
-    fn try_from(_item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+    fn try_from(_item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             grant_type: "client_credentials".to_string(),
         })
@@ -983,23 +987,23 @@ pub struct TrustpayAccessTokenErrorResponse {
     pub result_info: ResultInfo,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>,
+        item: ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         match (item.response.access_token, item.response.expires_in) {
             (Some(access_token), Some(expires_in)) => Ok(Self {
-                response: Ok(types::AccessToken {
+                response: Ok(AccessToken {
                     token: access_token,
                     expires: expires_in,
                 }),
                 ..item.data
             }),
             _ => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: item.response.result_info.result_code.to_string(),
                     // message vary for the same code, so relying on code alone as it is unique
                     message: item.response.result_info.result_code.to_string(),
@@ -1026,26 +1030,26 @@ pub struct TrustpayCreateIntentRequest {
     pub reference: String,
 }
 
-impl TryFrom<&TrustpayRouterData<&types::PaymentsPreProcessingRouterData>>
+impl TryFrom<&TrustpayRouterData<&PaymentsPreProcessingRouterData>>
     for TrustpayCreateIntentRequest
 {
     type Error = Error;
     fn try_from(
-        item: &TrustpayRouterData<&types::PaymentsPreProcessingRouterData>,
+        item: &TrustpayRouterData<&PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
         let is_apple_pay = item
             .router_data
             .request
             .payment_method_type
             .as_ref()
-            .map(|pmt| matches!(pmt, diesel_models::enums::PaymentMethodType::ApplePay));
+            .map(|pmt| matches!(pmt, enums::PaymentMethodType::ApplePay));
 
         let is_google_pay = item
             .router_data
             .request
             .payment_method_type
             .as_ref()
-            .map(|pmt| matches!(pmt, diesel_models::enums::PaymentMethodType::GooglePay));
+            .map(|pmt| matches!(pmt, enums::PaymentMethodType::GooglePay));
 
         let currency = item.router_data.request.get_currency()?;
         let amount = item.amount.to_owned();
@@ -1161,21 +1165,21 @@ pub struct ApplePayTotalInfo {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             TrustpayCreateIntentResponse,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             TrustpayCreateIntentResponse,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let create_intent_response = item.response.init_result_data.to_owned();
@@ -1185,11 +1189,11 @@ impl<F>
 
         match (pmt, create_intent_response) {
             (
-                diesel_models::enums::PaymentMethodType::ApplePay,
+                enums::PaymentMethodType::ApplePay,
                 InitResultData::AppleInitResultData(apple_pay_response),
             ) => get_apple_pay_session(instance_id, &secrets, apple_pay_response, item),
             (
-                diesel_models::enums::PaymentMethodType::GooglePay,
+                enums::PaymentMethodType::GooglePay,
                 InitResultData::GoogleInitResultData(google_pay_response),
             ) => get_google_pay_session(instance_id, &secrets, google_pay_response, item),
             _ => Err(report!(errors::ConnectorError::InvalidWallet)),
@@ -1201,21 +1205,13 @@ pub fn get_apple_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
     apple_pay_init_result: TrustpayApplePayResponse,
-    item: types::ResponseRouterData<
-        F,
-        TrustpayCreateIntentResponse,
-        T,
-        types::PaymentsResponseData,
-    >,
-) -> Result<
-    types::RouterData<F, T, types::PaymentsResponseData>,
-    error_stack::Report<errors::ConnectorError>,
-> {
-    Ok(types::RouterData {
-        response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+    item: ResponseRouterData<F, TrustpayCreateIntentResponse, T, PaymentsResponseData>,
+) -> Result<RouterData<F, T, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    Ok(RouterData {
+        response: Ok(PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
-            pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
-            session_token: Some(types::api::SessionToken::ApplePay(Box::new(
+            pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(instance_id),
+            session_token: Some(SessionToken::ApplePay(Box::new(
                 api_models::payments::ApplepaySessionTokenResponse {
                     session_token_data: Some(
                         api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
@@ -1252,7 +1248,7 @@ pub fn get_apple_pay_session<F, T>(
             connector_response_reference_id: None,
         }),
         // We don't get status from TrustPay but status should be AuthenticationPending by default for session response
-        status: diesel_models::enums::AttemptStatus::AuthenticationPending,
+        status: enums::AttemptStatus::AuthenticationPending,
         ..item.data
     })
 }
@@ -1261,21 +1257,13 @@ pub fn get_google_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
     google_pay_init_result: TrustpayGooglePayResponse,
-    item: types::ResponseRouterData<
-        F,
-        TrustpayCreateIntentResponse,
-        T,
-        types::PaymentsResponseData,
-    >,
-) -> Result<
-    types::RouterData<F, T, types::PaymentsResponseData>,
-    error_stack::Report<errors::ConnectorError>,
-> {
-    Ok(types::RouterData {
-        response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+    item: ResponseRouterData<F, TrustpayCreateIntentResponse, T, PaymentsResponseData>,
+) -> Result<RouterData<F, T, PaymentsResponseData>, error_stack::Report<errors::ConnectorError>> {
+    Ok(RouterData {
+        response: Ok(PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
-            pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(instance_id),
-            session_token: Some(types::api::SessionToken::GooglePay(Box::new(
+            pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(instance_id),
+            session_token: Some(SessionToken::GooglePay(Box::new(
                 api_models::payments::GpaySessionTokenResponse::GooglePaySession(
                     api_models::payments::GooglePaySessionResponse {
                         connector: "trustpay".to_string(),
@@ -1305,7 +1293,7 @@ pub fn get_google_pay_session<F, T>(
             connector_response_reference_id: None,
         }),
         // We don't get status from TrustPay but status should be AuthenticationPending by default for session response
-        status: diesel_models::enums::AttemptStatus::AuthenticationPending,
+        status: enums::AttemptStatus::AuthenticationPending,
         ..item.data
     })
 }
@@ -1416,14 +1404,12 @@ pub enum TrustpayRefundRequest {
     BankRedirectRefund(Box<TrustpayRefundRequestBankRedirect>),
 }
 
-impl<F> TryFrom<&TrustpayRouterData<&types::RefundsRouterData<F>>> for TrustpayRefundRequest {
+impl<F> TryFrom<&TrustpayRouterData<&RefundsRouterData<F>>> for TrustpayRefundRequest {
     type Error = Error;
-    fn try_from(
-        item: &TrustpayRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &TrustpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
         match item.router_data.payment_method {
-            diesel_models::enums::PaymentMethod::BankRedirect => {
+            enums::PaymentMethod::BankRedirect => {
                 let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self::BankRedirectRefund(Box::new(
@@ -1484,11 +1470,10 @@ pub enum RefundResponse {
 fn handle_cards_refund_response(
     response: CardsRefundResponse,
     status_code: u16,
-) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
-{
+) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), errors::ConnectorError> {
     let (refund_status, msg) = get_refund_status(&response.payment_status)?;
     let error = if msg.is_some() {
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: response.payment_status,
             message: msg
                 .clone()
@@ -1501,7 +1486,7 @@ fn handle_cards_refund_response(
     } else {
         None
     };
-    let refund_response_data = types::RefundsResponseData {
+    let refund_response_data = RefundsResponseData {
         connector_refund_id: response.instance_id,
         refund_status,
     };
@@ -1511,12 +1496,11 @@ fn handle_cards_refund_response(
 fn handle_webhooks_refund_response(
     response: WebhookPaymentInformation,
     status_code: u16,
-) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
-{
-    let refund_status = diesel_models::enums::RefundStatus::try_from(response.status)?;
+) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), errors::ConnectorError> {
+    let refund_status = enums::RefundStatus::try_from(response.status)?;
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -1535,7 +1519,7 @@ fn handle_webhooks_refund_response(
     } else {
         None
     };
-    let refund_response_data = types::RefundsResponseData {
+    let refund_response_data = RefundsResponseData {
         connector_refund_id: response
             .references
             .payment_request_id
@@ -1548,10 +1532,10 @@ fn handle_webhooks_refund_response(
 fn handle_bank_redirects_refund_response(
     response: BankRedirectRefundResponse,
     status_code: u16,
-) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+) -> (Option<ErrorResponse>, RefundsResponseData) {
     let (refund_status, msg) = get_refund_status_from_result_info(response.result_info.result_code);
     let error = if msg.is_some() {
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: response.result_info.result_code.to_string(),
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
@@ -1563,7 +1547,7 @@ fn handle_bank_redirects_refund_response(
     } else {
         None
     };
-    let refund_response_data = types::RefundsResponseData {
+    let refund_response_data = RefundsResponseData {
         connector_refund_id: response.payment_request_id.to_string(),
         refund_status,
     };
@@ -1573,14 +1557,14 @@ fn handle_bank_redirects_refund_response(
 fn handle_bank_redirects_refund_sync_response(
     response: SyncResponseBankRedirect,
     status_code: u16,
-) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+) -> (Option<ErrorResponse>, RefundsResponseData) {
     let refund_status = enums::RefundStatus::from(response.payment_information.status);
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response
             .payment_information
             .status_reason_information
             .unwrap_or_default();
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             code: reason_info
                 .reason
                 .code
@@ -1599,7 +1583,7 @@ fn handle_bank_redirects_refund_sync_response(
     } else {
         None
     };
-    let refund_response_data = types::RefundsResponseData {
+    let refund_response_data = RefundsResponseData {
         connector_refund_id: response.payment_information.references.payment_request_id,
         refund_status,
     };
@@ -1609,8 +1593,8 @@ fn handle_bank_redirects_refund_sync_response(
 fn handle_bank_redirects_refund_sync_error_response(
     response: ErrorResponseBankRedirect,
     status_code: u16,
-) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
-    let error = Some(types::ErrorResponse {
+) -> (Option<ErrorResponse>, RefundsResponseData) {
+    let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),
@@ -1620,20 +1604,16 @@ fn handle_bank_redirects_refund_sync_error_response(
         connector_transaction_id: None,
     });
     //unreachable case as we are sending error as Some()
-    let refund_response_data = types::RefundsResponseData {
+    let refund_response_data = RefundsResponseData {
         connector_refund_id: "".to_string(),
         refund_status: enums::RefundStatus::Failure,
     };
     (error, refund_response_data)
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
-    for types::RefundsRouterData<F>
-{
+impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>> for RefundsRouterData<F> {
     type Error = Error;
-    fn try_from(
-        item: types::RefundsResponseRouterData<F, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: RefundsResponseRouterData<F, RefundResponse>) -> Result<Self, Self::Error> {
         let (error, response) = match item.response {
             RefundResponse::CardsRefund(response) => {
                 handle_cards_refund_response(*response, item.http_code)?
@@ -1773,7 +1753,7 @@ impl TryFrom<WebhookStatus> for enums::AttemptStatus {
     }
 }
 
-impl TryFrom<WebhookStatus> for diesel_models::enums::RefundStatus {
+impl TryFrom<WebhookStatus> for enums::RefundStatus {
     type Error = errors::ConnectorError;
     fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
         match item {

@@ -187,6 +187,12 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules:
+        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules:
+        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -231,11 +237,14 @@ impl TaxDetails {
     /// Get the tax amount
     /// If default tax is present, return the default tax amount
     /// If default tax is not present, return the tax amount based on the payment method if it matches the provided payment method type
-    pub fn get_tax_amount(&self, payment_method: PaymentMethodType) -> Option<MinorUnit> {
+    pub fn get_tax_amount(&self, payment_method: Option<PaymentMethodType>) -> Option<MinorUnit> {
         self.payment_method_type
             .as_ref()
-            .filter(|payment_method_type_tax| payment_method_type_tax.pmt == payment_method)
-            .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            .zip(payment_method)
+            .filter(|(payment_method_type_tax, payment_method)| {
+                payment_method_type_tax.pmt == *payment_method
+            })
+            .map(|(payment_method_type_tax, _)| payment_method_type_tax.order_tax_amount)
             .or_else(|| self.get_default_tax_amount())
     }
 
@@ -551,10 +560,10 @@ pub struct PaymentIntentUpdateFields {
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
     pub status: Option<storage_enums::IntentStatus>,
-    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
+    pub active_attempt_id: Option<Option<common_utils::id_type::GlobalAttemptId>>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
