@@ -11,7 +11,12 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::{ExposeInterface, PeekInterface};
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use masking::PeekInterface;
+
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -904,6 +909,7 @@ pub struct ConnectorTokenDetails {
     pub token: masking::Secret<String>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl ConnectorTokenDetails {
     // show only first and last two digits of the key and mask others with *
     // mask the entire key if it's length is less than or equal to 4
