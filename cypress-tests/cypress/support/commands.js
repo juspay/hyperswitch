@@ -2165,8 +2165,13 @@ Cypress.Commands.add(
               ) {
                 expect(
                   response.body.payment_method_id,
+                  "payment_method_id should exist for succeeded/requires_capture status"
+                ).to.exist.and.to.be.a("string");
+
+                expect(
+                  response.body.payment_method_id,
                   "payment_method_id"
-                ).to.include("pm_").and.to.not.be.null;
+                ).to.include("pm_");
 
                 expect(
                   response.body.payment_method_status,
@@ -2352,32 +2357,27 @@ Cypress.Commands.add(
           }
 
           if (
-            (["succeeded", "requires_capture"].includes(response.body.status) &&
-              typeof response.body.payment_method_id !== "undefined") ||
-            response.body.payment_method_id !== "null"
+            response.body.payment_method_id &&
+            typeof response.body.payment_method_id === "string"
           ) {
+            // Validate the payment_method_id format
             expect(
               response.body.payment_method_id,
               "payment_method_id"
             ).to.include("pm_").and.to.not.be.null;
 
-            expect(
-              response.body.payment_method_status,
-              "payment_method_status"
-            ).to.equal("active");
-          } else if (
-            typeof response.body.payment_method_id !== "undefined" ||
-            response.body.payment_method_id !== "null"
-          ) {
-            expect(
-              response.body.payment_method_id,
-              "payment_method_id"
-            ).to.include("pm_").and.to.not.be.null;
+            // Determine expected status based on payment status
+            const expectedStatus = ["succeeded", "requires_capture"].includes(
+              response.body.status
+            )
+              ? "active"
+              : "inactive";
 
+            // Validate the status
             expect(
               response.body.payment_method_status,
               "payment_method_status"
-            ).to.equal("inactive");
+            ).to.equal(expectedStatus);
           }
 
           if (autoretries) {
