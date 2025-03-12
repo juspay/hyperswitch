@@ -988,31 +988,6 @@ pub async fn connector_delete(
 /// Merchant Account - Toggle KV
 ///
 /// Toggle KV mode for the Merchant Account
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn merchant_account_toggle_kv(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::MerchantId>,
-    json_payload: web::Json<admin::ToggleKVRequest>,
-) -> HttpResponse {
-    let flow = Flow::ConfigKeyUpdate;
-    let mut payload = json_payload.into_inner();
-    payload.merchant_id = path.into_inner();
-
-    api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload,
-        |state, _, payload, _| kv_for_merchant(state, payload.merchant_id, payload.kv_enabled),
-        &auth::V2AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    )
-    .await
-}
-
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_toggle_kv(
     state: web::Data<AppState>,
@@ -1039,29 +1014,6 @@ pub async fn merchant_account_toggle_kv(
 /// Merchant Account - Transfer Keys
 ///
 /// Transfer Merchant Encryption key to keymanager
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn merchant_account_toggle_all_kv(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<admin::ToggleAllKVRequest>,
-) -> HttpResponse {
-    let flow = Flow::MerchantTransferKey;
-    let payload = json_payload.into_inner();
-
-    api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload,
-        |state, _, payload, _| toggle_kv_for_all_merchants(state, payload.kv_enabled),
-        &auth::V2AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    )
-    .await
-}
-
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_toggle_all_kv(
     state: web::Data<AppState>,
@@ -1086,28 +1038,6 @@ pub async fn merchant_account_toggle_all_kv(
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn merchant_account_kv_status(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::ConfigKeyFetch;
-    let merchant_id = path.into_inner();
-
-    api::server_wrap(
-        flow,
-        state,
-        &req,
-        merchant_id,
-        |state, _, req, _| check_merchant_account_kv_status(state, req),
-        &auth::V2AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    )
-    .await
-}
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_kv_status(
     state: web::Data<AppState>,
@@ -1132,27 +1062,6 @@ pub async fn merchant_account_kv_status(
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn merchant_account_transfer_keys(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Json<api_models::admin::MerchantKeyTransferRequest>,
-) -> HttpResponse {
-    let flow = Flow::ConfigKeyFetch;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload.into_inner(),
-        |state, _, req, _| transfer_key_store_to_key_manager(state, req),
-        &auth::V2AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_transfer_keys(
     state: web::Data<AppState>,
@@ -1175,28 +1084,6 @@ pub async fn merchant_account_transfer_keys(
 /// Merchant Account - Platform Account
 ///
 /// Enable platform account
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn merchant_account_enable_platform_account(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::EnablePlatformAccount;
-    let merchant_id = path.into_inner();
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        merchant_id,
-        |state, _, req, _| enable_platform_account(state, req),
-        &auth::V2AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_enable_platform_account(
     state: web::Data<AppState>,
