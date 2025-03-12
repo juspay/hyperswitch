@@ -1077,7 +1077,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
-        let header_map_struct = HeaderMapStruct::new(&request_headers);
+        let header_map_struct = HeaderMapStruct::new(request_headers);
         let auth_string = header_map_struct.get_auth_string_from_header()?;
         let request_admin_api_key = auth_string
             .split(',')
