@@ -1313,10 +1313,9 @@ pub async fn list_saved_payment_methods_for_customer(
 pub async fn get_total_saved_payment_methods_for_merchant(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api::TotalPaymentMethodCountResponse> {
     let total_payment_method_count =
-        get_total_payment_method_count_core(&state, &merchant_account, &key_store).await?;
+        get_total_payment_method_count_core(&state, &merchant_account).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         total_payment_method_count,
@@ -1796,7 +1795,6 @@ pub async fn list_customer_payment_method_core(
 pub async fn get_total_payment_method_count_core(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<api::TotalPaymentMethodCountResponse> {
     let db = &*state.store;
 

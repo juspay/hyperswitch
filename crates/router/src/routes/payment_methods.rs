@@ -641,7 +641,6 @@ pub async fn get_total_payment_method_count(
             payment_methods_routes::get_total_saved_payment_methods_for_merchant(
                 state,
                 auth.merchant_account,
-                auth.key_store,
             )
         },
         auth::auth_type(
