@@ -1302,8 +1302,12 @@ pub trait AddressDetailsData {
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_line3(&self) -> Option<Secret<String>>;
     fn get_optional_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_state(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1524,6 +1528,18 @@ impl AddressDetailsData for AddressDetails {
 
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
         self.last_name.clone()
+    }
+    fn get_optional_line3(&self) -> Option<Secret<String>> {
+        self.line3.clone()
+    }
+    fn get_optional_zip(&self) -> Option<Secret<String>> {
+        self.zip.clone()
+    }
+    fn get_optional_state(&self) -> Option<Secret<String>> {
+        self.state.clone()
+    }
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country.clone()
     }
 }
 

@@ -4,6 +4,7 @@ use common_utils::{ext_traits::ValueExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hmac::{Hmac, Mac, NewMac};
 use hyperswitch_domain_models::{
+    address::Address,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::Execute,
@@ -29,7 +30,7 @@ use crate::{
         generate_12_digit_number, get_unimplemented_payment_method_error_message,
         is_payment_failure, is_refund_failure, to_connector_meta, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData,
+        PaymentsPreProcessingRequestData, RouterData as _, AddressDetailsData,
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -83,6 +84,34 @@ pub struct EmvThreedsData {
     notification_u_r_l: Option<String>,
     three_d_s_comp_ind: Option<ThreeDSCompInd>,
     cres: Option<String>,
+    #[serde(flatten)]
+    billing_data: Option<BillingData>,
+    #[serde(flatten)]
+    shipping_data: Option<ShippingData>
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BillingData {
+    bill_addr_city: Option<String>,
+    bill_addr_country: Option<String>,
+    bill_addr_line1: Option<Secret<String>>,
+    bill_addr_line2: Option<Secret<String>>,
+    bill_addr_line3: Option<Secret<String>>,
+    bill_addr_postal_code: Option<Secret<String>>,
+    bill_addr_state: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShippingData {
+    ship_addr_city: Option<String>,
+    ship_addr_country: Option<String>,
+    ship_addr_line1: Option<Secret<String>>,
+    ship_addr_line2: Option<Secret<String>>,
+    ship_addr_line3: Option<Secret<String>>,
+    ship_addr_postal_code: Option<Secret<String>>,
+    ship_addr_state: Option<Secret<String>>,
 }
 
 impl EmvThreedsData {
@@ -103,6 +132,8 @@ impl EmvThreedsData {
             notification_u_r_l: None,
             three_d_s_comp_ind: None,
             cres: None,
+            billing_data: None,
+            shipping_data: None
         }
     }
 
@@ -141,6 +172,37 @@ impl EmvThreedsData {
 
     pub fn set_three_d_s_cres(mut self, cres: String) -> Self {
         self.cres = Some(cres);
+        self
+    }
+
+    pub fn set_billing_data(mut self, address: Option<&Address>) -> Self {
+        self.billing_data = address.and_then(|address| {
+            address.address.as_ref().map(|address_details|
+            BillingData {
+                bill_addr_city: address_details.get_optional_city(),
+                bill_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
+                bill_addr_line1: address_details.get_optional_line1(),
+                bill_addr_line2: address_details.get_optional_line2(),
+                bill_addr_line3: address_details.get_optional_line3(),
+                bill_addr_postal_code: address_details.get_optional_zip(),
+                bill_addr_state: address_details.get_optional_state(),
+            })
+        });
+        self
+    }
+    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Self {
+        self.shipping_data = address.and_then(|address| {
+            address.address.as_ref().map(|address_details|
+            ShippingData {
+                ship_addr_city: address_details.get_optional_city(),
+                ship_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
+                ship_addr_line1: address_details.get_optional_line1(),
+                ship_addr_line2: address_details.get_optional_line2(),
+                ship_addr_line3: address_details.get_optional_line3(),
+                ship_addr_postal_code: address_details.get_optional_zip(),
+                ship_addr_state: address_details.get_optional_state(),
+            })
+        });
         self
     }
 }
@@ -735,7 +797,9 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
                     .set_protocol_version(threeds_invoke_meta_data.message_version)
                     .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
                     .add_browser_data(item.router_data.request.get_browser_info()?)?
-                    .set_three_d_s_comp_ind(ThreeDSCompInd::N);
+                    .set_three_d_s_comp_ind(ThreeDSCompInd::N)
+                .set_billing_data(item.router_data.get_optional_billing())
+                .set_shipping_data(item.router_data.get_optional_shipping());
 
             let payment_authorize_request = PaymentsRequest {
                 ds_merchant_emv3ds: Some(emv3ds_data),
@@ -850,6 +914,8 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             })
             .transpose()?;
+        let billing_data = item.router_data.get_optional_billing();
+        let shipping_data = item.router_data.get_optional_shipping();
 
         let emv3ds_data = match redirect_response {
             Some(payload) => {
@@ -859,12 +925,16 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(threeds_invoke_meta_data.message_version)
                         .set_three_d_s_cres(payload.cres)
+                        .set_billing_data(billing_data)
+                        .set_shipping_data(shipping_data)
                 } else if let Ok(threeds_meta_data) = to_connector_meta::<ThreeDsInvokeExempt>(
                     item.router_data.request.connector_meta.clone(),
                 ) {
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(threeds_meta_data.message_version)
                         .set_three_d_s_cres(payload.cres)
+                        .set_billing_data(billing_data)
+                        .set_shipping_data(shipping_data)
                 } else {
                     Err(errors::ConnectorError::RequestEncodingFailed)?
                 }
@@ -887,6 +957,8 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                         .set_three_d_s_comp_ind(three_d_s_comp_ind)
                         .add_browser_data(browser_info)?
                         .set_notification_u_r_l(complete_authorize_url)
+                        .set_billing_data(billing_data)
+                        .set_shipping_data(shipping_data)
                 } else {
                     Err(errors::ConnectorError::NoConnectorMetaData)?
                 }
