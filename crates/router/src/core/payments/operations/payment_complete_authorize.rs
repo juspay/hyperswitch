@@ -305,6 +305,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -336,7 +341,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             attempts: None,
             sessions_token: vec![],
             card_cvc: request.card_cvc.clone(),
-            creds_identifier: None,
+            creds_identifier,
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,

@@ -1085,6 +1085,58 @@ pub async fn payments_complete_authorize_redirect(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
+pub async fn payments_complete_authorize_redirect_with_creds_identifier(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: Option<web::Form<serde_json::Value>>,
+    path: web::Path<(
+        common_utils::id_type::PaymentId,
+        common_utils::id_type::MerchantId,
+        String,
+        String,
+    )>,
+) -> impl Responder {
+    let flow = Flow::PaymentsRedirect;
+    let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
+    let param_string = req.query_string();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let payload = payments::PaymentsRedirectResponseData {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
+        merchant_id: Some(merchant_id.clone()),
+        param: Some(param_string.to_string()),
+        json_payload: json_payload.map(|s| s.0),
+        force_sync: false,
+        connector: Some(connector),
+        creds_identifier: Some(creds_identifier),
+    };
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+
+            <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
+                &payments::PaymentRedirectCompleteAuthorize {},
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+                auth.platform_merchant_account,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,

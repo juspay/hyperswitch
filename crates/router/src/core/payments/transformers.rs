@@ -3115,7 +3115,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
+
         let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
             .merchant_connector_id
@@ -4084,6 +4086,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
         let braintree_metadata = payment_data
             .payment_intent
@@ -4198,6 +4201,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
