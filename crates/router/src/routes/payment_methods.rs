@@ -644,7 +644,7 @@ pub async fn get_total_payment_method_count(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth,
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
             },

@@ -143,19 +143,18 @@ impl PaymentMethod {
         merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
-        let filter = <Self as HasTable>::table()
+        let query = <Self as HasTable>::table()
             .count()
             .filter(
                 dsl::merchant_id
                     .eq(merchant_id.to_owned())
                     .and(dsl::status.eq(status.to_owned())),
-            )
-            .into_boxed();
+            );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn),
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await
@@ -291,19 +290,18 @@ impl PaymentMethod {
         merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
-        let filter = <Self as HasTable>::table()
+        let query = <Self as HasTable>::table()
             .count()
             .filter(
                 dsl::merchant_id
                     .eq(merchant_id.to_owned())
                     .and(dsl::status.eq(status.to_owned())),
-            )
-            .into_boxed();
+            );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn),
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await
