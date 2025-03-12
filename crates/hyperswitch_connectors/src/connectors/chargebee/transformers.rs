@@ -532,8 +532,6 @@ pub struct ChargebeeRecordPaymentRequest {
     pub connector_payment_id: Option<String>,
     #[serde(rename = "transaction[status]")]
     pub status: ChargebeeRecordStatus,
-    #[serde(rename = "transaction[reference_number]")]
-    pub reference_number: Option<common_utils::id_type::GlobalAttemptId>,
 }
 
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -565,7 +563,6 @@ impl TryFrom<&ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>>
                 .as_ref()
                 .map(|connector_payment_id| connector_payment_id.get_id().to_string()),
             status: ChargebeeRecordStatus::try_from(req.attempt_status)?,
-            reference_number: Some(req.attempt_id.clone()),
         })
     }
 }
@@ -618,7 +615,6 @@ pub struct ChargebeeRecordbackInvoice {
     pub id: common_utils::id_type::PaymentReferenceId,
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
         ResponseRouterData<

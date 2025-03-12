@@ -6,12 +6,9 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{
-        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMinorUnit,
-        StringMinorUnitForConnector,
-    },
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::ResultExt;
+use error_stack::{report,ResultExt};
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
@@ -20,7 +17,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        revenue_recovery::RecoveryRecordBack,
+        RecoveryRecordBack
     },
     router_request_types::{
         revenue_recovery::RevenueRecoveryRecordBackRequest, AccessTokenRequestData,
@@ -48,7 +45,12 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use masking::ExposeInterface;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use common_utils::types::{StringMinorUnit, StringMinorUnitForConnector};
+
+use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
