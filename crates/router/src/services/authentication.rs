@@ -1955,7 +1955,6 @@ where
                     .attach_printable("Unable to parse client_secret")
             })?;
 
-        println!(">> publishable_key : {} and client_secret : {}",publishable_key,client_secret);
 
         let key_manager_state: &common_utils::types::keymanager::KeyManagerState =
             &(&state.session_state()).into();
