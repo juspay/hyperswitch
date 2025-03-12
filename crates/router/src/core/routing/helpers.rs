@@ -1006,12 +1006,19 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     )?;
             }
 
+            let contract_based_connectors = routable_connectors
+                .into_iter()
+                .filter(|conn| {
+                    conn.merchant_connector_id.clone() == Some(final_label_info.mca_id.clone())
+                })
+                .collect::<Vec<_>>();
+
             let contract_scores = client
                 .calculate_contract_score(
                     profile_id.get_string_repr().into(),
                     contract_based_routing_config.clone(),
                     "".to_string(),
-                    routable_connectors.clone(),
+                    contract_based_connectors,
                     state.get_grpc_headers(),
                 )
                 .await
