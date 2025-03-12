@@ -402,7 +402,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
-                    version: hyperswitch_domain_models::consts::API_VERSION,
+                    version: common_utils::consts::API_VERSION,
                     is_platform_account: false,
                     product_type: None,
                 },
@@ -2583,7 +2583,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             status: connector_status,
             connector_wallets_details: encrypted_data.connector_wallets_details,
             additional_merchant_data: encrypted_data.additional_merchant_data,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             feature_metadata,
         })
     }
@@ -2788,7 +2788,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_label: self.business_label.clone(),
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: encrypted_data.additional_merchant_data,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
         })
     }
 

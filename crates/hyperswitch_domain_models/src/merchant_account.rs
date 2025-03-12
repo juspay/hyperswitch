@@ -568,7 +568,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
-            version: crate::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
         };
@@ -652,7 +652,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
-            version: crate::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
         })
@@ -813,7 +813,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
-            version: crate::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
         })

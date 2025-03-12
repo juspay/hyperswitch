@@ -1482,7 +1482,7 @@ pub async fn create_payment_method_for_intent(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: domain::consts::API_VERSION,
+                version: common_utils::consts::API_VERSION,
                 locker_fingerprint_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,

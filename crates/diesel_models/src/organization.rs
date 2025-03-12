@@ -71,7 +71,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
-            version: common_enums::ApiVersion::V1,
+            version: common_utils::consts::API_VERSION,
         }
     }
 }
@@ -95,7 +95,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
-            version: common_enums::ApiVersion::V2,
+            version: common_utils::consts::API_VERSION,
         }
     }
 }
@@ -140,7 +140,7 @@ impl OrganizationNew {
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
-            version: common_enums::ApiVersion::V1,
+            version: common_utils::consts::API_VERSION,
         }
     }
 }
@@ -155,7 +155,7 @@ impl OrganizationNew {
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
-            version: common_enums::ApiVersion::V2,
+            version: common_utils::consts::API_VERSION,
         }
     }
 }
