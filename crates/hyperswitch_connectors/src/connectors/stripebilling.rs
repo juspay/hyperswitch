@@ -797,7 +797,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
-        // since stripe requires an additional call we dont need to implement this function beacuse we get the recovery data from additional call itself
+        // since stripe requires an additional call we dont need to implement this function because we get the recovery data from additional call itself
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
