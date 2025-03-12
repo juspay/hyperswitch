@@ -1,17 +1,18 @@
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
+// specific imports because of using the macro
+use common_enums::enums::MerchantStorageScheme;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
     crypto::OptionalEncryptableValue,
     errors::{CustomResult, ParsingError, ValidationError},
-    pii, type_name,
+    id_type, pii, type_name,
     types::keymanager,
 };
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-// specific imports because of using the macro
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v2")]
@@ -21,7 +22,9 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
+    errors,
     mandates::{self, CommonMandateReference},
+    merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
@@ -45,8 +48,8 @@ impl VaultId {
 ))]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
-    pub customer_id: common_utils::id_type::CustomerId,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: id_type::CustomerId,
+    pub merchant_id: id_type::MerchantId,
     pub payment_method_id: String,
     pub accepted_currency: Option<Vec<storage_enums::Currency>>,
     pub scheme: Option<String>,
@@ -85,13 +88,13 @@ pub struct PaymentMethod {
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethod {
     /// The identifier for the payment method. Using this recurring payments can be made
-    pub id: common_utils::id_type::GlobalPaymentMethodId,
+    pub id: id_type::GlobalPaymentMethodId,
 
     /// The customer id against which the payment method is saved
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub customer_id: id_type::GlobalCustomerId,
 
     /// The merchant id against which the payment method is saved
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
@@ -126,7 +129,7 @@ impl PaymentMethod {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
+    pub fn get_id(&self) -> &id_type::GlobalPaymentMethodId {
         &self.id
     }
 
@@ -582,16 +585,16 @@ impl super::behaviour::Conversion for PaymentMethod {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodSession {
-    pub id: common_utils::id_type::GlobalPaymentMethodSessionId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub id: id_type::GlobalPaymentMethodSessionId,
+    pub customer_id: id_type::GlobalCustomerId,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
     pub return_url: Option<common_utils::types::Url>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<common_utils::id_type::GlobalPaymentMethodId>>,
-    pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
+    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment: Option<id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v2")]
@@ -685,6 +688,156 @@ impl super::behaviour::Conversion for PaymentMethodSession {
     }
 }
 
+#[async_trait::async_trait]
+pub trait PaymentMethodInterface {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn find_payment_method(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn find_payment_method_by_locker_id(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        locker_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn find_payment_method_by_customer_id_merchant_id_list(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+
+    // Need to fix this once we start moving to v2 for payment method
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_list_by_global_customer_id(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        id: &id_type::GlobalCustomerId,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_global_customer_id_merchant_id_status(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn get_payment_method_count_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError>;
+
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError>;
+
+    async fn insert_payment_method(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        payment_method: PaymentMethod,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    async fn update_payment_method(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        payment_method: PaymentMethod,
+        payment_method_update: PaymentMethodUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn delete_payment_method(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        payment_method: PaymentMethod,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method_by_fingerprint_id(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        fingerprint_id: &str,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn delete_payment_method_by_merchant_id_payment_method_id(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_id: &str,
+    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+}
+
 #[cfg(feature = "v2")]
 pub enum PaymentMethodsSessionUpdateEnum {
     GeneralUpdate {
@@ -753,7 +906,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use common_utils::id_type::MerchantConnectorAccountId;
+    use id_type::MerchantConnectorAccountId;
 
     use super::*;
 
@@ -761,8 +914,8 @@ mod tests {
         mandate_data: Option<serde_json::Value>,
     ) -> PaymentMethod {
         let payment_method = PaymentMethod {
-            customer_id: common_utils::id_type::CustomerId::default(),
-            merchant_id: common_utils::id_type::MerchantId::default(),
+            customer_id: id_type::CustomerId::default(),
+            merchant_id: id_type::MerchantId::default(),
             payment_method_id: String::from("abc"),
             accepted_currency: None,
             scheme: None,

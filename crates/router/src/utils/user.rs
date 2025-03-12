@@ -286,6 +286,7 @@ pub fn is_sso_auth_type(auth_type: UserAuthType) -> bool {
 pub fn create_merchant_account_request_for_org(
     req: user_api::UserOrgMerchantCreateRequest,
     org: organization::Organization,
+    product_type: common_enums::MerchantProductType,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
     let merchant_id = if matches!(env::which(), env::Env::Production) {
         id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().expose())?)?
@@ -315,7 +316,7 @@ pub fn create_merchant_account_request_for_org(
         enable_payment_response_hash: None,
         redirect_to_merchant_with_http_post: None,
         pm_collect_link_config: None,
-        product_type: None,
+        product_type: Some(product_type),
     })
 }
 

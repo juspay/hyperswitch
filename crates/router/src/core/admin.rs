@@ -673,6 +673,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
                     product_type: self.product_type,
                 }),
             )
@@ -4234,7 +4235,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
+                force_3ds_challenge: self.force_3ds_challenge,
             },
         )))
     }
