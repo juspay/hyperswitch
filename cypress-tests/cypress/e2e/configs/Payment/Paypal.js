@@ -9,7 +9,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4868719460707704",
+  card_number: "5329879786234393",
   card_exp_month: "01",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
@@ -392,7 +392,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },

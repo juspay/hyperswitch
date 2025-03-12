@@ -58,7 +58,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
-use serde::Serializer;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -348,16 +347,6 @@ pub(crate) fn construct_not_implemented_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
         .into()
-}
-
-pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let float_value = value.parse::<f64>().map_err(|_| {
-        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
-    })?;
-    serializer.serialize_f64(float_value)
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
