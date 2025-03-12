@@ -12,8 +12,8 @@ use time::PrimitiveDateTime;
 use super::AuthEventMetricRow;
 use crate::{
     query::{
-        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
-        Window,
+        Aggregate, FilterTypes, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket,
+        ToSql, Window,
     },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
@@ -45,11 +45,9 @@ where
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
+
         query_builder
-            .add_select_column(Aggregate::Count {
-                field: None,
-                alias: Some("count"),
-            })
+            .add_select_column("sum(sign_flag) AS count")
             .switch()?;
 
         query_builder
@@ -93,6 +91,11 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
+
+        query_builder
+            .add_order_by_clause("count", Order::Descending)
+            .attach_printable("Error adding order by clause")
+            .switch()?;
 
         if let Some(granularity) = granularity {
             granularity
