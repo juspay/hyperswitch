@@ -1218,7 +1218,8 @@ where
 
 #[cfg(feature = "v2")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A> for AdminApiAuthWithMerchantIdFromRoute
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A>
+    for AdminApiAuthWithMerchantIdFromRoute
 where
     A: SessionStateInfo + Sync,
 {
@@ -1954,7 +1955,6 @@ where
                 report!(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Unable to parse client_secret")
             })?;
-
 
         let key_manager_state: &common_utils::types::keymanager::KeyManagerState =
             &(&state.session_state()).into();

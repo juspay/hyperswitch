@@ -825,7 +825,7 @@ pub async fn payments_connector_session(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id : global_payment_id.clone(),
+        global_payment_id: global_payment_id.clone(),
         payload: json_payload.into_inner(),
     };
 
@@ -868,11 +868,9 @@ pub async fn payments_connector_session(
                 auth.platform_merchant_account,
             )
         },
-        &auth::V2ClientAuth(
-                common_utils::types::authentication::ResourceId::Payment(
-                    global_payment_id,
-                ),
-            ),
+        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+            global_payment_id,
+        )),
         locking_action,
     ))
     .await
@@ -2427,7 +2425,7 @@ pub async fn payment_confirm_intent(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id : global_payment_id.clone(),
+        global_payment_id: global_payment_id.clone(),
         payload: json_payload.into_inner(),
     };
 
@@ -2472,11 +2470,9 @@ pub async fn payment_confirm_intent(
             ))
             .await
         },
-        &auth::V2ClientAuth(
-            common_utils::types::authentication::ResourceId::Payment(
-                global_payment_id,
-            ),
-        ),
+        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+            global_payment_id,
+        )),
         locking_action,
     ))
     .await
@@ -2810,7 +2806,7 @@ pub async fn list_payment_methods(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id : global_payment_id.clone(),
+        global_payment_id: global_payment_id.clone(),
         payload,
     };
 
@@ -2837,11 +2833,9 @@ pub async fn list_payment_methods(
                 &header_payload,
             )
         },
-        &auth::V2ClientAuth(
-            common_utils::types::authentication::ResourceId::Payment(
-                global_payment_id,
-            ),
-        ),
+        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+            global_payment_id,
+        )),
         api_locking::LockAction::NotApplicable,
     ))
     .await
