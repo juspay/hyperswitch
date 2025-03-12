@@ -14,6 +14,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     metrics, types, webhooks,
 };
+
 /// ConnectorV2 trait
 pub trait ConnectorV2:
     Send
@@ -25,9 +26,9 @@ pub trait ConnectorV2:
     + api::disputes_v2::DisputeV2
     + api::files_v2::FileUploadV2
     + api::ConnectorTransactionId
-    + api::payouts_v2::PayoutsV2
+    + api::PayoutsV2
     + api::ConnectorVerifyWebhookSourceV2
-    + api::fraud_check_v2::FraudCheckV2
+    + api::FraudCheckV2
     + api::ConnectorMandateRevokeV2
     + api::authentication_v2::ExternalAuthenticationV2
     + api::UnifiedAuthenticationServiceV2
@@ -43,9 +44,9 @@ impl<
             + api::disputes_v2::DisputeV2
             + api::files_v2::FileUploadV2
             + api::ConnectorTransactionId
-            + api::payouts_v2::PayoutsV2
+            + api::PayoutsV2
             + api::ConnectorVerifyWebhookSourceV2
-            + api::fraud_check_v2::FraudCheckV2
+            + api::FraudCheckV2
             + api::ConnectorMandateRevokeV2
             + api::authentication_v2::ExternalAuthenticationV2
             + api::UnifiedAuthenticationServiceV2,

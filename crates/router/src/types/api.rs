@@ -559,12 +559,6 @@ impl ConnectorData {
     }
 }
 
-#[cfg(not(feature = "frm"))]
-pub trait FraudCheck {}
-
-#[cfg(not(feature = "frm"))]
-pub trait FraudCheckV2 {}
-
 #[cfg(test)]
 mod test {
     #![allow(clippy::unwrap_used)]

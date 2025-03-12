@@ -63,8 +63,14 @@ use hyperswitch_domain_models::{
 use masking::Maskable;
 use serde_json::json;
 
+#[cfg(feature = "frm")]
+pub use self::fraud_check::*;
+#[cfg(feature = "frm")]
+pub use self::fraud_check_v2::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
+#[cfg(feature = "payouts")]
+pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*};
 use crate::{
     api::revenue_recovery::RevenueRecovery, connector_integration_v2::ConnectorIntegrationV2,
@@ -84,7 +90,7 @@ pub trait Connector:
     + ConnectorTransactionId
     + Payouts
     + ConnectorVerifyWebhookSource
-    + fraud_check::FraudCheck
+    + FraudCheck
     + ConnectorMandateRevoke
     + authentication::ExternalAuthentication
     + TaxCalculation
@@ -105,7 +111,7 @@ impl<
             + ConnectorTransactionId
             + Payouts
             + ConnectorVerifyWebhookSource
-            + fraud_check::FraudCheck
+            + FraudCheck
             + ConnectorMandateRevoke
             + authentication::ExternalAuthentication
             + TaxCalculation
@@ -628,6 +634,16 @@ pub trait ConnectorRedirectResponse {
 /// Empty trait for when payouts feature is disabled
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+/// Empty trait for when payouts feature is disabled
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsV2 {}
+
+/// Empty trait for when frm feature is disabled
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheck {}
+/// Empty trait for when frm feature is disabled
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheckV2 {}
 
 fn get_connector_payment_method_type_info(
     supported_payment_method: &SupportedPaymentMethods,
