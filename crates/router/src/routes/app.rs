@@ -2091,6 +2091,43 @@ impl Verify {
 
 pub struct User;
 
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+
+        route = route.service(
+            web::resource("/create_merchant")
+                .route(web::post().to(user::user_merchant_account_create)),
+        );
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/switch")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(user::switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route
+    }
+}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
