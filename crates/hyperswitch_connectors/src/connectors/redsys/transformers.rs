@@ -720,7 +720,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
                         (connector_metadata.clone(), order_id.clone())
                     }
                     _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-                },
+                }
                 _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
             };
 
