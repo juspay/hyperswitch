@@ -1,6 +1,7 @@
 pub mod address;
 pub mod api;
 pub mod behaviour;
+pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
@@ -567,6 +568,36 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&api_models::payments::PaymentAttemptAmountDetails>
+    for payments::payment_attempt::AttemptAmountDetailsSetter
+{
+    fn from(amount: &api_models::payments::PaymentAttemptAmountDetails) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&api_models::payments::RecordAttemptErrorDetails>
+    for payments::payment_attempt::ErrorDetails
+{
+    fn from(error: &api_models::payments::RecordAttemptErrorDetails) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: Some(error.message.clone()),
+            unified_code: None,
+            unified_message: None,
         }
     }
 }

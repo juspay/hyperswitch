@@ -4,10 +4,10 @@ use std::collections::HashSet;
 
 use router_env::once_cell::sync::Lazy;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
 
 pub static ROUTING_ENABLED_PAYMENT_METHODS: Lazy<HashSet<common_enums::PaymentMethod>> =

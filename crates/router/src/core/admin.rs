@@ -404,7 +404,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
                     is_platform_account: false,
-                    product_type: None,
+                    product_type: self.product_type,
                 },
             )
         }
@@ -673,7 +673,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
-                    product_type: None,
+                    product_type: self.product_type,
                 }),
             )
         }
@@ -1402,6 +1402,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            // api_enums::Connector::Hipay => {
+            //     hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Helcim => {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1422,6 +1426,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Juspaythreedsserver => Ok(()),
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -3784,6 +3789,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
+            force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
         }))
     }
 
@@ -4225,6 +4231,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+                force_3ds_challenge: self.force_3ds_challenge,
             },
         )))
     }

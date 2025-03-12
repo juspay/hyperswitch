@@ -411,6 +411,7 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
+                // enums::Connector::Hipay => Ok(ConnectorEnum::Old(Box::new(connector::Hipay))),
                 enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
@@ -424,6 +425,9 @@ impl ConnectorData {
                 enums::Connector::Jpmorgan => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
+                enums::Connector::Juspaythreedsserver => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Juspaythreedsserver::new(),
+                ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
