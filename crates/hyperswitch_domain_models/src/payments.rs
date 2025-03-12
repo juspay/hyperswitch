@@ -803,8 +803,10 @@ where
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,
                 connector: connector
                     .parse()
-                    .map_err(|_| errors::api_error_response::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse connector string to enum")?,
+                    .map_err(|err| {
+                        router_env::logger::error!(?err, "Failed to parse connector string to enum");
+                        errors::api_error_response::ApiErrorResponse::InternalServerError
+                    })?,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,
