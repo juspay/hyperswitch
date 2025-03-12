@@ -707,7 +707,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata,
                 active_attempt_id,
                 updated_by,
-            } => Self {
+            } => Ok(Self {
                 status: Some(status),
                 amount_captured: None,
                 active_attempt_id: Some(Some(active_attempt_id)),
@@ -738,11 +738,12 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: *feature_metadata,
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                prerouting_algorithm: None,
                 session_expiry: None,
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-            },
+            }),
         }
     }
 }

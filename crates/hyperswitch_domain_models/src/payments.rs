@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 #[cfg(feature = "v2")]
 use api_models::payments::SessionToken;
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::{OptionExt, ValueExt};
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     self,
     crypto::Encryptable,
