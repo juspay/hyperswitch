@@ -2033,6 +2033,9 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+
+    ///The network token details for the payment method
+    pub network_tokenization: Option<NetworkTokenResponse>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
