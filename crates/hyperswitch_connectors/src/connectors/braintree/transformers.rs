@@ -584,7 +584,9 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
         match item {
             BraintreePaymentStatus::Settling
             | BraintreePaymentStatus::Settled
-            | BraintreePaymentStatus::SettlementConfirmed => Self::Charged,
+            | BraintreePaymentStatus::SettlementConfirmed
+            | BraintreePaymentStatus::SubmittedForSettlement
+            | BraintreePaymentStatus::SettlementPending => Self::Charged,
             BraintreePaymentStatus::Authorizing => Self::Authorizing,
             BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
@@ -593,8 +595,6 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
             BraintreePaymentStatus::Authorized => Self::Authorized,
             BraintreePaymentStatus::Voided => Self::Voided,
-            BraintreePaymentStatus::SubmittedForSettlement
-            | BraintreePaymentStatus::SettlementPending => Self::Pending,
         }
     }
 }
@@ -917,9 +917,10 @@ pub enum BraintreeRefundStatus {
 impl From<BraintreeRefundStatus> for enums::RefundStatus {
     fn from(item: BraintreeRefundStatus) -> Self {
         match item {
-            BraintreeRefundStatus::Settled | BraintreeRefundStatus::Settling => Self::Success,
-            BraintreeRefundStatus::SubmittedForSettlement
-            | BraintreeRefundStatus::SettlementPending => Self::Pending,
+            BraintreeRefundStatus::Settled
+            | BraintreeRefundStatus::Settling
+            | BraintreeRefundStatus::SubmittedForSettlement
+            | BraintreeRefundStatus::SettlementPending => Self::Success,
             BraintreeRefundStatus::Failed => Self::Failure,
         }
     }

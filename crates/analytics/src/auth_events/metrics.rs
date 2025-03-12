@@ -41,6 +41,7 @@ pub struct AuthEventMetricRow {
     pub count: Option<i64>,
     pub authentication_status: Option<DBEnumWrapper<storage_enums::AuthenticationStatus>>,
     pub trans_status: Option<DBEnumWrapper<storage_enums::TransactionStatus>>,
+    pub authentication_type: Option<DBEnumWrapper<storage_enums::DecoupledAuthenticationType>>,
     pub error_message: Option<String>,
     pub authentication_connector: Option<DBEnumWrapper<storage_enums::AuthenticationConnectors>>,
     pub message_version: Option<String>,

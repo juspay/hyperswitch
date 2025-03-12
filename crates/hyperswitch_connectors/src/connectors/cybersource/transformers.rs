@@ -1228,11 +1228,21 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let card_type = match ccard
-            .card_network
-            .clone()
-            .and_then(get_cybersource_card_type)
-        {
+        let additional_card_network = item
+            .router_data
+            .request
+            .get_card_network_from_additional_payment_method_data()
+            .map_err(|err| {
+                router_env::logger::info!(
+                    "Error while getting card network from additional payment method data: {}",
+                    err
+                );
+            })
+            .ok();
+
+        let raw_card_type = ccard.card_network.clone().or(additional_card_network);
+
+        let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
             None => ccard.get_card_issuer().ok().map(String::from),
         };
@@ -1258,7 +1268,11 @@ impl
             },
         }));
 
-        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            None,
+            raw_card_type.map(|network| network.to_string()),
+        ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
             .router_data
@@ -1273,14 +1287,18 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("1".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
                     xid: authn_data.threeds_server_transaction_id.clone(),
