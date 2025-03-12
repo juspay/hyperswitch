@@ -1805,7 +1805,8 @@ pub async fn get_total_payment_method_count_core(
             common_enums::PaymentMethodStatus::Active,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get total payment method count")?;
 
     let response = api::TotalPaymentMethodCountResponse { total_count };
 
