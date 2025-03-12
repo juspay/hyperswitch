@@ -514,16 +514,12 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        PaymentMethod::get_count_by_merchant_id_status(
-            &conn,
-            merchant_id,
-            status,
-        )
-        .await
-        .map_err(|error| {
-            let new_err = diesel_error_to_data_error(*error.current_context());
-            error.change_context(new_err)
-        })
+        PaymentMethod::get_count_by_merchant_id_status(&conn, merchant_id, status)
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
     }
 
     #[instrument(skip_all)]
