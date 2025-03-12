@@ -35,13 +35,16 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate,
         },
+        revenue_recovery::RecoveryRecordBack,
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, GetAdditionalRevenueRecoveryDetails,
         PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         authentication,
-        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -55,7 +58,7 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, AcceptDisputeResponse,
+        revenue_recovery::{GetAdditionalRevenueRecoveryResponseData,RevenueRecoveryRecordBackResponse}, AcceptDisputeResponse,
         AuthenticationResponseData, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
@@ -86,7 +89,7 @@ use hyperswitch_interfaces::{
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
-        revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
+        revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
         ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
         UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
@@ -3908,9 +3911,108 @@ default_imp_for_uas_authentication!(
     connectors::Zsl
 );
 
+macro_rules! default_imp_for_revenue_recovery_record_back {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl RevenueRecoveryRecordBack for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            RecoveryRecordBack,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse
+            > for $path::$connector
+            {}
+        )*
+    };
+}
+
+default_imp_for_revenue_recovery_record_back!(
+    connectors::Aci,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Placetopay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {
-        $(  impl RevenueRecovery for $path::$connector {}
+        $(
+            impl RevenueRecovery for $path::$connector {}
             impl AdditionalRevenueRecovery for $path::$connector {}
             impl
                 ConnectorIntegration<
