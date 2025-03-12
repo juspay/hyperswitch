@@ -147,11 +147,7 @@ impl TryFrom<&TokenizationRouterData> for HiPayTokenRequest {
                 card_number: card_data.card_number.clone(),
                 card_expiry_month: card_data.card_exp_month.clone(),
                 card_expiry_year: card_data.get_expiry_year_4_digit(),
-                card_holder: card_data.card_holder_name.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_holder_name",
-                    },
-                )?,
+                card_holder: item.get_billing_full_name()?,
                 cvc: card_data.card_cvc,
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -406,7 +402,7 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
             HipayPaymentStatus::AwaitingTerminal => Self::Pending,
             HipayPaymentStatus::AuthorizationCancellationRequested => Self::VoidInitiated,
             HipayPaymentStatus::ChallengeRequested => Self::AuthenticationPending,
-            HipayPaymentStatus::SoftDeclined => Self::AuthorizationFailed,
+            HipayPaymentStatus::SoftDeclined => Self::Failure,
             HipayPaymentStatus::PendingPayment => Self::Pending,
             HipayPaymentStatus::ChargedBack => Self::Failure,
             HipayPaymentStatus::Created => Self::Started,
@@ -423,7 +419,7 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
             HipayPaymentStatus::Authenticated => Self::AuthenticationSuccessful,
             HipayPaymentStatus::AcquirerNotFound => Self::Failure,
             HipayPaymentStatus::RiskAccepted => Self::Pending,
-            HipayPaymentStatus::AuthorizationRefused => Self::AuthorizationFailed,
+            HipayPaymentStatus::AuthorizationRefused => Self::Failure,
         }
     }
 }
@@ -521,16 +517,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<HipayMaintenanceResponse<HipayPaym
         })
     }
 }
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum HipaySyncState {
-    Completed,
-    Waiting,
-    Pending,
-    Declined,
-    Forwarding,
-    Error,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Reason {
@@ -598,6 +584,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     status_code: item.http_code,
                 });
                 Ok(Self {
+                    status: enums::AttemptStatus::Failure,
                     response,
                     ..item.data
                 })
