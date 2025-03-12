@@ -29,7 +29,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Create No 3DS Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntent"];
+        ]["PaymentIntentOffSession"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -93,7 +93,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Create No 3DS Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntent"];
+        ]["PaymentIntentOffSession"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
