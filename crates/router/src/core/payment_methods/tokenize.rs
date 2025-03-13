@@ -7,9 +7,7 @@ use common_utils::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    network_tokenization as nt_domain_types, router_request_types as domain_request_types,
-};
+use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
@@ -21,7 +19,7 @@ use crate::{
     },
     errors::{self, RouterResult},
     services,
-    types::{api, domain},
+    types::{api, domain, payment_methods as pm_types},
     SessionState,
 };
 
@@ -137,10 +135,7 @@ pub async fn tokenize_cards(
 }
 
 // Data types
-type NetworkTokenizationResponse = (
-    nt_domain_types::CardNetworkTokenResponsePayload,
-    Option<String>,
-);
+type NetworkTokenizationResponse = (pm_types::CardNetworkTokenResponsePayload, Option<String>);
 
 pub struct StoreLockerResponse {
     pub store_card_resp: pm_transformers::StoreCardRespPayload,
@@ -162,7 +157,7 @@ pub struct NetworkTokenizationBuilder<'a, S: State> {
     pub card_cvc: Option<Secret<String>>,
 
     /// Network token details
-    pub network_token: Option<&'a nt_domain_types::CardNetworkTokenResponsePayload>,
+    pub network_token: Option<&'a pm_types::CardNetworkTokenResponsePayload>,
 
     /// Stored card details
     pub stored_card: Option<&'a pm_transformers::StoreCardRespPayload>,

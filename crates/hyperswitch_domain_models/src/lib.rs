@@ -31,6 +31,8 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
@@ -272,6 +274,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             ),
             payment_method_type: from.payment_method_type,
             payment_method_subtype: from.payment_method_subtype,
+            connector: from.connector,
         }
     }
 
@@ -286,6 +289,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .convert_back(),
             payment_method_type: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
+            connector: self.connector,
         }
     }
 }

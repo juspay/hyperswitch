@@ -299,7 +299,7 @@ async fn call_proxy_api(
         recurring_details: revenue_recovery.get_payment_token_for_api_request(),
         shipping: None,
         browser_info: None,
-        connector: "stripe".to_string(),
+        connector: revenue_recovery.connector.to_string(),
         merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
     };
     logger::info!(
