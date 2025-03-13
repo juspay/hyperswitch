@@ -113,7 +113,7 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -560,7 +560,7 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -596,7 +596,7 @@ pub struct MerchantAccountResponse {
     pub recon_status: api_enums::ReconStatus,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 

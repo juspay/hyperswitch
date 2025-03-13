@@ -15081,6 +15081,18 @@
         },
         "additionalProperties": false
       },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "legacy",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
+      },
       "MerchantRecipientData": {
         "oneOf": [
           {
