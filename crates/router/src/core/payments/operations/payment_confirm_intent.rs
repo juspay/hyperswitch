@@ -249,6 +249,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_attempt,
             payment_method_data,
             payment_address,
+            mandate_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

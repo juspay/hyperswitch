@@ -407,6 +407,8 @@ pub trait ConnectorActions: Connector {
                 split_refunds: None,
                 integrity_object: None,
                 refund_status: enums::RefundStatus::Pending,
+                merchant_account_id: None,
+                merchant_config_currency: None,
             }),
             payment_info,
         );
@@ -984,6 +986,8 @@ impl Default for PaymentAuthorizeType {
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
             shipping_cost: None,
+            merchant_account_id: None,
+            merchant_config_currency: None,
         };
         Self(data)
     }
@@ -1073,6 +1077,8 @@ impl Default for PaymentRefundType {
             split_refunds: None,
             integrity_object: None,
             refund_status: enums::RefundStatus::Pending,
+            merchant_account_id: None,
+            merchant_config_currency: None,
         };
         Self(data)
     }

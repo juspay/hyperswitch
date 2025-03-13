@@ -8,6 +8,7 @@ use common_utils::{
 };
 use common_utils::{
     errors::{CustomResult, ValidationError},
+    ext_traits::OptionExt,
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
@@ -513,6 +514,14 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
+
+        let connector_token = Some(diesel_models::ConnectorTokenDetails {
+            connector_mandate_id: None,
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+            )),
+        });
+
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
         Ok(Self {
@@ -559,16 +568,210 @@ impl PaymentAttempt {
             external_reference_id: None,
             payment_method_billing_address,
             error: None,
-            connector_token_details: Some(diesel_models::ConnectorTokenDetails {
-                connector_mandate_id: None,
-                connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
-                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
-                )),
-            }),
+            connector_token_details: connector_token,
+            id,
+            card_discovery: None,
+            feature_metadata: None,
+        })
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn proxy_create_domain_model(
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        request: &api_models::payments::ProxyPaymentsRequest,
+        encrypted_data: DecryptedPaymentAttempt,
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+        let intent_amount_details = payment_intent.amount_details.clone();
+
+        let attempt_amount_details =
+            intent_amount_details.proxy_create_attempt_amount_details(request);
+
+        let now = common_utils::date_time::now();
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+        let connector_token = Some(diesel_models::ConnectorTokenDetails {
+            connector_mandate_id: None,
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+            )),
+        });
+        let payment_method_type_data = payment_intent.get_payment_method_type();
+
+        let payment_method_subtype_data = payment_intent.get_payment_method_sub_type();
+
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
+        Ok(Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details: attempt_amount_details,
+            status: common_enums::AttemptStatus::Started,
+            connector: Some(request.connector.clone()),
+            authentication_type,
+            created_at: now,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: request.browser_info.clone(),
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: Some(request.merchant_connector_id.clone()),
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            charges: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: payment_method_type_data
+                .unwrap_or(common_enums::PaymentMethod::Card),
+            payment_method_id: None,
+            connector_payment_id: None,
+            payment_method_subtype: payment_method_subtype_data
+                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address,
+            error: None,
+            connector_token_details: connector_token,
             feature_metadata: None,
             id,
             card_discovery: None,
         })
+    }
+
+    /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
+    #[cfg(feature = "v2")]
+    pub async fn create_domain_model_using_record_request(
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        request: &api_models::payments::PaymentsAttemptRecordRequest,
+        encrypted_data: DecryptedPaymentAttempt,
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+
+        let amount_details = AttemptAmountDetailsSetter::from(&request.amount_details);
+
+        let now = common_utils::date_time::now();
+        // we consume transaction_created_at from webhook request, if it is not present we take store current time as transaction_created_at.
+        let transaction_created_at = request
+            .transaction_created_at
+            .unwrap_or(common_utils::date_time::now());
+
+        // This function is called in the record attempt flow, which tells us that this is a payment attempt created by an external system.
+        let feature_metadata = PaymentAttemptFeatureMetadata {
+            revenue_recovery: Some({
+                PaymentAttemptRevenueRecoveryData {
+                    attempt_triggered_by: common_enums::TriggeredBy::External,
+                }
+            }),
+        };
+
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+        let error = request.error.as_ref().map(ErrorDetails::from);
+        let connector_payment_id = request
+            .connector_transaction_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_id().clone());
+        let connector = request.connector.map(|connector| connector.to_string());
+
+        Ok(Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details: AttemptAmountDetails::from(amount_details),
+            status: request.status,
+            connector,
+            authentication_type: storage_enums::AuthenticationType::NoThreeDs,
+            created_at: transaction_created_at,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: None,
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: request.payment_merchant_connector_id.clone(),
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: request.payment_method_type,
+            payment_method_id: None,
+            connector_payment_id,
+            payment_method_subtype: request.payment_method_subtype,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address,
+            error,
+            feature_metadata: Some(feature_metadata),
+            id,
+            connector_token_details: Some(diesel_models::ConnectorTokenDetails {
+                connector_mandate_id: Some(request.processor_payment_method_token.clone()),
+                connector_token_request_reference_id: None,
+            }),
+            card_discovery: None,
+            charges: None,
+        })
+    }
+
+    pub fn get_attempt_merchant_connector_account_id(
+        &self,
+    ) -> CustomResult<
+        id_type::MerchantConnectorAccountId,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let merchant_connector_id = self
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant connector id is None")?;
+        Ok(merchant_connector_id)
     }
 }
 
@@ -2182,6 +2385,9 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_to_capture: amount_details.amount_to_capture,
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             payment_method_subtype,
+            connector_payment_id: connector_payment_id
+                .as_ref()
+                .map(|txn_id| ConnectorTransactionId::TxnId(txn_id.clone())),
             payment_method_type_v2: payment_method_type,
             id,
             charges,
@@ -2191,6 +2397,7 @@ impl behaviour::Conversion for PaymentAttempt {
             request_extended_authorization: None,
             capture_before: None,
             feature_metadata: feature_metadata.as_ref().map(From::from),
+            connector,
         })
     }
 }
