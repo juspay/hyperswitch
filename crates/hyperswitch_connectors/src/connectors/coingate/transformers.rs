@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use masking::{ExposeInterface, Mask};
+
 use common_enums::{enums, Currency};
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Mask, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -189,10 +189,10 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
                     config: "merchant_connector_account.metadata",
                 })?;
 
-                if let Some(a) = item.router_data.request.refund_connector_metadata.clone() {
-                    println!("$$$$ refund_connector_metadata: {:?}", a.expose());
-                }
-                
+        if let Some(a) = item.router_data.request.refund_connector_metadata.clone() {
+            println!("$$$$ refund_connector_metadata: {:?}", a.expose());
+        }
+
         let cryptocurreny_address = item
             .router_data
             .request
@@ -202,13 +202,20 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "refund_connector_metadata",
             })?
-            .clone().expose();
+            .clone()
+            .expose();
 
-            let address: String = serde_json::from_value::<String>(
-                cryptocurreny_address.get("address").cloned().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField { field_name: "address" }
-                })?
-            ).change_context(errors::ConnectorError::MissingRequiredField { field_name: "address" })?;
+        let address: String = serde_json::from_value::<String>(
+            cryptocurreny_address
+                .get("address")
+                .cloned()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "address",
+                })?,
+        )
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "address",
+        })?;
 
         Ok(Self {
             amount: item.amount.clone(),

@@ -197,9 +197,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = coingate::CoingateRouterData::from((amount, req));
         let connector_req = coingate::CoingatePaymentsRequest::try_from(&connector_router_data)?;
         let printrequest =
-        common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    println!("$$$$$ auth req {:?}", printrequest);
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ auth req {:?}", printrequest);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -394,9 +394,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingat
         let connector_router_data = coingate::CoingateRouterData::from((amount, req));
         let connector_req = coingate::CoingateRefundRequest::try_from(&connector_router_data)?;
         let printrequest =
-        common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    println!("$$$$$ {:?}", printrequest);
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
