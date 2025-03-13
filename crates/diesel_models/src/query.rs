@@ -4,6 +4,7 @@ pub mod blocklist_lookup;
 pub mod business_profile;
 mod capture;
 pub mod cards_info;
+pub mod co_badged_cards_info;
 pub mod configs;
 
 pub mod authentication;

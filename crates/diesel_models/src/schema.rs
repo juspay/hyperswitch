@@ -306,6 +306,35 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    co_badged_cards_info (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        card_bin_min -> Int8,
+        card_bin_max -> Int8,
+        issuing_bank_name -> Text,
+        #[max_length = 32]
+        card_network -> Varchar,
+        country -> CountryAlpha2,
+        card_type -> CardType,
+        regulated -> Bool,
+        regulated_name -> Nullable<Text>,
+        prepaid -> Bool,
+        reloadable -> Bool,
+        pan_or_token -> PanOrToken,
+        card_bin_length -> Int2,
+        card_brand_is_additional -> Bool,
+        domestic_only -> Bool,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        #[max_length = 128]
+        last_updated_provider -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     configs (key) {
         #[max_length = 255]
         key -> Varchar,
@@ -1533,6 +1562,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     callback_mapper,
     captures,
     cards_info,
+    co_badged_cards_info,
     configs,
     customers,
     dashboard_metadata,

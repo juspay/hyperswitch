@@ -13,6 +13,7 @@ mod payment;
 mod profile;
 mod refunds;
 mod relay;
+mod co_badged_cards_info;
 mod routing;
 mod tenant;
 
@@ -47,6 +48,7 @@ pub use self::{
     profile::ProfileId,
     refunds::RefundReferenceId,
     relay::RelayId,
+    co_badged_cards_info::CoBadgedCardsInfoID,
     routing::RoutingId,
     tenant::TenantId,
 };
