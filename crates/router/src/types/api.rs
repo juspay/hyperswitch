@@ -367,9 +367,6 @@ impl ConnectorData {
                 enums::Connector::Cashtocode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
-                enums::Connector::Chargebee => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Chargebee::new())))
-                }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
@@ -591,7 +588,8 @@ impl ConnectorData {
                 | enums::Connector::Riskified
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
-                | enums::Connector::Taxjar => {
+                | enums::Connector::Taxjar
+                | enums::Connector::Chargebee => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
