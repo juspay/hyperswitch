@@ -65,8 +65,14 @@ pub async fn get_forex_exchange_rates(
                 let is_retryable = matches!(
                     error.current_context(),
                     ForexCacheError::CouldNotAcquireLock
-                        | ForexCacheError::ForexDataUnavailable
-                        | ForexCacheError::WriteLockNotAcquired
+                    |  ForexCacheError::EntryNotFound
+                    |  ForexCacheError::ForexDataUnavailable
+                    |  ForexCacheError::LocalReadError
+                    |  ForexCacheError::LocalWriteError
+                    |  ForexCacheError::RedisConnectionError
+                    |  ForexCacheError::RedisLockReleaseFailed
+                    |  ForexCacheError::RedisWriteError
+                    |  ForexCacheError::WriteLockNotAcquired
                 );
 
                 if !is_retryable {
