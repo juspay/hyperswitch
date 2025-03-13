@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.13.0
+
+### Features
+
+- **analytics:** Modified authentication queries and added generate report for authentications ([#7483](https://github.com/juspay/hyperswitch/pull/7483)) ([`9683b2a`](https://github.com/juspay/hyperswitch/commit/9683b2a8955f876d99625cd5cf70c4bdf3836e9e))
+- **connector:** Add record back connector integration flow ([#7416](https://github.com/juspay/hyperswitch/pull/7416)) ([`13a2749`](https://github.com/juspay/hyperswitch/commit/13a274909962872f1d663d082af33fc44205d419))
+- **core:** Add V2 Authentication to all available endpoints ([#7487](https://github.com/juspay/hyperswitch/pull/7487)) ([`3667a7f`](https://github.com/juspay/hyperswitch/commit/3667a7ffd216e165e1f51ad1ceac05d6901bb187))
+- **payment_methods_v2:** Add total-payment-method-count api ([#7479](https://github.com/juspay/hyperswitch/pull/7479)) ([`4f6174d`](https://github.com/juspay/hyperswitch/commit/4f6174d1bf6dd0713b0a3d8e005671c884555144))
+- **users:** Add V2 User APIs to Support Modularity for Merchant Accounts ([#7386](https://github.com/juspay/hyperswitch/pull/7386)) ([`d1f5303`](https://github.com/juspay/hyperswitch/commit/d1f53036c75771d8387a9579a544c1e2b3c17353))
+
+### Bug Fixes
+
+- **connector:** Fix mapping of feature matrix for coinbase ([#7454](https://github.com/juspay/hyperswitch/pull/7454)) ([`e949600`](https://github.com/juspay/hyperswitch/commit/e9496007889350f78af5875566c806f79c397544))
+- **payment_methods:** Payment method type not being stored in payment method ([#7411](https://github.com/juspay/hyperswitch/pull/7411)) ([`833da1c`](https://github.com/juspay/hyperswitch/commit/833da1c3c5a0f006a689b05554c547205774c823))
+- **routing:** Enable filtering of default connectors for contract based routing ([#7420](https://github.com/juspay/hyperswitch/pull/7420)) ([`c0c08d0`](https://github.com/juspay/hyperswitch/commit/c0c08d05ef04d914e07d49f163e43bdddf5c885b))
+
+### Refactors
+
+- **connector:** [FISERV, HELCIM] Add amount conversion framework to Fiserv, Helcim ([#7336](https://github.com/juspay/hyperswitch/pull/7336)) ([`4352101`](https://github.com/juspay/hyperswitch/commit/4352101555f77bc0c18a2b83e5dbb432fae4e0c9))
+- **cypress:** Fiuu connector configuration changes ([#7297](https://github.com/juspay/hyperswitch/pull/7297)) ([`a387ae2`](https://github.com/juspay/hyperswitch/commit/a387ae290ef899c252049f270cbf9b716dbe1c55))
+- **payment_methods_v2:** Refactor network tokenization flow for v2 ([#7309](https://github.com/juspay/hyperswitch/pull/7309)) ([`bba414c`](https://github.com/juspay/hyperswitch/commit/bba414cd198bef0f2fb8bfbd077f7f775a2eb8a5))
+
+**Full Changelog:** [`2025.03.12.0...2025.03.13.0`](https://github.com/juspay/hyperswitch/compare/2025.03.12.0...2025.03.13.0)
+
+
+- - -
+
 ## 2025.03.12.0
 
 ### Features
