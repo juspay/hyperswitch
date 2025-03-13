@@ -1326,6 +1326,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Coingate => {
                 coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
+                coingate::transformers::CoinagteConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Cryptopay => {

@@ -127,6 +127,7 @@ impl ConnectorCommon for Coingate {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("$$$$$ error res {:?}", res.response);
         let response: coingate::CoingateErrorResponse = res
             .response
             .parse_struct("CoingateErrorResponse")
@@ -134,12 +135,16 @@ impl ConnectorCommon for Coingate {
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let reason = match &response.errors {
+            Some(errors) => errors.join(" & "),
+            None => response.reason.clone(),
+        };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: NO_ERROR_CODE.to_string(),
-            message: response.message,
-            reason: Some(response.reason),
+            code: response.message.to_string(),
+            message: response.message.clone(),
+            reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -191,6 +196,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = coingate::CoingateRouterData::from((amount, req));
         let connector_req = coingate::CoingatePaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+        common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    println!("$$$$$ auth req {:?}", printrequest);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -222,6 +231,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$$$$ auth res {:?}", res.response);
         let response: coingate::CoingatePaymentsResponse = res
             .response
             .parse_struct("Coingate PaymentsAuthorizeResponse")
@@ -347,16 +357,96 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Co
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingate {
+    fn get_headers(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/api/v2/orders/{connector_payment_id}/refunds",
+            self.base_url(connectors),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = coingate::CoingateRouterData::from((amount, req));
+        let connector_req = coingate::CoingateRefundRequest::try_from(&connector_router_data)?;
+        let printrequest =
+        common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    println!("$$$$$ {:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "RefundSync".to_string(),
-            connector: "Coingate".to_string(),
-        }
-        .into())
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::RefundExecuteType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefundsRouterData<Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
+        println!("$$$$$ refund res {:?}", res.response);
+        let response: coingate::CoingateRefundResponse = res
+            .response
+            .parse_struct("coingate RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
