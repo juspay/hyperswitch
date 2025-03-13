@@ -880,8 +880,7 @@ static PAYU_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
     }
 });
 
-static PAYU_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(|| Vec::new());
+static PAYU_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Payu {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

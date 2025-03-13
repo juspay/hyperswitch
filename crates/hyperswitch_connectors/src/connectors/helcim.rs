@@ -899,8 +899,7 @@ static HELCIM_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
     }
 });
 
-static HELCIM_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(|| Vec::new());
+static HELCIM_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Helcim {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

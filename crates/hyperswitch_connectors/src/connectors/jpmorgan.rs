@@ -880,8 +880,7 @@ static JPMORGAN_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
     }
 });
 
-static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(|| Vec::new());
+static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Jpmorgan {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

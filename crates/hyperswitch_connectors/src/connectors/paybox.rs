@@ -761,8 +761,7 @@ static PAYBOX_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
     }
 });
 
-static PAYBOX_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(|| Vec::new());
+static PAYBOX_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Paybox {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
