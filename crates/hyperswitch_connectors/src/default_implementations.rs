@@ -22,6 +22,14 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::{GetAdditionalRevenueRecoveryDetails,RecoveryRecordBack},
+    router_request_types::revenue_recovery::{GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest},
+    router_response_types::revenue_recovery::{GetAdditionalRevenueRecoveryResponseData,RevenueRecoveryRecordBackResponse},
+};
+
 use hyperswitch_domain_models::{
     router_flow_types::{
         dispute::{Accept, Defend, Evidence},
@@ -32,15 +40,11 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate,
         },
-        revenue_recovery::RecoveryRecordBack,
         webhooks::VerifyWebhookSource,
-        Authenticate, AuthenticationConfirmation, GetAdditionalRevenueRecoveryDetails,
+        Authenticate, AuthenticationConfirmation,
         PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
-        revenue_recovery::{
-            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
-        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -54,9 +58,6 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        revenue_recovery::{
-            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
-        },
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
@@ -67,6 +68,8 @@ use hyperswitch_interfaces::api::fraud_check::{
     FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
     FraudCheckTransaction,
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_interfaces::api::revenue_recovery::{AdditionalRevenueRecovery,RevenueRecoveryRecordBack};
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
@@ -83,7 +86,7 @@ use hyperswitch_interfaces::{
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
-        revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
+        revenue_recovery::RevenueRecovery,
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
         UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
         UnifiedAuthenticationService,
@@ -3600,6 +3603,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Zsl
 );
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl RevenueRecoveryRecordBack for $path::$connector {}
@@ -3614,6 +3618,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
     };
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
     connectors::Aci,
     connectors::Airwallex,
@@ -3697,6 +3702,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Zsl
 );
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -3712,6 +3718,7 @@ macro_rules! default_imp_for_additional_revenue_recovery_call {
     };
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_additional_revenue_recovery_call!(
     connectors::Aci,
     connectors::Airwallex,
@@ -3796,7 +3803,7 @@ default_imp_for_additional_revenue_recovery_call!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_revenue_recovery_call {
+macro_rules! default_imp_for_revenue_recovery {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl RevenueRecovery for $path::$connector {}
@@ -3804,7 +3811,7 @@ macro_rules! default_imp_for_revenue_recovery_call {
     };
 }
 
-default_imp_for_revenue_recovery_call!(
+default_imp_for_revenue_recovery!(
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
