@@ -446,6 +446,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
+        payment_intent.force_3ds_challenge = request
+            .force_3ds_challenge
+            .or(payment_intent.force_3ds_challenge);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,

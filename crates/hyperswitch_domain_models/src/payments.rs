@@ -523,6 +523,7 @@ impl PaymentIntent {
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),

@@ -454,6 +454,7 @@ async fn payments_create_core() {
         connector_mandate_id: None,
         shipping_cost: None,
         card_discovery: None,
+        force_3ds_challenge: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -721,6 +722,7 @@ async fn payments_create_core_adyen_no_redirect() {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            force_3ds_challenge: None,
         },
         vec![],
     ));

@@ -5008,6 +5008,9 @@ pub struct PaymentsResponse {
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

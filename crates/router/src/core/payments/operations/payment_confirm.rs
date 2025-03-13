@@ -620,7 +620,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 storage_scheme,
             )
             .await?;
-
             (Some(token_data), payment_method_info)
         } else {
             (None, payment_method_info)
