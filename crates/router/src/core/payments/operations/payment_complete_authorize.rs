@@ -305,10 +305,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let creds_identifier = request
-            .merchant_connector_details
-            .as_ref()
-            .map(|mcd| mcd.creds_identifier.to_owned());
+        let creds_identifier =
+            request
+                .merchant_connector_details
+                .as_ref()
+                .map(|merchant_connector_details| {
+                    merchant_connector_details.creds_identifier.to_owned()
+                });
 
         let payment_data = PaymentData {
             flow: PhantomData,
