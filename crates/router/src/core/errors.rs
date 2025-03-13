@@ -499,4 +499,6 @@ pub enum RevenueRecoveryError {
     ProcessTrackerCreationError,
     #[error("Failed to get the response from process tracker")]
     ProcessTrackerResponseError,
+    #[error("Additional revenue recovery call failed")]
+    AdditionalRevenueRecoveryCallFailed,
 }
