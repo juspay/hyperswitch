@@ -11,6 +11,13 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::RevenueRecoveryRecordBackRouterData,
+};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -28,14 +35,6 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
-};
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::RecoveryRecordBack,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
-    revenue_recovery,
 };
 use hyperswitch_interfaces::{
     api::{

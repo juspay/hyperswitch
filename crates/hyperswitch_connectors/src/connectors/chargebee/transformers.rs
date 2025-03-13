@@ -568,7 +568,6 @@ impl TryFrom<&ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>>
     }
 }
 
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
     type Error = error_stack::Report<errors::ConnectorError>;

@@ -2347,7 +2347,7 @@ default_imp_for_revenue_recovery! {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_additional_revenue_recovery_call {
     ($($path:ident::$connector:ident),*) => {
-        $(  
+        $(
             impl api::AdditionalRevenueRecovery for $path::$connector {}
             impl
             services::ConnectorIntegration<
