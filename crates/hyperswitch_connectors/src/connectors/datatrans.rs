@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
@@ -45,7 +47,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as datatrans;
 
@@ -770,8 +771,8 @@ impl IncomingWebhook for Datatrans {
     }
 }
 
-lazy_static! {
-    static ref DATATRANS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             CaptureMethod::Automatic,
             CaptureMethod::Manual,
@@ -795,7 +796,7 @@ lazy_static! {
         datatrans_supported_payment_methods.add(
             PaymentMethod::Card,
             PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: common_enums::enums::FeatureStatus::NotSupported,
                 refunds: common_enums::enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -808,13 +809,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         datatrans_supported_payment_methods.add(
             PaymentMethod::Card,
             PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: common_enums::enums::FeatureStatus::NotSupported,
                 refunds: common_enums::enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -827,22 +828,23 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         datatrans_supported_payment_methods
-    };
+    });
 
-    static ref DATATRANS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static DATATRANS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
         display_name: "Datatrans",
         description:
             "Datatrans is a payment gateway that facilitates the processing of payments, including hosting smart payment forms and correctly routing payment information.",
         connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
-    };
+    }
+});
 
-    static ref DATATRANS_SUPPORTED_WEBHOOK_FLOWS: Vec<common_enums::enums::EventClass> = Vec::new();
-
-}
+static DATATRANS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Datatrans {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

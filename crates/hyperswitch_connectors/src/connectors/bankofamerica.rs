@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use base64::Engine;
 use common_enums::enums;
@@ -47,7 +47,6 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
@@ -1040,8 +1039,8 @@ impl webhooks::IncomingWebhook for Bankofamerica {
     }
 }
 
-lazy_static! {
-    static ref BANKOFAMERICA_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static BANKOFAMERICA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -1066,29 +1065,29 @@ lazy_static! {
         bankofamerica_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         bankofamerica_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         bankofamerica_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1101,13 +1100,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         bankofamerica_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1120,22 +1119,23 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         bankofamerica_supported_payment_methods
-    };
+    });
 
-    static ref BANKOFAMERICA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static BANKOFAMERICA_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
         display_name: "Bank Of America",
         description:
             "It is the second-largest banking institution in the United States and the second-largest bank in the world by market capitalization ",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    };
+    }
+});
 
-    static ref BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
-}
+static BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Bankofamerica {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

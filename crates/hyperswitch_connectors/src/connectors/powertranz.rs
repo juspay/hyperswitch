@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use api_models::enums::AuthenticationType;
 use common_enums::enums;
@@ -46,7 +46,6 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as powertranz;
 
@@ -605,8 +604,8 @@ impl webhooks::IncomingWebhook for Powertranz {
     }
 }
 
-lazy_static! {
-    static ref POWERTRANZ_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static POWERTRANZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -623,7 +622,7 @@ lazy_static! {
         powertranz_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -636,13 +635,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         powertranz_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -655,22 +654,23 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         powertranz_supported_payment_methods
-    };
+    });
 
-    static ref POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static POWERTRANZ_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
         display_name: "Powertranz",
         description:
             "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
+    }
+});
 
-    static ref POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
-}
+static POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Powertranz {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

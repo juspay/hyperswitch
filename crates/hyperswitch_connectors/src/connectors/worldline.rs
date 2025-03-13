@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use base64::Engine;
 use common_enums::enums;
@@ -46,7 +46,6 @@ use hyperswitch_interfaces::{
     },
     webhooks::{self, IncomingWebhookFlowError},
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
 use router_env::logger;
@@ -826,8 +825,8 @@ impl webhooks::IncomingWebhook for Worldline {
     }
 }
 
-lazy_static! {
-    static ref WORLDLINE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static WORLDLINE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -904,15 +903,16 @@ lazy_static! {
         );
 
         worldline_supported_payment_methods
-    };
-    static ref WORLDLINE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Worldline",
-        description: "Worldline, Europe's leading payment service provider",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
-        vec![enums::EventClass::Payments];
-}
+    });
+
+static WORLDLINE_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| ConnectorInfo {
+    display_name: "Worldline",
+    description: "Worldline, Europe's leading payment service provider",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+});
+
+static WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
+    LazyLock::new(|| vec![enums::EventClass::Payments]);
 
 impl ConnectorSpecifications for Worldline {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
@@ -40,7 +42,6 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as cryptopay;
 
@@ -504,8 +505,8 @@ impl webhooks::IncomingWebhook for Cryptopay {
     }
 }
 
-lazy_static! {
-    static ref CRYPTOPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static CRYPTOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             common_enums::enums::CaptureMethod::Automatic,
             common_enums::enums::CaptureMethod::Manual,
@@ -516,27 +517,28 @@ lazy_static! {
         cryptopay_supported_payment_methods.add(
             common_enums::enums::PaymentMethod::Crypto,
             common_enums::enums::PaymentMethodType::CryptoCurrency,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: common_enums::enums::FeatureStatus::NotSupported,
                 refunds: common_enums::enums::FeatureStatus::NotSupported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         cryptopay_supported_payment_methods
-    };
+    });
 
-    static ref CRYPTOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static CRYPTOPAY_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
         display_name: "Cryptopay",
         description:
             "Simple and secure solution to buy and manage crypto. Make quick international transfers, spend your BTC, ETH and other crypto assets.",
         connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
-    };
+    }
+});
 
-    static ref CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<common_enums::enums::EventClass> = vec![common_enums::enums::EventClass::Payments];
-
-}
+static CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::enums::EventClass>> =
+    LazyLock::new(|| vec![common_enums::enums::EventClass::Payments]);
 
 impl ConnectorSpecifications for Cryptopay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

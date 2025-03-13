@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -68,7 +70,6 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
@@ -1699,11 +1700,12 @@ impl webhooks::IncomingWebhook for Cybersource {
     }
 }
 
-lazy_static! {
-    static ref CYBERSOURCE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static CYBERSOURCE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::ManualMultiple,
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
@@ -1805,14 +1807,16 @@ lazy_static! {
         );
 
         cybersource_supported_payment_methods
-    };
-    static ref CYBERSOURCE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Cybersource",
-        description: "Cybersource is an American payment gateway founded in 1994",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-}
+    });
+
+static CYBERSOURCE_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| ConnectorInfo {
+    display_name: "Cybersource",
+    description: "Cybersource is an American payment gateway founded in 1994",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+});
+
+static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Cybersource {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
@@ -45,7 +45,6 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsSyncType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as gocardless;
 
@@ -860,8 +859,8 @@ impl IncomingWebhook for Gocardless {
     }
 }
 
-lazy_static! {
-    static ref GOCARDLESS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static GOCARDLESS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
@@ -903,14 +902,23 @@ lazy_static! {
         );
 
         gocardless_supported_payment_methods
-    };
-    static ref GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    });
+
+static GOCARDLESS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
         display_name: "GoCardless",
         description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Mandates];
-}
+    }
+});
+
+static GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
+    vec![
+        enums::EventClass::Payments,
+        enums::EventClass::Refunds,
+        enums::EventClass::Mandates,
+    ]
+});
 
 impl ConnectorSpecifications for Gocardless {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
