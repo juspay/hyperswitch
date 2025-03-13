@@ -57,9 +57,13 @@ pub use hyperswitch_domain_models::{
         WebhookSourceVerifyData,
     },
     router_request_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
@@ -75,6 +79,9 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        },
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -904,6 +911,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: data.request.shipping_cost,
+            merchant_account_id: None,
+            merchant_config_currency: None,
         }
     }
 }

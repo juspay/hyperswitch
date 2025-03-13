@@ -8,7 +8,7 @@ use crate::{
     types::api::admin,
 };
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]
 pub async fn organization_create(
     state: web::Data<AppState>,
@@ -27,8 +27,26 @@ pub async fn organization_create(
     ))
     .await
 }
-
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]
+pub async fn organization_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::OrganizationCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| create_organization(state, req),
+        &auth::V2AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationUpdate))]
 pub async fn organization_update(
     state: web::Data<AppState>,
@@ -59,8 +77,38 @@ pub async fn organization_update(
     ))
     .await
 }
-
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationUpdate))]
+pub async fn organization_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<common_utils::id_type::OrganizationId>,
+    json_payload: web::Json<admin::OrganizationUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationUpdate;
+    let organization_id = org_id.into_inner();
+    let org_id = admin::OrganizationId {
+        organization_id: organization_id.clone(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| update_organization(state, org_id.clone(), req),
+        auth::auth_type(
+            &auth::V2AdminApiAuth,
+            &auth::JWTAuthOrganizationFromRoute {
+                organization_id,
+                required_permission: Permission::OrganizationAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationRetrieve))]
 pub async fn organization_retrieve(
     state: web::Data<AppState>,
@@ -81,6 +129,38 @@ pub async fn organization_retrieve(
         |state, _, req, _| get_organization(state, req),
         auth::auth_type(
             &auth::AdminApiAuth,
+            &auth::JWTAuthOrganizationFromRoute {
+                organization_id,
+                required_permission: Permission::OrganizationAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationRetrieve))]
+pub async fn organization_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<common_utils::id_type::OrganizationId>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationRetrieve;
+    let organization_id = org_id.into_inner();
+    let payload = admin::OrganizationId {
+        organization_id: organization_id.clone(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| get_organization(state, req),
+        auth::auth_type(
+            &auth::V2AdminApiAuth,
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountRead,
@@ -135,6 +215,7 @@ pub async fn merchant_account_create(
         merchant_details: json_payload.merchant_details,
         metadata: json_payload.metadata,
         organization_id: org_id,
+        product_type: json_payload.product_type,
     };
 
     Box::pin(api::server_wrap(
@@ -143,15 +224,13 @@ pub async fn merchant_account_create(
         &req,
         new_request_payload_with_org_id,
         |state, _, req, _| create_merchant_account(state, req),
-        &auth::AdminApiAuth,
+        &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-/// Merchant Account - Retrieve
-///
-/// Retrieve a merchant account details.
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
 pub async fn retrieve_merchant_account(
     state: web::Data<AppState>,
@@ -171,6 +250,44 @@ pub async fn retrieve_merchant_account(
         |state, _, req, _| get_merchant_account(state, req, None),
         auth::auth_type(
             &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                // This should ideally be MerchantAccountRead, but since FE is calling this API for
+                // profile level users currently keeping this as ProfileAccountRead. FE is removing
+                // this API call for profile level users.
+                // TODO: Convert this to MerchantAccountRead once FE changes are done.
+                required_permission: Permission::ProfileAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+/// Merchant Account - Retrieve
+///
+/// Retrieve a merchant account details.
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
+pub async fn retrieve_merchant_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    mid: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountRetrieve;
+    let merchant_id = mid.into_inner();
+    let payload = admin::MerchantId {
+        merchant_id: merchant_id.clone(),
+    };
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| get_merchant_account(state, req, None),
+        auth::auth_type(
+            &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be MerchantAccountRead, but since FE is calling this API for
@@ -206,7 +323,7 @@ pub async fn merchant_account_list(
         organization_id,
         |state, _, request, _| list_merchant_account(state, request),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
             },
@@ -247,6 +364,35 @@ pub async fn merchant_account_list(
 /// Merchant Account - Update
 ///
 /// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
+pub async fn update_merchant_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    mid: web::Path<common_utils::id_type::MerchantId>,
+    json_payload: web::Json<admin::MerchantAccountUpdate>,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountUpdate;
+    let merchant_id = mid.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
+        auth::auth_type(
+            &auth::V2AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
 pub async fn update_merchant_account(
     state: web::Data<AppState>,
@@ -278,6 +424,7 @@ pub async fn update_merchant_account(
 /// Merchant Account - Delete
 ///
 /// To delete a merchant account
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
 pub async fn delete_merchant_account(
     state: web::Data<AppState>,
@@ -294,9 +441,32 @@ pub async fn delete_merchant_account(
         &req,
         payload,
         |state, _, req, _| merchant_account_delete(state, req.merchant_id),
-        &auth::AdminApiAuth,
+        &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
+pub async fn delete_merchant_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    mid: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountDelete;
+    let mid = mid.into_inner();
+
+    let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| merchant_account_delete(state, req.merchant_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
 
@@ -456,7 +626,7 @@ pub async fn connector_retrieve(
     let id = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -477,7 +647,7 @@ pub async fn connector_retrieve(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -491,7 +661,7 @@ pub async fn connector_list(
     let flow = Flow::MerchantConnectorsList;
     let profile_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -507,7 +677,7 @@ pub async fn connector_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -711,7 +881,7 @@ pub async fn connector_update(
         payload,
         |state, _, req, _| update_connector(state, &merchant_id, None, &id, req),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorWrite,

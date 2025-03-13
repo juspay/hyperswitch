@@ -14,6 +14,7 @@ import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
@@ -39,6 +40,7 @@ const connectorDetails = {
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  moneris: monerisConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
@@ -311,7 +313,7 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: ["paypal"],
+    CONNECTOR_AGNOSTIC_NTID: ["fiuu", "paypal"],
     // Add more exclusion lists
   },
 

@@ -1,10 +1,11 @@
 pub mod transformers;
 
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -31,25 +32,26 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{Mask, PeekInterface};
 use transformers as coingate;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Coingate {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Coingate {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -70,7 +72,6 @@ impl api::PaymentToken for Coingate {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Coingate
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Coingate
@@ -99,13 +100,10 @@ impl ConnectorCommon for Coingate {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/x-www-form-urlencoded"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -120,7 +118,7 @@ impl ConnectorCommon for Coingate {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -139,17 +137,13 @@ impl ConnectorCommon for Coingate {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
+            code: NO_ERROR_CODE.to_string(),
             message: response.message,
-            reason: response.reason,
+            reason: Some(response.reason),
             attempt_status: None,
             connector_transaction_id: None,
         })
     }
-}
-
-impl ConnectorValidation for Coingate {
-    //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Coingate {
@@ -179,9 +173,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "/api/v2/orders"))
     }
 
     fn get_request_body(
@@ -197,7 +191,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = coingate::CoingateRouterData::from((amount, req));
         let connector_req = coingate::CoingatePaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -265,10 +259,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Coi
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/{}{}",
+            self.base_url(connectors),
+            "api/v2/orders/",
+            connector_id
+        ))
     }
 
     fn build_request(
@@ -315,232 +319,78 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Coi
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Coingate {
-    fn get_headers(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: coingate::CoingatePaymentsResponse = res
-            .response
-            .parse_struct("Coingate PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "Coingate".to_string(),
+        }
+        .into())
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Coingate {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Coingate {
+    fn build_request(
+        &self,
+        _req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Void".to_string(),
+            connector: "Coingate".to_string(),
+        }
+        .into())
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingate {
-    fn get_headers(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = coingate::CoingateRouterData::from((refund_amount, req));
-        let connector_req = coingate::CoingateRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: coingate::RefundResponse = res
-            .response
-            .parse_struct("coingate RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "RefundSync".to_string(),
+            connector: "Coingate".to_string(),
+        }
+        .into())
     }
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Coingate {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refund".to_string(),
+            connector: "Coingate".to_string(),
+        }
+        .into())
     }
+}
 
-    fn handle_response(
+impl ConnectorValidation for Coingate {
+    fn validate_connector_against_payment_request(
         &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: coingate::RefundResponse = res
-            .response
-            .parse_struct("coingate RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
+            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled | CaptureMethod::Manual => {
+                Err(utils::construct_not_supported_error_report(
+                    capture_method,
+                    self.id(),
+                ))
+            }
+        }
     }
 }
 
