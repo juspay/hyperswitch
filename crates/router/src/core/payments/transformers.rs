@@ -223,6 +223,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         router_base_url,
         attempt,
         connector_id,
+        None,
     ));
 
     let webhook_url = Some(helpers::create_webhook_url(
@@ -887,6 +888,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         router_base_url,
         attempt,
         connector_id,
+        None,
     ));
 
     let webhook_url = Some(helpers::create_webhook_url(
