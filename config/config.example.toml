@@ -585,6 +585,28 @@ google_pay = { currency = "USD,GBP,EUR,PLN" }
 samsung_pay = { currency = "USD,GBP,EUR" }
 paze = { currency = "USD" }
 
+
+[pm_filters.globalpay]
+wallet = { country = "US,CA,BM,CL,MX,AU,CN,HK,MO,TW,IN,MY,PH,SG,MV,LK,AT,CZ,DE,GR,HU,IE,MT,GB,PL,RO,SK,ES,GB",currency = "AFN,DZD,ARS,AMD,AWG,AUD,AZN,BSD,BHD,THB,PAB,BBD,BYN,BZD,BMD,BOB,BRL,BND BGN,BIF,CVE,CAD,CLP,COP,KMF,CDF,NIO,CRC,CUP,CZK,GMD,DKK,MKD,DJF,DOP,VND,XCD,EGP,SVC,ETB,EUR,FKP,FJD,HUF,GHS,GIP,HTG,PYG,GNF,GYD,HKD,UAH,ISK,INR,IRR,IQD,JMD,JOD,KES,PGK,HRK,KWD,AOA,MMK,LAK,GEL,LBP,ALL,HNL,SLL,LRD,LYD,SZL,LSL,MGA,MWK,MYR,MUR,MXN,MDL,MAD,MZN,NGN,ERN,NAD,NPR,ANG,ILS,TWD,NZD,BTN,KPW,NOK,TOP,PKR,MOP,UYU,PHP,GBP,BWP,QAR,GTQ,ZAR,OMR,KHR,RON,MVR,IDR,RUB,RWF,SHP,SAR,RSD,SCR,SGD,PEN,SBD,KGS,SOS,TJS,SSP,LKR,SDG,SRD,SEK,CHF,SYP,BDT,WST,TZS,KZT,TTD,MNT,TND,TRY,TMT,AED,UGX,USD,UZS,VUV,KRW,YER,JPY,CNY,ZMW,ZWL,PLN" }
+
+[pm_filters.globepay]
+wallet = { country = "US,CA",currency = "USD, EUR, GBP, AED, INR" }
+
+[pm_filters.itaubank]
+bank_transfer = { country = "US,CA", currency = "USD,EUR,GBP,CHF,BRL,JPY,CAD" }
+
+[pm_filters.nexinets]
+wallet = { country = "US,CA",currency = "USD,EUR,GBP,AED,INR" }
+
+[pm_filters.nuvei]
+wallet = { country = "US,CA",currency = "USD,EUR,GBP,AED,INR" }
+
+[pm_filters.prophetpay]
+wallet = { country = "US,CA",currency = "USD,EUR,GBP,AED,INR" }
+
+[pm_filters.zen]
+wallet = { country = "US,CA",currency = "USD,EUR,GBP,AED,INR" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
