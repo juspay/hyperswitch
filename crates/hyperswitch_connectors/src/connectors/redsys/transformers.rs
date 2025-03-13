@@ -768,7 +768,7 @@ fn des_encrypt(
     message: &str,
     key: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let iv_array = [0u8; 8]; 
+    let iv_array = [0u8; 8];
     let iv = iv_array.to_vec();
     let key_bytes = base64_decode(key)?;
     if key_bytes.len() != 24 {
