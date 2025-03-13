@@ -1639,7 +1639,23 @@ pub async fn contract_based_dynamic_routing_setup(
     };
 
     // validate the contained mca_ids
+    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &config.label_info {
+        for info in info_vec {
+            utils::when(
+                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
+                || {
+                    Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Duplicate mca configuration received".to_string(),
+                        },
+                    ))
+                },
+            )?;
+
+            contained_mca.push(info.mca_id.to_owned());
+        }
+
         let validation_futures: Vec<_> = info_vec
             .iter()
             .map(|info| async {
@@ -1724,6 +1740,7 @@ pub async fn contract_based_routing_update_configs(
         .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
 
     // validate the contained mca_ids
+    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &request.label_info {
         for info in info_vec {
             let mca = db
@@ -1743,6 +1760,19 @@ pub async fn contract_based_routing_update_configs(
                     message: "Incorrect mca configuration received".to_string(),
                 })
             })?;
+
+            utils::when(
+                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
+                || {
+                    Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Duplicate mca configuration received".to_string(),
+                        },
+                    ))
+                },
+            )?;
+
+            contained_mca.push(info.mca_id.to_owned());
         }
     }
 

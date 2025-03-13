@@ -3,15 +3,17 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, Execute, GetAdditionalRevenueRecoveryDetails,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
-        PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate,
-        VerifyWebhookSource, Void,
+        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
+        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken, CalculateTax,
+        Capture, CompleteAuthorize, CreateConnectorCustomer, Execute,
+        GetAdditionalRevenueRecoveryDetails, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
+        SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
     },
     router_request_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -26,9 +28,11 @@ use crate::{
         SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        revenue_recovery::GetAdditionalRevenueRecoveryResponseData, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
-        VerifyWebhookSourceResponseData,
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        },
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
+        TaxCalculationResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -90,6 +94,12 @@ pub type VerifyWebhookSourceRouterData = RouterData<
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
+
+pub type RevenueRecoveryRecordBackRouterData = RouterData<
+    RecoveryRecordBack,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;

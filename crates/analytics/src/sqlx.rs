@@ -4,7 +4,9 @@ use api_models::{
     analytics::{frm::FrmTransactionType, refunds::RefundType},
     enums::{DisputeStage, DisputeStatus},
 };
-use common_enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
+use common_enums::{
+    AuthenticationConnectors, AuthenticationStatus, DecoupledAuthenticationType, TransactionStatus,
+};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     DbConnectionParams,
@@ -100,6 +102,7 @@ db_type!(DisputeStatus);
 db_type!(AuthenticationStatus);
 db_type!(TransactionStatus);
 db_type!(AuthenticationConnectors);
+db_type!(DecoupledAuthenticationType);
 
 impl<'q, Type> Encode<'q, Postgres> for DBEnumWrapper<Type>
 where
@@ -208,6 +211,11 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let authentication_type: Option<DBEnumWrapper<DecoupledAuthenticationType>> =
+            row.try_get("authentication_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let error_message: Option<String> = row.try_get("error_message").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -237,6 +245,7 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
         Ok(Self {
             authentication_status,
             trans_status,
+            authentication_type,
             error_message,
             authentication_connector,
             message_version,
@@ -259,6 +268,11 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let authentication_type: Option<DBEnumWrapper<DecoupledAuthenticationType>> =
+            row.try_get("authentication_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let error_message: Option<String> = row.try_get("error_message").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -277,6 +291,7 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
         Ok(Self {
             authentication_status,
             trans_status,
+            authentication_type,
             error_message,
             authentication_connector,
             message_version,
