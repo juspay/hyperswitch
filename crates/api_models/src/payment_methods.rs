@@ -2632,11 +2632,11 @@ pub struct TokenizeCardRequest {
 
     /// Card Holder Name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -2697,10 +2697,7 @@ impl From<&Card> for MigrateCardDetail {
             card_exp_month: card.card_exp_month.clone(),
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: card.name_on_card.clone(),
-            nick_name: card
-                .nick_name
-                .as_ref()
-                .map(|name| masking::Secret::new(name.clone())),
+            nick_name: card.nick_name.clone(),
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,

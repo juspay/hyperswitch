@@ -6201,7 +6201,7 @@ pub async fn execute_payment_method_tokenization(
             &network_token_details,
             &customer.id,
             card_details.name_on_card.clone(),
-            card_details.nick_name.clone().map(Secret::new),
+            card_details.nick_name.clone(),
         )
         .await?;
     let builder = builder.set_stored_token_response(&store_token_resp);

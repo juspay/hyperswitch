@@ -116,8 +116,8 @@ pub struct CardDetail {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 impl CardDetailsForNetworkTransactionId {

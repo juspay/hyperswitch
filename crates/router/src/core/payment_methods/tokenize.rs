@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_request_types as domain_request_types;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use router_env::logger;
 
 use super::migration;
@@ -234,8 +234,8 @@ pub trait NetworkTokenizationProcess<'a, D> {
         &self,
         network_token: &NetworkTokenizationResponse,
         customer_id: &id_type::CustomerId,
-        card_holder_name: Option<Secret<String>>,
-        nick_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
+        nick_name: Option<common_utils::types::NameType>,
     ) -> RouterResult<pm_transformers::StoreCardRespPayload>;
 }
 
@@ -386,8 +386,8 @@ where
         &self,
         network_token: &NetworkTokenizationResponse,
         customer_id: &id_type::CustomerId,
-        card_holder_name: Option<Secret<String>>,
-        nick_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
+        nick_name: Option<common_utils::types::NameType>,
     ) -> RouterResult<pm_transformers::StoreCardRespPayload> {
         let network_token = &network_token.0;
         let merchant_id = self.merchant_account.get_id();
@@ -402,7 +402,7 @@ where
                     card_brand: Some(network_token.card_brand.to_string()),
                     card_isin: Some(network_token.token_isin.clone()),
                     name_on_card: card_holder_name,
-                    nick_name: nick_name.map(|nick_name| nick_name.expose()),
+                    nick_name: nick_name.clone(),
                 },
                 requestor_card_reference: None,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
