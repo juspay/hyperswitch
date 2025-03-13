@@ -1,4 +1,5 @@
 pub mod access_token_auth;
+pub mod authentication;
 pub mod dispute;
 pub mod files;
 pub mod fraud_check;

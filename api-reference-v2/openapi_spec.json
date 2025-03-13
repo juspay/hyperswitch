@@ -11583,6 +11583,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11717,6 +11725,14 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12326,6 +12342,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "legacy",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
       },
       "MerchantRecipientData": {
         "oneOf": [
