@@ -67,15 +67,14 @@ pub async fn perform_execute_payment(
                 &pcr_metadata,
             )
             .await?;
-            action
-                .execute_payment_task_response_handler(
-                    state,
-                    payment_intent,
-                    execute_task_process,
-                    pcr_data,
-                    &mut pcr_metadata,
-                )
-                .await?;
+            Box::pin(action.execute_payment_task_response_handler(
+                state,
+                payment_intent,
+                execute_task_process,
+                pcr_data,
+                &mut pcr_metadata,
+            ))
+            .await?;
         }
 
         pcr_types::Decision::Psync(attempt_status, attempt_id) => {

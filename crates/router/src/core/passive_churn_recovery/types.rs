@@ -12,6 +12,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_account,
     payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    ApiModelToDieselModelConvertor,
 };
 use time::PrimitiveDateTime;
 
@@ -210,8 +211,8 @@ impl Action {
                 );
 
                 let payment_update_req = PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-                        FeatureMetadata::set_payment_revenue_recovery_metadata_using_api(
-                            revenue_recovery_metadata.clone(),
+                    payment_intent.feature_metadata.clone().unwrap_or_default().convert_back().set_payment_revenue_recovery_metadata_using_api(
+                            revenue_recovery_metadata.clone()
                         ),
                         api_enums::UpdateActiveAttempt::Unset,
                     );

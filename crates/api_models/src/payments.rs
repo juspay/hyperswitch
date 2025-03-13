@@ -7516,11 +7516,14 @@ impl FeatureMetadata {
     }
 
     pub fn set_payment_revenue_recovery_metadata_using_api(
+        self,
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
     ) -> Self {
         Self {
+            redirect_response: self.redirect_response,
+            search_tags: self.search_tags,
+            apple_pay_recurring_details: self.apple_pay_recurring_details,
             payment_revenue_recovery_metadata: Some(payment_revenue_recovery_metadata),
-            ..Default::default()
         }
     }
 }
