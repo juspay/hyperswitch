@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -45,7 +47,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as digitalvirgo;
 
@@ -524,9 +525,8 @@ impl webhooks::IncomingWebhook for Digitalvirgo {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
-
-lazy_static! {
-    static ref DIGITALVIRGO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static DIGITALVIRGO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
@@ -537,27 +537,28 @@ lazy_static! {
         digitalvirgo_supported_payment_methods.add(
             enums::PaymentMethod::MobilePayment,
             enums::PaymentMethodType::DirectCarrierBilling,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         digitalvirgo_supported_payment_methods
-    };
+    });
 
-    static ref DIGITALVIRGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static DIGITALVIRGO_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
         display_name: "Digital Virgo",
         description:
             "Digital Virgo is an alternative payment provider specializing in carrier billing and mobile payments ",
         connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
-    };
+    }
+});
 
-    static ref DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
-}
+static DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
+    LazyLock::new(|| Vec::new());
 
 impl ConnectorSpecifications for Digitalvirgo {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
