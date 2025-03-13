@@ -396,18 +396,20 @@ function initializeEventListeners(paymentDetails) {
     window.state.isMobileView = currentWidth <= 1199;
   });
 
+  var paymentForm = document.getElementById("payment-form");
+  if (paymentForm instanceof HTMLFormElement) {
+    paymentForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleSubmit(event);
+    })
+  }
+
   if (paymentDetails.enable_button_only_on_form_ready) {
     handleFormReadyForSubmission();
   }
 }
 
 function handleFormReadyForSubmission() {
-  var paymentForm = document.getElementById("payment-form");
-  if (paymentForm instanceof HTMLFormElement) {
-    paymentForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-    })
-  }
   window.addEventListener("message", function (event) {
     // Event listener for updating the button rules
     if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
@@ -417,9 +419,11 @@ function handleFormReadyForSubmission() {
         if (isFormReadyForSubmission === false) {
           submitButtonNode.disabled = true;
           addClass("#submit", "not-ready");
+          addClass("#submit", "disabled");
         } else if (isFormReadyForSubmission === true) {
           submitButtonNode.disabled = false;
           removeClass("#submit", "not-ready");
+          removeClass("#submit", "disabled");
         }
       }
     }
@@ -437,6 +441,7 @@ function showSDK(display_sdk_only, enable_button_only_on_form_ready) {
   show("#hyper-checkout-sdk");
   if (enable_button_only_on_form_ready) {
     addClass("#submit", "not-ready");
+    addClass("#submit", "disabled");
     var submitButtonNode = document.getElementById("submit");
     if (submitButtonNode instanceof HTMLButtonElement) {
       submitButtonNode.disabled = true;
@@ -473,10 +478,11 @@ function handleSubmit(e) {
   // Update button loader
   hide("#submit-button-text");
   show("#submit-spinner");
+  addClass("#submit", "processing");
+  addClass("#submit", "disabled");
   var submitButtonNode = document.getElementById("submit");
   if (submitButtonNode instanceof HTMLButtonElement) {
     submitButtonNode.disabled = true;
-    submitButtonNode.classList.add("disabled");
   }
 
   hyper
@@ -519,11 +525,12 @@ function handleSubmit(e) {
       console.error("Error confirming payment_intent", error);
     })
     .finally(() => {
+      removeClass("#submit", "processing");
       hide("#submit-spinner");
       show("#submit-button-text");
+      removeClass("#submit", "disabled");
       if (submitButtonNode instanceof HTMLButtonElement) {
         submitButtonNode.disabled = false;
-        submitButtonNode.classList.remove("disabled");
       }
     });
 }
