@@ -884,6 +884,7 @@ pub async fn validate_and_create_refund(
         .attach_printable("No connector populated in payment attempt")?;
     let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
+    println!("$$ core metadata: {:?}", req.metadata);
     let refund_create_req = storage::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
