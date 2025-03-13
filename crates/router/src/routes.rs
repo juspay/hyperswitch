@@ -60,12 +60,15 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod recovery_webhooks;
+
 pub mod relay;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
-pub use self::app::PaymentMethodsSession;
+pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{
