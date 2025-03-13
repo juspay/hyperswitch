@@ -20,9 +20,11 @@ use hyperswitch_interfaces::{
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use crate::utils::generate_12_digit_number;
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::generate_12_digit_number,
+};
 
 pub struct RazorpayRouterData<T> {
     pub amount: FloatMajorUnit,

@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -20,14 +22,16 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, PaymentMethodDetails,ConnectorInfo, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         RefundExecuteRouterData,
     },
 };
-use std::sync::LazyLock;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -74,9 +78,8 @@ impl api::PaymentToken for Redsys {}
 impl api::PaymentsPreProcessing for Redsys {}
 impl api::PaymentsCompleteAuthorize for Redsys {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Redsys
-where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Redsys where
+    Self: ConnectorIntegration<Flow, Request, Response>
 {
 }
 
@@ -239,8 +242,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let amount =
             connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = redsys::RedsysRouterData::from((amount, req, currency));
-        let connector_req =
-            redsys::RedsysTransaction::try_from(&connector_router_data)?;
+        let connector_req = redsys::RedsysTransaction::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -312,8 +314,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         )?;
         let connector_router_data =
             redsys::RedsysRouterData::from((amount, req, req.request.currency));
-        let connector_req =
-            redsys::RedsysTransaction::try_from(&connector_router_data)?;
+        let connector_req = redsys::RedsysTransaction::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -387,8 +388,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
         let connector_router_data =
             redsys::RedsysRouterData::from((amount, req, req.request.currency));
-        let connector_req =
-            redsys::RedsysTransaction::try_from(&connector_router_data)?;
+        let connector_req = redsys::RedsysTransaction::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -470,8 +470,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Re
         let amount =
             connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = redsys::RedsysRouterData::from((amount, req, currency));
-        let connector_req =
-            redsys::RedsysTransaction::try_from(&connector_router_data)?;
+        let connector_req = redsys::RedsysTransaction::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -544,8 +543,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys 
         )?;
         let connector_router_data =
             redsys::RedsysRouterData::from((refund_amount, req, req.request.currency));
-        let connector_req =
-            redsys::RedsysTransaction::try_from(&connector_router_data)?;
+        let connector_req = redsys::RedsysTransaction::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -624,7 +622,6 @@ impl webhooks::IncomingWebhook for Redsys {
     }
 }
 
-
 static REDSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let default_capture_methods = vec![
         common_enums::CaptureMethod::Automatic,
@@ -656,7 +653,7 @@ static REDSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                         three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::NotSupported,
                         supported_card_networks: supported_card_network.clone(),
-                    }
+                    },
                 ),
             ),
         },
@@ -675,7 +672,7 @@ static REDSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                         three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::NotSupported,
                         supported_card_networks: supported_card_network.clone(),
-                    }
+                    },
                 ),
             ),
         },
@@ -684,13 +681,16 @@ static REDSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     redsys_supported_payment_methods
 });
 
-static REDSYS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| ConnectorInfo {
+static REDSYS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+    ConnectorInfo {
     display_name: "Redsys",
     description: "Redsys is a Spanish payment gateway offering secure and innovative payment solutions for merchants and banks",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+}
 });
 
-static REDSYS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec< common_enums::EventClass>> = LazyLock::new(Vec::new);
+static REDSYS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Redsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -701,7 +701,7 @@ impl ConnectorSpecifications for Redsys {
         Some(&*REDSYS_SUPPORTED_PAYMENT_METHODS)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<&'static [ common_enums::EventClass]> {
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&*REDSYS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

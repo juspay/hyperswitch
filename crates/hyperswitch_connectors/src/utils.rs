@@ -55,11 +55,11 @@ use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use rand::Rng;
 use regex::Regex;
 use router_env::logger;
 use serde_json::Value;
 use time::PrimitiveDateTime;
-use rand::Rng;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 

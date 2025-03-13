@@ -28,9 +28,9 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         generate_12_digit_number, get_unimplemented_payment_method_error_message,
-        is_payment_failure, is_refund_failure, to_connector_meta, BrowserInformationData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as _, AddressDetailsData,
+        is_payment_failure, is_refund_failure, to_connector_meta, AddressDetailsData,
+        BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -87,7 +87,7 @@ pub struct EmvThreedsData {
     #[serde(flatten)]
     billing_data: Option<BillingData>,
     #[serde(flatten)]
-    shipping_data: Option<ShippingData>
+    shipping_data: Option<ShippingData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -133,7 +133,7 @@ impl EmvThreedsData {
             three_d_s_comp_ind: None,
             cres: None,
             billing_data: None,
-            shipping_data: None
+            shipping_data: None,
         }
     }
 
@@ -176,7 +176,7 @@ impl EmvThreedsData {
     }
 
     fn get_state_code(state: &str) -> Result<Secret<String>, Error> {
-        let addr_state_value =if state.len() > 3 {
+        let addr_state_value = if state.len() > 3 {
             let addr_state = match state {
                 "a coruña [la coruña]" | "es-c" => Ok("C"),
                 "alacant" | "es-a" | "alicante" => Ok("A"),
@@ -194,7 +194,7 @@ impl EmvThreedsData {
                 "canarias" | "es-cn" => Ok("CN"),
                 "cantabria" | "es-s" => Ok("S"),
                 "castelló" | "es-cs" => Ok("CS"),
-                "castellón"  => Ok("C"),
+                "castellón" => Ok("C"),
                 "castilla y león" | "es-cl" => Ok("CL"),
                 "castilla-la mancha" | "es-cm" => Ok("CM"),
                 "catalunya [cataluña]" | "es-ct" => Ok("CT"),
@@ -246,7 +246,7 @@ impl EmvThreedsData {
                 "toledo" | "es-to" => Ok("TO"),
                 "valencia" | "es-v" => Ok("V"),
                 "valenciana, comunidad" | "es-vc" => Ok("VC"),
-                "valenciana, comunitat"=> Ok("V"),
+                "valenciana, comunitat" => Ok("V"),
                 "valladolid" | "es-va" => Ok("VA"),
                 "valència" => Ok("V"),
                 "zamora" | "es-za" => Ok("ZA"),
@@ -255,7 +255,7 @@ impl EmvThreedsData {
                 "ávila" | "es-av" => Ok("AV"),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
                     field_name: "address.state",
-                })
+                }),
             }?;
             addr_state.to_string()
         } else {
@@ -264,55 +264,73 @@ impl EmvThreedsData {
         Ok(Secret::new(addr_state_value))
     }
 
-    pub fn set_billing_data(mut self, address: Option<&Address>) -> Result<Self, Error> {  
-        self.billing_data = address.and_then(|address| {
-            address.address.as_ref().map(|address_details|
-                {
-                let state = if let Some(addr_state) = address_details.get_optional_state() {
-                    Some(Self::get_state_code(&addr_state.expose().to_ascii_lowercase()))
-                } else {
-                    None
-                }.transpose();
-                match state {
-                    Ok(bill_addr_state) => Ok(BillingData {
-                        bill_addr_city: address_details.get_optional_city(),
-                        bill_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
-                        bill_addr_line1: address_details.get_optional_line1(),
-                        bill_addr_line2: address_details.get_optional_line2(),
-                        bill_addr_line3: address_details.get_optional_line3(),
-                        bill_addr_postal_code: address_details.get_optional_zip(),
-                        bill_addr_state,
-                    }),
-                    Err(err) => Err(err)
-                }
-            })
-        }).transpose()?;
-        Ok(self)
-    }
-    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Result<Self, Error>  {
-        self.shipping_data = address.and_then(|address| {
-            address.address.as_ref().map(|address_details|
-                {
+    pub fn set_billing_data(mut self, address: Option<&Address>) -> Result<Self, Error> {
+        self.billing_data = address
+            .and_then(|address| {
+                address.address.as_ref().map(|address_details| {
                     let state = if let Some(addr_state) = address_details.get_optional_state() {
-                        Some(Self::get_state_code(&addr_state.expose().to_ascii_lowercase()))
+                        Some(Self::get_state_code(
+                            &addr_state.expose().to_ascii_lowercase(),
+                        ))
                     } else {
                         None
-                    }.transpose();
+                    }
+                    .transpose();
+                    match state {
+                        Ok(bill_addr_state) => Ok(BillingData {
+                            bill_addr_city: address_details.get_optional_city(),
+                            bill_addr_country: address_details.get_optional_country().map(
+                                |country| {
+                                    common_enums::CountryAlpha2::from_alpha2_to_alpha3(country)
+                                        .to_string()
+                                },
+                            ),
+                            bill_addr_line1: address_details.get_optional_line1(),
+                            bill_addr_line2: address_details.get_optional_line2(),
+                            bill_addr_line3: address_details.get_optional_line3(),
+                            bill_addr_postal_code: address_details.get_optional_zip(),
+                            bill_addr_state,
+                        }),
+                        Err(err) => Err(err),
+                    }
+                })
+            })
+            .transpose()?;
+        Ok(self)
+    }
+    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Result<Self, Error> {
+        self.shipping_data = address
+            .and_then(|address| {
+                address.address.as_ref().map(|address_details| {
+                    let state = if let Some(addr_state) = address_details.get_optional_state() {
+                        Some(Self::get_state_code(
+                            &addr_state.expose().to_ascii_lowercase(),
+                        ))
+                    } else {
+                        None
+                    }
+                    .transpose();
                     match state {
                         Ok(ship_addr_state) => Ok(ShippingData {
                             ship_addr_city: address_details.get_optional_city(),
-                            ship_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
+                            ship_addr_country: address_details.get_optional_country().map(
+                                |country| {
+                                    common_enums::CountryAlpha2::from_alpha2_to_alpha3(country)
+                                        .to_string()
+                                },
+                            ),
                             ship_addr_line1: address_details.get_optional_line1(),
                             ship_addr_line2: address_details.get_optional_line2(),
                             ship_addr_line3: address_details.get_optional_line3(),
                             ship_addr_postal_code: address_details.get_optional_zip(),
                             ship_addr_state,
                         }),
-                        Err(err) => Err(err)
+                        Err(err) => Err(err),
                     }
                 })
-            }).transpose()?;
-            Ok(self)
+            })
+            .transpose()?;
+        Ok(self)
     }
 }
 
@@ -877,9 +895,8 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
         } else {
             RedsysTransactionType::Preauthorization
         };
-        let card_data = RedsysCardData::try_from(&Some(
-            item.router_data.request.payment_method_data.clone(),
-        ))?;
+        let card_data =
+            RedsysCardData::try_from(&Some(item.router_data.request.payment_method_data.clone()))?;
         if item.router_data.auth_type == enums::AuthenticationType::ThreeDs {
             let (connector_meatadata, ds_merchant_order) = match &item.router_data.response {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -891,22 +908,21 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
                         (connector_metadata.clone(), order_id.clone())
                     }
                     _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-                }
+                },
                 _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
             };
 
-            let threeds_invoke_meta_data = to_connector_meta::<ThreeDsInvokeExempt>(connector_meatadata.clone()).change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-            let emv3ds_data = 
-                EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
-                    .set_three_d_s_server_trans_i_d(
-                        threeds_invoke_meta_data.three_d_s_server_trans_i_d,
-                    )
-                    .set_protocol_version(threeds_invoke_meta_data.message_version)
-                    .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
-                    .add_browser_data(item.router_data.request.get_browser_info()?)?
-                    .set_three_d_s_comp_ind(ThreeDSCompInd::N)
+            let threeds_invoke_meta_data =
+                to_connector_meta::<ThreeDsInvokeExempt>(connector_meatadata.clone())
+                    .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                        config: "metadata",
+                    })?;
+            let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
+                .set_three_d_s_server_trans_i_d(threeds_invoke_meta_data.three_d_s_server_trans_i_d)
+                .set_protocol_version(threeds_invoke_meta_data.message_version)
+                .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
+                .add_browser_data(item.router_data.request.get_browser_info()?)?
+                .set_three_d_s_comp_ind(ThreeDSCompInd::N)
                 .set_billing_data(item.router_data.get_optional_billing())?
                 .set_shipping_data(item.router_data.get_optional_shipping())?;
 
@@ -924,10 +940,10 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             };
             Self::try_from((&payment_authorize_request, &auth))
         } else {
-        
-                Err(errors::ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("Redsys"),
-                ).into())
+            Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Redsys"),
+            )
+            .into())
         }
     }
 }
@@ -1008,98 +1024,105 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
     fn try_from(
         item: &RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let card_data = RedsysCardData::try_from(&item.router_data.request.payment_method_data.clone())?;
+        let card_data =
+            RedsysCardData::try_from(&item.router_data.request.payment_method_data.clone())?;
         if item.router_data.auth_type == enums::AuthenticationType::ThreeDs {
-        let auth = RedsysAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let redirect_response = item
-            .router_data
-            .request
-            .get_redirect_response_payload()
-            .ok()
-            .clone()
-            .map(|payload_data| {
-                payload_data
-                    .parse_value::<ThreedsChallengeResponse>("Redsys ThreedsChallengeResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-            })
-            .transpose()?;
-        let billing_data = item.router_data.get_optional_billing();
-        let shipping_data = item.router_data.get_optional_shipping();
+            let auth = RedsysAuthType::try_from(&item.router_data.connector_auth_type)?;
+            let redirect_response = item
+                .router_data
+                .request
+                .get_redirect_response_payload()
+                .ok()
+                .clone()
+                .map(|payload_data| {
+                    payload_data
+                        .parse_value::<ThreedsChallengeResponse>("Redsys ThreedsChallengeResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                })
+                .transpose()?;
+            let billing_data = item.router_data.get_optional_billing();
+            let shipping_data = item.router_data.get_optional_shipping();
 
-        let emv3ds_data = match redirect_response {
-            Some(payload) => {
-                if let Ok(threeds_invoke_meta_data) = to_connector_meta::<RedsysThreeDsInvokeData>(
-                    item.router_data.request.connector_meta.clone(),
-                ) {
-                    EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
-                        .set_protocol_version(threeds_invoke_meta_data.message_version)
-                        .set_three_d_s_cres(payload.cres)
-                        .set_billing_data(billing_data)?
-                        .set_shipping_data(shipping_data)?
-                } else if let Ok(threeds_meta_data) = to_connector_meta::<ThreeDsInvokeExempt>(
-                    item.router_data.request.connector_meta.clone(),
-                ) {
-                    EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
-                        .set_protocol_version(threeds_meta_data.message_version)
-                        .set_three_d_s_cres(payload.cres)
-                        .set_billing_data(billing_data)?
-                        .set_shipping_data(shipping_data)?
-                } else {
-                    Err(errors::ConnectorError::RequestEncodingFailed)?
+            let emv3ds_data = match redirect_response {
+                Some(payload) => {
+                    if let Ok(threeds_invoke_meta_data) = to_connector_meta::<RedsysThreeDsInvokeData>(
+                        item.router_data.request.connector_meta.clone(),
+                    ) {
+                        EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
+                            .set_protocol_version(threeds_invoke_meta_data.message_version)
+                            .set_three_d_s_cres(payload.cres)
+                            .set_billing_data(billing_data)?
+                            .set_shipping_data(shipping_data)?
+                    } else if let Ok(threeds_meta_data) = to_connector_meta::<ThreeDsInvokeExempt>(
+                        item.router_data.request.connector_meta.clone(),
+                    ) {
+                        EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
+                            .set_protocol_version(threeds_meta_data.message_version)
+                            .set_three_d_s_cres(payload.cres)
+                            .set_billing_data(billing_data)?
+                            .set_shipping_data(shipping_data)?
+                    } else {
+                        Err(errors::ConnectorError::RequestEncodingFailed)?
+                    }
                 }
-            }
-            None => {
-                if let Ok(threeds_invoke_meta_data) = to_connector_meta::<RedsysThreeDsInvokeData>(
-                    item.router_data.request.connector_meta.clone(),
-                ) {
-                    let three_d_s_comp_ind = ThreeDSCompInd::from(
-                        item.router_data.request.get_threeds_method_comp_ind()?,
-                    );
-                    let browser_info = item.router_data.request.get_browser_info()?;
-                    let complete_authorize_url =
-                        item.router_data.request.get_complete_authorize_url()?;
-                    EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
-                        .set_three_d_s_server_trans_i_d(
-                            threeds_invoke_meta_data.directory_server_id,
-                        )
-                        .set_protocol_version(threeds_invoke_meta_data.message_version)
-                        .set_three_d_s_comp_ind(three_d_s_comp_ind)
-                        .add_browser_data(browser_info)?
-                        .set_notification_u_r_l(complete_authorize_url)
-                        .set_billing_data(billing_data)?
-                        .set_shipping_data(shipping_data)?
-                } else {
-                    Err(errors::ConnectorError::NoConnectorMetaData)?
+                None => {
+                    if let Ok(threeds_invoke_meta_data) = to_connector_meta::<RedsysThreeDsInvokeData>(
+                        item.router_data.request.connector_meta.clone(),
+                    ) {
+                        let three_d_s_comp_ind = ThreeDSCompInd::from(
+                            item.router_data.request.get_threeds_method_comp_ind()?,
+                        );
+                        let browser_info = item.router_data.request.get_browser_info()?;
+                        let complete_authorize_url =
+                            item.router_data.request.get_complete_authorize_url()?;
+                        EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
+                            .set_three_d_s_server_trans_i_d(
+                                threeds_invoke_meta_data.directory_server_id,
+                            )
+                            .set_protocol_version(threeds_invoke_meta_data.message_version)
+                            .set_three_d_s_comp_ind(three_d_s_comp_ind)
+                            .add_browser_data(browser_info)?
+                            .set_notification_u_r_l(complete_authorize_url)
+                            .set_billing_data(billing_data)?
+                            .set_shipping_data(shipping_data)?
+                    } else {
+                        Err(errors::ConnectorError::NoConnectorMetaData)?
+                    }
                 }
-            }
-        };
+            };
 
-        let ds_merchant_transactiontype = if item.router_data.request.is_auto_capture()? {
-            RedsysTransactionType::Payment
+            let ds_merchant_transactiontype = if item.router_data.request.is_auto_capture()? {
+                RedsysTransactionType::Payment
+            } else {
+                RedsysTransactionType::Preauthorization
+            };
+            let ds_merchant_order = item
+                .router_data
+                .request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Missing connector_transaction_id")?;
+
+            let complete_authorize_response = PaymentsRequest {
+                ds_merchant_emv3ds: Some(emv3ds_data),
+                ds_merchant_transactiontype,
+                ds_merchant_currency: item.currency.iso_4217().to_owned(),
+                ds_merchant_pan: card_data.card_number,
+                ds_merchant_merchantcode: auth.merchant_id.clone(),
+                ds_merchant_terminal: auth.terminal_id.clone(),
+                ds_merchant_order,
+                ds_merchant_amount: item.amount.clone(),
+                ds_merchant_expirydate: card_data.expiry_date,
+                ds_merchant_cvv2: card_data.cvv2,
+            };
+            Self::try_from((&complete_authorize_response, &auth))
         } else {
-            RedsysTransactionType::Preauthorization
-        };
-        let ds_merchant_order = item.router_data.request.connector_transaction_id.clone().ok_or(errors::ConnectorError::RequestEncodingFailed).attach_printable("Missing connector_transaction_id")?;
-
-        let complete_authorize_response = PaymentsRequest {
-            ds_merchant_emv3ds: Some(emv3ds_data),
-            ds_merchant_transactiontype,
-            ds_merchant_currency: item.currency.iso_4217().to_owned(),
-            ds_merchant_pan: card_data.card_number,
-            ds_merchant_merchantcode: auth.merchant_id.clone(),
-            ds_merchant_terminal: auth.terminal_id.clone(),
-            ds_merchant_order,
-            ds_merchant_amount: item.amount.clone(),
-            ds_merchant_expirydate: card_data.expiry_date,
-            ds_merchant_cvv2: card_data.cvv2,
-        };
-        Self::try_from((&complete_authorize_response, &auth))
-    } else {
-        Err(errors::ConnectorError::NotImplemented(
-            get_unimplemented_payment_method_error_message("Redsys"),
-        )
-        .into())
-    }
+            Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Redsys"),
+            )
+            .into())
+        }
     }
 }
 
