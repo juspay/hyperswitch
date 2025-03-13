@@ -571,12 +571,14 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(status: enums::AttemptStatus) -> Result<Self, Self::Error> {
         match status {
-            enums::AttemptStatus::Charged => Ok(Self::Success),
-            enums::AttemptStatus::Failure => Ok(Self::Failure),
-            enums::AttemptStatus::CaptureFailed
-            | enums::AttemptStatus::AuthenticationFailed
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Success),
+            enums::AttemptStatus::Failure
+            | enums::AttemptStatus::CaptureFailed
+            | enums::AttemptStatus::RouterDeclined => Ok(Self::Failure),
+            enums::AttemptStatus::AuthenticationFailed
             | enums::AttemptStatus::Started
-            | enums::AttemptStatus::RouterDeclined
             | enums::AttemptStatus::AuthenticationPending
             | enums::AttemptStatus::AuthenticationSuccessful
             | enums::AttemptStatus::Authorized
@@ -588,8 +590,6 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::CaptureInitiated
             | enums::AttemptStatus::VoidFailed
             | enums::AttemptStatus::AutoRefunded
-            | enums::AttemptStatus::PartialCharged
-            | enums::AttemptStatus::PartialChargedAndChargeable
             | enums::AttemptStatus::Unresolved
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::PaymentMethodAwaited
