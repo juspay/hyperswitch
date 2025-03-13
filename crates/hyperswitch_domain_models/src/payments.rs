@@ -424,24 +424,6 @@ impl PaymentIntent {
             .and_then(|metadata| metadata.get_payment_method_type())
     }
 
-    pub fn set_payment_connector_transmission(
-        &self,
-        feature_metadata: Option<FeatureMetadata>,
-        status: bool,
-    ) -> Option<Box<FeatureMetadata>> {
-        feature_metadata.map(|fm| {
-            let mut updated_metadata = fm;
-            if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
-                rrm.payment_connector_transmission = if status {
-                    common_enums::PaymentConnectorTransmission::ConnectorCallFailed
-                } else {
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                };
-            }
-            Box::new(updated_metadata)
-        })
-    }
-
     pub fn get_connector_customer_id_from_feature_metadata(&self) -> Option<String> {
         self.feature_metadata
             .as_ref()

@@ -1401,6 +1401,7 @@ pub async fn add_delete_tokenized_data_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
         hyperswitch_domain_models::consts::API_VERSION,
     )

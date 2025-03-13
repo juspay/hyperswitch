@@ -493,6 +493,7 @@ pub async fn add_payment_method_status_update_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
         hyperswitch_domain_models::consts::API_VERSION,
     )

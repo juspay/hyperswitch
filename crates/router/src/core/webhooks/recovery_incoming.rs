@@ -470,7 +470,7 @@ impl RevenueRecoveryAttempt {
             passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments(
                 db,
                 &merchant_id,
-                total_retry_count.into(),
+                (total_retry_count+1).into(),
             )
             .await
             .map_or_else(
@@ -504,6 +504,7 @@ impl RevenueRecoveryAttempt {
             runner,
             tag,
             execute_workflow_tracking_data,
+            Some(total_retry_count.into()),
             schedule_time,
             common_enums::ApiVersion::V2,
         )
