@@ -656,7 +656,7 @@ connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "stripe,wise"
+payout_connector_list = "nomupay,stripe,wise"
 
 
 [payment_method_auth]
