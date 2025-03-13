@@ -86,7 +86,7 @@ pub async fn get_forex_exchange_rates(
                 logger::warn!(
                     "Forex rates fetch failed with retryable error, retrying in {attempt} seconds"
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(attempt)).await;
+                tokio::time::sleep(std::time::Duration::from_secs((attempt*2))).await;
                 attempt += 1;
             }
         }
