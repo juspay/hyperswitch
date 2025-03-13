@@ -5967,6 +5967,7 @@ pub async fn add_process_sync_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
         hyperswitch_domain_models::consts::API_VERSION,
     )

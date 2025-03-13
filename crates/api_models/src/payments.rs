@@ -7509,6 +7509,15 @@ pub struct FeatureMetadata {
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
 }
 
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn get_retry_count(&self) -> Option<u16> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|metadata| metadata.total_retry_count)
+    }
+}
+
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -8414,6 +8423,9 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Connector, example = "stripe")]
+    pub connector: common_enums::connector_enums::Connector,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
