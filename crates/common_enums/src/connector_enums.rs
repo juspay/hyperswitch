@@ -85,7 +85,7 @@ pub enum RoutableConnectors {
     Globalpay,
     Globepay,
     Gocardless,
-    // Hipay,
+    Hipay,
     Helcim,
     Iatapay,
     Inespay,
@@ -229,7 +229,7 @@ pub enum Connector {
     Globepay,
     Gocardless,
     Gpayments,
-    // Hipay,
+    Hipay,
     Helcim,
     Inespay,
     Iatapay,
@@ -387,7 +387,7 @@ impl Connector {
             | Self::Globepay
             | Self::Gocardless
             | Self::Gpayments
-            // | Self::Hipay
+            | Self::Hipay
             | Self::Helcim
             | Self::Iatapay
 			| Self::Inespay
@@ -443,8 +443,9 @@ impl Connector {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
-            | Self::Stripe => false,
-            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
+            | Self::Stripe
+            | Self::Datatrans => false,
+            Self::Checkout | Self::Nmi |Self::Cybersource => true,
         }
     }
 
@@ -573,6 +574,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Xendit => Self::Xendit,
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
+            RoutableConnectors::Hipay => Self::Hipay,
         }
     }
 }

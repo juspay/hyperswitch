@@ -3148,18 +3148,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.creds_identifier.as_deref(),
         ));
 
-        let additional_payment_method_data = if payment_data.mandate_id.is_some() {
-            let parsed_additional_payment_data: Option<api_models::payments::AdditionalPaymentData> =
-                payment_data.payment_attempt
-                    .payment_method_data
-                    .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
-            parsed_additional_payment_data
-        } else {
-            None
-        };
+        let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+            payment_data.payment_attempt
+                .payment_method_data
+                .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
+
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)

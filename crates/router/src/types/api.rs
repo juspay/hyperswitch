@@ -46,7 +46,7 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
-    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery},
+    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
     revenue_recovery_v2::RevenueRecoveryV2,
     ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
@@ -433,7 +433,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
-                enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
+                enums::Connector::Fiserv => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
+                }
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
@@ -453,8 +455,12 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
-                // enums::Connector::Hipay => Ok(ConnectorEnum::Old(Box::new(connector::Hipay))),
-                enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
+                enums::Connector::Hipay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
+                }
+                enums::Connector::Helcim => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
