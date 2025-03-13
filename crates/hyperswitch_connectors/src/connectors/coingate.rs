@@ -32,7 +32,6 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -41,7 +40,11 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface};
 use transformers as coingate;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, RefundsRequestData},
+};
 
 #[derive(Clone)]
 pub struct Coingate {
@@ -451,16 +454,74 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingat
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Coingate {
+    fn get_headers(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let order_id = req.request.connector_transaction_id.clone();
+        let id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}/api/v2/orders/{order_id}/refunds/{id}",
+            self.base_url(connectors),
+        ))
+    }
+
     fn build_request(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund".to_string(),
-            connector: "Coingate".to_string(),
-        }
-        .into())
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        req: &RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+        println!("$$$$$ refund res {:?}", res.response);
+        let response: coingate::CoingateRefundResponse = res
+            .response
+            .parse_struct("coingate RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: req.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 

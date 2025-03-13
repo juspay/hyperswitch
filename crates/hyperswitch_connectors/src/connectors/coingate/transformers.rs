@@ -1,23 +1,18 @@
 use std::collections::HashMap;
 
 use common_enums::{enums, Currency};
-use common_utils::{
-    ext_traits::{OptionExt, ValueExt},
-    pii,
-    request::Method,
-    types::StringMajorUnit,
-};
+use common_utils::{ext_traits::OptionExt, pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::Execute,
+    router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Mask, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -254,6 +249,23 @@ impl TryFrom<RefundsResponseRouterData<Execute, CoingateRefundResponse>>
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, CoingateRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, CoingateRefundResponse>>
+    for RefundsRouterData<RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, CoingateRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
