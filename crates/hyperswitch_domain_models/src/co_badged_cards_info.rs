@@ -50,6 +50,7 @@ pub struct UpdateCoBadgedCardInfo {
 }
 
 impl CoBadgedCardInfo {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         card_bin_min: i64,
         card_bin_max: i64,

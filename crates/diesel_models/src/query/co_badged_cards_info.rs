@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl CoBadgedCardInfo {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<CoBadgedCardInfo> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 

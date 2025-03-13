@@ -1882,7 +1882,6 @@ pub enum MandateStatus {
     Clone,
     Debug,
     Eq,
-    Copy,
     Hash,
     PartialEq,
     serde::Deserialize,
