@@ -1160,7 +1160,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (merchant_reference_id, merchant_id) {
+    refund (id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]

@@ -9,14 +9,10 @@ use time::PrimitiveDateTime;
 use crate::enums as storage_enums;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 use crate::schema::refund;
-
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use crate::schema_v2::refund;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(
     Clone,
     Debug,
@@ -83,7 +79,7 @@ pub struct Refund {
     serde::Serialize,
     serde::Deserialize,
 )]
-#[diesel(table_name = refund, primary_key(merchant_reference_id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = refund, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Refund {
     pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -122,10 +118,7 @@ pub struct Refund {
     pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(
     Clone,
     Debug,

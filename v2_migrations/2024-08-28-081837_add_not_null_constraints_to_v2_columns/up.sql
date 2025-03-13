@@ -27,5 +27,4 @@ ALTER TABLE payment_attempt
 
 -- This migration is to make fields mandatory in refund table
 ALTER TABLE refund
-    ALTER COLUMN id SET NOT NULL,
     ALTER COLUMN merchant_reference_id SET NOT NULL;

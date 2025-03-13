@@ -80,4 +80,4 @@ ADD PRIMARY KEY (id);
 ------------------------ Refunds -----------------------
 -- Add primary key constraint
 ALTER TABLE refund
-ADD PRIMARY KEY (merchant_reference_id, merchant_id);
+ADD PRIMARY KEY (id);
