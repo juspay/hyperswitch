@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.10.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [BRAINTREE] Changed Attempt Status Mapping for Braintree ([#7516](https://github.com/juspay/hyperswitch/pull/7516)) ([`f3c8e0e`](https://github.com/juspay/hyperswitch/commit/f3c8e0ed8b7d1422b777f04d80c3f292bfc95aa7))
+
+### Refactors
+
+- **connector:** [Rapyd] fix amount conversion framework ([#7515](https://github.com/juspay/hyperswitch/pull/7515)) ([`537f65f`](https://github.com/juspay/hyperswitch/commit/537f65f125901a7fc5006c448b5d67598683d85e))
+
+**Full Changelog:** [`2025.03.10.0-hotfix1...2025.03.10.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.03.10.0-hotfix1...2025.03.10.0-hotfix2)
+
+
+- - -
+
 ## 2025.03.10.0-hotfix1
 
 ### Features
