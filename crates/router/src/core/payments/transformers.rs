@@ -2267,7 +2267,7 @@ where
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_three_ds_invoke = next_action_three_ds_invoke(&payment_attempt)?;
+        let next_action_invoke_hidden_frame = next_action_invoke_hidden_frame(&payment_attempt)?;
 
         if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
             || bank_transfer_next_steps.is_some()
@@ -2350,7 +2350,7 @@ where
                                                     three_ds_method_data: None,
                                                     three_ds_method_url: None,
                                             }),
-                                            poll_config: Some(api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency}),
+                                            poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
                                             message_version: authentication.message_version.as_ref()
                                             .map(|version| version.to_string()),
                                             directory_server_id: authentication.directory_server_id.clone(),
@@ -2362,8 +2362,8 @@ where
                             },
                             None => None
                         })
-                        .or(match next_action_three_ds_invoke{
-                            Some(threeds_invoke_data) => Some(construct_connector_three_ds_invoke_data(
+                        .or(match next_action_invoke_hidden_frame{
+                            Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
                                 threeds_invoke_data,
                             )?),
                             None => None
@@ -2708,7 +2708,7 @@ pub fn wait_screen_next_steps_check(
     Ok(display_info_with_timer_instructions)
 }
 
-pub fn next_action_three_ds_invoke(
+pub fn next_action_invoke_hidden_frame(
     payment_attempt: &storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::PaymentsConnectorThreeDsInvokeData>> {
     let connector_three_ds_invoke_data: Option<
@@ -2722,7 +2722,7 @@ pub fn next_action_three_ds_invoke(
     Ok(three_ds_invoke_data)
 }
 
-pub fn construct_connector_three_ds_invoke_data(
+pub fn construct_connector_invoke_hidden_frame(
     connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
 ) -> RouterResult<api_models::payments::NextActionData> {
     let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {

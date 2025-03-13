@@ -4797,3 +4797,33 @@ required=true
 type="Text"
 [juspaythreedsserver.connector_auth.HeaderKey]
 api_key="API Key"
+
+[redsys]
+[[redsys.credit]]
+  payment_method_type = "Mastercard"
+[[redsys.credit]]
+  payment_method_type = "Visa"
+[[redsys.credit]]
+  payment_method_type = "AmericanExpress"
+[[redsys.credit]]
+  payment_method_type = "JCB"
+[[redsys.credit]]
+  payment_method_type = "DinersClub"
+[[redsys.credit]]
+  payment_method_type = "UnionPay"
+[[redsys.debit]]
+  payment_method_type = "Mastercard"
+[[redsys.debit]]
+  payment_method_type = "Visa"
+[[redsys.debit]]
+  payment_method_type = "AmericanExpress"
+[[redsys.debit]]
+  payment_method_type = "JCB"
+[[redsys.debit]]
+  payment_method_type = "DinersClub"
+[[redsys.debit]]
+  payment_method_type = "UnionPay"
+[redsys.connector_auth.SignatureKey]
+api_key="Merchant ID"
+key1="Terminal ID"
+api_secret="Sha256 Pwd"
