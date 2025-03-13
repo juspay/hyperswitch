@@ -2498,7 +2498,6 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::SingleUse,
             ..
         }) => {
-
             Box::pin(add_token_call_to_store(
                 state.clone(),
                 req_state.clone(),
@@ -2596,7 +2595,6 @@ async fn add_token_call_to_store(
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()>{
     use crate::{db::errors::ConnectorErrorExt, types::Tokenizable};
-
     use super::payments::tokenization;
 
     let customer_id = payment_method_create_request.customer_id.to_owned();
@@ -2686,56 +2684,15 @@ async fn add_token_call_to_store(
         psd2_sca_exemption_type: None,
     };
 
-    let connector_data = api::ConnectorData::get_connector_by_name(
-        &(state.conf.connectors), 
-        &merchant_connector_account_details.connector_name.to_string(), 
-        api::GetToken::Connector, 
-        Some(connector_id.clone())
-    )?;
+    let payment_method_token_response = tokenization::add_token_for_payment_method(
+        &mut router_data,
+        payment_method_data_request.clone(),
+        state.clone(),
+        connector_id.clone(),
+        &merchant_connector_account_details.clone()
+    ).await?;
 
-    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::PaymentMethodToken,
-                    types::PaymentMethodTokenizationData,
-                    types::PaymentsResponseData,
-                > = connector_data.connector.get_connector_integration();
-
-    let pm_token_response_data: Result<
-                    types::PaymentsResponseData,
-                    types::ErrorResponse,
-                > = Err(types::ErrorResponse::default());
-    
-    let pm_token_router_data =
-                    payment_helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
-                        router_data.clone(),
-                        payment_method_data_request.clone(),
-                        pm_token_response_data,
-                    );
-
-    let resp = services::execute_connector_processing_step(
-                    &state,
-                    connector_integration,
-                    &pm_token_router_data,
-                    payments_core::CallConnectorAction::Trigger,
-                    None,
-                )
-                .await
-                .to_payment_failed_response()?;
-
-    let payment_token_resp = resp.response.map(|res| {
-                    if let types::PaymentsResponseData::TokenizationResponse { token } = res {
-                        Some(token)
-                    } else {
-                        None
-                    }
-                });
-
-    let add_payment_method_token_response = 
-        types::PaymentMethodTokenResult {
-            payment_method_token_result: payment_token_resp,
-            is_payment_method_tokenization_performed: true,
-        };
-
-    let token = add_payment_method_token_response.payment_method_token_result
+    let token = payment_method_token_response.payment_method_token_result
                                 .ok()
                                 .flatten();
     
@@ -2743,14 +2700,25 @@ async fn add_token_call_to_store(
 
     let key = format!("{}_{}_{}",payment_method.id.get_string_repr(),connector_id.get_string_repr(),common_utils::date_time::now_unix_timestamp());
     
-    let redis_connection = state
-                                                        .store
-                                                        .get_redis_conn()
-                                                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                                                        .attach_printable("Failed to get redis connection")?;
+    add_token_to_store(&state, key, value).await?;
+
     
+    Ok(())
+}
+
+async fn add_token_to_store(
+    state: &SessionState,
+    key: String,
+    value: payment_method_data::PaymentMethodTokenSingleUse,
+) -> RouterResult<()> {
+    let redis_connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
     redis_connection
-        .serialize_and_set_key_with_expiry(&key.into(), value , 86400)
+        .serialize_and_set_key_with_expiry(&key.into(), value, 86400)
         .await
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to insert payment method token to redis");
