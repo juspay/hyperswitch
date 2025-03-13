@@ -2019,6 +2019,9 @@ pub struct CustomerPaymentMethod {
 
     ///The network token details for the payment method
     pub network_tokenization: Option<NetworkTokenResponse>,
+
+    /// Whether psp_tokenization is enabled for the payment_method
+    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
