@@ -13,7 +13,9 @@ pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::router_flow_types::{GetAdditionalRevenueRecoveryDetails,RecoveryRecordBack};
+use hyperswitch_domain_models::router_flow_types::{
+    GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
+};
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{

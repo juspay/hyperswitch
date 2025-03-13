@@ -24,9 +24,15 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::{GetAdditionalRevenueRecoveryDetails,RecoveryRecordBack},
-    router_request_types::revenue_recovery::{GetAdditionalRevenueRecoveryRequestData,RevenueRecoveryRecordBackRequest},
-    router_response_types::revenue_recovery::{GetAdditionalRevenueRecoveryResponseData,RevenueRecoveryRecordBackResponse},
+    router_flow_types::revenue_recovery::{
+        GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
+    },
+    router_request_types::revenue_recovery::{
+        GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+    },
+    router_response_types::revenue_recovery::{
+        GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+    },
 };
 use hyperswitch_domain_models::{
     router_flow_types::{
@@ -71,7 +77,9 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutRecipientAccount, PayoutSync,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_interfaces::api::revenue_recovery::{AdditionalRevenueRecovery,RevenueRecoveryRecordBack};
+use hyperswitch_interfaces::api::revenue_recovery::{
+    AdditionalRevenueRecovery, RevenueRecoveryRecordBack,
+};
 use hyperswitch_interfaces::{
     api::{
         self,
