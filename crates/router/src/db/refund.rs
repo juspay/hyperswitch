@@ -42,14 +42,6 @@ pub trait RefundInterface {
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-    async fn find_refund_by_merchant_id_refund_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        refund_id: &common_utils::id_type::RefundReferenceId,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<storage_types::Refund, errors::StorageError>;
-
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
