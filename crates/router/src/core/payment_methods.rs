@@ -62,6 +62,7 @@ use time::Duration;
 use super::{
     errors::{RouterResponse, StorageErrorExt},
     pm_auth,
+    payments::tokenization,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
@@ -2592,9 +2593,7 @@ async fn add_token_call_to_store(
     payment_method: &api::PaymentMethodResponse,
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()> {
-    use super::payments::tokenization;
     use crate::{db::errors::ConnectorErrorExt, types::Tokenizable};
-    use super::payments::tokenization;
 
     let customer_id = payment_method_create_request.customer_id.to_owned();
     let connector_id = payment_method_create_request
@@ -2700,17 +2699,35 @@ async fn add_token_call_to_store(
         &merchant_connector_account_details.clone()
     ).await?;
 
-    let token = payment_method_token_response.payment_method_token_result
-                                .ok()
-                                .flatten();
-    
-    let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(token, connector_id.clone());
+    let token = payment_method_token_response
+        .payment_method_token_result
+        .map_or_else(
+            |err| {
+                logger::error!("Failed to create token for payment method session confirm call : {:?}", err);
+                None
+            },
+            |token| token
+        );
 
-    let key = format!("{}_{}_{}",payment_method.id.get_string_repr(),connector_id.get_string_repr(),common_utils::date_time::now_unix_timestamp());
-    
-    add_token_to_store(&state, key, value).await?;
+    logger::info!("Tokenization response");
+    logger::info!(token =? &token);
 
-    
+    if let Some(token_str) = token {
+        let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
+            Some(token_str), 
+            connector_id.clone()
+        );
+        
+        let key = format!(
+            "{}_{}_{}", 
+            payment_method.id.get_string_repr(),
+            connector_id.get_string_repr(),
+            common_utils::date_time::now_unix_timestamp()
+        );
+        
+        add_token_to_store(&state, key, value).await?;
+    }
+
     Ok(())
 }
 
@@ -2726,7 +2743,6 @@ async fn add_token_to_store(
         .attach_printable("Failed to get redis connection")?;
 
     redis_connection
-        .serialize_and_set_key_with_expiry(&key.into(), value, 86400)
         .serialize_and_set_key_with_expiry(&key.into(), value, 86400)
         .await
         .change_context(errors::StorageError::KVError)
