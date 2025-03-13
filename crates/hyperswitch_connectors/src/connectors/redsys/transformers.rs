@@ -175,35 +175,144 @@ impl EmvThreedsData {
         self
     }
 
-    pub fn set_billing_data(mut self, address: Option<&Address>) -> Self {
+    fn get_state_code(state: &str) -> Result<Secret<String>, Error> {
+        let addr_state_value =if state.len() > 3 {
+            let addr_state = match state {
+                "a coruña [la coruña]" | "es-c" => Ok("C"),
+                "alacant" | "es-a" | "alicante" => Ok("A"),
+                "albacete" | "es-ab" => Ok("AB"),
+                "almería" | "es-al" => Ok("AL"),
+                "andalucía" | "es-an" => Ok("AN"),
+                "araba" | "es-vi" => Ok("VI"),
+                "aragón" | "es-ar" => Ok("AR"),
+                "asturias" | "es-o" => Ok("O"),
+                "asturias, principado de" | "es-as" => Ok("AS"),
+                "badajoz" | "es-ba" => Ok("BA"),
+                "barcelona [barcelona]" | "es-b" => Ok("B"),
+                "bizkaia" | "es-bi" => Ok("BI"),
+                "burgos" | "es-bu" => Ok("BU"),
+                "canarias" | "es-cn" => Ok("CN"),
+                "cantabria" | "es-s" => Ok("S"),
+                "castelló" | "es-cs" => Ok("CS"),
+                "castellón"  => Ok("C"),
+                "castilla y león" | "es-cl" => Ok("CL"),
+                "castilla-la mancha" | "es-cm" => Ok("CM"),
+                "catalunya [cataluña]" | "es-ct" => Ok("CT"),
+                "ceuta" | "es-ce" => Ok("CE"),
+                "ciudad real" | "es-cr" => Ok("CR"),
+                "cuenca" | "es-cu" => Ok("CU"),
+                "cáceres" | "es-cc" => Ok("CC"),
+                "cádiz" | "es-ca" => Ok("CA"),
+                "córdoba" | "es-co" => Ok("CO"),
+                "euskal herria" | "es-pv" => Ok("PV"),
+                "extremadura" | "es-ex" => Ok("EX"),
+                "galicia [galicia]" | "es-ga" => Ok("GA"),
+                "gipuzkoa" | "es-ss" => Ok("SS"),
+                "girona [gerona]" | "es-gi" => Ok("GI"),
+                "granada" | "es-gr" => Ok("GR"),
+                "guadalajara" | "es-gu" => Ok("GU"),
+                "huelva" | "es-h" => Ok("H"),
+                "huesca" | "es-hu" => Ok("HU"),
+                "illes balears [islas baleares]" | "es-pm" => Ok("PM"),
+                "es-ib" => Ok("IB"),
+                "jaén" | "es-j" => Ok("J"),
+                "la rioja" | "es-lo" => Ok("LO"),
+                "es-ri" => Ok("RI"),
+                "las palmas" | "es-gc" => Ok("GC"),
+                "león" | "es-le" => Ok("LE"),
+                "lleida [lérida]" | "es-l" => Ok("L"),
+                "lugo [lugo]" | "es-lu" => Ok("LU"),
+                "madrid" | "es-m" => Ok("M"),
+                "madrid, comunidad de" | "es-md" => Ok("MD"),
+                "melilla" | "es-ml" => Ok("ML"),
+                "murcia" | "es-mu" => Ok("MU"),
+                "murcia, región de" | "es-mc" => Ok("MC"),
+                "málaga" | "es-ma" => Ok("MA"),
+                "nafarroa" | "es-nc" => Ok("NC"),
+                "nafarroako foru komunitatea" | "es-na" => Ok("NA"),
+                "navarra" => Ok("NA"),
+                "navarra, comunidad foral de" => Ok("NC"),
+                "ourense [orense]" | "es-or" => Ok("OR"),
+                "palencia" | "es-p" => Ok("P"),
+                "país vasco" => Ok("PV"),
+                "pontevedra [pontevedra]" | "es-po" => Ok("PO"),
+                "salamanca" | "es-sa" => Ok("SA"),
+                "santa cruz de tenerife" | "es-tf" => Ok("TF"),
+                "segovia" | "es-sg" => Ok("SG"),
+                "sevilla" | "es-se" => Ok("SE"),
+                "soria" | "es-so" => Ok("SO"),
+                "tarragona [tarragona]" | "es-t" => Ok("T"),
+                "teruel" | "es-te" => Ok("TE"),
+                "toledo" | "es-to" => Ok("TO"),
+                "valencia" | "es-v" => Ok("V"),
+                "valenciana, comunidad" | "es-vc" => Ok("VC"),
+                "valenciana, comunitat"=> Ok("V"),
+                "valladolid" | "es-va" => Ok("VA"),
+                "valència" => Ok("V"),
+                "zamora" | "es-za" => Ok("ZA"),
+                "zaragoza" | "es-z" => Ok("Z"),
+                "álava" => Ok("VI"),
+                "ávila" | "es-av" => Ok("AV"),
+                _ => Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "address.state",
+                })
+            }?;
+            addr_state.to_string()
+        } else {
+            state.to_string()
+        };
+        Ok(Secret::new(addr_state_value))
+    }
+
+    pub fn set_billing_data(mut self, address: Option<&Address>) -> Result<Self, Error> {  
         self.billing_data = address.and_then(|address| {
             address.address.as_ref().map(|address_details|
-            BillingData {
-                bill_addr_city: address_details.get_optional_city(),
-                bill_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
-                bill_addr_line1: address_details.get_optional_line1(),
-                bill_addr_line2: address_details.get_optional_line2(),
-                bill_addr_line3: address_details.get_optional_line3(),
-                bill_addr_postal_code: address_details.get_optional_zip(),
-                bill_addr_state: address_details.get_optional_state(),
+                {
+                let state = if let Some(addr_state) = address_details.get_optional_state() {
+                    Some(Self::get_state_code(&addr_state.expose().to_ascii_lowercase()))
+                } else {
+                    None
+                }.transpose();
+                match state {
+                    Ok(bill_addr_state) => Ok(BillingData {
+                        bill_addr_city: address_details.get_optional_city(),
+                        bill_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
+                        bill_addr_line1: address_details.get_optional_line1(),
+                        bill_addr_line2: address_details.get_optional_line2(),
+                        bill_addr_line3: address_details.get_optional_line3(),
+                        bill_addr_postal_code: address_details.get_optional_zip(),
+                        bill_addr_state,
+                    }),
+                    Err(err) => Err(err)
+                }
             })
-        });
-        self
+        }).transpose()?;
+        Ok(self)
     }
-    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Self {
+    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Result<Self, Error>  {
         self.shipping_data = address.and_then(|address| {
             address.address.as_ref().map(|address_details|
-            ShippingData {
-                ship_addr_city: address_details.get_optional_city(),
-                ship_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
-                ship_addr_line1: address_details.get_optional_line1(),
-                ship_addr_line2: address_details.get_optional_line2(),
-                ship_addr_line3: address_details.get_optional_line3(),
-                ship_addr_postal_code: address_details.get_optional_zip(),
-                ship_addr_state: address_details.get_optional_state(),
-            })
-        });
-        self
+                {
+                    let state = if let Some(addr_state) = address_details.get_optional_state() {
+                        Some(Self::get_state_code(&addr_state.expose().to_ascii_lowercase()))
+                    } else {
+                        None
+                    }.transpose();
+                    match state {
+                        Ok(ship_addr_state) => Ok(ShippingData {
+                            ship_addr_city: address_details.get_optional_city(),
+                            ship_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
+                            ship_addr_line1: address_details.get_optional_line1(),
+                            ship_addr_line2: address_details.get_optional_line2(),
+                            ship_addr_line3: address_details.get_optional_line3(),
+                            ship_addr_postal_code: address_details.get_optional_zip(),
+                            ship_addr_state,
+                        }),
+                        Err(err) => Err(err)
+                    }
+                })
+            }).transpose()?;
+            Ok(self)
     }
 }
 
@@ -798,8 +907,8 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
                     .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
                     .add_browser_data(item.router_data.request.get_browser_info()?)?
                     .set_three_d_s_comp_ind(ThreeDSCompInd::N)
-                .set_billing_data(item.router_data.get_optional_billing())
-                .set_shipping_data(item.router_data.get_optional_shipping());
+                .set_billing_data(item.router_data.get_optional_billing())?
+                .set_shipping_data(item.router_data.get_optional_shipping())?;
 
             let payment_authorize_request = PaymentsRequest {
                 ds_merchant_emv3ds: Some(emv3ds_data),
@@ -925,16 +1034,16 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(threeds_invoke_meta_data.message_version)
                         .set_three_d_s_cres(payload.cres)
-                        .set_billing_data(billing_data)
-                        .set_shipping_data(shipping_data)
+                        .set_billing_data(billing_data)?
+                        .set_shipping_data(shipping_data)?
                 } else if let Ok(threeds_meta_data) = to_connector_meta::<ThreeDsInvokeExempt>(
                     item.router_data.request.connector_meta.clone(),
                 ) {
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(threeds_meta_data.message_version)
                         .set_three_d_s_cres(payload.cres)
-                        .set_billing_data(billing_data)
-                        .set_shipping_data(shipping_data)
+                        .set_billing_data(billing_data)?
+                        .set_shipping_data(shipping_data)?
                 } else {
                     Err(errors::ConnectorError::RequestEncodingFailed)?
                 }
@@ -957,8 +1066,8 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                         .set_three_d_s_comp_ind(three_d_s_comp_ind)
                         .add_browser_data(browser_info)?
                         .set_notification_u_r_l(complete_authorize_url)
-                        .set_billing_data(billing_data)
-                        .set_shipping_data(shipping_data)
+                        .set_billing_data(billing_data)?
+                        .set_shipping_data(shipping_data)?
                 } else {
                     Err(errors::ConnectorError::NoConnectorMetaData)?
                 }
