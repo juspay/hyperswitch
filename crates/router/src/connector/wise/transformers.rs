@@ -56,7 +56,7 @@ impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
-    pub status: Option<i32>,
+    pub status: Option<String>,
     pub error: Option<String>,
     pub error_description: Option<String>,
     pub message: Option<String>,
