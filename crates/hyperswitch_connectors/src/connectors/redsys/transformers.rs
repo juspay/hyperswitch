@@ -885,7 +885,7 @@ fn map_redsys_attempt_status(
             | "9912" | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253"
             | "9261" | "9915" | "9997" => Ok(enums::AttemptStatus::Failure),
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Recieved Unknown Status:{}", error))?,
+                .attach_printable(format!("Received Unknown Status:{}", error))?,
         }
     }
 }
@@ -909,7 +909,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
         };
         let card_data =
             RedsysCardData::try_from(&Some(item.router_data.request.payment_method_data.clone()))?;
-        let (connector_meatadata, ds_merchant_order) = match &item.router_data.response {
+        let (connector_meta_data, ds_merchant_order) = match &item.router_data.response {
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(order_id),
                 connector_metadata,
@@ -918,7 +918,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
         let threeds_invoke_meta_data = to_connector_meta::<ThreeDsInvokeExempt>(
-            connector_meatadata.clone(),
+            connector_meta_data.clone(),
         )
         .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
@@ -1385,7 +1385,7 @@ impl TryFrom<DsResponse> for enums::RefundStatus {
             "9998" | "9999" => Ok(Self::Pending),
             "950" => Ok(Self::Failure),
             unknown_status => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Recieved Unknown Status:{}", unknown_status))?,
+                .attach_printable(format!("Received unknown status:{}", unknown_status))?,
         }
     }
 }
