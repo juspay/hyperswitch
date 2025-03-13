@@ -210,11 +210,10 @@ impl Action {
                 );
 
                 let payment_update_req = PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-                    Some(
                         FeatureMetadata::set_payment_revenue_recovery_metadata_using_api(
-                            Some(revenue_recovery_metadata.clone()),
-                        )),
-                        Some(api_enums::UpdateActiveAttempt::Unset),
+                            revenue_recovery_metadata.clone(),
+                        ),
+                        api_enums::UpdateActiveAttempt::Unset,
                     );
                 logger::info!(
                     "Call made to payments update intent api , with the request body {:?}",

@@ -433,12 +433,12 @@ pub struct PaymentsUpdateIntentRequest {
 #[cfg(feature = "v2")]
 impl PaymentsUpdateIntentRequest {
     pub fn update_feature_metadata_and_active_attempt_with_api(
-        feature_metadata: Option<FeatureMetadata>,
-        set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
+        feature_metadata: FeatureMetadata,
+        set_active_attempt_id: api_enums::UpdateActiveAttempt,
     ) -> Self {
         Self {
-            feature_metadata,
-            set_active_attempt_id,
+            feature_metadata: Some(feature_metadata),
+            set_active_attempt_id: Some(set_active_attempt_id),
             amount_details: None,
             routing_algorithm_id: None,
             capture_method: None,
@@ -7509,10 +7509,10 @@ pub struct FeatureMetadata {
 #[cfg(feature = "v2")]
 impl FeatureMetadata {
     pub fn set_payment_revenue_recovery_metadata_using_api(
-        payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+        payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
     ) -> Self {
         Self {
-            payment_revenue_recovery_metadata,
+            payment_revenue_recovery_metadata: Some(payment_revenue_recovery_metadata),
             ..Default::default()
         }
     }
