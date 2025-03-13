@@ -13,7 +13,7 @@ pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::router_flow_types::GetAdditionalRevenueRecoveryDetails;
+use hyperswitch_domain_models::router_flow_types::{GetAdditionalRevenueRecoveryDetails,RecoveryRecordBack};
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
@@ -2327,6 +2327,53 @@ impl<const T: u8>
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_additional_revenue_recovery_call!(
+    connector::Adyenplatform,
+    connector::Adyen,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Paypal,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+macro_rules! default_imp_for_revenue_recovery_record_back {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::RevenueRecoveryRecordBack for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                RecoveryRecordBack,
+                types::RevenueRecoveryRecordBackRequest,
+                types::RevenueRecoveryRecordBackResponse,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        RecoveryRecordBack,
+        types::RevenueRecoveryRecordBackRequest,
+        types::RevenueRecoveryRecordBackResponse,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+default_imp_for_revenue_recovery_record_back!(
     connector::Adyenplatform,
     connector::Adyen,
     connector::Ebanx,

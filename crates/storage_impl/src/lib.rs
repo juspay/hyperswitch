@@ -1,8 +1,12 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use diesel_models as store;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
+use hyperswitch_domain_models::{
+    behaviour::{Conversion, ReverseConversion},
+    errors::{StorageError, StorageResult},
+    merchant_key_store::MerchantKeyStore,
+};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
@@ -12,7 +16,8 @@ pub mod connection;
 pub mod customers;
 pub mod database;
 pub mod errors;
-mod lookup;
+pub mod kv_router_store;
+pub mod lookup;
 pub mod mandate;
 pub mod metrics;
 pub mod mock_db;
@@ -23,15 +28,14 @@ pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
-mod utils;
+pub mod utils;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
-use router_env::logger;
 
 pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
@@ -149,6 +153,70 @@ impl<T: DatabaseStore> RouterStore<T> {
         &self.master_encryption_key
     }
 
+    pub async fn call_database<D, R, M>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<D, StorageError>
+    where
+        D: Debug + Sync + Conversion,
+        R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
+            + Send,
+        M: ReverseConversion<D>,
+    {
+        execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+    }
+
+    pub async fn find_resources<D, R, M>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<Vec<D>, StorageError>
+    where
+        D: Debug + Sync + Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: ReverseConversion<D>,
+    {
+        let resource_futures = execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .into_iter()
+            .map(|resource| async {
+                resource
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+            })
+            .collect::<Vec<_>>();
+
+        let resources = futures::future::try_join_all(resource_futures).await?;
+
+        Ok(resources)
+    }
+
     /// # Panics
     ///
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
@@ -170,121 +238,6 @@ impl<T: DatabaseStore> RouterStore<T> {
             master_encryption_key: encryption_key,
             request_id: None,
         })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct KVRouterStore<T: DatabaseStore> {
-    router_store: RouterStore<T>,
-    drainer_stream_name: String,
-    drainer_num_partitions: u8,
-    ttl_for_kv: u32,
-    pub request_id: Option<String>,
-    soft_kill_mode: bool,
-}
-
-#[async_trait::async_trait]
-impl<T> DatabaseStore for KVRouterStore<T>
-where
-    RouterStore<T>: DatabaseStore,
-    T: DatabaseStore,
-{
-    type Config = (RouterStore<T>, String, u8, u32, Option<bool>);
-    async fn new(
-        config: Self::Config,
-        tenant_config: &dyn config::TenantConfig,
-        _test_transaction: bool,
-    ) -> StorageResult<Self> {
-        let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
-        let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
-        Ok(Self::from_store(
-            router_store,
-            drainer_stream_name,
-            drainer_num_partitions,
-            ttl_for_kv,
-            soft_kill_mode,
-        ))
-    }
-    fn get_master_pool(&self) -> &PgPool {
-        self.router_store.get_master_pool()
-    }
-    fn get_replica_pool(&self) -> &PgPool {
-        self.router_store.get_replica_pool()
-    }
-
-    fn get_accounts_master_pool(&self) -> &PgPool {
-        self.router_store.get_accounts_master_pool()
-    }
-
-    fn get_accounts_replica_pool(&self) -> &PgPool {
-        self.router_store.get_accounts_replica_pool()
-    }
-}
-
-impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
-        self.router_store.get_redis_conn()
-    }
-}
-
-impl<T: DatabaseStore> KVRouterStore<T> {
-    pub fn from_store(
-        store: RouterStore<T>,
-        drainer_stream_name: String,
-        drainer_num_partitions: u8,
-        ttl_for_kv: u32,
-        soft_kill: Option<bool>,
-    ) -> Self {
-        let request_id = store.request_id.clone();
-
-        Self {
-            router_store: store,
-            drainer_stream_name,
-            drainer_num_partitions,
-            ttl_for_kv,
-            request_id,
-            soft_kill_mode: soft_kill.unwrap_or(false),
-        }
-    }
-
-    pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
-        self.router_store.master_key()
-    }
-
-    pub fn get_drainer_stream_name(&self, shard_key: &str) -> String {
-        format!("{{{}}}_{}", shard_key, self.drainer_stream_name)
-    }
-
-    pub async fn push_to_drainer_stream<R>(
-        &self,
-        redis_entry: diesel_models::kv::TypedSql,
-        partition_key: redis::kv_store::PartitionKey<'_>,
-    ) -> error_stack::Result<(), RedisError>
-    where
-        R: redis::kv_store::KvStorePartition,
-    {
-        let global_id = format!("{}", partition_key);
-        let request_id = self.request_id.clone().unwrap_or_default();
-
-        let shard_key = R::shard_key(partition_key, self.drainer_num_partitions);
-        let stream_name = self.get_drainer_stream_name(&shard_key);
-        self.router_store
-            .cache_store
-            .redis_conn
-            .stream_append_entry(
-                &stream_name.into(),
-                &redis_interface::RedisEntryId::AutoGeneratedID,
-                redis_entry
-                    .to_field_value_pairs(request_id, global_id)
-                    .change_context(RedisError::JsonSerializationFailed)?,
-            )
-            .await
-            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(1, &[]))
-            .inspect_err(|error| {
-                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(1, &[]);
-                logger::error!(?error, "Failed to add entry in drainer stream");
-            })
-            .change_context(RedisError::StreamAppendFailed)
     }
 }
 
@@ -504,10 +457,6 @@ impl UniqueConstraints for diesel_models::Customer {
 }
 
 #[cfg(not(feature = "payouts"))]
-impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {}
-#[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
-#[cfg(not(feature = "payouts"))]
-impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
