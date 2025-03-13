@@ -1587,8 +1587,9 @@ pub struct AuthorizedotnetRSyncResponse {
 impl From<SyncStatus> for enums::AttemptStatus {
     fn from(transaction_status: SyncStatus) -> Self {
         match transaction_status {
-            SyncStatus::SettledSuccessfully
-            | SyncStatus::CapturedPendingSettlement => Self::Charged,
+            SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
+                Self::Charged
+            }
             SyncStatus::AuthorizedPendingCapture => Self::Authorized,
             SyncStatus::Declined => Self::AuthenticationFailed,
             SyncStatus::Voided => Self::Voided,
