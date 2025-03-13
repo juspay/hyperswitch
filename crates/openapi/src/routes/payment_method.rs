@@ -326,7 +326,7 @@ pub async fn payment_method_delete_api() {}
 ///
 /// List the payment methods saved for a customer
 #[utoipa::path(
-    delete,
+    get,
     path = "/v2/customers/{id}/saved-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the customer"),

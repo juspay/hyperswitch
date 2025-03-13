@@ -320,6 +320,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::UIWidgetFormLayout,
+        api_models::enums::MerchantProductType,
         api_models::enums::PaymentConnectorCategory,
         api_models::enums::CardDiscovery,
         api_models::enums::FeatureStatus,
