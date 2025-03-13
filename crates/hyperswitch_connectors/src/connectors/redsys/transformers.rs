@@ -434,7 +434,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
         item: &RedsysRouterData<&PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth = RedsysAuthType::try_from(&item.router_data.connector_auth_type)?;
-        if item.router_data.is_three_ds() {
+        if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "PreProcessing flow for no-3ds cards".to_string(),
                 connector: "redsys",
@@ -466,7 +466,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
             } else {
                 Err(errors::ConnectorError::FlowNotSupported {
                     flow: "PreProcessing".to_string(),
-                    connector: "Redsys".to_string(),
+                    connector: "redsys".to_string(),
                 })
             }?;
 
@@ -895,7 +895,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
     fn try_from(
         item: &RedsysRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
+        if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "No-3DS cards".to_string(),
                 connector: "redsys",
@@ -1022,7 +1022,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
     fn try_from(
         item: &RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
+        if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "PaymentsComplete flow for no-3ds cards".to_string(),
                 connector: "redsys",
