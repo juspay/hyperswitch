@@ -200,16 +200,8 @@ impl Action {
             }
 
             Self::RetryPayment(schedule_time) => {
-                let mut pt = execute_task_process.clone();
-                // update the schedule time
-                pt.schedule_time = Some(*schedule_time);
-
-                let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
-                    status: storage::enums::ProcessTrackerStatus::Pending,
-                    business_status: Some(business_status::PENDING.to_owned()),
-                };
                 db.as_scheduler()
-                    .update_process(pt.clone(), pt_task_update)
+                    .retry_process(execute_task_process.clone(), *schedule_time)
                     .await?;
 
                 // update the connector payment transmission field to Unsuccessful and unset active attempt id

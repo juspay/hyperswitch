@@ -1000,7 +1000,8 @@ impl
                     attempt_status,
                     connector_transaction_id,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
 
                 let error_details = ErrorDetails {
                     code,
