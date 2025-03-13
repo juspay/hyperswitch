@@ -459,13 +459,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Re
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "minor_amount",
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "currency",
                 })?;
         let amount =
             connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
