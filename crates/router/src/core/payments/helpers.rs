@@ -1264,10 +1264,9 @@ pub fn create_complete_authorize_url(
     connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
 ) -> String {
-    let creds_identifier = creds_identifier
-        .map_or_else(String::new, |creds_identifier| {
-            format!("{}", creds_identifier)
-        });
+    let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
+        format!("{}", creds_identifier)
+    });
     format!(
         "{}/payments/{}/{}/redirect/complete/{}/{}",
         router_base_url,
