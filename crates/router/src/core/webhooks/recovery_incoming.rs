@@ -85,7 +85,7 @@ pub async fn recovery_incoming_webhook_flow(
         None
     };
 
-    // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetchs from Incoming webhook
+    // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
     let invoice_details = recovery_details.clone().map_or(
         RevenueRecoveryInvoice(
             interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
