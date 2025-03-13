@@ -70,7 +70,10 @@ where
             .switch()?;
 
         query_builder
-            .add_negative_filter_clause("authentication_status", AuthenticationStatus::Pending)
+            .add_filter_in_range_clause(
+                "authentication_status",
+                &[AuthenticationStatus::Success, AuthenticationStatus::Failed],
+            )
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
@@ -103,6 +106,7 @@ where
                     AuthEventMetricsBucketIdentifier::new(
                         i.authentication_status.as_ref().map(|i| i.0),
                         i.trans_status.as_ref().map(|i| i.0.clone()),
+                        i.authentication_type.as_ref().map(|i| i.0),
                         i.error_message.clone(),
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),

@@ -2613,7 +2613,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         original_payment_authorized_amount: Some(net_amount),
                         original_payment_authorized_currency: Some(currency),
                         metadata: None,
-                        token,
+                        token: masking::Secret::new(token),
                         token_type: common_enums::TokenizationType::MultiUse,
                     };
 
