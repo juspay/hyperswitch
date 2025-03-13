@@ -1,8 +1,10 @@
 pub mod address;
 pub mod api;
 pub mod behaviour;
+pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod card_testing_guard_data;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -20,6 +22,8 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod relay;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod revenue_recovery;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;
@@ -27,6 +31,8 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
@@ -406,6 +412,11 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text: item.payment_button_text,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
             payment_button_colour: item.payment_button_colour,
+            skip_status_screen: item.skip_status_screen,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
+            sdk_ui_rules: item.sdk_ui_rules,
+            payment_link_ui_rules: item.payment_link_ui_rules,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -424,6 +435,11 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text,
             custom_message_for_card_terms,
             payment_button_colour,
+            skip_status_screen,
+            background_colour,
+            payment_button_text_colour,
+            sdk_ui_rules,
+            payment_link_ui_rules,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -446,6 +462,11 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text,
             custom_message_for_card_terms,
             payment_button_colour,
+            skip_status_screen,
+            background_colour,
+            payment_button_text_colour,
+            sdk_ui_rules,
+            payment_link_ui_rules,
         }
     }
 }
@@ -547,6 +568,36 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&api_models::payments::PaymentAttemptAmountDetails>
+    for payments::payment_attempt::AttemptAmountDetailsSetter
+{
+    fn from(amount: &api_models::payments::PaymentAttemptAmountDetails) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&api_models::payments::RecordAttemptErrorDetails>
+    for payments::payment_attempt::ErrorDetails
+{
+    fn from(error: &api_models::payments::RecordAttemptErrorDetails) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: Some(error.message.clone()),
+            unified_code: None,
+            unified_message: None,
         }
     }
 }

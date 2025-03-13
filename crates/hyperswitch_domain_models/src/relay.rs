@@ -74,6 +74,16 @@ impl From<api_models::relay::RelayData> for RelayData {
     }
 }
 
+impl From<api_models::relay::RelayRefundRequestData> for RelayRefundData {
+    fn from(relay: api_models::relay::RelayRefundRequestData) -> Self {
+        Self {
+            amount: relay.amount,
+            currency: relay.currency,
+            reason: relay.reason,
+        }
+    }
+}
+
 impl RelayUpdate {
     pub fn from(
         response: Result<router_response_types::RefundsResponseData, ErrorResponse>,
@@ -92,6 +102,20 @@ impl RelayUpdate {
     }
 }
 
+impl From<RelayData> for api_models::relay::RelayData {
+    fn from(relay: RelayData) -> Self {
+        match relay {
+            RelayData::Refund(relay_refund_request) => {
+                Self::Refund(api_models::relay::RelayRefundRequestData {
+                    amount: relay_refund_request.amount,
+                    currency: relay_refund_request.currency,
+                    reason: relay_refund_request.reason,
+                })
+            }
+        }
+    }
+}
+
 impl From<Relay> for api_models::relay::RelayResponse {
     fn from(value: Relay) -> Self {
         let error = value
@@ -106,7 +130,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
 
         let data = value.request_data.map(|relay_data| match relay_data {
             RelayData::Refund(relay_refund_request) => {
-                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequest {
+                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequestData {
                     amount: relay_refund_request.amount,
                     currency: relay_refund_request.currency,
                     reason: relay_refund_request.reason,

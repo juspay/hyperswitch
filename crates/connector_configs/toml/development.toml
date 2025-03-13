@@ -297,6 +297,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[adyen.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [adyen.metadata.endpoint_prefix]
 name="endpoint_prefix"
@@ -381,6 +388,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[airwallex.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 
 [authorizedotnet]
@@ -500,6 +514,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[authorizedotnet.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [bambora]
 [[bambora.credit]]
@@ -703,6 +724,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[bankofamerica.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [bitpay]
 [[bitpay.crypto]]
@@ -829,6 +857,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[bluesnap.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [bluesnap.metadata.merchant_id]
 name="merchant_id"
@@ -1131,6 +1166,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[checkout.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [checkout.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -1299,6 +1341,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[cybersource.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [[cybersource.connector_wallets_details.samsung_pay]]
 name="service_id"
@@ -1691,6 +1740,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[globalpay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [globalpay.metadata.account_name]
 name="account_name"
@@ -1983,6 +2039,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[multisafepay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [nexinets]
 [[nexinets.credit]]
@@ -2230,6 +2293,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[nmi.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [nmi.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -2370,6 +2440,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[noon.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [novalnet]
 [[novalnet.credit]]
@@ -2438,6 +2515,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[novalnet.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [[novalnet.metadata.apple_pay]]
 name="certificate"
@@ -2624,6 +2708,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[nuvei.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 
 [opennode]
@@ -2818,6 +2909,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[payu.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [placetopay]
 [[placetopay.credit]]
@@ -3275,6 +3373,13 @@ label="Stripe Publishable Key"
 placeholder="Enter Stripe Publishable Key"
 required=true
 type="Text"
+[[stripe.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [stax]
 [[stax.credit]]
@@ -3491,6 +3596,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[trustpay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 
 [tsys]
@@ -3720,6 +3832,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[worldpay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [zen]
 [[zen.credit]]
@@ -4052,6 +4171,19 @@ key1 = "Adyen Account Id"
 [stripe_payout.connector_auth.HeaderKey]
 api_key = "Stripe API Key"
 
+[nomupay_payout]
+[[nomupay_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[nomupay_payout.connector_auth.BodyKey]
+api_key = "Nomupay kid"
+key1 = "Nomupay eid"
+[nomupay_payout.metadata.private_key]
+name="Private key for signature generation"
+label="Enter your private key"
+placeholder="------BEGIN PRIVATE KEY-------"
+required=true
+type="Text"
+
 [wise_payout]
 [[wise_payout.bank_transfer]]
   payment_method_type = "ach"
@@ -4103,7 +4235,7 @@ private_key="Base64 encoded PEM formatted private key"
 name="mcc"
 label="MCC"
 placeholder="Enter MCC"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.endpoint_prefix]
 name="endpoint_prefix"
@@ -4115,25 +4247,31 @@ type="Text"
 name="merchant_country_code"
 label="3 digit numeric country code"
 placeholder="Enter 3 digit numeric country code"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.merchant_name]
 name="merchant_name"
 label="Name of the merchant"
 placeholder="Enter Name of the merchant"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_name]
 name="three_ds_requestor_name"
 label="ThreeDS requestor name"
 placeholder="Enter ThreeDS requestor name"
-required=true
+required=false
 type="Text"
 [netcetera.metadata.three_ds_requestor_id]
 name="three_ds_requestor_id"
 label="ThreeDS request id"
 placeholder="Enter ThreeDS request id"
-required=true
+required=false
+type="Text"
+[netcetera.metadata.merchant_configuration_id]
+name="merchant_configuration_id"
+label="Merchant Configuration ID"
+placeholder="Enter Merchant Configuration ID"
+required=false
 type="Text"
 
 [taxjar]
@@ -4390,6 +4528,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[fiuu.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [[fiuu.metadata.apple_pay]]
 name="certificate"
@@ -4588,6 +4733,8 @@ type="Text"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+[xendit.connector_webhook_details]
+merchant_secret="Webhook Verification Token"
 
 [inespay]
 [[inespay.bank_debit]]
@@ -4597,3 +4744,56 @@ api_key="API Key"
 key1="API Token"
 [inespay.connector_webhook_details]
 merchant_secret="API Key"
+
+[juspaythreedsserver]
+[juspaythreedsserver.metadata.mcc]
+name="mcc"
+label="MCC"
+placeholder="Enter MCC"
+required=false
+type="Text"
+
+[juspaythreedsserver.metadata.merchant_country_code]
+name="merchant_country_code"
+label="3 digit numeric country code"
+placeholder="Enter 3 digit numeric country code"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant"
+placeholder="Enter Name of the merchant"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.three_ds_requestor_name]
+name="three_ds_requestor_name"
+label="ThreeDS requestor name"
+placeholder="Enter ThreeDS requestor name"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.three_ds_requestor_id]
+name="three_ds_requestor_id"
+label="ThreeDS request id"
+placeholder="Enter ThreeDS request id"
+required=false
+type="Text"
+[juspaythreedsserver.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=true
+type="Text"
+[juspaythreedsserver.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=true
+type="Text"
+[juspaythreedsserver.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant Id"
+placeholder="Enter Acquirer Merchant Id"
+required=true
+type="Text"
+[juspaythreedsserver.connector_auth.HeaderKey]
+api_key="API Key"

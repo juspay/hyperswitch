@@ -82,6 +82,13 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
+    pub card_discovery: Option<storage_enums::CardDiscovery>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
@@ -94,13 +101,7 @@ pub struct PaymentAttempt {
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub id: id_type::GlobalAttemptId,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
-    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
-    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
-    pub capture_before: Option<PrimitiveDateTime>,
-    pub card_discovery: Option<storage_enums::CardDiscovery>,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -235,7 +236,7 @@ impl ConnectorTransactionIdTrait for PaymentAttempt {
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct ConnectorTokenDetails {
     pub connector_mandate_id: Option<String>,
-    pub connector_mandate_request_reference_id: Option<String>,
+    pub connector_token_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -243,8 +244,8 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorTokenDetails);
 
 #[cfg(feature = "v2")]
 impl ConnectorTokenDetails {
-    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
-        self.connector_mandate_request_reference_id.clone()
+    pub fn get_connector_token_request_reference_id(&self) -> Option<String> {
+        self.connector_token_request_reference_id.clone()
     }
 }
 
@@ -307,7 +308,10 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
+    pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_token_details: Option<ConnectorTokenDetails>,
@@ -315,7 +319,7 @@ pub struct PaymentAttemptNew {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -835,6 +839,7 @@ pub struct PaymentAttemptUpdateInternal {
     // customer_acceptance: Option<pii::SecretSerdeValue>,
     // card_network: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -3504,6 +3509,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -3524,6 +3530,26 @@ pub enum RedirectForm {
 }
 
 common_utils::impl_to_sql_from_sql_json!(RedirectForm);
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
+pub struct PaymentAttemptFeatureMetadata {
+    pub revenue_recovery: Option<PaymentAttemptRecoveryData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
+pub struct PaymentAttemptRecoveryData {
+    pub attempt_triggered_by: common_enums::TriggeredBy,
+}
+#[cfg(feature = "v2")]
+common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);
 
 mod tests {
 

@@ -33,6 +33,7 @@ use crate::{
     core::{
         authentication,
         blocklist::utils as blocklist_utils,
+        card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
@@ -825,6 +826,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: request.ctp_service_details.clone(),
+            card_testing_guard_data: None,
+            vault_operation: None,
             threeds_method_comp_ind: None,
         };
 
@@ -837,6 +840,39 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
 
         Ok(get_trackers_response)
+    }
+
+    async fn validate_request_with_state(
+        &self,
+        state: &SessionState,
+        request: &api::PaymentsRequest,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            });
+
+        let customer_id = &payment_data.payment_intent.customer_id;
+
+        match payment_method_data {
+            Some(api_models::payments::PaymentMethodData::Card(_card)) => {
+                payment_data.card_testing_guard_data =
+                    card_testing_guard_utils::validate_card_testing_guard_checks(
+                        state,
+                        request,
+                        payment_method_data,
+                        customer_id,
+                        business_profile,
+                    )
+                    .await?;
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 }
 
@@ -875,6 +911,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -888,6 +925,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             customer,
             storage_scheme,
             business_profile,
+            should_retry_with_pan,
         ))
         .await?;
         utils::when(payment_method_data.is_none(), || {
@@ -975,19 +1013,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data.authentication = match external_authentication_flow {
             Some(helpers::PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 acquirer_details,
-                card_number,
+                card,
                 token,
             }) => {
-                let authentication = authentication::perform_pre_authentication(
+                let authentication = Box::pin(authentication::perform_pre_authentication(
                     state,
                     key_store,
-                    card_number,
+                    *card,
                     token,
                     business_profile,
-                    Some(acquirer_details),
-                    Some(payment_data.payment_attempt.payment_id.clone()),
+                    acquirer_details,
+                    payment_data.payment_attempt.payment_id.clone(),
                     payment_data.payment_attempt.organization_id.clone(),
-                )
+                ))
                 .await?;
                 if authentication.is_separate_authn_required()
                     || authentication.authentication_status.is_failed()
@@ -1026,6 +1064,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     key_store,
                     business_profile.clone(),
                     authentication_id.clone(),
+                    &payment_data.payment_intent.payment_id,
                 ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
@@ -1243,7 +1282,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication_connector_name.clone(),
                     token,
                     business_profile.get_id().to_owned(),
-                    Some(payment_data.payment_intent.payment_id.clone()),
+                    payment_data.payment_intent.payment_id.clone(),
                     three_ds_connector_account
                         .get_mca_id()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -1268,7 +1307,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     state,
                     pre_auth_response,
                     authentication.clone(),
-                    Some(acquirer_details),
+                    acquirer_details,
                 ).await?;
                 payment_data.authentication = Some(updated_authentication.clone());
 
@@ -1871,6 +1910,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     }
 }
 
+#[async_trait]
 impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
     for PaymentConfirm
 {

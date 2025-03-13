@@ -95,6 +95,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentStatusOperation<'a, F, api::PaymentsRequest>,
         Option<domain::PaymentMethodData>,
@@ -534,6 +535,8 @@ async fn get_tracker_for_sync<
         tax_data: None,
         session_id: None,
         service_details: None,
+        card_testing_guard_data: None,
+        vault_operation: None,
         threeds_method_comp_ind: None,
     };
 
