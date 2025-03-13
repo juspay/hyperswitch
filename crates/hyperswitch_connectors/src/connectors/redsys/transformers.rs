@@ -264,52 +264,37 @@ impl EmvThreedsData {
         Ok(Secret::new(addr_state_value))
     }
 
-    pub fn set_billing_data(mut self, address: Option<&Address>) -> Result<Self, Error> {
-        self.billing_data = address
-            .and_then(|address| {
-                address.address.as_ref().map(|address_details| {
-                    let state = if let Some(addr_state) = address_details.get_optional_state() {
-                        Some(Self::get_state_code(
-                            &addr_state.expose().to_ascii_lowercase(),
-                        ))
-                    } else {
-                        None
-                    }
-                    .transpose();
-                    match state {
-                        Ok(bill_addr_state) => Ok(BillingData {
-                            bill_addr_city: address_details.get_optional_city(),
-                            bill_addr_country: address_details.get_optional_country().map(
-                                |country| {
-                                    common_enums::CountryAlpha2::from_alpha2_to_alpha3(country)
-                                        .to_string()
-                                },
-                            ),
-                            bill_addr_line1: address_details.get_optional_line1(),
-                            bill_addr_line2: address_details.get_optional_line2(),
-                            bill_addr_line3: address_details.get_optional_line3(),
-                            bill_addr_postal_code: address_details.get_optional_zip(),
-                            bill_addr_state,
-                        }),
-                        Err(err) => Err(err),
-                    }
-                })
+    pub fn set_billing_data(mut self, address: Option<&Address>) -> Result<Self, Error> {  
+        self.billing_data = address.and_then(|address| {
+            address.address.as_ref().map(|address_details|
+                {
+                let state = address_details.get_optional_state().map(|addr_state| Self::get_state_code(
+                                          &addr_state.expose().to_ascii_lowercase(),
+                             )).transpose();
+
+                match state {
+                    Ok(bill_addr_state) => Ok(BillingData {
+                        bill_addr_city: address_details.get_optional_city(),
+                        bill_addr_country: address_details.get_optional_country().map(|country| common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()),
+                        bill_addr_line1: address_details.get_optional_line1(),
+                        bill_addr_line2: address_details.get_optional_line2(),
+                        bill_addr_line3: address_details.get_optional_line3(),
+                        bill_addr_postal_code: address_details.get_optional_zip(),
+                        bill_addr_state,
+                    }),
+                    Err(err) => Err(err)
+                }
             })
-            .transpose()?;
+        }).transpose()?;
         Ok(self)
     }
-    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Result<Self, Error> {
-        self.shipping_data = address
-            .and_then(|address| {
-                address.address.as_ref().map(|address_details| {
-                    let state = if let Some(addr_state) = address_details.get_optional_state() {
-                        Some(Self::get_state_code(
-                            &addr_state.expose().to_ascii_lowercase(),
-                        ))
-                    } else {
-                        None
-                    }
-                    .transpose();
+    pub fn set_shipping_data(mut self, address: Option<&Address>) -> Result<Self, Error>  {
+        self.shipping_data = address.and_then(|address| {
+            address.address.as_ref().map(|address_details|
+                {
+                    let state = address_details.get_optional_state().map(|addr_state| Self::get_state_code(
+                                          &addr_state.expose().to_ascii_lowercase(),
+                             )).transpose();
                     match state {
                         Ok(ship_addr_state) => Ok(ShippingData {
                             ship_addr_city: address_details.get_optional_city(),
@@ -870,12 +855,12 @@ fn map_redsys_attempt_status(
     } else {
         match ds_response.0.as_str() {
             "0900" => Ok(enums::AttemptStatus::Charged),
-            "400" => Ok(enums::AttemptStatus::Voided),
-            "950" => Ok(enums::AttemptStatus::VoidFailed),
+            "0400" => Ok(enums::AttemptStatus::Voided),
+            "0950" => Ok(enums::AttemptStatus::VoidFailed),
             "9998" | "9999" => Ok(enums::AttemptStatus::Pending),
             "9256" | "9257" => Ok(enums::AttemptStatus::AuthenticationFailed),
-            "101" | "102" | "106" | "125" | "129" | "172" | "173" | "174" | "180" | "184"
-            | "190" | "191" | "195" | "202" | "904" | "909" | "913" | "944" | "9912" | "912"
+            "0101" | "0102" | "0106" | "0125" | "0129" | "0172" | "0173" | "0174" | "0180" | "0184"
+            | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944" | "9912" | "0912"
             | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253" | "9261" | "9915"
             | "9997" => Ok(enums::AttemptStatus::Failure),
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
@@ -900,29 +885,24 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
         if item.router_data.auth_type == enums::AuthenticationType::ThreeDs {
             let (connector_meatadata, ds_merchant_order) = match &item.router_data.response {
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: ResponseId::ConnectorTransactionId(order_id),
                     connector_metadata,
                     ..
-                }) => match resource_id {
-                    ResponseId::ConnectorTransactionId(order_id) => {
-                        (connector_metadata.clone(), order_id.clone())
-                    }
-                    _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-                },
+                }) => (connector_metadata.clone(), order_id.clone()),
                 _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
             };
-
-            let threeds_invoke_meta_data =
-                to_connector_meta::<ThreeDsInvokeExempt>(connector_meatadata.clone())
-                    .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                        config: "metadata",
-                    })?;
-            let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
-                .set_three_d_s_server_trans_i_d(threeds_invoke_meta_data.three_d_s_server_trans_i_d)
-                .set_protocol_version(threeds_invoke_meta_data.message_version)
-                .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
-                .add_browser_data(item.router_data.request.get_browser_info()?)?
-                .set_three_d_s_comp_ind(ThreeDSCompInd::N)
+            let threeds_invoke_meta_data = to_connector_meta::<ThreeDsInvokeExempt>(connector_meatadata.clone()).change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+            let emv3ds_data = 
+                EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
+                    .set_three_d_s_server_trans_i_d(
+                        threeds_invoke_meta_data.three_d_s_server_trans_i_d,
+                    )
+                    .set_protocol_version(threeds_invoke_meta_data.message_version)
+                    .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
+                    .add_browser_data(item.router_data.request.get_browser_info()?)?
+                    .set_three_d_s_comp_ind(ThreeDSCompInd::N)
                 .set_billing_data(item.router_data.get_optional_billing())?
                 .set_shipping_data(item.router_data.get_optional_shipping())?;
 

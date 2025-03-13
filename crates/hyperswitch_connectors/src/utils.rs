@@ -1529,7 +1529,7 @@ impl AddressDetailsData for AddressDetails {
         self.state.clone()
     }
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
-        self.country.clone()
+        self.country
     }
 }
 
