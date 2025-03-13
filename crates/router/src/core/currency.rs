@@ -5,11 +5,11 @@ use error_stack::ResultExt;
 use router_env::logger;
 
 use crate::{
+    consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS,
     core::errors::ApiErrorResponse,
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates},
     SessionState,
-    consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS,
 };
 
 pub async fn retrieve_forex(
