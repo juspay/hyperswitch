@@ -648,36 +648,6 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-
-    fn get_5xx_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
-        let error_message = match res.status_code {
-            500 => "internal_server_error",
-            501 => "not_implemented",
-            502 => "bad_gateway",
-            503 => "service_unavailable",
-            504 => "gateway_timeout",
-            505 => "http_version_not_supported",
-            506 => "variant_also_negotiates",
-            507 => "insufficient_storage",
-            508 => "loop_detected",
-            510 => "not_extended",
-            511 => "network_authentication_required",
-            _ => "unknown_error",
-        };
-        Ok(ErrorResponse {
-            code: res.status_code.to_string(),
-            message: error_message.to_string(),
-            reason: String::from_utf8(res.response.to_vec()).ok(),
-            status_code: res.status_code,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
 }
 
 #[async_trait::async_trait]
