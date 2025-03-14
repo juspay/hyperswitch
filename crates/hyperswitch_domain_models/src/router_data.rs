@@ -484,12 +484,14 @@ impl
                     if let Some(ref mut payment_revenue_recovery_metadata) =
                         feature_metadata.payment_revenue_recovery_metadata
                     {
-                        payment_revenue_recovery_metadata.payment_connector_transmission =
-                            if self.response.is_ok() {
-                                common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                            } else {
-                                common_enums::PaymentConnectorTransmission::ConnectorCallFailed
-                            };
+                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
+                            .response
+                            .is_ok()
+                        {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                        } else {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
+                        };
                     }
                     Box::new(feature_metadata)
                 });
@@ -1012,7 +1014,8 @@ impl
                     attempt_status,
                     connector_transaction_id,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
 
                 let error_details = ErrorDetails {
                     code,

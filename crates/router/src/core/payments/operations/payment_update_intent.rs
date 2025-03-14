@@ -229,11 +229,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         };
 
         let active_attempt_id = set_active_attempt_id
-            .and_then(|active_attempt_req| match active_attempt_req {
+            .map(|active_attempt_req| match active_attempt_req {
                 UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
                 UpdateActiveAttempt::Unset => None,
             })
-            .or(payment_intent.active_attempt_id);
+            .unwrap_or(payment_intent.active_attempt_id);
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,
