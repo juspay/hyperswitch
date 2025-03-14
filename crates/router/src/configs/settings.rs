@@ -409,10 +409,9 @@ pub struct PaymentLink {
 pub struct ForexApi {
     pub api_key: Secret<String>,
     pub fallback_api_key: Secret<String>,
-    /// in s
-    pub call_delay: i64,
-    /// in s
-    pub redis_lock_timeout: u64,
+    pub data_expiration_delay_in_seconds: u32,
+    pub redis_lock_timeout_in_seconds: u32,
+    pub redis_ttl_in_seconds: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
