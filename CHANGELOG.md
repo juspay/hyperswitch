@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.14.0
+
+### Features
+
+- **connector:** [Hipay] Add Card Payments Flow ([#7475](https://github.com/juspay/hyperswitch/pull/7475)) ([`3e7db57`](https://github.com/juspay/hyperswitch/commit/3e7db573211ed61eadde3b601575f3472bda2b1f))
+- **router:** Add connector field to PaymentRevenueRecoveryMetadata and implement schedule_failed_payment ([#7462](https://github.com/juspay/hyperswitch/pull/7462)) ([`aa337ee`](https://github.com/juspay/hyperswitch/commit/aa337eee9cae96056a5ce6d8a9eb9c84f4d376fe))
+
+### Refactors
+
+- **connector:** [PAYPAL, ADYEN] Move to crate hyperswitch_connectors ([#7431](https://github.com/juspay/hyperswitch/pull/7431)) ([`cf36419`](https://github.com/juspay/hyperswitch/commit/cf364192f10c286082ab8395cc3a8298be0c3df0))
+
+**Full Changelog:** [`2025.03.13.0...2025.03.14.0`](https://github.com/juspay/hyperswitch/compare/2025.03.13.0...2025.03.14.0)
+
+
+- - -
+
 ## 2025.03.13.0
 
 ### Features
