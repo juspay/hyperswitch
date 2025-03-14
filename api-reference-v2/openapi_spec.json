@@ -11583,6 +11583,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11717,6 +11725,14 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12326,6 +12342,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "legacy",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
       },
       "MerchantRecipientData": {
         "oneOf": [
@@ -16221,6 +16249,11 @@
               }
             ],
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16991,6 +17024,11 @@
           "payment_method_id": {
             "type": "string",
             "description": "The payment_method_id to be associated with the payment",
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
             "nullable": true
           }
         },

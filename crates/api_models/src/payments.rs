@@ -263,6 +263,9 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1114,6 +1117,9 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5002,6 +5008,9 @@ pub struct PaymentsResponse {
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5341,6 +5350,9 @@ pub struct PaymentsRequest {
     /// The payment_method_id to be associated with the payment
     #[schema(value_type = Option<String>)]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5374,6 +5386,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .clone(),
+            force_3ds_challenge: request.force_3ds_challenge,
         }
     }
 }
