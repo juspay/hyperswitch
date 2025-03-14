@@ -12623,6 +12623,24 @@ impl Default for settings::RequiredFields {
                                             )
                                         ]),
                                     }
+                                ),
+                                (
+                                    enums::Connector::Inespay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
+                                                    display_name: "iban".to_string(),
+                                                    field_type: enums::FieldType::UserIban,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                    }
                                 )
                             ]),
                         },
