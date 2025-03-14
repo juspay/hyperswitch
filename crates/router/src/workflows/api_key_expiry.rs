@@ -1,24 +1,26 @@
-use common_utils::{errors::ValidationError, ext_traits::ValueExt};
-use diesel_models::{enums as storage_enums, ApiKeyExpiryTrackingData};
+use common_utils::{errors::ValidationError, ext_traits::ValueExt, types::theme::ThemeLineage};
+use diesel_models::{
+    enums as storage_enums, process_tracker::business_status, ApiKeyExpiryTrackingData,
+};
 use router_env::logger;
-use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerAppState};
+use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerSessionState};
 
 use crate::{
-    errors,
+    consts, errors,
     logger::error,
-    routes::{metrics, AppState},
-    services::email::types::ApiKeyExpiryReminder,
+    routes::{metrics, SessionState},
+    services::email::types::{self as email_types, ApiKeyExpiryReminder},
     types::{api, domain::UserEmail, storage},
-    utils::OptionExt,
+    utils::{user::theme as theme_utils, OptionExt},
 };
 
 pub struct ApiKeyExpiryWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -26,21 +28,27 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             .tracking_data
             .clone()
             .parse_value("ApiKeyExpiryTrackingData")?;
-
+        let key_manager_satte = &state.into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                tracking_data.merchant_id.as_str(),
+                key_manager_satte,
+                &tracking_data.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(tracking_data.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_satte,
+                &tracking_data.merchant_id,
+                &key_store,
+            )
             .await?;
 
         let email_id = merchant_account
             .merchant_details
+            .clone()
             .parse_value::<api::MerchantDetails>("MerchantDetails")?
             .primary_email
             .ok_or(errors::ProcessTrackerError::EValidationError(
@@ -66,22 +74,43 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             )
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
+        let theme = theme_utils::get_most_specific_theme_using_lineage(
+            state,
+            ThemeLineage::Merchant {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id: merchant_account.get_org_id().clone(),
+                merchant_id: merchant_account.get_id().clone(),
+            },
+        )
+        .await
+        .map_err(|err| {
+            logger::error!(?err, "Failed to get theme");
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
+
         let email_contents = ApiKeyExpiryReminder {
-            recipient_email: UserEmail::from_pii_email(email_id).map_err(|err| {
-                logger::error!(%err,"Failed to convert recipient's email to UserEmail from pii::Email");
+            recipient_email: UserEmail::from_pii_email(email_id).map_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to convert recipient's email to UserEmail from pii::Email"
+                );
                 errors::ProcessTrackerError::EApiErrorResponse
             })?,
-            subject: "API Key Expiry Notice",
+            subject: consts::EMAIL_SUBJECT_API_KEY_EXPIRY,
             expires_in: *expires_in,
             api_key_name,
             prefix,
-
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         state
             .email_client
             .clone()
             .compose_and_send_email(
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -96,7 +125,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             state
                 .get_db()
                 .as_scheduler()
-                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?
         }
         // If tasks are remaining that has to be scheduled
@@ -125,11 +154,8 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
                 .await?;
             // Remaining tasks are re-scheduled, so will be resetting the added count
-            metrics::TASKS_RESET_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
-            );
+            metrics::TASKS_RESET_COUNT
+                .add(1, router_env::metric_attributes!(("flow", "ApiKeyExpiry")));
         }
 
         Ok(())
@@ -137,7 +163,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a AppState,
+        _state: &'a SessionState,
         process: storage::ProcessTracker,
         _error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {

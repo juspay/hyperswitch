@@ -1,8 +1,8 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
@@ -10,6 +10,7 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use self::transformers as wise;
+use super::utils::convert_amount;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -18,7 +19,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -26,11 +27,19 @@ use crate::{
     },
     utils::BytesExt,
 };
-#[cfg(feature = "payouts")]
-use crate::{core::payments, routes};
 
-#[derive(Debug, Clone)]
-pub struct Wise;
+#[derive(Clone)]
+pub struct Wise {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Wise {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Wise
 where
@@ -364,7 +373,13 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
         req: &types::PayoutsRouterData<api::PoQuote>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = wise::WisePayoutQuoteRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+        let connector_router_data = wise::WiseRouterData::from((amount, req));
+        let connector_req = wise::WisePayoutQuoteRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -443,7 +458,13 @@ impl
         req: &types::PayoutsRouterData<api::PoRecipient>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = wise::WiseRecipientCreateRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+        let connector_router_data = wise::WiseRouterData::from((amount, req));
+        let connector_req = wise::WiseRecipientCreateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -503,44 +524,6 @@ impl
 impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for Wise
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PayoutsRouterData<api::PoCreate>,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        // Create a quote
-        let quote_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
-        let quote_connector_integration: Box<
-            &(dyn services::ConnectorIntegration<
-                api::PoQuote,
-                types::PayoutsData,
-                types::PayoutsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(self);
-        let quote_router_resp = services::execute_connector_processing_step(
-            app_state,
-            quote_connector_integration,
-            quote_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        match quote_router_resp.response.to_owned() {
-            Ok(resp) => {
-                router_data.quote_id = Some(resp.connector_payout_id);
-                Ok(())
-            }
-            Err(_err) => {
-                router_data.response = quote_router_resp.response;
-                Ok(())
-            }
-        }
-    }
-
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCreate>,
@@ -765,3 +748,5 @@ impl api::IncomingWebhook for Wise {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Wise {}

@@ -1,8 +1,8 @@
-use common_utils::custom_serde;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{custom_serde, encryption::Encryption};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, schema::merchant_key_store};
+use crate::schema::merchant_key_store;
 
 #[derive(
     Clone,
@@ -11,12 +11,12 @@ use crate::{encryption::Encryption, schema::merchant_key_store};
     serde::Deserialize,
     Identifiable,
     Queryable,
+    Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_key_store)]
-#[diesel(primary_key(merchant_id))]
+#[diesel(table_name = merchant_key_store, primary_key(merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantKeyStore {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryption,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -27,7 +27,7 @@ pub struct MerchantKeyStore {
 )]
 #[diesel(table_name = merchant_key_store)]
 pub struct MerchantKeyStoreNew {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryption,
     pub created_at: PrimitiveDateTime,
 }
@@ -37,6 +37,6 @@ pub struct MerchantKeyStoreNew {
 )]
 #[diesel(table_name = merchant_key_store)]
 pub struct MerchantKeyStoreUpdateInternal {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub key: Encryption,
 }

@@ -3,8 +3,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use super::{NameDescription, TimeRange};
-use crate::enums::DisputeStage;
+use super::{ForexMetric, NameDescription, TimeRange};
+use crate::enums::{Currency, DisputeStage};
 
 #[derive(
     Clone,
@@ -24,6 +24,17 @@ pub enum DisputeMetrics {
     DisputeStatusMetric,
     TotalAmountDisputed,
     TotalDisputeLostAmount,
+    SessionizedDisputeStatusMetric,
+    SessionizedTotalAmountDisputed,
+    SessionizedTotalDisputeLostAmount,
+}
+impl ForexMetric for DisputeMetrics {
+    fn is_forex_metric(&self) -> bool {
+        matches!(
+            self,
+            Self::TotalAmountDisputed | Self::TotalDisputeLostAmount
+        )
+    }
 }
 
 #[derive(
@@ -47,6 +58,7 @@ pub enum DisputeDimensions {
     // Consult the Dashboard FE folks since these also affects the order of metrics on FE
     Connector,
     DisputeStage,
+    Currency,
 }
 
 impl From<DisputeDimensions> for NameDescription {
@@ -71,13 +83,17 @@ impl From<DisputeMetrics> for NameDescription {
 pub struct DisputeFilters {
     #[serde(default)]
     pub dispute_stage: Vec<DisputeStage>,
+    #[serde(default)]
     pub connector: Vec<String>,
+    #[serde(default)]
+    pub currency: Vec<Currency>,
 }
 
 #[derive(Debug, serde::Serialize, Eq)]
 pub struct DisputeMetricsBucketIdentifier {
     pub dispute_stage: Option<DisputeStage>,
     pub connector: Option<String>,
+    pub currency: Option<Currency>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -89,6 +105,7 @@ impl Hash for DisputeMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.dispute_stage.hash(state);
         self.connector.hash(state);
+        self.currency.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -106,11 +123,13 @@ impl DisputeMetricsBucketIdentifier {
     pub fn new(
         dispute_stage: Option<DisputeStage>,
         connector: Option<String>,
+        currency: Option<Currency>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
             dispute_stage,
             connector,
+            currency,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -122,8 +141,8 @@ pub struct DisputeMetricsBucketValue {
     pub disputes_challenged: Option<u64>,
     pub disputes_won: Option<u64>,
     pub disputes_lost: Option<u64>,
-    pub total_amount_disputed: Option<u64>,
-    pub total_dispute_lost_amount: Option<u64>,
+    pub disputed_amount: Option<u64>,
+    pub dispute_lost_amount: Option<u64>,
     pub total_dispute: Option<u64>,
 }
 #[derive(Debug, serde::Serialize)]

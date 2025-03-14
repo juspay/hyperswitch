@@ -93,7 +93,7 @@
       }
     </style>
   </head>
-  <body class="hide-scrollbar">
+  <body id="payment-link" class="hide-scrollbar">
     <div id="payment-details-shimmer">
       <div class = "wrap">
         <box class="shine"></box>
@@ -185,7 +185,7 @@
         <div></div>
       </div>
     </div>
-    <div class="hyper-checkout hide-scrollbar">
+    <div id="hyper-checkout" class="hyper-checkout hide-scrollbar">
       <div class="main hidden" id="hyper-checkout-status-canvas">
         <div class="hyper-checkout-status-wrap">
           <div id="hyper-checkout-status-header"></div>
@@ -225,6 +225,8 @@
                 </div>
               </div>
             </div>
+            <div id="hyper-checkout-payment-horizontal-line-container"></div>
+            <div id="hyper-checkout-payment-merchant-dynamic-details" class="hidden"></div>
             <div id="hyper-checkout-payment-footer"></div>
           </div>
         </div>
@@ -249,7 +251,7 @@
                 height="16"
               ></use>
             </svg>
-            <span>Your Cart</span>
+            <span id="your-cart-text"></span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 50 50"
@@ -268,18 +270,6 @@
             </svg>
           </div>
           <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
-          <div id="hyper-checkout-merchant-description"></div>
-          <div class="powered-by-hyper">
-            <svg class="fill-current" height="18" width="130">
-              <use
-                xlink:href="#hyperswitch-brand"
-                x="0"
-                y="0"
-                height="18"
-                width="130"
-              ></use>
-            </svg>
-          </div>
         </div>
       </div>
       <div class="hyper-checkout-sdk" id="hyper-checkout-sdk">
@@ -304,26 +294,18 @@
             <div id="unified-checkout"></div>
             <button id="submit" class="hidden">
               <span id="submit-spinner" class="hidden"></span>
-              <span id="submit-button-text">Pay now</span>
+              <span id="submit-button-text"></span>
             </button>
             <div id="payment-message" class="hidden"></div>
           </form>
         </div>
       </div>
     </div>
-    <div id="hyper-footer" class="hidden">
-      <svg class="fill-current" height="18" width="130">
-        <use
-          xlink:href="#hyperswitch-brand"
-          x="0"
-          y="0"
-          height="18"
-          width="130"
-        ></use>
-      </svg>
-    </div>
     <script>
+      {{logging_template}}
+      {{locale_template}}
       {{rendered_js}}
+      {{payment_link_initiator}}
     </script>
     {{ hyperloader_sdk_link }}
   </body>

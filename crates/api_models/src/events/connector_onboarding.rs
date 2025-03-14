@@ -5,10 +5,13 @@ use crate::connector_onboarding::{
     ResetTrackingIdRequest,
 };
 
-common_utils::impl_misc_api_event_type!(
-    ActionUrlRequest,
-    ActionUrlResponse,
-    OnboardingSyncRequest,
-    OnboardingStatus,
-    ResetTrackingIdRequest
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
+        ActionUrlRequest,
+        ActionUrlResponse,
+        OnboardingSyncRequest,
+        OnboardingStatus,
+        ResetTrackingIdRequest
+    )
 );

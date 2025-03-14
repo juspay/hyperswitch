@@ -1,6 +1,4 @@
-//!
 //! Errors specific to this custom redis interface
-//!
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum RedisError {
@@ -68,4 +66,14 @@ pub enum RedisError {
     OnMessageError,
     #[error("Got an unknown result from redis")]
     UnknownResult,
+    #[error("Failed to append elements to list in Redis")]
+    AppendElementsToListFailed,
+    #[error("Failed to get list elements in Redis")]
+    GetListElementsFailed,
+    #[error("Failed to get length of list")]
+    GetListLengthFailed,
+    #[error("Failed to pop list elements in Redis")]
+    PopListElementsFailed,
+    #[error("Failed to increment hash field in Redis")]
+    IncrementHashFieldFailed,
 }

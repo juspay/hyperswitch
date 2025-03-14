@@ -1,5 +1,4 @@
 use common_enums::{AuthenticationType, CountryAlpha2};
-use common_utils::{self};
 use time::PrimitiveDateTime;
 
 use crate::enums::Connector;
@@ -19,5 +18,5 @@ pub struct SampleDataRequest {
     pub auth_type: Option<Vec<AuthenticationType>>,
     pub business_country: Option<CountryAlpha2>,
     pub business_label: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }

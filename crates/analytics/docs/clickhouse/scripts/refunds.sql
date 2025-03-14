@@ -19,21 +19,22 @@ CREATE TABLE refund_queue (
     `description` Nullable(String),
     `refund_reason` Nullable(String),
     `refund_error_code` Nullable(String),
-    `created_at` DateTime CODEC(T64, LZ4),
-    `modified_at` DateTime CODEC(T64, LZ4),
+    `created_at` DateTime,
+    `modified_at` DateTime,
+    `organization_id` String,
+    `profile_id` String,
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-refund-events',
-kafka_group_name = 'hyper-c1',
+kafka_group_name = 'hyper',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
-
-CREATE TABLE refund_dist (
+CREATE TABLE refunds (
     `internal_reference_id` String,
     `refund_id` String,
     `payment_id` String,
-    `merchant_id` String,
+    `merchant_id` LowCardinality(String),
     `connector_transaction_id` String,
     `connector` LowCardinality(Nullable(String)),
     `connector_refund_id` Nullable(String),
@@ -53,21 +54,18 @@ CREATE TABLE refund_dist (
     `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `organization_id` String,
+    `profile_id` String,
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX refundTypeIndex refund_type TYPE bloom_filter GRANULARITY 1,
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex refund_status TYPE bloom_filter GRANULARITY 1
-) ENGINE = CollapsingMergeTree(
-    sign_flag
-)
-PARTITION BY toStartOfDay(created_at)
+) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
-    (created_at, merchant_id, refund_id)
-TTL created_at + toIntervalMonth(6)
-;
+    (created_at, merchant_id, refund_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-CREATE MATERIALIZED VIEW kafka_parse_refund TO refund_dist (
+CREATE MATERIALIZED VIEW refund_mv TO refunds (
     `internal_reference_id` String,
     `refund_id` String,
     `payment_id` String,
@@ -91,6 +89,8 @@ CREATE MATERIALIZED VIEW kafka_parse_refund TO refund_dist (
     `created_at` DateTime64(3),
     `modified_at` DateTime64(3),
     `inserted_at` DateTime64(3),
+    `organization_id` String,
+    `profile_id` String,
     `sign_flag` Int8
 ) AS
 SELECT
@@ -116,6 +116,11 @@ SELECT
     refund_error_code,
     created_at,
     modified_at,
-    now() as inserted_at,
+    now() AS inserted_at,
+    organization_id,
+    profile_id,
     sign_flag
-FROM refund_queue;
+FROM
+    refund_queue
+WHERE
+    length(_error) = 0;

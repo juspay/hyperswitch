@@ -1,11 +1,8 @@
 //! Utility macros for the `router` crate.
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
-
 use syn::parse_macro_input;
 
 use crate::macros::diesel::DieselEnumMeta;
-
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -63,7 +60,7 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 /// // yourself if required.
 /// #[derive(strum::Display, strum::EnumString)]
 /// #[derive(Debug)]
-/// #[diesel_enum(storage_type = "pg_enum")]
+/// #[diesel_enum(storage_type = "db_enum")]
 /// enum Color {
 ///     Red,
 ///     Green,
@@ -153,21 +150,22 @@ pub fn diesel_enum(
 /// # Example
 /// ```
 /// use router_derive::Setter;
+///
+/// #[derive(Setter)]
 /// struct Test {
 ///     test:u32
 /// }
 /// ```
 /// The above Example will expand to
-/// ```
+/// ```rust, ignore
 /// impl Test {
-///     fn set_test(&mut self,val:u32)->&mut Self {
+///     fn set_test(&mut self, val: u32) -> &mut Self {
 ///         self.test = val;
 ///         self
 ///     }
 /// }
 /// ```
 ///
-
 /// # Panics
 ///
 /// Panics if a struct without named fields is provided as input to the macro
@@ -290,7 +288,7 @@ fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
 /// # The Generated `Serialize` Implementation
 ///
 /// - For a simple enum variant with no fields, the generated [`Serialize`][Serialize]
-/// implementation has only three fields, `type`, `code` and `message`:
+///   implementation has only three fields, `type`, `code` and `message`:
 ///
 /// ```
 /// # use router_derive::ApiError;
@@ -320,8 +318,8 @@ fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
 /// ```
 ///
 /// - For an enum variant with named fields, the generated [`Serialize`][Serialize] implementation
-/// includes three mandatory fields, `type`, `code` and `message`, and any other fields not
-/// included in the message:
+///   includes three mandatory fields, `type`, `code` and `message`, and any other fields not
+///   included in the message:
 ///
 /// ```
 /// # use router_derive::ApiError;
@@ -381,7 +379,7 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// - update_tracker
 ///
 /// ## Example
-/// ```
+/// ```rust, ignore
 /// use router_derive::Operation;
 ///
 /// #[derive(Operation)]
@@ -470,12 +468,14 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// Generates different schemas with the ability to mark few fields as mandatory for certain schema
 /// Usage
 /// ```
+/// use router_derive::PolymorphicSchema;
+///
 /// #[derive(PolymorphicSchema)]
 /// #[generate_schemas(PaymentsCreateRequest, PaymentsConfirmRequest)]
 /// struct PaymentsRequest {
-///     #[mandatory_in(PaymentsCreateRequest)]
+///     #[mandatory_in(PaymentsCreateRequest = u64)]
 ///     amount: Option<u64>,
-///     #[mandatory_in(PaymentsCreateRequest)]
+///     #[mandatory_in(PaymentsCreateRequest = String)]
 ///     currency: Option<String>,
 ///     payment_method: String,
 /// }
@@ -504,7 +504,6 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 ///     payment_method: String,
 /// }
 /// ```
-
 #[proc_macro_derive(
     PolymorphicSchema,
     attributes(mandatory_in, generate_schemas, remove_in)
@@ -520,6 +519,17 @@ pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// Implements the `Validate` trait to check if the config variable is present
 /// Usage
 /// ```
+/// use router_derive::ConfigValidate;
+///
+/// #[derive(ConfigValidate)]
+/// struct ConnectorParams {
+///     base_url: String,
+/// }
+///
+/// enum ApplicationError {
+///     InvalidConfigurationValueError(String),
+/// }
+///
 /// #[derive(ConfigValidate)]
 /// struct Connectors {
 ///     pub stripe: ConnectorParams,
@@ -529,7 +539,7 @@ pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///
 /// This will call the `validate()` function for all the fields in the struct
 ///
-/// ```
+/// ```rust, ignore
 /// impl Connectors {
 ///      fn validate(&self) -> Result<(), ApplicationError> {
 ///         self.stripe.validate()?;
@@ -549,9 +559,26 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// Generates the function to get the value out of enum variant
 /// Usage
 /// ```
+/// use router_derive::TryGetEnumVariant;
+///
+/// impl std::fmt::Display for RedisError {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+///         match self {
+///             Self::UnknownResult => write!(f, "Unknown result")
+///         }
+///     }
+/// }
+///
+/// impl std::error::Error for RedisError {}
+///
+/// #[derive(Debug)]
+/// enum RedisError {
+///     UnknownResult
+/// }
+///
 /// #[derive(TryGetEnumVariant)]
-/// #[error(RedisError(UnknownResult))]
-/// enum Result {
+/// #[error(RedisError::UnknownResult)]
+/// enum RedisResult {
 ///     Set(String),
 ///     Get(i32)
 /// }
@@ -559,8 +586,8 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///
 /// This will generate the function to get `String` and `i32` out of the variants
 ///
-/// ```
-/// impl Result {
+/// ```rust, ignore
+/// impl RedisResult {
 ///     fn try_into_get(&self)-> Result<i32, RedisError> {
 ///         match self {
 ///             Self::Get(a) => Ok(a),
@@ -575,11 +602,165 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///         }
 ///     }
 /// }
+/// ```
 #[proc_macro_derive(TryGetEnumVariant, attributes(error))]
 pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
     macros::try_get_enum::try_get_enum_variant(input)
         .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}
+
+/// Uses the [`Serialize`] implementation of a type to derive a function implementation
+/// for converting nested keys structure into a HashMap of key, value where key is in
+/// the flattened form.
+///
+/// Example
+///
+/// ```
+/// #[derive(Default, Serialize, FlatStruct)]
+/// pub struct User {
+///     name: String,
+///     address: Address,
+///     email: String,
+/// }
+///
+/// #[derive(Default, Serialize)]
+/// pub struct Address {
+///     line1: String,
+///     line2: String,
+///     zip: String,
+/// }
+///
+/// let user = User::default();
+/// let flat_struct_map = user.flat_struct();
+///
+/// [
+///     ("name", "Test"),
+///     ("address.line1", "1397"),
+///     ("address.line2", "Some street"),
+///     ("address.zip", "941222"),
+///     ("email", "test@example.com"),
+/// ]
+/// ```
+#[proc_macro_derive(FlatStruct)]
+pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    let name = &input.ident;
+
+    let expanded = quote::quote! {
+        impl #name {
+            pub fn flat_struct(&self) -> std::collections::HashMap<String, String> {
+                use serde_json::Value;
+                use std::collections::HashMap;
+
+                fn flatten_value(
+                    value: &Value,
+                    prefix: &str,
+                    result: &mut HashMap<String, String>
+                ) {
+                    match value {
+                        Value::Object(map) => {
+                            for (key, val) in map {
+                                let new_key = if prefix.is_empty() {
+                                    key.to_string()
+                                } else {
+                                    format!("{}.{}", prefix, key)
+                                };
+                                flatten_value(val, &new_key, result);
+                            }
+                        }
+                        Value::String(s) => {
+                            result.insert(prefix.to_string(), s.clone());
+                        }
+                        Value::Number(n) => {
+                            result.insert(prefix.to_string(), n.to_string());
+                        }
+                        Value::Bool(b) => {
+                            result.insert(prefix.to_string(), b.to_string());
+                        }
+                        _ => {}
+                    }
+                }
+
+                let mut result = HashMap::new();
+                let value = serde_json::to_value(self).unwrap();
+                flatten_value(&value, "", &mut result);
+                result
+            }
+        }
+    };
+
+    proc_macro::TokenStream::from(expanded)
+}
+
+/// Generates the permissions enum and implematations for the permissions
+///
+/// **NOTE:** You have to make sure that all the identifiers used
+/// in the macro input are present in the respective enums as well.
+///
+/// ## Usage
+/// ```
+/// use router_derive::generate_permissions;
+///
+/// enum Scope {
+///     Read,
+///     Write,
+/// }
+///
+/// enum EntityType {
+///    Profile,
+///    Merchant,
+///    Org,
+/// }
+///
+/// enum Resource {
+///    Payments,
+///    Refunds,
+/// }
+///
+/// generate_permissions! {
+///     permissions: [
+///         Payments: {
+///             scopes: [Read, Write],
+///             entities: [Profile, Merchant, Org]
+///         },
+///         Refunds: {
+///             scopes: [Read],
+///             entities: [Profile, Org]
+///         }
+///     ]
+/// }
+/// ```
+/// This will generate the following enum.
+/// ```
+/// enum Permission {
+///    ProfilePaymentsRead,
+///    ProfilePaymentsWrite,
+///    MerchantPaymentsRead,
+///    MerchantPaymentsWrite,
+///    OrgPaymentsRead,
+///    OrgPaymentsWrite,
+///    ProfileRefundsRead,
+///    OrgRefundsRead,
+/// ```
+#[proc_macro]
+pub fn generate_permissions(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    macros::generate_permissions_inner(input)
+}
+
+/// Generates the ToEncryptable trait for a type
+///
+/// This macro generates the temporary structs which has the fields that needs to be encrypted
+///
+/// fn to_encryptable: Convert the temp struct to a hashmap that can be sent over the network
+/// fn from_encryptable: Convert the hashmap back to temp struct
+#[proc_macro_derive(ToEncryption, attributes(encrypt))]
+pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::derive_to_encryption(input)
+        .unwrap_or_else(|err| err.into_compile_error())
         .into()
 }

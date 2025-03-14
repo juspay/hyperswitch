@@ -1,18 +1,44 @@
+use api_models::payments::Amount;
+use common_utils::types::MinorUnit;
+use diesel_models::fraud_check::FraudCheck;
 use events::{Event, EventInfo};
 use serde::Serialize;
 use time::PrimitiveDateTime;
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type")]
 pub enum AuditEventType {
-    Error { error_message: String },
+    Error {
+        error_message: String,
+    },
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentCancelled { cancellation_reason: Option<String> },
+    PaymentConfirm {
+        client_src: Option<String>,
+        client_ver: Option<String>,
+        frm_message: Box<Option<FraudCheck>>,
+    },
+    PaymentCancelled {
+        cancellation_reason: Option<String>,
+    },
+    PaymentCapture {
+        capture_amount: Option<MinorUnit>,
+        multiple_capture_count: Option<i16>,
+    },
+    PaymentUpdate {
+        amount: Amount,
+    },
+    PaymentApprove,
+    PaymentCreate,
+    PaymentStatus,
+    PaymentCompleteAuthorize,
+    PaymentReject {
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,12 +69,20 @@ impl Event for AuditEvent {
         let event_type = match &self.event_type {
             AuditEventType::Error { .. } => "error",
             AuditEventType::PaymentCreated => "payment_created",
+            AuditEventType::PaymentConfirm { .. } => "payment_confirm",
             AuditEventType::ConnectorDecided => "connector_decided",
             AuditEventType::ConnectorCalled => "connector_called",
+            AuditEventType::PaymentCapture { .. } => "payment_capture",
             AuditEventType::RefundCreated => "refund_created",
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
             AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
+            AuditEventType::PaymentUpdate { .. } => "payment_update",
+            AuditEventType::PaymentApprove { .. } => "payment_approve",
+            AuditEventType::PaymentCreate { .. } => "payment_create",
+            AuditEventType::PaymentStatus { .. } => "payment_status",
+            AuditEventType::PaymentCompleteAuthorize => "payment_complete_authorize",
+            AuditEventType::PaymentReject { .. } => "payment_rejected",
         };
         format!(
             "{event_type}-{}",

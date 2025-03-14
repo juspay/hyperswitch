@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetrics, SdkEventMetricsBucketIdentifier,
@@ -11,37 +13,25 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, MetricsResult},
 };
 
-mod authentication_unsuccessful_count;
 mod average_payment_time;
+mod load_time;
 mod payment_attempts;
 mod payment_data_filled_count;
 mod payment_method_selected_count;
 mod payment_methods_call_count;
 mod sdk_initiated_count;
 mod sdk_rendered_count;
-mod three_ds_challenge_flow_count;
-mod three_ds_frictionless_flow_count;
-mod three_ds_method_invoked_count;
-mod three_ds_method_skipped_count;
-mod three_ds_method_successful_count;
-mod three_ds_method_unsuccessful_count;
 
-use authentication_unsuccessful_count::AuthenticationUnsuccessfulCount;
 use average_payment_time::AveragePaymentTime;
+use load_time::LoadTime;
 use payment_attempts::PaymentAttempts;
 use payment_data_filled_count::PaymentDataFilledCount;
 use payment_method_selected_count::PaymentMethodSelectedCount;
 use payment_methods_call_count::PaymentMethodsCallCount;
 use sdk_initiated_count::SdkInitiatedCount;
 use sdk_rendered_count::SdkRenderedCount;
-use three_ds_challenge_flow_count::ThreeDsChallengeFlowCount;
-use three_ds_frictionless_flow_count::ThreeDsFrictionlessFlowCount;
-use three_ds_method_invoked_count::ThreeDsMethodInvokedCount;
-use three_ds_method_skipped_count::ThreeDsMethodSkippedCount;
-use three_ds_method_successful_count::ThreeDsMethodSuccessfulCount;
-use three_ds_method_unsuccessful_count::ThreeDsMethodUnsuccessfulCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct SdkEventMetricRow {
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -66,10 +56,10 @@ where
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -87,10 +77,10 @@ where
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
             Self::PaymentAttempts => {
                 PaymentAttempts
@@ -176,80 +166,8 @@ where
                     )
                     .await
             }
-            Self::ThreeDsMethodSkippedCount => {
-                ThreeDsMethodSkippedCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodInvokedCount => {
-                ThreeDsMethodInvokedCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodSuccessfulCount => {
-                ThreeDsMethodSuccessfulCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsMethodUnsuccessfulCount => {
-                ThreeDsMethodUnsuccessfulCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::AuthenticationUnsuccessfulCount => {
-                AuthenticationUnsuccessfulCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsChallengeFlowCount => {
-                ThreeDsChallengeFlowCount
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::ThreeDsFrictionlessFlowCount => {
-                ThreeDsFrictionlessFlowCount
+            Self::LoadTime => {
+                LoadTime
                     .load_metrics(
                         dimensions,
                         publishable_key,

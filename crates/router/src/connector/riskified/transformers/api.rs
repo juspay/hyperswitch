@@ -1,5 +1,10 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::{
+    ext_traits::ValueExt,
+    id_type,
+    pii::Email,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -7,16 +12,36 @@ use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{
-        AddressDetailsData, FraudCheckCheckoutRequest, FraudCheckTransactionRequest, RouterData,
+        convert_amount, AddressDetailsData, FraudCheckCheckoutRequest,
+        FraudCheckTransactionRequest, RouterData,
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        self,
+        api::{self, Fulfillment},
+        fraud_check as frm_types,
+        storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
     },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+pub struct RiskifiedRouterData<T> {
+    pub amount: StringMajorUnit,
+    pub router_data: T,
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl<T> From<(StringMajorUnit, T)> for RiskifiedRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct RiskifiedPaymentsCheckoutRequest {
@@ -35,7 +60,7 @@ pub struct CheckoutRequest {
     updated_at: PrimitiveDateTime,
     gateway: Option<String>,
     browser_ip: Option<std::net::IpAddr>,
-    total_price: i64,
+    total_price: StringMajorUnit,
     total_discounts: i64,
     cart_token: String,
     referring_site: String,
@@ -60,13 +85,13 @@ pub struct PaymentDetails {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct ShippingLines {
-    price: i64,
+    price: StringMajorUnit,
     title: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct DiscountCodes {
-    amount: i64,
+    amount: StringMajorUnit,
     code: Option<String>,
 }
 
@@ -84,7 +109,7 @@ pub struct RiskifiedCustomer {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     verified_email: bool,
-    id: String,
+    id: id_type::CustomerId,
     account_type: CustomerAccountType,
     orders_count: i32,
     phone: Option<Secret<String>>,
@@ -110,10 +135,10 @@ pub struct OrderAddress {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct LineItem {
-    price: i64,
+    price: StringMajorUnit,
     quantity: i32,
     title: String,
-    product_type: Option<api_models::payments::ProductType>,
+    product_type: Option<common_enums::ProductType>,
     requires_shipping: Option<bool>,
     product_id: Option<String>,
     category: Option<String>,
@@ -132,9 +157,14 @@ pub struct RiskifiedMetadata {
     shipping_lines: Vec<ShippingLines>,
 }
 
-impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutRequest {
+impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
+    for RiskifiedPaymentsCheckoutRequest
+{
     type Error = Error;
-    fn try_from(payment_data: &frm_types::FrmCheckoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        payment: &RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let payment_data = payment.router_data.clone();
         let metadata: RiskifiedMetadata = payment_data
             .frm_metadata
             .clone()
@@ -142,11 +172,39 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 field_name: "frm_metadata",
             })?
             .parse_value("Riskified Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
         let billing_address = payment_data.get_billing()?;
         let shipping_address = payment_data.get_shipping_address_with_phone_number()?;
         let address = payment_data.get_billing_address()?;
+        let line_items = payment_data
+            .request
+            .get_order_details()?
+            .iter()
+            .map(|order_detail| {
+                let price = convert_amount(
+                    payment.amount_converter,
+                    order_detail.amount,
+                    payment_data.request.currency.ok_or_else(|| {
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "currency",
+                        }
+                    })?,
+                )?;
+
+                Ok(LineItem {
+                    price,
+                    quantity: i32::from(order_detail.quantity),
+                    title: order_detail.product_name.clone(),
+                    product_type: order_detail.product_type.clone(),
+                    requires_shipping: order_detail.requires_shipping,
+                    product_id: order_detail.product_id.clone(),
+                    category: order_detail.category.clone(),
+                    brand: order_detail.brand.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, Self::Error>>()?;
 
         Ok(Self {
             order: CheckoutRequest {
@@ -155,23 +213,9 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 created_at: common_utils::date_time::now(),
                 updated_at: common_utils::date_time::now(),
                 gateway: payment_data.request.gateway.clone(),
-                total_price: payment_data.request.amount,
+                total_price: payment.amount.clone(),
                 cart_token: payment_data.attempt_id.clone(),
-                line_items: payment_data
-                    .request
-                    .get_order_details()?
-                    .iter()
-                    .map(|order_detail| LineItem {
-                        price: order_detail.amount,
-                        quantity: i32::from(order_detail.quantity),
-                        title: order_detail.product_name.clone(),
-                        product_type: order_detail.product_type.clone(),
-                        requires_shipping: order_detail.requires_shipping,
-                        product_id: order_detail.product_id.clone(),
-                        category: order_detail.category.clone(),
-                        brand: order_detail.brand.clone(),
-                    })
-                    .collect::<Vec<_>>(),
+                line_items,
                 source: Source::DesktopWeb,
                 billing_address: OrderAddress::try_from(billing_address).ok(),
                 shipping_address: OrderAddress::try_from(shipping_address).ok(),
@@ -410,7 +454,7 @@ pub struct SuccessfulTransactionData {
 pub struct TransactionDecisionData {
     external_status: TransactionStatus,
     reason: Option<String>,
-    amount: i64,
+    amount: StringMajorUnit,
     currency: storage_enums::Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     decided_at: PrimitiveDateTime,
@@ -428,16 +472,21 @@ pub enum TransactionStatus {
     Approved,
 }
 
-impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest {
+impl TryFrom<&RiskifiedRouterData<&frm_types::FrmTransactionRouterData>>
+    for TransactionSuccessRequest
+{
     type Error = Error;
-    fn try_from(item: &frm_types::FrmTransactionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &RiskifiedRouterData<&frm_types::FrmTransactionRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data.clone();
         Ok(Self {
             order: SuccessfulTransactionData {
                 id: item.attempt_id.clone(),
                 decision: TransactionDecisionData {
                     external_status: TransactionStatus::Approved,
                     reason: None,
-                    amount: item.request.amount,
+                    amount: item_data.amount.clone(),
                     currency: item.request.get_currency()?,
                     decided_at: common_utils::date_time::now(),
                     payment_details: [TransactionPaymentDetails {
@@ -484,6 +533,21 @@ pub struct FulfilmentData {
 impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
     type Error = Error;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
+        let tracking_number = item
+            .request
+            .fulfillment_req
+            .tracking_numbers
+            .as_ref()
+            .and_then(|numbers| numbers.first().cloned())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "tracking_number",
+            })?;
+        let tracking_url = item
+            .request
+            .fulfillment_req
+            .tracking_urls
+            .as_ref()
+            .and_then(|urls| urls.first().cloned().map(|url| url.to_string()));
         Ok(Self {
             order: OrderFulfillment {
                 id: item.attempt_id.clone(),
@@ -504,12 +568,8 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentReque
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "tracking_company",
                         })?,
-                    tracking_number: item.request.fulfillment_req.tracking_number.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "tracking_number",
-                        },
-                    )?,
-                    tracking_url: item.request.fulfillment_req.tracking_url.clone(),
+                    tracking_number,
+                    tracking_url,
                 },
             },
         })
@@ -560,9 +620,11 @@ pub struct ErrorData {
     pub message: String,
 }
 
-impl TryFrom<&api_models::payments::Address> for OrderAddress {
+impl TryFrom<&hyperswitch_domain_models::address::Address> for OrderAddress {
     type Error = Error;
-    fn try_from(address_info: &api_models::payments::Address) -> Result<Self, Self::Error> {
+    fn try_from(
+        address_info: &hyperswitch_domain_models::address::Address,
+    ) -> Result<Self, Self::Error> {
         let address =
             address_info
                 .clone()
@@ -593,5 +655,26 @@ fn get_fulfillment_status(
         core_types::FulfillmentStatus::COMPLETE => Some(FulfillmentRequestStatus::Success),
         core_types::FulfillmentStatus::CANCELED => Some(FulfillmentRequestStatus::Cancelled),
         core_types::FulfillmentStatus::PARTIAL | core_types::FulfillmentStatus::REPLACEMENT => None,
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RiskifiedWebhookBody {
+    pub id: String,
+    pub status: RiskifiedWebhookStatus,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum RiskifiedWebhookStatus {
+    Approved,
+    Declined,
+}
+
+impl From<RiskifiedWebhookStatus> for api::IncomingWebhookEvent {
+    fn from(value: RiskifiedWebhookStatus) -> Self {
+        match value {
+            RiskifiedWebhookStatus::Declined => Self::FrmRejected,
+            RiskifiedWebhookStatus::Approved => Self::FrmApproved,
+        }
     }
 }

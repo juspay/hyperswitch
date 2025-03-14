@@ -38,6 +38,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
     fn from(value: enums::WalletType) -> Self {
         match value {
             enums::WalletType::GooglePay => Self::GooglePay,
+            enums::WalletType::AmazonPay => Self::AmazonPay,
             enums::WalletType::ApplePay => Self::ApplePay,
             enums::WalletType::Paypal => Self::Paypal,
             enums::WalletType::AliPay => Self::AliPay,
@@ -56,6 +57,9 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::TouchNGo => Self::TouchNGo,
             enums::WalletType::Swish => Self::Swish,
             enums::WalletType::Cashapp => Self::Cashapp,
+            enums::WalletType::Venmo => Self::Venmo,
+            enums::WalletType::Mifinity => Self::Mifinity,
+            enums::WalletType::Paze => Self::Paze,
         }
     }
 }
@@ -74,6 +78,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
     fn from(value: enums::UpiType) -> Self {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
+            enums::UpiType::UpiIntent => Self::UpiIntent,
         }
     }
 }
@@ -140,6 +145,14 @@ impl From<enums::CardRedirectType> for global_enums::PaymentMethodType {
     }
 }
 
+impl From<enums::MobilePaymentType> for global_enums::PaymentMethodType {
+    fn from(value: enums::MobilePaymentType) -> Self {
+        match value {
+            enums::MobilePaymentType::DirectCarrierBilling => Self::DirectCarrierBilling,
+        }
+    }
+}
+
 impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
     fn from(value: enums::BankRedirectType) -> Self {
         match value {
@@ -147,10 +160,12 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::Giropay => Self::Giropay,
             enums::BankRedirectType::Ideal => Self::Ideal,
             enums::BankRedirectType::Sofort => Self::Sofort,
+            enums::BankRedirectType::Eft => Self::Eft,
             enums::BankRedirectType::Eps => Self::Eps,
             enums::BankRedirectType::BancontactCard => Self::BancontactCard,
             enums::BankRedirectType::Blik => Self::Blik,
             enums::BankRedirectType::Interac => Self::Interac,
+            enums::BankRedirectType::LocalBankRedirect => Self::LocalBankRedirect,
             enums::BankRedirectType::OnlineBankingCzechRepublic => Self::OnlineBankingCzechRepublic,
             enums::BankRedirectType::OnlineBankingFinland => Self::OnlineBankingFinland,
             enums::BankRedirectType::OnlineBankingPoland => Self::OnlineBankingPoland,
@@ -160,6 +175,14 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::OpenBankingUk => Self::OpenBankingUk,
             enums::BankRedirectType::Przelewy24 => Self::Przelewy24,
             enums::BankRedirectType::Trustly => Self::Trustly,
+        }
+    }
+}
+
+impl From<enums::OpenBankingType> for global_enums::PaymentMethodType {
+    fn from(value: enums::OpenBankingType) -> Self {
+        match value {
+            enums::OpenBankingType::OpenBankingPIS => Self::OpenBankingPIS,
         }
     }
 }
@@ -177,6 +200,17 @@ impl From<enums::RewardType> for global_enums::PaymentMethodType {
         match value {
             enums::RewardType::ClassicReward => Self::ClassicReward,
             enums::RewardType::Evoucher => Self::Evoucher,
+        }
+    }
+}
+
+impl From<enums::RealTimePaymentType> for global_enums::PaymentMethodType {
+    fn from(value: enums::RealTimePaymentType) -> Self {
+        match value {
+            enums::RealTimePaymentType::Fps => Self::Fps,
+            enums::RealTimePaymentType::DuitNow => Self::DuitNow,
+            enums::RealTimePaymentType::PromptPay => Self::PromptPay,
+            enums::RealTimePaymentType::VietQr => Self::VietQr,
         }
     }
 }
@@ -206,6 +240,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::CardRedirectType(crt) => EuclidValue::PaymentMethodType(crt.into()),
         dir::DirValue::BankRedirectType(brt) => EuclidValue::PaymentMethodType(brt.into()),
         dir::DirValue::CryptoType(ct) => EuclidValue::PaymentMethodType(ct.into()),
+        dir::DirValue::RealTimePaymentType(rtpt) => EuclidValue::PaymentMethodType(rtpt.into()),
         dir::DirValue::AuthenticationType(at) => EuclidValue::AuthenticationType(at),
         dir::DirValue::CaptureMethod(cm) => EuclidValue::CaptureMethod(cm),
         dir::DirValue::PaymentAmount(pa) => EuclidValue::PaymentAmount(pa),
@@ -222,6 +257,8 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::RewardType(rt) => EuclidValue::PaymentMethodType(rt.into()),
         dir::DirValue::BusinessLabel(bl) => EuclidValue::BusinessLabel(bl),
         dir::DirValue::SetupFutureUsage(sfu) => EuclidValue::SetupFutureUsage(sfu),
+        dir::DirValue::OpenBankingType(ob) => EuclidValue::PaymentMethodType(ob.into()),
+        dir::DirValue::MobilePaymentType(mp) => EuclidValue::PaymentMethodType(mp.into()),
     })
 }
 

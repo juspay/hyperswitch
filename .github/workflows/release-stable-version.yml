@@ -98,27 +98,27 @@ jobs:
           toolchain: stable
 
       - name: Install git-cliff
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: git-cliff
-          version: 1.4.0
+          tool: git-cliff
+          checksum: true
 
-      - name: Install convco
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install cocogitto
+        uses: taiki-e/install-action@v2
         with:
-          crate: convco
-          version: 0.5.0
+          tool: cocogitto
+          checksum: true
 
       - name: Obtain previous and next tag information
         shell: bash
         run: |
-          PREVIOUS_TAG="v$(convco version --prefix 'v')"
-          NEXT_TAG="v$(convco version --prefix 'v' "--${{ inputs.bump_type }}")"
+          PREVIOUS_TAG="v$(cog --verbose get-version)"
+          NEXT_TAG="$(cog --verbose bump --dry-run "--${{ inputs.bump_type }}")"
 
           echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> $GITHUB_ENV
           echo "NEXT_TAG=${NEXT_TAG}" >> $GITHUB_ENV
 
-        # We make use of GitHub API calls to create the tag to have signed tags
+        # We make use of GitHub API calls to create and update tags
       - name: Create SemVer tag
         shell: bash
         env:
@@ -131,6 +131,18 @@ jobs:
             --header 'X-GitHub-Api-Version: 2022-11-28' \
             '/repos/{owner}/{repo}/git/refs' \
             --raw-field "ref=refs/tags/${NEXT_TAG}" \
+            --raw-field 'sha=${{ github.sha }}'
+
+      - name: Update `latest` tag to point to newly created SemVer tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+        run: |
+          gh api \
+            --method PATCH \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/{owner}/{repo}/git/refs/tags/latest' \
             --raw-field 'sha=${{ github.sha }}'
 
       - name: Generate changelog

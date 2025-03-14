@@ -25,13 +25,13 @@ CREATE TABLE payout_queue (
     `is_eligible` Nullable(Bool),
     `error_message` Nullable(String),
     `error_code` Nullable(String),
-    `business_country` Nullable(LowCardinality(String)),
+    `business_country` LowCardinality(Nullable(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payout-events',
-kafka_group_name = 'hyper-c1',
+kafka_group_name = 'hyper',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
@@ -42,7 +42,7 @@ CREATE TABLE payout (
     `customer_id` String,
     `address_id` String,
     `profile_id` String,
-    `payout_method_id` String,
+    `payout_method_id` Nullable(String),
     `payout_type` LowCardinality(String),
     `amount` UInt64,
     `destination_currency` LowCardinality(String),
@@ -62,7 +62,7 @@ CREATE TABLE payout (
     `is_eligible` Nullable(Bool),
     `error_message` Nullable(String),
     `error_code` Nullable(String),
-    `business_country` Nullable(LowCardinality(String)),
+    `business_country` LowCardinality(Nullable(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
@@ -75,16 +75,16 @@ CREATE TABLE payout (
     INDEX businessCountryIndex business_country TYPE bloom_filter GRANULARITY 1
 ) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
-    (created_at, merchant_id, payout_id) TTL created_at + toIntervalMonth(6);
+    (created_at, merchant_id, payout_id) TTL created_at + toIntervalMonth(6) SETTINGS index_granularity = 8192;
 
-CREATE MATERIALIZED VIEW kafka_parse_payout TO payout (
+CREATE MATERIALIZED VIEW payout_mv TO payout (
     `payout_id` String,
     `payout_attempt_id` String,
     `merchant_id` String,
     `customer_id` String,
     `address_id` String,
     `profile_id` String,
-    `payout_method_id` String,
+    `payout_method_id` Nullable(String),
     `payout_type` LowCardinality(String),
     `amount` UInt64,
     `destination_currency` LowCardinality(String),
@@ -95,8 +95,8 @@ CREATE MATERIALIZED VIEW kafka_parse_payout TO payout (
     `return_url` Nullable(String),
     `entity_type` LowCardinality(String),
     `metadata` Nullable(String),
-    `created_at` DateTime64(3),
-    `last_modified_at` DateTime64(3),
+    `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `last_modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `attempt_count` UInt16,
     `status` LowCardinality(String),
     `connector` Nullable(String),
@@ -104,11 +104,11 @@ CREATE MATERIALIZED VIEW kafka_parse_payout TO payout (
     `is_eligible` Nullable(Bool),
     `error_message` Nullable(String),
     `error_code` Nullable(String),
-    `business_country` Nullable(LowCardinality(String)),
+    `business_country` LowCardinality(Nullable(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
-    `inserted_at` DateTime64(3),
-    `sign_flag` Int8
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `sign_flag` Int8,
 ) AS
 SELECT
     payout_id,

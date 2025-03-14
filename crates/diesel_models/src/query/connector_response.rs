@@ -22,6 +22,7 @@ impl ConnectorResponseNew {
             connector_transaction_id: self.connector_transaction_id.clone(),
             connector: self.connector_name.clone(),
             updated_by: self.updated_by.clone(),
+            charge_id: self.charge_id.clone(),
         };
 
         let _payment_attempt: Result<PaymentAttempt, _> =
@@ -38,12 +39,11 @@ impl ConnectorResponseNew {
                 PaymentAttemptUpdateInternal::from(payment_attempt_update),
             )
             .await
-            .map_err(|err| {
+            .inspect_err(|err| {
                 logger::error!(
                     "Error while updating payment attempt in connector_response flow {:?}",
                     err
                 );
-                err
             });
 
         generics::generic_insert(conn, self).await
@@ -63,12 +63,14 @@ impl ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_name,
+                charge_id,
                 updated_by,
             } => PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
                 connector: connector_name,
+                charge_id,
                 updated_by,
             },
             ConnectorResponseUpdate::ErrorUpdate {
@@ -79,6 +81,7 @@ impl ConnectorResponse {
                 encoded_data: None,
                 connector_transaction_id: None,
                 connector: connector_name,
+                charge_id: None,
                 updated_by,
             },
         };
@@ -97,12 +100,11 @@ impl ConnectorResponse {
                 PaymentAttemptUpdateInternal::from(payment_attempt_update),
             )
             .await
-            .map_err(|err| {
+            .inspect_err(|err| {
                 logger::error!(
                     "Error while updating payment attempt in connector_response flow {:?}",
                     err
                 );
-                err
             });
 
         let connector_response_result =
@@ -134,8 +136,8 @@ impl ConnectorResponse {
     #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
     ) -> StorageResult<Self> {
         let connector_response: Self =

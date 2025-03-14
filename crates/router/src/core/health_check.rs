@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use analytics::health_check::HealthCheck;
+#[cfg(feature = "dynamic_routing")]
+use api_models::health_check::HealthCheckMap;
 use api_models::health_check::HealthState;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -23,10 +25,20 @@ pub trait HealthCheckInterface {
     #[cfg(feature = "olap")]
     async fn health_check_analytics(&self)
         -> CustomResult<HealthState, errors::HealthCheckDBError>;
+
+    #[cfg(feature = "olap")]
+    async fn health_check_opensearch(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDBError>;
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_grpc(
+        &self,
+    ) -> CustomResult<HealthCheckMap, errors::HealthCheckGRPCServiceError>;
 }
 
 #[async_trait::async_trait]
-impl HealthCheckInterface for app::AppState {
+impl HealthCheckInterface for app::SessionState {
     async fn health_check_db(&self) -> CustomResult<HealthState, errors::HealthCheckDBError> {
         let db = &*self.store;
         db.health_check_db().await?;
@@ -40,21 +52,21 @@ impl HealthCheckInterface for app::AppState {
             .change_context(errors::HealthCheckRedisError::RedisConnectionError)?;
 
         redis_conn
-            .serialize_and_set_key_with_expiry("test_key", "test_value", 30)
+            .serialize_and_set_key_with_expiry(&"test_key".into(), "test_value", 30)
             .await
             .change_context(errors::HealthCheckRedisError::SetFailed)?;
 
         logger::debug!("Redis set_key was successful");
 
         redis_conn
-            .get_key("test_key")
+            .get_key::<()>(&"test_key".into())
             .await
             .change_context(errors::HealthCheckRedisError::GetFailed)?;
 
         logger::debug!("Redis get_key was successful");
 
         redis_conn
-            .delete_key("test_key")
+            .delete_key(&"test_key".into())
             .await
             .change_context(errors::HealthCheckRedisError::DeleteFailed)?;
 
@@ -122,6 +134,18 @@ impl HealthCheckInterface for app::AppState {
         Ok(HealthState::Running)
     }
 
+    #[cfg(feature = "olap")]
+    async fn health_check_opensearch(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
+        self.opensearch_client
+            .deep_health_check()
+            .await
+            .change_context(errors::HealthCheckDBError::OpensearchError)?;
+
+        Ok(HealthState::Running)
+    }
+
     async fn health_check_outgoing(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckOutGoing> {
@@ -140,5 +164,21 @@ impl HealthCheckInterface for app::AppState {
 
         logger::debug!("Outgoing request successful");
         Ok(HealthState::Running)
+    }
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_grpc(
+        &self,
+    ) -> CustomResult<HealthCheckMap, errors::HealthCheckGRPCServiceError> {
+        let health_client = &self.grpc_client.health_client;
+        let grpc_config = &self.conf.grpc_client;
+
+        let health_check_map = health_client
+            .perform_health_check(grpc_config)
+            .await
+            .change_context(errors::HealthCheckGRPCServiceError::FailedToCallService)?;
+
+        logger::debug!("Health check successful");
+        Ok(health_check_map)
     }
 }

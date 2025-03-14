@@ -4,8 +4,8 @@ use error_stack::ResultExt;
 use super::errors::StorageErrorExt;
 use crate::{
     consts,
-    core::errors::{api_error_response::NotImplementedMessage, ApiErrorResponse, RouterResult},
-    routes::{app::settings, AppState},
+    core::errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
+    routes::{app::settings, SessionState},
     types::{self, api::enums},
 };
 
@@ -41,37 +41,48 @@ pub fn is_enabled(
 }
 
 pub async fn check_if_connector_exists(
-    state: &AppState,
-    connector_id: &str,
-    merchant_id: &str,
+    state: &SessionState,
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<()> {
+    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
+    #[cfg(feature = "v1")]
     let _connector = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
             merchant_id,
             connector_id,
             &key_store,
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: connector_id.to_string(),
+            id: connector_id.get_string_repr().to_string(),
         })?;
+
+    #[cfg(feature = "v2")]
+    {
+        let _ = connector_id;
+        let _ = key_store;
+        todo!()
+    };
 
     Ok(())
 }
 
 pub async fn set_tracking_id_in_configs(
-    state: &AppState,
-    connector_id: &str,
+    state: &SessionState,
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     connector: enums::Connector,
 ) -> RouterResult<()> {
     let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
@@ -115,8 +126,8 @@ pub async fn set_tracking_id_in_configs(
 }
 
 pub async fn get_tracking_id_from_configs(
-    state: &AppState,
-    connector_id: &str,
+    state: &SessionState,
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     connector: enums::Connector,
 ) -> RouterResult<String> {
     let timestamp = state
@@ -130,14 +141,17 @@ pub async fn get_tracking_id_from_configs(
         .attach_printable("Error getting data from configs table")?
         .config;
 
-    Ok(format!("{}_{}", connector_id, timestamp))
+    Ok(format!("{}_{}", connector_id.get_string_repr(), timestamp))
 }
 
-fn build_key(connector_id: &str, connector: enums::Connector) -> String {
+fn build_key(
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+    connector: enums::Connector,
+) -> String {
     format!(
         "{}_{}_{}",
         consts::CONNECTOR_ONBOARDING_CONFIG_PREFIX,
         connector,
-        connector_id,
+        connector_id.get_string_repr(),
     )
 }

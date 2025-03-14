@@ -1,7 +1,7 @@
-#![allow(unused_variables)]
 use common_utils::errors::ErrorSwitch;
+use hyperswitch_domain_models::errors::api_error_response as errors;
 
-use crate::core::errors::{self, CustomersErrorResponse};
+use crate::core::errors::CustomersErrorResponse;
 
 #[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
@@ -206,7 +206,9 @@ pub enum StripeErrorCode {
     PaymentIntentMandateInvalid { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
-    DuplicatePayment { payment_id: String },
+    DuplicatePayment {
+        payment_id: common_utils::id_type::PaymentId,
+    },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
     ExternalConnectorError {
@@ -262,6 +264,24 @@ pub enum StripeErrorCode {
     CurrencyConversionFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_25", message = "Cannot delete the default payment method")]
     PaymentMethodDeleteFailed,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
+    ExtendedCardInfoNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "not_configured", message = "{message}")]
+    LinkConfigurationError { message: String },
+    #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
+    IntegrityCheckFailed {
+        reason: String,
+        field_names: String,
+        connector_transaction_id: Option<String>,
+    },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_28", message = "Invalid tenant")]
+    InvalidTenant,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
+    AmountConversionFailed { amount_type: &'static str },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Bad Request")]
+    PlatformBadRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
+    PlatformUnauthorizedRequest,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -428,7 +448,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
-            | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
+            | errors::ApiErrorResponse::InvalidEphemeralKey
+            | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
             | errors::ApiErrorResponse::InvalidCardIin
@@ -479,11 +500,11 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PaymentIntentPaymentAttemptFailed { data }
             }
             errors::ApiErrorResponse::DisputeFailed { data } => Self::DisputeFailed { data },
-            errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
-            errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
-            errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
-            errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
-            errors::ApiErrorResponse::PayoutFailed { data } => Self::PayoutFailed,
+            errors::ApiErrorResponse::InvalidCardData { data: _ } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
+            errors::ApiErrorResponse::CardExpired { data: _ } => Self::ExpiredCard,
+            errors::ApiErrorResponse::RefundNotPossible { connector: _ } => Self::RefundFailed,
+            errors::ApiErrorResponse::RefundFailed { data: _ } => Self::RefundFailed, // Nothing at stripe to map
+            errors::ApiErrorResponse::PayoutFailed { data: _ } => Self::PayoutFailed,
 
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
@@ -595,11 +616,15 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "authentication".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
+            errors::ApiErrorResponse::ProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
+            errors::ApiErrorResponse::PollNotFound { id } => Self::ResourceMissing {
+                object: "poll".to_owned(),
+                id,
+            },
+            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason: _ } => {
                 Self::InternalServerError
             }
             errors::ApiErrorResponse::FileValidationFailed { .. } => Self::FileValidationFailed,
@@ -639,6 +664,26 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidWalletToken { wallet_name } => {
                 Self::InvalidWalletToken { wallet_name }
             }
+            errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
+            errors::ApiErrorResponse::LinkConfigurationError { message } => {
+                Self::LinkConfigurationError { message }
+            }
+            errors::ApiErrorResponse::IntegrityCheckFailed {
+                reason,
+                field_names,
+                connector_transaction_id,
+            } => Self::IntegrityCheckFailed {
+                reason,
+                field_names,
+                connector_transaction_id,
+            },
+            errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
+            | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
+            errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
+                Self::AmountConversionFailed { amount_type }
+            }
+            errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
+            errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
         }
     }
 }
@@ -648,7 +693,7 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized | Self::PlatformUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
@@ -710,18 +755,24 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodUnactivated
             | Self::InvalidConnectorConfiguration { .. }
             | Self::CurrencyConversionFailed
-            | Self::PaymentMethodDeleteFailed => StatusCode::BAD_REQUEST,
+            | Self::PaymentMethodDeleteFailed
+            | Self::ExtendedCardInfoNotFound
+            | Self::PlatformBadRequest
+            | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
-            | Self::WebhookProcessingError => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::WebhookProcessingError
+            | Self::InvalidTenant
+            | Self::AmountConversionFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::IntegrityCheckFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::PaymentBlockedError { code, .. } => {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }

@@ -1,4 +1,8 @@
-use common_utils::{consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, events, types::Percentage};
+use common_utils::{
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
+    events,
+    types::{MinorUnit, Percentage},
+};
 use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
@@ -15,7 +19,7 @@ pub struct SurchargeDetailsOutput {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum SurchargeOutput {
-    Fixed { amount: i64 },
+    Fixed { amount: MinorUnit },
     Rate(Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>),
 }
 
@@ -37,6 +41,7 @@ impl EuclidDirFilter for SurchargeDecisionConfigs {
         DirKeyKind::BankRedirectType,
         DirKeyKind::BankDebitType,
         DirKeyKind::CryptoType,
+        DirKeyKind::RealTimePaymentType,
     ];
 }
 

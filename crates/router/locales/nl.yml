@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Je bent niet toegestaan om deze inhoud te bekijken"
+    title: "Betalingslinks"
+  status:
+    title: "Betalingsstatus"
+    info:
+      ref_id: "Referentie-ID"
+      error_code: "Foutcode"
+      error_message: "Foutmelding"
+    message:
+      failed: "Het is niet gelukt om je betaling te verwerken. Controleer bij je aanbieder voor meer details."
+      processing: "Je betaling moet binnen 2-3 werkdagen worden verwerkt."
+      success: "Je betaling is uitgevoerd naar de geselecteerde betaalmethode."
+    redirection_text:
+      redirecting: "Doorverwijzen..."
+      redirecting_in: "Doorverwijzen in"
+      seconds: "seconden..."
+    text:
+      failed: "Betaling Mislukt"
+      processing: "Betaling in Behandeling"
+      success: "Betaling Succesvol"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Januari"
+  february: "Februari"
+  march: "Maart"
+  april: "April"
+  may: "Mei"
+  june: "Juni"
+  july: "Juli"
+  august: "Augustus"
+  september: "September"
+  october: "Oktober"
+  november: "November"
+  december: "December"

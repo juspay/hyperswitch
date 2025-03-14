@@ -28,6 +28,10 @@
     {
       "key": "Accept",
       "value": "application/json"
+    },
+    {
+      "key": "x-merchant-id",
+      "value": "{{merchant_id}}"
     }
   ],
   "body": {
@@ -38,7 +42,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_account_details": {
         "auth_type": "HeaderKey",
         "api_key": "{{connector_api_key}}"

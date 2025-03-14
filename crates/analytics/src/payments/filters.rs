@@ -5,6 +5,7 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
@@ -12,14 +13,14 @@ use crate::{
     },
 };
 
-pub trait PaymentFilterAnalytics: LoadRow<FilterRow> {}
+pub trait PaymentFilterAnalytics: LoadRow<PaymentFilterRow> {}
 
 pub async fn get_payment_filter_for_dimension<T>(
     dimension: PaymentDimensions,
-    merchant: &String,
+    auth: &AuthInfo,
     time_range: &TimeRange,
     pool: &T,
-) -> FiltersResult<Vec<FilterRow>>
+) -> FiltersResult<Vec<PaymentFilterRow>>
 where
     T: AnalyticsDataSource + PaymentFilterAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -36,25 +37,32 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    query_builder
-        .add_filter_clause("merchant_id", merchant)
-        .switch()?;
+    auth.set_filter_clause(&mut query_builder).switch()?;
 
     query_builder.set_distinct();
 
     query_builder
-        .execute_query::<FilterRow, _>(pool)
+        .execute_query::<PaymentFilterRow, _>(pool)
         .await
         .change_context(FiltersError::QueryBuildingError)?
         .change_context(FiltersError::QueryExecutionFailure)
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
-pub struct FilterRow {
+pub struct PaymentFilterRow {
     pub currency: Option<DBEnumWrapper<Currency>>,
     pub status: Option<DBEnumWrapper<AttemptStatus>>,
     pub connector: Option<String>,
     pub authentication_type: Option<DBEnumWrapper<AuthenticationType>>,
     pub payment_method: Option<String>,
     pub payment_method_type: Option<String>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
+    pub profile_id: Option<String>,
+    pub card_network: Option<String>,
+    pub merchant_id: Option<String>,
+    pub card_last_4: Option<String>,
+    pub card_issuer: Option<String>,
+    pub error_reason: Option<String>,
+    pub first_attempt: Option<bool>,
 }

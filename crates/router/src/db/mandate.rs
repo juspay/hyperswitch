@@ -1,4 +1,4 @@
-use error_stack::ResultExt;
+use common_utils::id_type;
 
 use super::MockDb;
 use crate::{
@@ -10,27 +10,34 @@ use crate::{
 pub trait MandateInterface {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError>;
 
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         connector_mandate_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError>;
 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
-        merchant_id: &str,
-        customer_id: &str,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+    ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
+
+    // Fix this function once we move to mandate v2
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_customer_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         mandate_update: storage_types::MandateUpdate,
         mandate: storage_types::Mandate,
@@ -39,7 +46,7 @@ pub trait MandateInterface {
 
     async fn find_mandates_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         mandate_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
@@ -52,12 +59,14 @@ pub trait MandateInterface {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::fallback_reverse_lookup_not_found;
+    use common_utils::{fallback_reverse_lookup_not_found, id_type};
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::MandateInterface;
     use crate::{
@@ -74,7 +83,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_mandate_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             mandate_id: &str,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -88,7 +97,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -100,11 +114,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Mandate>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -118,7 +132,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_connector_mandate_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             connector_mandate_id: &str,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -132,12 +146,20 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let lookup_id =
-                        format!("mid_{}_conn_mandate_{}", merchant_id, connector_mandate_id);
+                    let lookup_id = format!(
+                        "mid_{}_conn_mandate_{}",
+                        merchant_id.get_string_repr(),
+                        connector_mandate_id
+                    );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -150,11 +172,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Mandate>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -168,8 +190,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_customer_id(
             &self,
-            merchant_id: &str,
-            customer_id: &str,
+            merchant_id: &id_type::MerchantId,
+            customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
@@ -177,34 +199,51 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_mandate_by_global_customer_id(
+            &self,
+            id: &id_type::GlobalCustomerId,
+        ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_global_customer_id(&conn, id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[instrument(skip_all)]
         async fn update_mandate_by_merchant_id_mandate_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             mandate_id: &str,
             mandate_update: storage_types::MandateUpdate,
             mandate: storage_types::Mandate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-
+            let key = PartitionKey::MerchantIdMandateId {
+                merchant_id,
+                mandate_id,
+            };
+            let field = format!("mandate_{}", mandate_id);
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, mandate.updated_by.as_deref()),
+            ))
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
                         &conn,
                         merchant_id,
                         mandate_id,
-                        storage_types::MandateUpdateInternal::from(mandate_update),
+                        mandate_update.convert_to_mandate_update(storage_scheme),
                     )
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdMandateId {
-                        merchant_id,
-                        mandate_id,
-                    };
-                    let field = format!("mandate_{}", mandate_id);
                     let key_str = key.to_string();
 
                     if let diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
@@ -215,7 +254,11 @@ mod storage {
                         let rev_lookup = diesel_models::ReverseLookupNew {
                             sk_id: field.clone(),
                             pk_id: key_str.clone(),
-                            lookup_id: format!("mid_{}_conn_mandate_{}", merchant_id, val),
+                            lookup_id: format!(
+                                "mid_{}_conn_mandate_{}",
+                                merchant_id.get_string_repr(),
+                                val
+                            ),
                             source: "mandate".to_string(),
                             updated_by: storage_scheme.to_string(),
                         };
@@ -223,7 +266,7 @@ mod storage {
                             .await?;
                     }
 
-                    let m_update = diesel_models::MandateUpdateInternal::from(mandate_update);
+                    let m_update = mandate_update.convert_to_mandate_update(storage_scheme);
                     let updated_mandate = m_update.clone().apply_changeset(mandate.clone());
 
                     let redis_value = serde_json::to_string(&updated_mandate)
@@ -231,21 +274,23 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::MandateUpdate(kv::MandateUpdateMems {
-                                orig: mandate,
-                                update_data: m_update,
-                            }),
+                            updatable: Box::new(kv::Updateable::MandateUpdate(
+                                kv::MandateUpdateMems {
+                                    orig: mandate,
+                                    update_data: m_update,
+                                },
+                            )),
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::Hset(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -259,7 +304,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandates_by_merchant_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             mandate_constraints: api_models::mandates::MandateListConstraints,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -271,11 +316,17 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_mandate(
             &self,
-            mandate: storage_types::MandateNew,
+            mut mandate: storage_types::MandateNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            ))
+            .await;
+            mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => mandate
                     .insert(&conn)
@@ -283,11 +334,11 @@ mod storage {
                     .map_err(|error| report!(errors::StorageError::from(error))),
                 MerchantStorageScheme::RedisKv => {
                     let mandate_id = mandate.mandate_id.clone();
-                    let merchant_id = mandate.merchant_id.clone();
+                    let merchant_id = &mandate.merchant_id.to_owned();
                     let connector_mandate_id = mandate.connector_mandate_id.clone();
 
                     let key = PartitionKey::MerchantIdMandateId {
-                        merchant_id: merchant_id.as_str(),
+                        merchant_id,
                         mandate_id: mandate_id.as_str(),
                     };
                     let key_str = key.to_string();
@@ -297,13 +348,16 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Mandate(mandate),
+                            insertable: Box::new(kv::Insertable::Mandate(mandate)),
                         },
                     };
 
                     if let Some(connector_val) = connector_mandate_id {
-                        let lookup_id =
-                            format!("mid_{}_conn_mandate_{}", merchant_id, connector_val);
+                        let lookup_id = format!(
+                            "mid_{}_conn_mandate_{}",
+                            merchant_id.get_string_repr(),
+                            connector_val
+                        );
 
                         let reverse_lookup_entry = diesel_models::ReverseLookupNew {
                             sk_id: field.clone(),
@@ -317,7 +371,7 @@ mod storage {
                             .await?;
                     }
 
-                    match kv_wrapper::<diesel_models::Mandate, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::Mandate, _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::HSetNx(
                             &field,
@@ -325,7 +379,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
@@ -346,6 +400,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use common_utils::id_type;
     use error_stack::report;
     use router_env::{instrument, tracing};
 
@@ -362,7 +417,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_mandate_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             mandate_id: &str,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -375,7 +430,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_connector_mandate_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             connector_mandate_id: &str,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -392,8 +447,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_merchant_id_customer_id(
             &self,
-            merchant_id: &str,
-            customer_id: &str,
+            merchant_id: &id_type::MerchantId,
+            customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
@@ -401,10 +456,23 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        // Need to fix this once we start moving to mandate v2
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_mandate_by_global_customer_id(
+            &self,
+            customer_id: &id_type::GlobalCustomerId,
+        ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_global_id(&conn, customer_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[instrument(skip_all)]
         async fn update_mandate_by_merchant_id_mandate_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             mandate_id: &str,
             mandate_update: storage_types::MandateUpdate,
             _mandate: storage_types::Mandate,
@@ -424,7 +492,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandates_by_merchant_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             mandate_constraints: api_models::mandates::MandateListConstraints,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -452,7 +520,7 @@ mod storage {
 impl MandateInterface for MockDb {
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -460,7 +528,7 @@ impl MandateInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
+            .find(|mandate| mandate.merchant_id == *merchant_id && mandate.mandate_id == mandate_id)
             .cloned()
             .ok_or_else(|| errors::StorageError::ValueNotFound("mandate not found".to_string()))
             .map_err(|err| err.into())
@@ -468,7 +536,7 @@ impl MandateInterface for MockDb {
 
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         connector_mandate_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
@@ -477,7 +545,7 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .find(|mandate| {
-                mandate.merchant_id == merchant_id
+                mandate.merchant_id == *merchant_id
                     && mandate.connector_mandate_id == Some(connector_mandate_id.to_string())
             })
             .cloned()
@@ -487,8 +555,8 @@ impl MandateInterface for MockDb {
 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
-        merchant_id: &str,
-        customer_id: &str,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         return Ok(self
             .mandates
@@ -496,15 +564,24 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .filter(|mandate| {
-                mandate.merchant_id == merchant_id && mandate.customer_id == customer_id
+                mandate.merchant_id == *merchant_id && &mandate.customer_id == customer_id
             })
             .cloned()
             .collect());
     }
 
+    // Need to fix this once we move to v2 mandate
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_customer_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+    ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
+        todo!()
+    }
+
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         mandate_id: &str,
         mandate_update: storage_types::MandateUpdate,
         _mandate: storage_types::Mandate,
@@ -513,35 +590,12 @@ impl MandateInterface for MockDb {
         let mut mandates = self.mandates.lock().await;
         match mandates
             .iter_mut()
-            .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
+            .find(|mandate| mandate.merchant_id == *merchant_id && mandate.mandate_id == mandate_id)
         {
             Some(mandate) => {
-                match mandate_update {
-                    storage_types::MandateUpdate::StatusUpdate { mandate_status } => {
-                        mandate.mandate_status = mandate_status;
-                    }
-                    storage_types::MandateUpdate::CaptureAmountUpdate { amount_captured } => {
-                        mandate.amount_captured = amount_captured;
-                    }
-                    storage_types::MandateUpdate::ConnectorReferenceUpdate {
-                        connector_mandate_ids,
-                    } => {
-                        mandate.connector_mandate_ids = connector_mandate_ids;
-                    }
-
-                    diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
-                        connector_mandate_id,
-                        connector_mandate_ids,
-                        payment_method_id,
-                        original_payment_id,
-                    } => {
-                        mandate.connector_mandate_ids = connector_mandate_ids;
-                        mandate.connector_mandate_id = connector_mandate_id;
-                        mandate.payment_method_id = payment_method_id;
-                        mandate.original_payment_id = original_payment_id
-                    }
-                }
-                Ok(mandate.clone())
+                let m_update = diesel_models::MandateUpdateInternal::from(mandate_update);
+                let updated_mandate = m_update.clone().apply_changeset(mandate.clone());
+                Ok(updated_mandate)
             }
             None => {
                 Err(errors::StorageError::ValueNotFound("mandate not found".to_string()).into())
@@ -551,12 +605,12 @@ impl MandateInterface for MockDb {
 
     async fn find_mandates_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         mandate_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         let mandates = self.mandates.lock().await;
         let mandates_iter = mandates.iter().filter(|mandate| {
-            let mut checker = mandate.merchant_id == merchant_id;
+            let mut checker = mandate.merchant_id == *merchant_id;
             if let Some(created_time) = mandate_constraints.created_time {
                 checker &= mandate.created_at == created_time;
             }
@@ -608,7 +662,6 @@ impl MandateInterface for MockDb {
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
         let mut mandates = self.mandates.lock().await;
         let mandate = storage_types::Mandate {
-            id: i32::try_from(mandates.len()).change_context(errors::StorageError::MockDbError)?,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
             merchant_id: mandate_new.merchant_id,
@@ -634,6 +687,7 @@ impl MandateInterface for MockDb {
             metadata: mandate_new.metadata,
             connector_mandate_ids: mandate_new.connector_mandate_ids,
             merchant_connector_id: mandate_new.merchant_connector_id,
+            updated_by: mandate_new.updated_by,
         };
         mandates.push(mandate.clone());
         Ok(mandate)

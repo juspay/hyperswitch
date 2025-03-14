@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     api_event::{ApiEventDimensions, ApiEventFilters, ApiEventMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -31,12 +33,12 @@ where
     async fn load_metrics(
         &self,
         _dimensions: &[ApiEventDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::ApiEvents);
 
         query_builder
@@ -65,7 +67,7 @@ where
                 alias: Some("end_bucket"),
             })
             .switch()?;
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
@@ -120,7 +122,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>,
+                HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

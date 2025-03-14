@@ -1,17 +1,23 @@
 use std::{convert::From, default::Default};
 
-use api_models::{payment_methods as api_types, payments};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::payment_methods as api_types;
+use api_models::payments;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
-    crypto::Encryptable,
-    date_time,
+    id_type,
     pii::{self, Email},
+    types::Description,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    logger,
-    types::{api, api::enums as api_enums},
-};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::logger;
+use crate::types::{api, api::enums as api_enums};
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
@@ -40,7 +46,7 @@ pub struct CreateCustomerRequest {
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub shipping: Option<Shipping>,
     pub payment_method: Option<String>,              // not used
     pub balance: Option<i64>,                        // not used
@@ -59,7 +65,7 @@ pub struct CreateCustomerRequest {
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerUpdateRequest {
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub email: Option<Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<masking::Secret<String>>,
@@ -80,12 +86,12 @@ pub struct CustomerUpdateRequest {
     pub tax_exempt: Option<String>,                  // not used
 }
 
-#[derive(Default, Serialize, PartialEq, Eq)]
+#[derive(Serialize, PartialEq, Eq)]
 pub struct CreateCustomerResponse {
-    pub id: String,
+    pub id: id_type::CustomerId,
     pub object: String,
     pub created: u64,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub email: Option<Email>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub name: Option<masking::Secret<String>>,
@@ -95,9 +101,9 @@ pub struct CreateCustomerResponse {
 pub type CustomerRetrieveResponse = CreateCustomerResponse;
 pub type CustomerUpdateResponse = CreateCustomerResponse;
 
-#[derive(Default, Serialize, PartialEq, Eq)]
+#[derive(Serialize, PartialEq, Eq)]
 pub struct CustomerDeleteResponse {
-    pub id: String,
+    pub id: id_type::CustomerId,
     pub deleted: bool,
 }
 
@@ -117,10 +123,11 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
-            customer_id: api_models::customers::generate_customer_id(),
+            customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             name: req.name,
             phone: req.phone,
             email: req.email,
@@ -132,7 +139,8 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
     }
 }
 
-impl From<CustomerUpdateRequest> for api::CustomerRequest {
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+impl From<CustomerUpdateRequest> for api::CustomerUpdateRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
             name: req.name,
@@ -146,6 +154,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<api::CustomerResponse> for CreateCustomerResponse {
     fn from(cust: api::CustomerResponse) -> Self {
         let cust = cust.into_inner();
@@ -173,6 +182,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
     fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
@@ -190,7 +200,7 @@ pub struct CustomerPaymentMethodListResponse {
 
 #[derive(Default, Serialize, PartialEq, Eq)]
 pub struct PaymentMethodData {
-    pub id: String,
+    pub id: Option<String>,
     pub object: &'static str,
     pub card: Option<CardDetails>,
     pub created: Option<time::PrimitiveDateTime>,
@@ -205,6 +215,10 @@ pub struct CardDetails {
     pub fingerprint: Option<masking::Secret<String>>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
     fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;
@@ -219,17 +233,26 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
+        let card = item.card.map(From::from);
         Self {
-            id: item.payment_token,
+            id: Some(item.payment_token),
             object: "payment_method",
-            card: item.card.map(From::from),
+            card,
             created: item.created,
         }
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api_types::CardDetailFromLocker> for CardDetails {
     fn from(item: api_types::CardDetailFromLocker) -> Self {
         Self {

@@ -31,8 +31,7 @@ impl Context {
                     .get(&key)
                     .and_then(|value| value.get_num_value());
 
-                value.get_num_value().zip(ctx_num_value).map_or(
-                    false,
+                value.get_num_value().zip(ctx_num_value).is_some_and(
                     |(program_value, ctx_value)| {
                         let program_num = program_value.number;
                         let ctx_num = ctx_value.number;

@@ -1,8 +1,7 @@
-version: "3.8"
-
 volumes:
   pg_data:
   redisinsight_store:
+  ckh_data:
 
 networks:
   router_net:
@@ -21,6 +20,12 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   redis-standalone:
     image: redis:7
@@ -28,25 +33,37 @@ services:
       - router_net
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
     working_dir: /app
     networks:
       - router_net
     volumes:
       - ./:/app
     environment:
-      - DATABASE_USER=db_user
-      - DATABASE_PASSWORD=db_pass
-      - DATABASE_HOST=pg
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=hyperswitch_db
+      # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
+      - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
+  
+  mailhog:
+    image: mailhog/mailhog
+    networks:
+      - router_net
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-router:standalone
+    pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
       - "8080:8080"
@@ -55,17 +72,23 @@ services:
     volumes:
       - ./config:/local/config
       - ./files:/local/bin/files
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
-      interval: 10s
+      interval: 5s
       retries: 3
       start_period: 5s
-      timeout: 10s
+      timeout: 5s
 
   hyperswitch-producer:
-    image: juspaydotin/hyperswitch-producer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-producer:standalone
+    pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
       - router_net
@@ -82,7 +105,8 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: juspaydotin/hyperswitch-consumer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-consumer:standalone
+    pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
       - router_net
@@ -94,7 +118,7 @@ services:
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
-        condition: service_started
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:
@@ -105,7 +129,8 @@ services:
       timeout: 10s
 
   hyperswitch-drainer:
-    image: juspaydotin/hyperswitch-drainer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-drainer:standalone
+    pull_policy: always
     command: /local/bin/drainer -f /local/config/docker_compose.toml
     deploy:
       replicas: ${DRAINER_INSTANCE_COUNT:-1}
@@ -118,6 +143,51 @@ services:
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
+        condition: service_healthy
+    labels:
+      logs: "promtail"
+
+  ### Web Client
+  hyperswitch-web:
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+      - "5252:5252"
+    networks:
+      - router_net
+    build:
+      context: ./docker
+      dockerfile: web.Dockerfile
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+    environment:
+      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
+      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
+      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+      - HYPERSWITCH_SERVER_URL_FOR_DEMO_APP=http://hyperswitch-server:8080
+      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
+      - SELF_SERVER_URL=http://localhost:5252
+      - SDK_ENV=local
+      - ENV_LOGGING_URL=http://localhost:3103
+      - ENV_BACKEND_URL=http://localhost:8080
+    labels:
+      logs: "promtail"
+
+  ### Control Center
+  hyperswitch-control-center:
+    image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
+    pull_policy: always
+    ports:
+      - "9000:9000"
+    environment:
+      - configPath=/tmp/dashboard-config.toml
+    volumes:
+      - ./config/dashboard.toml:/tmp/dashboard-config.toml
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+      hyperswitch-web:
         condition: service_started
     labels:
       logs: "promtail"
@@ -146,38 +216,23 @@ services:
       - redis-cluster
     networks:
       - router_net
-    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
-
-      \ if [ $$COUNT -lt 3 ]
-
-      \ then
-
-      \ echo \"Minimum 3 nodes are needed for redis cluster\"
-
-      \ exit 1
-
-      \ fi
-
-      \ HOSTS=\"\"
-
-      \ for ((c=1; c<=$$COUNT;c++))
-
-      \ do
-
-      \ NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
-
-      \ echo $$NODE
-
-      \ HOSTS=\"$$HOSTS $$NODE\"
-
-      \ done
-
-      \ echo Creating a cluster with $$HOSTS
-
-      \ redis-cli --cluster create $$HOSTS --cluster-yes
-
-      \ '"
-
+    command: |-
+      bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
+      if [ $$COUNT -lt 3 ]
+      then
+      echo \"Minimum 3 nodes are needed for redis cluster\"
+      exit 1
+      fi
+      HOSTS=\"\"
+      for ((c=1; c<=$$COUNT;c++))
+      do
+      NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
+      echo $$NODE
+      HOSTS=\"$$HOSTS $$NODE\"
+      done
+      echo Creating a cluster with $$HOSTS
+      redis-cli --cluster create $$HOSTS --cluster-yes
+      '
   ### Monitoring
   grafana:
     image: grafana/grafana:latest
@@ -195,18 +250,6 @@ services:
     volumes:
       - ./config/grafana.ini:/etc/grafana/grafana.ini
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
-
-  promtail:
-    image: grafana/promtail:latest
-    volumes:
-      - ./logs:/var/log/router
-      - ./config:/etc/promtail
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: -config.file=/etc/promtail/promtail.yaml
-    profiles:
-      - monitoring
-    networks:
-      - router_net
 
   loki:
     image: grafana/loki:latest
@@ -265,7 +308,7 @@ services:
     networks:
       - router_net
     profiles:
-      - full_kv
+      - monitoring
     ports:
       - "8001:8001"
     volumes:
@@ -290,19 +333,19 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_NODE_ID: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka0:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://kafka0:29092,CONTROLLER://kafka0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka0:29093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka0:29092,CONTROLLER://kafka0:29093,PLAINTEXT_HOST://0.0.0.0:9092"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
       JMX_PORT: 9997
       KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
     profiles:
-      - analytics
+      - olap
     volumes:
       - ./monitoring/kafka-script.sh:/tmp/update_run.sh
-    command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
+    command: 'bash -c ''if [ ! -f /tmp/update_run.sh ]; then echo "ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'''
 
   # Kafka UI for debugging kafka queues
   kafka-ui:
@@ -314,22 +357,68 @@ services:
     depends_on:
       - kafka0
     profiles:
-      - analytics
+      - olap
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
       KAFKA_CLUSTERS_0_JMXPORT: 9997
 
   clickhouse-server:
-    image: clickhouse/clickhouse-server:23.5
+    image: clickhouse/clickhouse-server:24.3
     networks:
       - router_net
     ports:
       - "9000"
       - "8123:8123"
+    volumes:
+      - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
+    environment:
+      - TZ=Asia/Kolkata
     profiles:
-      - analytics
+      - olap
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
+
+  opensearch:
+    image: opensearchproject/opensearch:2
+    container_name: opensearch
+    hostname: opensearch
+    environment:
+      - "discovery.type=single-node"
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=0penS3arc#
+      - LOG_LEVEL=DEBUG
+    profiles:
+      - olap
+    ports:
+      - "9200:9200"
+    networks:
+      - router_net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2
+    ports:
+      - 5601:5601
+    profiles:
+      - olap
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+    networks:
+      - router_net
+
+  vector:
+    image: timberio/vector:latest-debian
+    ports:
+      - "8686"
+      - "9598"
+      - "3103:3103"
+    profiles:
+      - olap
+    environment:
+      KAFKA_HOST: "kafka0:29092"
+    networks:
+      - router_net
+    volumes:
+      - ./config/vector.yaml:/etc/vector/vector.yaml
+      - /var/run/docker.sock:/var/run/docker.sock

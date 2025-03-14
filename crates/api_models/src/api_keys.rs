@@ -29,12 +29,12 @@ pub struct CreateApiKeyRequest {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CreateApiKeyResponse {
     /// The identifier for the API Key.
-    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
-    pub key_id: String,
+    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX", value_type = String)]
+    pub key_id: common_utils::id_type::ApiKeyId,
 
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The unique name for the API Key to help you identify it.
     #[schema(max_length = 64, example = "Sandbox integration key")]
@@ -72,12 +72,12 @@ pub struct CreateApiKeyResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RetrieveApiKeyResponse {
     /// The identifier for the API Key.
-    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
-    pub key_id: String,
+    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX", value_type = String)]
+    pub key_id: common_utils::id_type::ApiKeyId,
 
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The unique name for the API Key to help you identify it.
     #[schema(max_length = 64, example = "Sandbox integration key")]
@@ -131,29 +131,31 @@ pub struct UpdateApiKeyRequest {
     pub expiration: Option<ApiKeyExpiration>,
 
     #[serde(skip_deserializing)]
-    pub key_id: String,
+    #[schema(value_type = String)]
+    pub key_id: common_utils::id_type::ApiKeyId,
 
     #[serde(skip_deserializing)]
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 /// The response body for revoking an API Key.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RevokeApiKeyResponse {
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the API Key.
-    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
-    pub key_id: String,
+    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX", value_type = String)]
+    pub key_id: common_utils::id_type::ApiKeyId,
     /// Indicates whether the API key was revoked or not.
     #[schema(example = "true")]
     pub revoked: bool,
 }
 
 /// The constraints that are applicable when listing API Keys associated with a merchant account.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ListApiKeyConstraints {
     /// The maximum number of API Keys to include in the response.
@@ -210,7 +212,7 @@ mod never {
     {
         struct NeverVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for NeverVisitor {
+        impl serde::de::Visitor<'_> for NeverVisitor {
             type Value = ();
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -270,7 +272,7 @@ mod api_key_expiration_tests {
         let date = time::Date::from_calendar_date(2022, time::Month::September, 10).unwrap();
         let time = time::Time::from_hms(11, 12, 13).unwrap();
         assert_eq!(
-            serde_json::to_string(&ApiKeyExpiration::DateTime(time::PrimitiveDateTime::new(
+            serde_json::to_string(&ApiKeyExpiration::DateTime(PrimitiveDateTime::new(
                 date, time
             )))
             .unwrap(),
@@ -289,7 +291,7 @@ mod api_key_expiration_tests {
         let time = time::Time::from_hms(11, 12, 13).unwrap();
         assert_eq!(
             serde_json::from_str::<ApiKeyExpiration>(r#""2022-09-10T11:12:13.000Z""#).unwrap(),
-            ApiKeyExpiration::DateTime(time::PrimitiveDateTime::new(date, time))
+            ApiKeyExpiration::DateTime(PrimitiveDateTime::new(date, time))
         );
     }
 

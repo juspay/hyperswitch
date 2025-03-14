@@ -1,26 +1,69 @@
-use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
-use common_utils::errors::CustomResult;
-use diesel_models::{enums as storage_enums, PaymentMethod};
-use error_stack::{FutureExt, ResultExt};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::enums as api_enums;
+use api_models::locker_migration::MigrateCardResponse;
+use common_utils::{errors::CustomResult, id_type};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use diesel_models::enums as storage_enums;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use error_stack::FutureExt;
+use error_stack::ResultExt;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use futures::TryFutureExt;
 
-use super::{errors::StorageErrorExt, payment_methods::cards};
-use crate::{
-    errors,
-    routes::AppState,
-    services::{self, logger},
-    types::{api, domain},
-};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use super::errors::StorageErrorExt;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use super::payment_methods::cards;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::services::logger;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::types::api;
+use crate::{errors, routes::SessionState, services, types::domain};
 
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2"
+))]
 pub async fn rust_locker_migration(
-    state: AppState,
-    merchant_id: &str,
+    _state: SessionState,
+    _merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
-    let db = state.store.as_ref();
+    todo!()
+}
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub async fn rust_locker_migration(
+    state: SessionState,
+    merchant_id: &id_type::MerchantId,
+) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
+    use crate::db::customers::CustomerListConstraints;
+
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -28,13 +71,19 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // Handle cases where the number of customers is greater than the limit
+    let constraints = CustomerListConstraints {
+        limit: u16::MAX,
+        offset: None,
+    };
+
     let domain_customers = db
-        .list_customers_by_merchant_id(merchant_id, &key_store)
+        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -44,6 +93,8 @@ pub async fn rust_locker_migration(
     for customer in domain_customers {
         let result = db
             .find_payment_method_by_customer_id_merchant_id_list(
+                key_manager_state,
+                &key_store,
                 &customer.customer_id,
                 merchant_id,
                 None,
@@ -74,19 +125,25 @@ pub async fn rust_locker_migration(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn call_to_locker(
-    state: &AppState,
-    payment_methods: Vec<PaymentMethod>,
-    customer_id: &String,
-    merchant_id: &str,
+    state: &SessionState,
+    payment_methods: Vec<domain::PaymentMethod>,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
-    for pm in payment_methods
-        .into_iter()
-        .filter(|pm| matches!(pm.payment_method, storage_enums::PaymentMethod::Card))
-    {
+    for pm in payment_methods.into_iter().filter(|pm| {
+        matches!(
+            pm.get_payment_method_type(),
+            Some(storage_enums::PaymentMethod::Card)
+        )
+    }) {
         let card = cards::get_card_from_locker(
             state,
             customer_id,
@@ -116,8 +173,8 @@ pub async fn call_to_locker(
         };
 
         let pm_create = api::PaymentMethodCreate {
-            payment_method: pm.payment_method,
-            payment_method_type: pm.payment_method_type,
+            payment_method: pm.get_payment_method_type(),
+            payment_method_type: pm.get_payment_method_subtype(),
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             card: Some(card_details.clone()),
@@ -128,21 +185,27 @@ pub async fn call_to_locker(
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),
             card_network: card.card_brand,
+            client_secret: None,
+            payment_method_data: None,
+            billing: None,
+            connector_mandate_details: None,
+            network_transaction_id: None,
         };
 
         let add_card_result = cards::add_card_hs(
                 state,
                 pm_create,
                 &card_details,
-                customer_id.to_string(),
+                customer_id,
                 merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
+
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
-                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+                "Card migration failed for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             ));
 
@@ -157,10 +220,21 @@ pub async fn call_to_locker(
         cards_moved += 1;
 
         logger::info!(
-                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+                "Card migrated for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             );
     }
 
     Ok(cards_moved)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn call_to_locker(
+    _state: &SessionState,
+    _payment_methods: Vec<domain::PaymentMethod>,
+    _customer_id: &id_type::CustomerId,
+    _merchant_id: &id_type::MerchantId,
+    _merchant_account: &domain::MerchantAccount,
+) -> CustomResult<usize, errors::ApiErrorResponse> {
+    todo!()
 }

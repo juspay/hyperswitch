@@ -1,12 +1,9 @@
-//!
 //! Structure describing secret.
-//!
 
 use std::{fmt, marker::PhantomData};
 
-use crate::{strategy::Strategy, PeekInterface};
+use crate::{strategy::Strategy, PeekInterface, StrongSecret};
 
-///
 /// Secret thing.
 ///
 /// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
@@ -39,7 +36,6 @@ use crate::{strategy::Strategy, PeekInterface};
 ///
 /// assert_eq!("hello", &format!("{:?}", my_secret));
 /// ```
-///
 pub struct Secret<Secret, MaskingStrategy = crate::WithType>
 where
     MaskingStrategy: Strategy<Secret>,
@@ -81,6 +77,14 @@ where
     {
         f(self.inner_secret).into()
     }
+
+    /// Convert to [`StrongSecret`]
+    pub fn into_strong(self) -> StrongSecret<SecretValue, MaskingStrategy>
+    where
+        SecretValue: zeroize::DefaultIsZeroes,
+    {
+        StrongSecret::new(self.inner_secret)
+    }
 }
 
 impl<SecretValue, MaskingStrategy> PeekInterface<SecretValue>
@@ -90,6 +94,10 @@ where
 {
     fn peek(&self) -> &SecretValue {
         &self.inner_secret
+    }
+
+    fn peek_mut(&mut self) -> &mut SecretValue {
+        &mut self.inner_secret
     }
 }
 
@@ -150,5 +158,12 @@ where
 {
     fn default() -> Self {
         SecretValue::default().into()
+    }
+}
+
+// Required by base64-serde to serialize Secret of Vec<u8> which contains the base64 decoded value
+impl AsRef<[u8]> for Secret<Vec<u8>> {
+    fn as_ref(&self) -> &[u8] {
+        self.peek().as_slice()
     }
 }

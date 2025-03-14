@@ -35,3 +35,11 @@ scrape_configs:
 
     static_configs:
       - targets: ["otel-collector:8888"]
+
+  - job_name: "vector"
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+      - targets: ["vector:9598"]

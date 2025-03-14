@@ -4,4 +4,3 @@ pub mod dssa;
 pub mod enums;
 pub mod frontend;
 pub mod types;
-pub mod utils;

@@ -1,6 +1,4 @@
-//!
 //! Diesel-related.
-//!
 
 use diesel::{
     backend::Backend,
@@ -13,7 +11,7 @@ use diesel::{
 
 use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};
 
-impl<'expr, S, I, T> AsExpression<T> for &'expr Secret<S, I>
+impl<S, I, T> AsExpression<T> for &Secret<S, I>
 where
     T: sql_types::SingleValue,
     I: Strategy<S>,
@@ -24,7 +22,7 @@ where
     }
 }
 
-impl<'expr2, 'expr, S, I, T> AsExpression<T> for &'expr2 &'expr Secret<S, I>
+impl<S, I, T> AsExpression<T> for &&Secret<S, I>
 where
     T: sql_types::SingleValue,
     I: Strategy<S>,
@@ -52,7 +50,7 @@ where
     S: FromSql<T, DB>,
     I: Strategy<S>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
 }
@@ -81,7 +79,7 @@ where
     }
 }
 
-impl<'expr, S, I, T> AsExpression<T> for &'expr StrongSecret<S, I>
+impl<S, I, T> AsExpression<T> for &StrongSecret<S, I>
 where
     T: sql_types::SingleValue,
     S: ZeroizableSecret,
@@ -93,7 +91,7 @@ where
     }
 }
 
-impl<'expr2, 'expr, S, I, T> AsExpression<T> for &'expr2 &'expr StrongSecret<S, I>
+impl<S, I, T> AsExpression<T> for &&StrongSecret<S, I>
 where
     T: sql_types::SingleValue,
     S: ZeroizableSecret,
@@ -122,7 +120,7 @@ where
     S: FromSql<T, DB> + ZeroizableSecret,
     I: Strategy<S>,
 {
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
 }

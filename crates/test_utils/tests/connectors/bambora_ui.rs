@@ -17,7 +17,7 @@ async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
         .make_redirection_payment(
             c,
             vec![
-                Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/33"))),
+                Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/33"))),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
                 Event::Trigger(Trigger::Click(By::Id("continue-transaction"))),
                 Event::Assert(Assert::IsPresent("succeeded")),

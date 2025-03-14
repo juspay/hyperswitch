@@ -1,8 +1,3 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
-
 use api_models::payment_methods;
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
@@ -10,7 +5,7 @@ pub use diesel_models::payment_method::{
     TokenizeCoreWorkflow,
 };
 
-use crate::types::api::{self, payments};
+use crate::types::{api, domain};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -19,9 +14,22 @@ pub enum PaymentTokenKind {
     Permanent,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: Option<String>,
+    pub locker_id: Option<String>,
+    pub token: String,
+    pub network_token_locker_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CardTokenData {
+    pub payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub locker_id: Option<String>,
     pub token: String,
 }
@@ -29,7 +37,7 @@ pub struct CardTokenData {
 #[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
 pub struct PaymentMethodDataWithId {
     pub payment_method: Option<enums::PaymentMethod>,
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub payment_method_id: Option<String>,
 }
 
@@ -57,8 +65,27 @@ pub enum PaymentTokenData {
 }
 
 impl PaymentTokenData {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     pub fn permanent_card(
         payment_method_id: Option<String>,
+        locker_id: Option<String>,
+        token: String,
+        network_token_locker_id: Option<String>,
+    ) -> Self {
+        Self::PermanentCard(CardTokenData {
+            payment_method_id,
+            locker_id,
+            token,
+            network_token_locker_id,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn permanent_card(
+        payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
         locker_id: Option<String>,
         token: String,
     ) -> Self {
@@ -76,37 +103,60 @@ impl PaymentTokenData {
     pub fn wallet_token(payment_method_id: String) -> Self {
         Self::WalletToken(WalletTokenData { payment_method_id })
     }
+
+    pub fn is_permanent_card(&self) -> bool {
+        matches!(self, Self::PermanentCard(_) | Self::Permanent(_))
+    }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
-    pub hyperswitch_token_data: PaymentTokenData,
+    pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankPayout>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReferenceRecord {
-    pub connector_mandate_id: String,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub original_payment_authorized_amount: Option<i64>,
-    pub original_payment_authorized_currency: Option<common_enums::Currency>,
+pub enum PaymentMethodListContext {
+    Card {
+        card_details: api::CardDetailFromLocker,
+        token_data: Option<PaymentTokenData>,
+    },
+    Bank {
+        token_data: Option<PaymentTokenData>,
+    },
+    #[cfg(feature = "payouts")]
+    BankTransfer {
+        bank_transfer_details: api::BankPayout,
+        token_data: Option<PaymentTokenData>,
+    },
+    TemporaryToken {
+        token_data: Option<PaymentTokenData>,
+    },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference(pub HashMap<String, PaymentsMandateReferenceRecord>);
-
-impl Deref for PaymentsMandateReference {
-    type Target = HashMap<String, PaymentsMandateReferenceRecord>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodListContext {
+    pub(crate) fn get_token_data(&self) -> Option<PaymentTokenData> {
+        match self {
+            Self::Card { token_data, .. }
+            | Self::Bank { token_data }
+            | Self::BankTransfer { token_data, .. }
+            | Self::TemporaryToken { token_data } => token_data.clone(),
+        }
     }
 }
 
-impl DerefMut for PaymentsMandateReference {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodStatusTrackingData {
+    pub payment_method_id: String,
+    pub prev_status: enums::PaymentMethodStatus,
+    pub curr_status: enums::PaymentMethodStatus,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }

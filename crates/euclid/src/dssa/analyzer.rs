@@ -4,11 +4,15 @@
 //! in the Euclid Rule DSL. These include standard control flow analyses like testing
 //! conflicting assertions, to Domain Specific Analyses making use of the
 //! [`Knowledge Graph Framework`](crate::dssa::graph).
+use hyperswitch_constraint_graph::{ConstraintGraph, Memoization};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{graph::Memoization, types::EuclidAnalysable};
 use crate::{
-    dssa::{graph, state_machine, truth, types},
+    dssa::{
+        graph::CgraphExt,
+        state_machine, truth,
+        types::{self, EuclidAnalysable},
+    },
     frontend::{
         ast,
         dir::{self, EuclidDirFilter},
@@ -83,7 +87,7 @@ pub fn analyze_exhaustive_negations(
                     .cloned()
                     .unwrap_or_default()
                     .iter()
-                    .cloned()
+                    .copied()
                     .cloned()
                     .collect(),
             };
@@ -117,12 +121,12 @@ fn analyze_negated_assertions(
                 value: (*val).clone(),
                 assertion_metadata: assertion_metadata
                     .get(*val)
-                    .cloned()
+                    .copied()
                     .cloned()
                     .unwrap_or_default(),
                 negation_metadata: negation_metadata
                     .get(*val)
-                    .cloned()
+                    .copied()
                     .cloned()
                     .unwrap_or_default(),
             };
@@ -203,12 +207,12 @@ fn perform_condition_analyses(
 
 fn perform_context_analyses(
     context: &types::ConjunctiveContext<'_>,
-    knowledge_graph: &graph::KnowledgeGraph<'_>,
+    knowledge_graph: &ConstraintGraph<dir::DirValue>,
 ) -> Result<(), types::AnalysisError> {
     perform_condition_analyses(context)?;
     let mut memo = Memoization::new();
     knowledge_graph
-        .perform_context_analysis(context, &mut memo)
+        .perform_context_analysis(context, &mut memo, None)
         .map_err(|err| types::AnalysisError {
             error_type: types::AnalysisErrorType::GraphAnalysis(err, memo),
             metadata: Default::default(),
@@ -218,7 +222,7 @@ fn perform_context_analyses(
 
 pub fn analyze<O: EuclidAnalysable + EuclidDirFilter>(
     program: ast::Program<O>,
-    knowledge_graph: Option<&graph::KnowledgeGraph<'_>>,
+    knowledge_graph: Option<&ConstraintGraph<dir::DirValue>>,
 ) -> Result<vir::ValuedProgram<O>, types::AnalysisError> {
     let dir_program = ast::lowering::lower_program(program)?;
 
@@ -241,9 +245,14 @@ mod tests {
     use std::{ops::Deref, sync::Weak};
 
     use euclid_macros::knowledge;
+    use hyperswitch_constraint_graph as cgraph;
 
     use super::*;
-    use crate::{dirval, types::DummyOutput};
+    use crate::{
+        dirval,
+        dssa::graph::{self, euclid_graph_prelude},
+        types::DummyOutput,
+    };
 
     #[test]
     fn test_conflicting_assertion_detection() {
@@ -304,7 +313,8 @@ mod tests {
                                     & payment_method /= reward
                                     & payment_method /= voucher
                                     & payment_method /= gift_card
-
+                                    & payment_method /= card_redirect
+                                    & payment_method /= real_time_payment
                             }
                         }
                     }
@@ -368,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_negation_graph_analysis() {
-        let graph = knowledge! {crate
+        let graph = knowledge! {
             CaptureMethod(Automatic) ->> PaymentMethod(Card);
         };
 
@@ -410,18 +420,18 @@ mod tests {
             .deref()
             .clone()
         {
-            graph::AnalysisTrace::Value { predecessors, .. } => {
-                let _value = graph::NodeValue::Value(dir::DirValue::PaymentMethod(
+            cgraph::AnalysisTrace::Value { predecessors, .. } => {
+                let _value = cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(
                     dir::enums::PaymentMethod::Card,
                 ));
-                let _relation = graph::Relation::Positive;
+                let _relation = cgraph::Relation::Positive;
                 predecessors
             }
             _ => panic!("Expected Negation Trace for payment method = card"),
         };
 
         let pred = match predecessor {
-            Some(graph::ValueTracePredecessor::Mandatory(predecessor)) => predecessor,
+            Some(cgraph::error::ValueTracePredecessor::Mandatory(predecessor)) => predecessor,
             _ => panic!("No predecessor found"),
         };
         assert_eq!(
@@ -433,11 +443,11 @@ mod tests {
             *Weak::upgrade(&pred)
                 .expect("Expected Arc not found")
                 .deref(),
-            graph::AnalysisTrace::Value {
-                value: graph::NodeValue::Value(dir::DirValue::CaptureMethod(
+            cgraph::AnalysisTrace::Value {
+                value: cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(
                     dir::enums::CaptureMethod::Automatic
                 )),
-                relation: graph::Relation::Positive,
+                relation: cgraph::Relation::Positive,
                 info: None,
                 metadata: None,
                 predecessors: None,

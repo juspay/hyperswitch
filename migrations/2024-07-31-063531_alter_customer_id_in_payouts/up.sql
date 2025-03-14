@@ -1,0 +1,11 @@
+ALTER TABLE payouts
+ALTER COLUMN customer_id
+DROP NOT NULL,
+ALTER COLUMN address_id
+DROP NOT NULL;
+
+ALTER TABLE payout_attempt
+ALTER COLUMN customer_id
+DROP NOT NULL,
+ALTER COLUMN address_id
+DROP NOT NULL;

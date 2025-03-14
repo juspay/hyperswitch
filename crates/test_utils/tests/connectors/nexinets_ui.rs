@@ -16,7 +16,7 @@ async fn should_make_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriv
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/220"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/220"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a.btn.btn-primary.btn-block.margin-bottm-15",
@@ -36,7 +36,7 @@ async fn should_make_3ds_card_payment(web_driver: WebDriver) -> Result<(), WebDr
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/221"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/221"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("threeDSCReqIframe"))),
             Event::Trigger(Trigger::SendKeys(By::Id("otp"), "1234")),
@@ -57,7 +57,7 @@ async fn should_make_ideal_payment(web_driver: WebDriver) -> Result<(), WebDrive
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/222"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/222"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(
                 "a.btn.btn-primary.btn-block.margin-bottm-15",

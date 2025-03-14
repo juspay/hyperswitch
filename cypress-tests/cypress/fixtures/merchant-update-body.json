@@ -1,0 +1,39 @@
+{
+  "merchant_id": "merchant_id",
+  "merchant_name": "NewAge Retailer",
+  "locker_id": "m0010",
+  "merchant_details": {
+    "primary_contact_person": "joseph Test",
+    "primary_email": "josephTest@test.com",
+    "primary_phone": "veniam aute officia ullamco esse",
+    "secondary_contact_person": "joseph Test2",
+    "secondary_email": "josephTest2@test.com",
+    "secondary_phone": "proident adipisicing officia nulla",
+    "website": "www.example.com",
+    "about_business": "Online Retail with a wide selection of organic products for North America",
+    "address": {
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US"
+    }
+  },
+  "return_url": "https://hyperswitch.io",
+  "webhook_details": {
+    "webhook_version": "1.0.1",
+    "webhook_username": "ekart_retail",
+    "webhook_password": "password_ekart@123",
+    "payment_created_enabled": true,
+    "payment_succeeded_enabled": true,
+    "payment_failed_enabled": true
+  },
+  "sub_merchants_enabled": false,
+  "parent_merchant_id": "xkkdf909012sdjki2dkh5sdf",
+  "metadata": {
+    "city": "NY",
+    "unit": "245"
+  }
+}

@@ -48,6 +48,7 @@
       },
       "test_mode": false,
       "disabled": false,
+      "metadata": {},
       "payment_methods_enabled": [
         {
           "payment_method": "card",
@@ -95,14 +96,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors"],
     "variable": [
       {
         "key": "account_id",

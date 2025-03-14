@@ -15,10 +15,7 @@ impl AddressNew {
 }
 
 impl Address {
-    pub async fn find_by_address_id<'a>(
-        conn: &PgPooledConn,
-        address_id: &str,
-    ) -> StorageResult<Self> {
+    pub async fn find_by_address_id(conn: &PgPooledConn, address_id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
             .await
     }
@@ -90,8 +87,8 @@ impl Address {
 
     pub async fn update_by_merchant_id_customer_id(
         conn: &PgPooledConn,
-        customer_id: &str,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
         address: AddressUpdateInternal,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
@@ -104,10 +101,10 @@ impl Address {
         .await
     }
 
-    pub async fn find_by_merchant_id_payment_id_address_id<'a>(
+    pub async fn find_by_merchant_id_payment_id_address_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         address_id: &str,
     ) -> StorageResult<Self> {
         match generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -133,7 +130,7 @@ impl Address {
         }
     }
 
-    pub async fn find_optional_by_address_id<'a>(
+    pub async fn find_optional_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
     ) -> StorageResult<Option<Self>> {

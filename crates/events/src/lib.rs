@@ -1,16 +1,13 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(doc)))]
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-//!
 //! A generic event handler system.
 //! This library consists of 4 parts:
 //! Event Sink: A trait that defines how events are published. This could be a simple logger, a message queue, or a database.
 //! EventContext: A struct that holds the event sink and metadata about the event. This is used to create events. This can be used to add metadata to all events, such as the user who triggered the event.
 //! EventInfo: A trait that defines the metadata that is sent with the event. It works with the EventContext to add metadata to all events.
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
-//!
 
 mod actix;
 
@@ -49,6 +46,11 @@ pub trait Event: EventInfo {
 
     /// The class/type of the event. This is used to group/categorize events together.
     fn class(&self) -> Self::EventType;
+
+    /// Metadata associated with the event
+    fn metadata(&self) -> HashMap<String, String> {
+        HashMap::new()
+    }
 }
 
 /// Hold the context information for any events
@@ -73,7 +75,8 @@ where
     event: E,
 }
 
-struct RawEvent<T, A: Event<EventType = T>>(HashMap<String, Value>, A);
+/// A flattened event that flattens the context provided to it along with the actual event.
+struct FlatMapEvent<T, A: Event<EventType = T>>(HashMap<String, Value>, A);
 
 impl<T, A, E, D> EventBuilder<T, A, E, D>
 where
@@ -109,12 +112,13 @@ where
     /// Emit the event.
     pub fn try_emit(self) -> Result<(), EventsError> {
         let ts = self.event.timestamp();
+        let metadata = self.event.metadata();
         self.message_sink
-            .send_message(RawEvent(self.metadata, self.event), ts)
+            .send_message(FlatMapEvent(self.metadata, self.event), metadata, ts)
     }
 }
 
-impl<T, A> Serialize for RawEvent<T, A>
+impl<T, A> Serialize for FlatMapEvent<T, A>
 where
     A: Event<EventType = T>,
 {
@@ -236,7 +240,12 @@ pub trait MessagingInterface {
     /// The type of the event used for categorization by the event publisher.
     type MessageClass;
     /// Send a message that follows the defined message class.
-    fn send_message<T>(&self, data: T, timestamp: PrimitiveDateTime) -> Result<(), EventsError>
+    fn send_message<T>(
+        &self,
+        data: T,
+        metadata: HashMap<String, String>,
+        timestamp: PrimitiveDateTime,
+    ) -> Result<(), EventsError>
     where
         T: Message<Class = Self::MessageClass> + ErasedMaskSerialize;
 }
@@ -252,7 +261,7 @@ pub trait Message {
     fn identifier(&self) -> String;
 }
 
-impl<T, A> Message for RawEvent<T, A>
+impl<T, A> Message for FlatMapEvent<T, A>
 where
     A: Event<EventType = T>,
 {

@@ -7,7 +7,7 @@ use masking::{PeekInterface, StrongSecret};
 use serde::{de, Deserialize, Serialize};
 use time::{util::days_in_year_month, Date, Duration, PrimitiveDateTime, Time};
 
-pub use crate::validate::{CCValError, CardNumber, CardNumberStrategy};
+pub use crate::validate::{CardNumber, CardNumberStrategy, CardNumberValidationErr, NetworkToken};
 
 #[derive(Serialize)]
 pub struct CardSecurityCode(StrongSecret<u16>);
@@ -35,7 +35,7 @@ impl<'de> Deserialize<'de> for CardSecurityCode {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct CardExpirationMonth(StrongSecret<u8>);
 
 impl CardExpirationMonth {
@@ -67,7 +67,7 @@ impl<'de> Deserialize<'de> for CardExpirationMonth {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct CardExpirationYear(StrongSecret<u16>);
 
 impl CardExpirationYear {

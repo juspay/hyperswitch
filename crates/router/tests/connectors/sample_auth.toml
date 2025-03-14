@@ -10,6 +10,9 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
 api_secret = "Secondary key"
 
+[amazonpay]
+api_key="API Key"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
@@ -30,6 +33,7 @@ api_key = "Bearer MyApiKey"
 [worldpay]
 api_key = "api_key"
 key1 = "key1"
+api_secret = "Merchant Identifier"
 
 [payu]
 api_key = "Bearer MyApiKey"
@@ -195,9 +199,16 @@ api_key= "Login"
 key1= "Trankey"
 
 
+[plaid]
+api_key="Client Id"
+key1= "Secret"
+
 [threedsecureio]
 api_key="API Key"
 
+
+[ebanx]
+api_key="API Key"
 
 
 [billwerk]
@@ -208,10 +219,108 @@ api_key="API Key"
 certificate="Certificate"
 private_key="Private Key"
 
-
-[ebanx]
-api_key="API Key"
-
 [zsl]
 api_key= "Key"
 key1= "Merchant id"
+
+
+[payone]
+api_key="API Key"
+
+
+[mifinity]
+api_key="API Key"
+
+
+[gpayments]
+api_key="API Key"
+
+[adyenplatform]
+api_key="API Key"
+
+[datatrans]
+api_key="API Key"
+
+
+[bamboraapac]
+api_key="API Key"
+
+[razorpay]
+api_key="API Key"
+key1 = "Merchant id"
+api_secret = "Razorpay Id"
+key2 = "Razorpay Secret"
+
+[itaubank]
+api_key="API Key"
+
+[wellsfargo]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"
+
+[paybox]
+api_key="API Key"
+
+[fiservemea]
+api_key="API Key"
+
+[nexixpay]
+api_key="API Key"
+
+[redsys]
+api_key="API Key"
+
+[wellsfargopayout]
+api_key = "Consumer Key"
+key1 = "Gateway Entity Id"
+api_secret = "Consumer Secret"
+
+[taxjar]
+api_key = "API Key"
+
+[novalnet]
+api_key="API Key"
+
+[deutschebank]
+api_key = "Client ID"
+key1 = "Merchant ID"
+api_secret = "Client Key"
+
+[thunes]
+api_key="API Key"
+
+[getnet]
+api_key="API Key"
+
+[inespay]
+api_key="API Key"
+
+[jpmorgan]
+api_key="Client ID"
+key1 ="Client Secret"
+
+[elavon]
+api_key="API Key"
+
+[nomupay]
+api_key="kid"
+key1="eid"
+
+[unified_authentication_service]
+api_key="API Key"
+
+[chargebee]
+api_key= "API Key"
+
+[moneris]
+api_key= "API Key"
+
+[stripebilling]
+api_key= "API Key"
+
+[paystack]
+api_key = "API Key"
+
+[recurly]
+api_key= "API Key"

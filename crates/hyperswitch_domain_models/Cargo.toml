@@ -1,0 +1,51 @@
+[package]
+name = "hyperswitch_domain_models"
+description = "Represents the data/domain models used by the business layer"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
+
+[features]
+default = ["olap", "frm"]
+encryption_service = []
+olap = []
+payouts = ["api_models/payouts"]
+frm = ["api_models/frm"]
+v2 = ["api_models/v2", "diesel_models/v2", "common_utils/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "common_utils/v1"]
+customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2"]
+payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2"]
+revenue_recovery= []
+
+[dependencies]
+# First party deps
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+cards = { version = "0.1.0", path = "../cards" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "encryption_service", "keymanager"] }
+common_types = { version = "0.1.0", path = "../common_types" }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
+masking = { version = "0.1.0", path = "../masking" }
+router_derive = { version = "0.1.0", path = "../router_derive" }
+router_env = { version = "0.1.0", path = "../router_env" }
+
+# Third party deps
+actix-web = "4.5.1"
+async-trait = "0.1.79"
+error-stack = "0.4.1"
+futures = "0.3.30"
+http = "0.2.12"
+mime = "0.3.17"
+rustc-hash = "1.1.0"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+serde_with = "3.7.0"
+thiserror = "1.0.58"
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+url = { version = "2.5.0", features = ["serde"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
+
+[lints]
+workspace = true

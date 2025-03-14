@@ -24,7 +24,8 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::SdkEvents);
+    let mut query_builder: QueryBuilder<T> =
+        QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
 
     query_builder.add_select_column(dimension).switch()?;
     time_range

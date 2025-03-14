@@ -1,12 +1,10 @@
-//!
 //! Data types and type conversions
 //! from `fred`'s internal data-types to custom data-types
-//!
 
 use common_utils::errors::CustomResult;
 use fred::types::RedisValue as FredRedisValue;
 
-use crate::errors;
+use crate::{errors, RedisConnectionPool};
 
 pub struct RedisValue {
     inner: FredRedisValue,
@@ -27,10 +25,22 @@ impl RedisValue {
     pub fn into_inner(self) -> FredRedisValue {
         self.inner
     }
+
+    pub fn from_bytes(val: Vec<u8>) -> Self {
+        Self {
+            inner: FredRedisValue::Bytes(val.into()),
+        }
+    }
     pub fn from_string(value: String) -> Self {
         Self {
             inner: FredRedisValue::String(value.into()),
         }
+    }
+}
+
+impl From<RedisValue> for FredRedisValue {
+    fn from(v: RedisValue) -> Self {
+        v.inner
     }
 }
 
@@ -281,5 +291,26 @@ impl fred::types::FromRedis for SaddReply {
                 "Unexpected sadd command reply",
             )),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct RedisKey(String);
+
+impl RedisKey {
+    pub fn tenant_aware_key(&self, pool: &RedisConnectionPool) -> String {
+        pool.add_prefix(&self.0)
+    }
+
+    pub fn tenant_unaware_key(&self, _pool: &RedisConnectionPool) -> String {
+        self.0.clone()
+    }
+}
+
+impl<T: AsRef<str>> From<T> for RedisKey {
+    fn from(value: T) -> Self {
+        let value = value.as_ref();
+
+        Self(value.to_string())
     }
 }

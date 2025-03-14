@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Você não tem permissão para visualizar este conteúdo"
+    title: "Links de Pagamento"
+  status:
+    title: "Status do Pagamento"
+    info:
+      ref_id: "ID de Referência"
+      error_code: "Código de Erro"
+      error_message: "Mensagem de Erro"
+    message:
+      failed: "Falha ao processar seu pagamento. Verifique com seu provedor para mais detalhes."
+      processing: "Seu pagamento deve ser processado em 2-3 dias úteis."
+      success: "Seu pagamento foi realizado no método de pagamento selecionado."
+    redirection_text:
+      redirecting: "Redirecionando..."
+      redirecting_in: "Redirecionando em"
+      seconds: "segundos..."
+    text:
+      failed: "Falha no Pagamento"
+      processing: "Pagamento em Processamento"
+      success: "Pagamento Bem-Sucedido"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Janeiro"
+  february: "Fevereiro"
+  march: "Março"
+  april: "Abril"
+  may: "Maio"
+  june: "Junho"
+  july: "Julho"
+  august: "Agosto"
+  september: "Setembro"
+  october: "Outubro"
+  november: "Novembro"
+  december: "Dezembro"

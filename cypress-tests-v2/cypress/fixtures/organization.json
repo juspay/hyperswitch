@@ -1,0 +1,11 @@
+{
+  "org_create": {
+    "organization_name": "Hyperswitch"
+  },
+  "org_update": {
+    "organization_name": "Hyperswitch",
+    "metadata": {
+      "additional_info": "123"
+    }
+  }
+}

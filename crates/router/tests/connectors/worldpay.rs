@@ -19,12 +19,12 @@ impl ConnectorActions for Worldpay {}
 impl utils::Connector for Worldpay {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Worldpay;
-        types::api::ConnectorData {
-            connector: Box::new(&Worldpay),
-            connector_name: types::Connector::Worldpay,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Worldpay::new()),
+            types::Connector::Worldpay,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -62,13 +62,14 @@ async fn should_authorize_gpay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Wallet(
+                payment_method_data: domain::PaymentMethodData::Wallet(
                     domain::WalletData::GooglePay(domain::GooglePayWalletData {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),
                         info: domain::GooglePayPaymentMethodInfo {
                             card_network: "VISA".to_string(),
                             card_details: "1234".to_string(),
+                            assurance_details: None,
                         },
                         tokenization_data: domain::GpayTokenizationData {
                             token_type: "worldpay".to_string(),
@@ -97,7 +98,7 @@ async fn should_authorize_applepay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Wallet(
+                payment_method_data: domain::PaymentMethodData::Wallet(
                     domain::WalletData::ApplePay(domain::ApplePayWalletData {
                         payment_data: "someData".to_string(),
                         transaction_identifier: "someId".to_string(),
@@ -149,7 +150,7 @@ async fn should_sync_payment() {
     let response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "112233".to_string(),
                 ),
                 ..Default::default()

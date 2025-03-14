@@ -1,151 +1,428 @@
 use api_models::analytics::search::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
-    OpensearchOutput, SearchIndex,
+    OpensearchOutput, SearchIndex, SearchStatus,
 };
-use aws_config::{self, meta::region::RegionProviderChain, Region};
-use common_utils::errors::CustomResult;
-use opensearch::{
-    auth::Credentials,
-    cert::CertificateValidation,
-    http::{
-        request::JsonBody,
-        transport::{SingleNodeConnectionPool, TransportBuilder},
-        Url,
-    },
-    MsearchParts, OpenSearch, SearchParts,
+use common_utils::errors::{CustomResult, ReportSwitchExt};
+use error_stack::ResultExt;
+use router_env::tracing;
+use serde_json::Value;
+
+use crate::{
+    enums::AuthInfo,
+    opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
-use serde_json::{json, Value};
-use strum::IntoEnumIterator;
 
-use crate::{errors::AnalyticsError, OpensearchAuth, OpensearchConfig, OpensearchIndexes};
-
-#[derive(Debug, thiserror::Error)]
-pub enum OpensearchError {
-    #[error("Opensearch connection error")]
-    ConnectionError,
-    #[error("Opensearch NON-200 response content: '{0}'")]
-    ResponseNotOK(String),
-    #[error("Opensearch response error")]
-    ResponseError,
-}
-
-pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpensearchIndexes) -> String {
-    match index {
-        SearchIndex::PaymentAttempts => config.payment_attempts.clone(),
-        SearchIndex::PaymentIntents => config.payment_intents.clone(),
-        SearchIndex::Refunds => config.refunds.clone(),
-        SearchIndex::Disputes => config.disputes.clone(),
-    }
-}
-
-async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {
-    let url = Url::parse(&config.host).map_err(|_| OpensearchError::ConnectionError)?;
-    let transport = match config.auth {
-        OpensearchAuth::Basic { username, password } => {
-            let credentials = Credentials::Basic(username, password);
-            TransportBuilder::new(SingleNodeConnectionPool::new(url))
-                .cert_validation(CertificateValidation::None)
-                .auth(credentials)
-                .build()
-                .map_err(|_| OpensearchError::ConnectionError)?
-        }
-        OpensearchAuth::Aws { region } => {
-            let region_provider = RegionProviderChain::first_try(Region::new(region));
-            let sdk_config = aws_config::from_env().region(region_provider).load().await;
-            let conn_pool = SingleNodeConnectionPool::new(url);
-            TransportBuilder::new(conn_pool)
-                .auth(
-                    sdk_config
-                        .clone()
-                        .try_into()
-                        .map_err(|_| OpensearchError::ConnectionError)?,
-                )
-                .service_name("es")
-                .build()
-                .map_err(|_| OpensearchError::ConnectionError)?
-        }
-    };
-    Ok(OpenSearch::new(transport))
+pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
+    items.into_iter().map(|item| item.into()).collect()
 }
 
 pub async fn msearch_results(
+    client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
-    merchant_id: &String,
-    config: OpensearchConfig,
-) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    let client = get_opensearch_client(config.clone())
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
-
-    let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
-    for index in SearchIndex::iter() {
-        msearch_vector
-            .push(json!({"index": search_index_to_opensearch_index(index,&config.indexes)}).into());
-        msearch_vector.push(json!({"query": {"bool": {"filter": [{"multi_match": {"type": "phrase", "query": req.query, "lenient": true}},{"match_phrase": {"merchant_id": merchant_id}}]}}}).into());
+    search_params: Vec<AuthInfo>,
+    indexes: Vec<SearchIndex>,
+) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
+    if req.query.trim().is_empty()
+        && req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
+        )
+        .into());
     }
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Msearch(indexes.clone()),
+        req.query,
+        search_params,
+    );
 
-    let response = client
-        .msearch(MsearchParts::None)
-        .body(msearch_vector)
-        .send()
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+    if let Some(filters) = req.filters {
+        if let Some(currency) = filters.currency {
+            if !currency.is_empty() {
+                query_builder
+                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
+                    .switch()?;
+            }
+        };
+        if let Some(status) = filters.status {
+            if !status.is_empty() {
+                query_builder
+                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method) = filters.payment_method {
+            if !payment_method.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method.keyword".to_string(),
+                        convert_to_value(payment_method),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(customer_email) = filters.customer_email {
+            if !customer_email.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_email.keyword".to_string(),
+                        convert_to_value(
+                            customer_email
+                                .iter()
+                                .filter_map(|email| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(email)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        convert_to_value(
+                            search_tags
+                                .iter()
+                                .filter_map(|search_tag| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(search_tag)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        convert_to_value(payment_method_type),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "card_network.keyword".to_string(),
+                        convert_to_value(card_network),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "card_last_4.keyword".to_string(),
+                        convert_to_value(card_last_4),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_id.keyword".to_string(),
+                        convert_to_value(payment_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(amount) = filters.amount {
+            if !amount.is_empty() {
+                query_builder
+                    .add_filter_clause("amount".to_string(), convert_to_value(amount))
+                    .switch()?;
+            }
+        };
+        if let Some(customer_id) = filters.customer_id {
+            if !customer_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_id.keyword".to_string(),
+                        convert_to_value(customer_id),
+                    )
+                    .switch()?;
+            }
+        };
+    };
 
-    let response_body = response
-        .json::<OpenMsearchOutput<Value>>()
+    if let Some(time_range) = req.time_range {
+        query_builder.set_time_range(time_range.into()).switch()?;
+    };
+
+    let response_text: OpenMsearchOutput = client
+        .execute(query_builder)
         .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+        .change_context(OpenSearchError::ConnectionError)?
+        .text()
+        .await
+        .change_context(OpenSearchError::ResponseError)
+        .and_then(|body: String| {
+            serde_json::from_str::<OpenMsearchOutput>(&body)
+                .change_context(OpenSearchError::DeserialisationError)
+                .attach_printable(body.clone())
+        })?;
+
+    let response_body: OpenMsearchOutput = response_text;
 
     Ok(response_body
         .responses
         .into_iter()
-        .zip(SearchIndex::iter())
-        .map(|(index_hit, index)| GetSearchResponse {
-            count: index_hit.hits.total.value,
-            index,
-            hits: index_hit
-                .hits
-                .hits
-                .into_iter()
-                .map(|hit| hit._source)
-                .collect(),
+        .zip(indexes)
+        .map(|(index_hit, index)| match index_hit {
+            OpensearchOutput::Success(success) => GetSearchResponse {
+                count: success.hits.total.value,
+                index,
+                hits: success
+                    .hits
+                    .hits
+                    .into_iter()
+                    .map(|hit| hit.source)
+                    .collect(),
+                status: SearchStatus::Success,
+            },
+            OpensearchOutput::Error(error) => {
+                tracing::error!(
+                    index = ?index,
+                    error_response = ?error,
+                    "Search error"
+                );
+                GetSearchResponse {
+                    count: 0,
+                    index,
+                    hits: Vec::new(),
+                    status: SearchStatus::Failure,
+                }
+            }
         })
         .collect())
 }
 
 pub async fn search_results(
+    client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
-    merchant_id: &String,
-    config: OpensearchConfig,
-) -> CustomResult<GetSearchResponse, AnalyticsError> {
+    search_params: Vec<AuthInfo>,
+) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
+    if search_req.query.trim().is_empty()
+        && search_req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
+        )
+        .into());
+    }
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Search(req.index),
+        search_req.query,
+        search_params,
+    );
 
-    let client = get_opensearch_client(config.clone())
+    if let Some(filters) = search_req.filters {
+        if let Some(currency) = filters.currency {
+            if !currency.is_empty() {
+                query_builder
+                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
+                    .switch()?;
+            }
+        };
+        if let Some(status) = filters.status {
+            if !status.is_empty() {
+                query_builder
+                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method) = filters.payment_method {
+            if !payment_method.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method.keyword".to_string(),
+                        convert_to_value(payment_method),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(customer_email) = filters.customer_email {
+            if !customer_email.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_email.keyword".to_string(),
+                        convert_to_value(
+                            customer_email
+                                .iter()
+                                .filter_map(|email| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(email)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        convert_to_value(
+                            search_tags
+                                .iter()
+                                .filter_map(|search_tag| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(search_tag)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        convert_to_value(payment_method_type),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "card_network.keyword".to_string(),
+                        convert_to_value(card_network),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "card_last_4.keyword".to_string(),
+                        convert_to_value(card_last_4),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_id.keyword".to_string(),
+                        convert_to_value(payment_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(amount) = filters.amount {
+            if !amount.is_empty() {
+                query_builder
+                    .add_filter_clause("amount".to_string(), convert_to_value(amount))
+                    .switch()?;
+            }
+        };
+        if let Some(customer_id) = filters.customer_id {
+            if !customer_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_id.keyword".to_string(),
+                        convert_to_value(customer_id),
+                    )
+                    .switch()?;
+            }
+        };
+    };
+
+    if let Some(time_range) = search_req.time_range {
+        query_builder.set_time_range(time_range.into()).switch()?;
+    };
+
+    query_builder
+        .set_offset_n_count(search_req.offset, search_req.count)
+        .switch()?;
+
+    let response_text: OpensearchOutput = client
+        .execute(query_builder)
         .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
-
-    let response = client
-        .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&config.indexes)]))
-        .from(search_req.offset)
-        .size(search_req.count)
-        .body(json!({"query": {"bool": {"filter": [{"multi_match": {"type": "phrase", "query": search_req.query, "lenient": true}},{"match_phrase": {"merchant_id": merchant_id}}]}}}))
-        .send()
+        .change_context(OpenSearchError::ConnectionError)?
+        .text()
         .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+        .change_context(OpenSearchError::ResponseError)
+        .and_then(|body: String| {
+            serde_json::from_str::<OpensearchOutput>(&body)
+                .change_context(OpenSearchError::DeserialisationError)
+                .attach_printable(body.clone())
+        })?;
 
-    let response_body = response
-        .json::<OpensearchOutput<Value>>()
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+    let response_body: OpensearchOutput = response_text;
 
-    Ok(GetSearchResponse {
-        count: response_body.hits.total.value,
-        index: req.index,
-        hits: response_body
-            .hits
-            .hits
-            .into_iter()
-            .map(|hit| hit._source)
-            .collect(),
-    })
+    match response_body {
+        OpensearchOutput::Success(success) => Ok(GetSearchResponse {
+            count: success.hits.total.value,
+            index: req.index,
+            hits: success
+                .hits
+                .hits
+                .into_iter()
+                .map(|hit| hit.source)
+                .collect(),
+            status: SearchStatus::Success,
+        }),
+        OpensearchOutput::Error(error) => {
+            tracing::error!(
+                index = ?req.index,
+                error_response = ?error,
+                "Search error"
+            );
+            Ok(GetSearchResponse {
+                count: 0,
+                index: req.index,
+                hits: Vec::new(),
+                status: SearchStatus::Failure,
+            })
+        }
+    }
 }

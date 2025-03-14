@@ -18,7 +18,7 @@ impl EventNew {
 impl Event {
     pub async fn find_by_merchant_id_event_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -32,7 +32,7 @@ impl Event {
 
     pub async fn list_initial_attempts_by_merchant_id_primary_object_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -51,7 +51,7 @@ impl Event {
 
     pub async fn list_initial_attempts_by_merchant_id_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
@@ -101,7 +101,7 @@ impl Event {
 
     pub async fn list_by_merchant_id_initial_attempt_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -118,7 +118,7 @@ impl Event {
 
     pub async fn list_initial_attempts_by_profile_id_primary_object_id(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -137,7 +137,7 @@ impl Event {
 
     pub async fn list_initial_attempts_by_profile_id_constraints(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
@@ -187,7 +187,7 @@ impl Event {
 
     pub async fn list_by_profile_id_initial_attempt_id(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -204,7 +204,7 @@ impl Event {
 
     pub async fn update_by_merchant_id_event_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         event: EventUpdateInternal,
     ) -> StorageResult<Self> {

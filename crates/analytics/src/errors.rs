@@ -10,6 +10,10 @@ pub enum AnalyticsError {
     NotImplemented(&'static str),
     #[error("Unknown Analytics Error")]
     UnknownError,
+    #[error("Access Forbidden Analytics Error")]
+    AccessForbiddenError,
+    #[error("Failed to fetch currency exchange rate")]
+    ForexFetchFailed,
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
@@ -25,6 +29,15 @@ impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
                 "HE",
                 0,
                 "Something went wrong",
+                None,
+            )),
+            Self::AccessForbiddenError => {
+                ApiErrorResponse::Unauthorized(ApiError::new("IR", 0, "Access Forbidden", None))
+            }
+            Self::ForexFetchFailed => ApiErrorResponse::InternalServerError(ApiError::new(
+                "HE",
+                0,
+                "Failed to fetch currency exchange rate",
                 None,
             )),
         }

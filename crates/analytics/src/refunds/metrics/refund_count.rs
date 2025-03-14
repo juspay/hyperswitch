@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -8,6 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::RefundMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
@@ -28,12 +31,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
+    ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Refund);
 
         for dim in dimensions.iter() {
@@ -61,9 +64,7 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)
@@ -77,7 +78,7 @@ where
                 .switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
@@ -97,6 +98,9 @@ where
                         i.refund_status.as_ref().map(|i| i.0.to_string()),
                         i.connector.clone(),
                         i.refund_type.as_ref().map(|i| i.0.to_string()),
+                        i.profile_id.clone(),
+                        i.refund_reason.clone(),
+                        i.refund_error_message.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
@@ -111,7 +115,7 @@ where
                     i,
                 ))
             })
-            .collect::<error_stack::Result<Vec<_>, crate::query::PostProcessingError>>()
+            .collect::<error_stack::Result<HashSet<_>, crate::query::PostProcessingError>>()
             .change_context(MetricsError::PostProcessingFailure)
     }
 }

@@ -7,6 +7,8 @@ pub trait Strategy<T> {
 }
 
 /// Debug with type
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum WithType {}
 
 impl<T> Strategy<T> for WithType {

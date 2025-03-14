@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        @media only screen and (max-width: 600px) {
+            .card-container {
+                display: block !important;
+                width: 100% !important;
+                padding: 0 !important;
+            }
+
+            .card {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-bottom: 15px !important;
+                display: block !important;
+                box-sizing: border-box;
+            }
+
+            .repocard,
+            .communitycard,
+            .devdocs-card {
+                width: 100% !important;
+                padding: 0 !important;
+                margin-bottom: 10px !important;
+            }
+
+            .card-content {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                min-height: 100px !important;
+                padding: 20px 0 0 20px !important;
+                box-sizing: border-box;
+            }
+
+
+            .docscard-content {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                min-height: 100px !important;
+                padding: 0 20px 0 20px !important;
+                box-sizing: border-box;
+            }
+
+            .divider {
+                width: 100% !important;
+                padding: 0 !important;
+            }
+
+            .footer-section {
+                text-align: center !important;
+                margin: 0 auto;
+                width: 100%;
+            }
+
+            td.card-container,
+            td.card {
+                width: 100% !important;
+                padding: 0 !important;
+                display: block !important;
+            }
+
+            .logo-section {
+                text-align: center !important;
+                width: 100% !important;
+            }
+
+            .logo-section img {
+                display: block;
+                margin: 0 auto;
+            }
+        }
+
+        a.card-link {
+            text-decoration: none !important;
+            color: inherit !important;
+        }
+
+        .card-content td {
+            color: #151A1F !important;
+        }
+
+        .card-content td img {
+            display: block !important;
+        }
+    </style>
+</head>
+
+<body style="margin: 0; padding: 0; background-color: #f6f6f8; font-family: 'Inter', Arial, sans-serif;">
+    <center>
+        <table width="100%" cellspacing="0" cellpadding="0"
+            style="border-spacing: 0; margin: 0; padding: 0; background-color: #f6f6f8;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" class="container"
+                        style="max-width: 600px; background-color: #ffffff; border-radius: 10px; border-collapse: collapse;">
+
+                        <!-- Header Section -->
+                        <tr>
+                            <td align="center" bgcolor="#283652"
+                                style="padding: 40px 30px; color: white; border-top-left-radius: 20px; border-top-right-radius: 20px;">
+                                <table width="100%" role="presentation" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td align="left">
+                                            <img src="https://app.hyperswitch.io/assets/welcome-email/logotext.png"
+                                                alt="Hyperswitch Logo" width="150"
+                                                style="display: block; margin-bottom: 20px;">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td align="left"
+                                            style="font-size: 36px; line-height: 40px; font-weight: 500; color: white;">
+                                            Welcome to
+                                            <span style="font-weight: 700;">Hyperswitch</span>
+                                            <img src="https://app.hyperswitch.io/assets/welcome-email/star.png"
+                                                alt="Star Icon" width="30"
+                                                style="display: inline-block; vertical-align: middle; position: relative; top: -3px; margin-left: -2px;">
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <!-- Body Section -->
+                        <tr>
+                            <td align="left"
+                                style="padding: 30px; background-color: #FFFFFF; color: #151A1F; font-size: 16px; font-family: 'Inter', Arial, sans-serif; font-weight: 400; line-height: 23.68px; text-align: left;">
+                                <p style="margin-bottom: 20px; font-weight: 500;">Hello,</p>
+                                <p style="margin-bottom: 20px;">I wanted to reach out and introduce our community to
+                                    you.</p>
+                                <p style="margin-bottom: 20px;">I’m Neeraj. I work in Community Growth here at
+                                    Hyperswitch. We are a bunch of passionate people solving for payment diversity,
+                                    complexity, and innovation. Juspay, our parent organization, processes 125 Mn
+                                    transactions every day and has been providing payment platform solutions to large
+                                    digital enterprises for the past 12 years. We wish to empower global businesses to
+                                    expand their reach and enhance customer experiences through diverse payment
+                                    solutions.</p>
+                                <p style="margin-bottom: 20px;">Our mission is to provide a Fast, Reliable, Affordable &
+                                    Transparent payments platform, allowing businesses the flexibility to choose between
+                                    open-source and SaaS solution.</p>
+                            </td>
+                        </tr>
+
+                        <!-- CTA Cards Section (GitHub & Slack) -->
+                        <tr>
+                            <td align="center" style="padding: 0 30px;">
+                                <table width="100%" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <!-- GitHub Repo Card -->
+                                        <td width="50%" class="card" valign="top" style="padding-right: 10px;">
+                                            <a href="https://github.com/juspay/hyperswitch" target="_blank"
+                                                class="card-link">
+                                                <table class="card-content" width="100%" cellspacing="0" cellpadding="0"
+                                                    style="background-color: #F6F6F6; border-radius: 16px; padding: 20px 0 0 20px;">
+                                                    <tr>
+                                                        <td align="left"
+                                                            style="vertical-align: top; font-size: 22px; font-weight: 600; padding-right: 20px;">
+                                                            Star <br /> our repo
+                                                        </td>
+                                                        <td align="right"
+                                                            style="vertical-align: top; padding: 0 20px 0 0;">
+                                                            <img src="https://app.hyperswitch.io/assets/welcome-email/repoArrow.png"
+                                                                alt="Arrow Icon" width="24" height="24"
+                                                                style="border-radius: 50%; padding: 7px; background-color: #fff;">
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="2" align="right">
+                                                            <img src="https://app.hyperswitch.io/assets/welcome-email/github-logo1.png"
+                                                                alt="GitHub Icon" width="98" height="98"
+                                                                style="display: block;">
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </a>
+                                        </td>
+
+                                        <!-- Slack Community Card -->
+                                        <td width="50%" class="card" valign="top" style="padding-left: 10px;">
+                                            <a href="https://hyperswitch-io.slack.com/join/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw#/shared-invite/email"
+                                                target="_blank" class="card-link">
+                                                <table class="card-content" width="100%" cellspacing="0" cellpadding="0"
+                                                    style="background-color: #F6F6F6; border-radius: 16px; padding: 20px 0 0 20px;">
+                                                    <tr>
+                                                        <td align="left"
+                                                            style="vertical-align: top; font-size: 22px; font-weight: 600; padding-right: 20px;">
+                                                            Join our <br /> Community
+                                                        </td>
+                                                        <td align="right"
+                                                            style="vertical-align: top; padding: 0 20px 0 0;">
+                                                            <img src="https://app.hyperswitch.io/assets/welcome-email/communityArrow.png"
+                                                                alt="Arrow Icon" width="24" height="24"
+                                                                style="border-radius: 50%; padding: 7px; background-color: #fff;">
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="2" align="right">
+                                                            <img src="https://app.hyperswitch.io/assets/welcome-email/slack.png"
+                                                                alt="Slack Icon" width="98" height="98"
+                                                                style="display: block;">
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <!-- Read Dev Docs Section -->
+                        <tr>
+                            <td style="padding: 10px 30px 0 30px ;">
+                                <a href="https://api-reference.hyperswitch.io/introduction" target="_blank"
+                                    class="card-link">
+                                    <table class="docscard-content" width="100%" cellspacing="0" cellpadding="0"
+                                        style="background-color: #FFEFEF; border-radius: 16px; padding: 20px;">
+                                        <tr>
+                                            <td style="vertical-align: middle;">
+                                                <table>
+                                                    <tr>
+                                                        <td style="vertical-align: middle;">
+                                                            <img src="https://app.hyperswitch.io/assets/welcome-email/docs.png"
+                                                                alt="docs icon" width="24" height="29"
+                                                                style="margin-right: 10px;">
+                                                        </td>
+                                                        <td style="vertical-align: middle;">
+                                                            <span style="font-size: 22px; font-weight: 600;">Read dev
+                                                                docs</span>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                            <td align="right" style="vertical-align: middle;">
+                                                <img src="https://app.hyperswitch.io/assets/welcome-email/docsArrow.png"
+                                                    alt="Arrow Icon" width="24" height="24"
+                                                    style="border-radius: 50%; padding: 7px; background-color: #fff;">
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </a>
+                            </td>
+                        </tr>
+
+                        <!-- Divider and Footer Section -->
+                        <tr>
+                            <td style="padding: 40px 0 0 0;">
+                                <!-- Divider (Top Border) -->
+                                <table width="100%" class="divider" cellpadding="0" cellspacing="0"
+                                    style="border-top: 1px solid #F2F2F2;">
+                                    <tr>
+                                        <td align="center">
+                                            <table cellspacing="0" cellpadding="0"
+                                                style="margin: 0 auto; padding: 30px 0; max-width: 378px; width: 100%;">
+                                                <tr>
+                                                    <td align="center" style="padding: 0;" class="logo-section">
+                                                        <img src="https://app.hyperswitch.io/assets/welcome-email/logo.png"
+                                                            alt="Icon" width="82" height="40" style="display: block;">
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+
+            <!-- Footer Section with max-width 600px -->
+            <tr>
+                <td align="center" style="padding: 16px 4px 0 4px; background-color: #f6f6f8;">
+                    <table width="100%" cellspacing="0" cellpadding="0" style="max-width: 601px;">
+                        <tr>
+                            <!-- Follow us on and Social Media Icons -->
+                            <td align="left"
+                                style="font-family: 'Inter', Arial, sans-serif; font-size: 12px; font-weight: 500; line-height: 16px; color: #63605F;">
+                                Follow us on
+                                <a href="https://x.com/hyperswitchio"
+                                    style="margin-right: 10px; text-decoration: none;">
+                                    <img src="https://app.hyperswitch.io/assets/welcome-email/twitter.png" alt="Twitter"
+                                        width="14" height="14" style="vertical-align: -3px;">
+                                </a>
+                                <a href="https://www.linkedin.com/company/hyperswitch/" style="text-decoration: none;">
+                                    <img src="https://app.hyperswitch.io/assets/welcome-email/linkedin.png"
+                                        alt="LinkedIn" width="13.33" height="13.33" style="vertical-align: -3px;">
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </center>
+</body>
+
+</html>

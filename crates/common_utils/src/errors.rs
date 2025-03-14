@@ -1,14 +1,16 @@
 //! Errors and error specific types for universal use
 
+use crate::types::MinorUnit;
+
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
 /// error_stack::Report<E> specific extendability
 ///
 /// Effectively, equivalent to `Result<T, error_stack::Report<E>>`
-///
 pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 /// Parsing Errors
+#[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
 #[derive(Debug, thiserror::Error)]
 pub enum ParsingError {
     ///Failed to parse enum
@@ -32,6 +34,24 @@ pub enum ParsingError {
     /// Failed to parse phone number
     #[error("Failed to parse phone number")]
     PhoneNumberParsingError,
+    /// Failed to parse Float value for converting to decimal points
+    #[error("Failed to parse Float value for converting to decimal points")]
+    FloatToDecimalConversionFailure,
+    /// Failed to parse Decimal value for i64 value conversion
+    #[error("Failed to parse Decimal value for i64 value conversion")]
+    DecimalToI64ConversionFailure,
+    /// Failed to parse string value for f64 value conversion
+    #[error("Failed to parse string value for f64 value conversion")]
+    StringToFloatConversionFailure,
+    /// Failed to parse i64 value for f64 value conversion
+    #[error("Failed to parse i64 value for f64 value conversion")]
+    I64ToDecimalConversionFailure,
+    /// Failed to parse String value to Decimal value conversion because `error`
+    #[error("Failed to parse String value to Decimal value conversion because {error}")]
+    StringToDecimalConversionFailure { error: String },
+    /// Failed to convert the given integer because of integer overflow error
+    #[error("Integer Overflow error")]
+    IntegerOverflow,
 }
 
 /// Validation errors.
@@ -49,6 +69,15 @@ pub enum ValidationError {
     /// An invalid input was provided.
     #[error("{message}")]
     InvalidValue { message: String },
+}
+
+/// Integrity check errors.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct IntegrityCheckError {
+    /// Field names for which integrity check failed!
+    pub field_names: String,
+    /// Connector transaction reference id
+    pub connector_transaction_id: Option<String>,
 }
 
 /// Cryptographic algorithm errors
@@ -74,6 +103,9 @@ pub enum QrCodeError {
     /// Failed to encode data into Qr code
     #[error("Failed to create Qr code")]
     FailedToCreateQrCode,
+    /// Failed to parse hex color
+    #[error("Invalid hex color code supplied")]
+    InvalidHexColor,
 }
 
 /// Api Models construction error
@@ -89,7 +121,7 @@ pub enum PercentageError {
         /// percentage value
         percentage: f32,
         /// amount value
-        amount: i64,
+        amount: MinorUnit,
     },
 }
 
@@ -116,6 +148,42 @@ where
             }
         }
     }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, thiserror::Error)]
+pub enum KeyManagerClientError {
+    #[error("Failed to construct header from the given value")]
+    FailedtoConstructHeader,
+    #[error("Failed to send request to Keymanager")]
+    RequestNotSent(String),
+    #[error("URL encoding of request failed")]
+    UrlEncodingFailed,
+    #[error("Failed to build the reqwest client ")]
+    ClientConstructionFailed,
+    #[error("Failed to send the request to Keymanager")]
+    RequestSendFailed,
+    #[error("Internal Server Error Received {0:?}")]
+    InternalServerError(bytes::Bytes),
+    #[error("Bad request received {0:?}")]
+    BadRequest(bytes::Bytes),
+    #[error("Unexpected Error occurred while calling the KeyManager")]
+    Unexpected(bytes::Bytes),
+    #[error("Response Decoding failed")]
+    ResponseDecodingFailed,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, thiserror::Error)]
+pub enum KeyManagerError {
+    #[error("Failed to add key to the KeyManager")]
+    KeyAddFailed,
+    #[error("Failed to transfer the key to the KeyManager")]
+    KeyTransferFailed,
+    #[error("Failed to Encrypt the data in the KeyManager")]
+    EncryptionFailed,
+    #[error("Failed to Decrypt the data in the KeyManager")]
+    DecryptionFailed,
 }
 
 /// Allow [error_stack::Report] to convert between error types

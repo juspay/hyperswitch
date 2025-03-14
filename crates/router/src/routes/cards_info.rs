@@ -1,4 +1,6 @@
-use actix_web::{web, HttpRequest, Responder};
+use actix_multipart::form::MultipartForm;
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use api_models::cards_info as cards_info_api_types;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -7,6 +9,7 @@ use crate::{
     services::{api, authentication as auth},
 };
 
+#[cfg(feature = "v1")]
 /// Cards Info - Retrieve
 ///
 /// Retrieve the card information given the card bin
@@ -41,14 +44,83 @@ pub async fn card_iin_info(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         Flow::CardsInfo,
         state,
         &req,
         payload,
-        |state, auth, req, _| cards_info::retrieve_card_info(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            cards_info::retrieve_card_info(state, auth.merchant_account, auth.key_store, req)
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::CardsInfoCreate))]
+pub async fn create_cards_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<cards_info_api_types::CardInfoCreateRequest>,
+) -> impl Responder {
+    let payload = json_payload.into_inner();
+    let flow = Flow::CardsInfoCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, _, payload, _| cards_info::create_card_info(state, payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::CardsInfoUpdate))]
+pub async fn update_cards_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<cards_info_api_types::CardInfoUpdateRequest>,
+) -> impl Responder {
+    let payload = json_payload.into_inner();
+    let flow = Flow::CardsInfoUpdate;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, _, payload, _| cards_info::update_card_info(state, payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
+#[instrument(skip_all, fields(flow = ?Flow::CardsInfoMigrate))]
+pub async fn migrate_cards_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<cards_info::CardsInfoUpdateForm>,
+) -> HttpResponse {
+    let flow = Flow::CardsInfoMigrate;
+    let records = match cards_info::get_cards_bin_records(form) {
+        Ok(records) => records,
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        records,
+        |state, _, payload, _| cards_info::migrate_cards_info(state, payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

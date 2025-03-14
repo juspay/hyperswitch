@@ -19,7 +19,7 @@ impl AuthenticationNew {
 impl Authentication {
     pub async fn update_by_merchant_id_authentication_id(
         conn: &PgPooledConn,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authentication_id: String,
         authorization_update: AuthenticationUpdate,
     ) -> StorageResult<Self> {
@@ -58,7 +58,7 @@ impl Authentication {
 
     pub async fn find_by_merchant_id_authentication_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -72,7 +72,7 @@ impl Authentication {
 
     pub async fn find_authentication_by_merchant_id_connector_authentication_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_authentication_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(

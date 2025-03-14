@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetricsBucketIdentifier, SdkEventNames,
@@ -32,11 +34,12 @@ where
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::SdkEvents);
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
         let dimensions = dimensions.to_vec();
 
         for dim in dimensions.iter() {
@@ -50,7 +53,7 @@ where
             })
             .switch()?;
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             query_builder
                 .add_granularity_in_mins(granularity)
                 .switch()?;
@@ -118,7 +121,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
+                HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

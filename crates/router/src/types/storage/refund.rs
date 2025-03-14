@@ -1,6 +1,7 @@
+use api_models::payments::AmountFilter;
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
@@ -11,6 +12,7 @@ use diesel_models::{
     schema::refund::dsl,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::refunds;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -18,31 +20,38 @@ use crate::{connection::PgPooledConn, logger};
 pub trait RefundDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        refund_list_details: &api_models::payments::TimeRange,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
+
+    async fn get_refund_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -58,8 +67,11 @@ impl RefundDbExt for Refund {
         ) {
             search_by_pay_or_ref_id = true;
             filter = filter
-                .filter(dsl::payment_id.eq(pid.to_owned()))
-                .or_filter(dsl::refund_id.eq(ref_id.to_owned()))
+                .filter(
+                    dsl::payment_id
+                        .eq(pid.to_owned())
+                        .or(dsl::refund_id.eq(ref_id.to_owned())),
+                )
                 .limit(limit)
                 .offset(offset);
         };
@@ -87,7 +99,7 @@ impl RefundDbExt for Refund {
         match &refund_list_details.profile_id {
             Some(profile_id) => {
                 filter = filter
-                    .filter(dsl::profile_id.eq(profile_id.to_owned()))
+                    .filter(dsl::profile_id.eq_any(profile_id.to_owned()))
                     .limit(limit)
                     .offset(offset);
             }
@@ -104,8 +116,28 @@ impl RefundDbExt for Refund {
             }
         }
 
-        if let Some(connector) = refund_list_details.clone().connector {
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id.clone() {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id));
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {
@@ -129,8 +161,8 @@ impl RefundDbExt for Refund {
 
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        refund_list_details: &api_models::payments::TimeRange,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         let start_time = refund_list_details.start_time;
 
@@ -184,8 +216,8 @@ impl RefundDbExt for Refund {
 
     async fn get_refunds_count(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -199,9 +231,11 @@ impl RefundDbExt for Refund {
             &refund_list_details.refund_id,
         ) {
             search_by_pay_or_ref_id = true;
-            filter = filter
-                .filter(dsl::payment_id.eq(pid.to_owned()))
-                .or_filter(dsl::refund_id.eq(ref_id.to_owned()));
+            filter = filter.filter(
+                dsl::payment_id
+                    .eq(pid.to_owned())
+                    .or(dsl::refund_id.eq(ref_id.to_owned())),
+            );
         };
 
         if !search_by_pay_or_ref_id {
@@ -216,7 +250,7 @@ impl RefundDbExt for Refund {
             }
         }
         if let Some(profile_id) = &refund_list_details.profile_id {
-            filter = filter.filter(dsl::profile_id.eq(profile_id.to_owned()));
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id.to_owned()));
         }
 
         if let Some(time_range) = refund_list_details.time_range {
@@ -227,8 +261,28 @@ impl RefundDbExt for Refund {
             }
         }
 
-        if let Some(connector) = refund_list_details.clone().connector {
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id.clone() {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {
@@ -246,5 +300,39 @@ impl RefundDbExt for Refund {
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
+    }
+
+    async fn get_refund_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
+        let mut query = <Self as HasTable>::table()
+            .group_by(dsl::refund_status)
+            .select((dsl::refund_status, diesel::dsl::count_star()))
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        if let Some(profile_id) = profile_id_list {
+            query = query.filter(dsl::profile_id.eq_any(profile_id));
+        }
+
+        query = query.filter(dsl::created_at.ge(time_range.start_time));
+
+        query = match time_range.end_time {
+            Some(ending_at) => query.filter(dsl::created_at.le(ending_at)),
+            None => query,
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            query.get_results_async::<(RefundStatus, i64)>(conn),
+            db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering status count of refunds")
     }
 }

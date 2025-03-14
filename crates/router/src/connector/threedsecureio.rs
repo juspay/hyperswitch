@@ -15,7 +15,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -126,10 +126,7 @@ impl ConnectorCommon for Threedsecureio {
             }
             Err(err) => {
                 router_env::logger::error!(deserialization_error =? err);
-                utils::handle_json_response_deserialization_failure(
-                    res,
-                    "threedsecureio".to_owned(),
-                )
+                utils::handle_json_response_deserialization_failure(res, "threedsecureio")
             }
         }
     }
@@ -211,6 +208,7 @@ impl api::IncomingWebhook for Threedsecureio {
 }
 
 impl api::ConnectorPreAuthentication for Threedsecureio {}
+impl api::ConnectorPreAuthenticationVersionCall for Threedsecureio {}
 impl api::ExternalAuthentication for Threedsecureio {}
 impl api::ConnectorAuthentication for Threedsecureio {}
 impl api::ConnectorPostAuthentication for Threedsecureio {}
@@ -409,10 +407,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        // Ok(types::authentication::PreAuthNRouterData {
-        //     response,
-        //     ..data.clone()
-        // })
     }
 
     fn get_error_response(
@@ -527,3 +521,14 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+impl
+    ConnectorIntegration<
+        api::PreAuthenticationVersionCall,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Threedsecureio
+{
+}
+
+impl ConnectorSpecifications for Threedsecureio {}

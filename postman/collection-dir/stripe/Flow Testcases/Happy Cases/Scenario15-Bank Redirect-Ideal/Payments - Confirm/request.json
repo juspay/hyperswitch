@@ -43,12 +43,8 @@
       "payment_method_data": {
         "bank_redirect": {
           "ideal": {
-            "billing_details": {
-              "billing_name": "John Doe"
-            },
             "bank_name": "ing",
-            "preferred_language": "en",
-            "country": "DE"
+            "preferred_language": "en"
           }
         }
       },

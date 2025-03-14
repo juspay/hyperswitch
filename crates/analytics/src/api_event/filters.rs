@@ -12,7 +12,7 @@ pub trait ApiEventFilterAnalytics: LoadRow<ApiEventFilter> {}
 
 pub async fn get_api_event_filter_for_dimension<T>(
     dimension: ApiEventDimensions,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<ApiEventFilter>>

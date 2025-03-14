@@ -103,7 +103,6 @@ impl HashiCorpVault {
     /// # Parameters
     ///
     /// - `config`: A reference to a `HashiCorpVaultConfig` containing the configuration details.
-    ///
     pub fn new(config: &HashiCorpVaultConfig) -> error_stack::Result<Self, HashiCorpError> {
         VaultClient::new(
             VaultClientSettingsBuilder::default()
@@ -129,7 +128,6 @@ impl HashiCorpVault {
     ///
     /// - `En`: The engine type that implements the `Engine` trait.
     /// - `I`: The type that can be constructed from the retrieved encoded data.
-    ///
     pub async fn fetch<En, I>(&self, data: String) -> error_stack::Result<I, HashiCorpError>
     where
         for<'a> En: Engine<
@@ -163,7 +161,8 @@ pub trait FromEncoded: Sized {
     /// # Example
     ///
     /// ```rust
-    /// # use your_module::{FromEncoded, masking::Secret, Vec};
+    /// use external_services::hashicorp_vault::core::FromEncoded;
+    /// use masking::Secret;
     /// let secret_instance = Secret::<String>::from_encoded("encoded_secret_string".to_string());
     /// let vec_instance = Vec::<u8>::from_encoded("68656c6c6f".to_string());
     /// ```

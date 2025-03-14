@@ -1,21 +1,21 @@
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
-    errors as sch_errors, utils as scheduler_utils, SchedulerAppState,
+    errors as sch_errors, utils as scheduler_utils,
 };
 
 use crate::{
     consts,
     core::{
         errors::StorageErrorExt,
-        payment_methods::Oss,
         payments::{self as payment_flows, operations},
     },
     db::StorageInterface,
     errors,
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{
         api,
@@ -27,10 +27,20 @@ use crate::{
 pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
+    #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
@@ -38,9 +48,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-
+        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -51,6 +62,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
+                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -66,18 +78,20 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 _,
                 _,
                 _,
-                Oss,
+                payment_flows::PaymentData<api::PSync>,
             >(
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
                 None,
-                api::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None, //Platform merchant account
             ))
             .await?;
 
@@ -93,9 +107,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
                 state
-                    .get_db()
+                    .store
                     .as_scheduler()
-                    .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
+                    .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                     .await?
             }
             _ => {
@@ -123,22 +137,23 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
-                        data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
+                        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            status: api_models::enums::AttemptStatus::AuthenticationFailed,
+                            status: api_models::enums::AttemptStatus::Failure,
                             error_code: None,
                             error_message: None,
                             error_reason: Some(Some(
                                 consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
-                            amount_capturable: Some(0),
+                            amount_capturable: Some(common_utils::types::MinorUnit::new(0)),
                             updated_by: merchant_account.storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id: None,
                             payment_method_data: None,
+                            authentication_type: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -152,8 +167,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     payment_data.payment_intent = db
                         .update_payment_intent(
+                            &state.into(),
                             payment_data.payment_intent,
                             payment_intent_update,
+                            &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await
@@ -168,13 +185,15 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(profile_id)
+                        .find_business_profile_by_profile_id(
+                            key_manager_state,
+                            &key_store,
+                            profile_id,
+                        )
                         .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.to_string(),
-                            },
-                        )?;
+                        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                            id: profile_id.get_string_repr().to_owned(),
+                        })?;
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
@@ -198,7 +217,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: sch_errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError> {
@@ -225,11 +244,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 /// `start_after`: The first psync should happen after 60 seconds
 ///
 /// `frequency` and `count`: The next 5 retries should have an interval of 300 seconds between them
-///
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -262,7 +280,7 @@ pub async fn get_sync_process_schedule_time(
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
@@ -275,7 +293,7 @@ pub async fn retry_sync_task(
         }
         None => {
             db.as_scheduler()
-                .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
                 .await?;
             Ok(true)
         }
@@ -289,18 +307,26 @@ mod tests {
 
     #[test]
     fn test_get_default_schedule_time() {
-        let schedule_time_delta =
-            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0)
-                .unwrap();
-        let first_retry_time_delta =
-            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1)
-                .unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("-")).unwrap();
+        let schedule_time_delta = scheduler_utils::get_schedule_time(
+            process_data::ConnectorPTMapping::default(),
+            &merchant_id,
+            0,
+        )
+        .unwrap();
+        let first_retry_time_delta = scheduler_utils::get_schedule_time(
+            process_data::ConnectorPTMapping::default(),
+            &merchant_id,
+            1,
+        )
+        .unwrap();
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
             vec![
                 cpt_default.start_after,
-                *cpt_default.frequency.first().unwrap()
+                cpt_default.frequencies.first().unwrap().0
             ]
         );
     }

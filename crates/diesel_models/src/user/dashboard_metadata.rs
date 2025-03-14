@@ -1,17 +1,19 @@
-use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::id_type;
+use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::dashboard_metadata};
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = dashboard_metadata)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = dashboard_metadata, check_for_backend(diesel::pg::Pg))]
 pub struct DashboardMetadata {
     pub id: i32,
     pub user_id: Option<String>,
-    pub merchant_id: String,
-    pub org_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
     pub data_key: enums::DashboardMetadata,
-    pub data_value: serde_json::Value,
+    pub data_value: Secret<serde_json::Value>,
     pub created_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
@@ -24,10 +26,10 @@ pub struct DashboardMetadata {
 #[diesel(table_name = dashboard_metadata)]
 pub struct DashboardMetadataNew {
     pub user_id: Option<String>,
-    pub merchant_id: String,
-    pub org_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
     pub data_key: enums::DashboardMetadata,
-    pub data_value: serde_json::Value,
+    pub data_value: Secret<serde_json::Value>,
     pub created_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
@@ -40,7 +42,7 @@ pub struct DashboardMetadataNew {
 #[diesel(table_name = dashboard_metadata)]
 pub struct DashboardMetadataUpdateInternal {
     pub data_key: enums::DashboardMetadata,
-    pub data_value: serde_json::Value,
+    pub data_value: Secret<serde_json::Value>,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
 }
@@ -49,7 +51,7 @@ pub struct DashboardMetadataUpdateInternal {
 pub enum DashboardMetadataUpdate {
     UpdateData {
         data_key: enums::DashboardMetadata,
-        data_value: serde_json::Value,
+        data_value: Secret<serde_json::Value>,
         last_modified_by: String,
     },
 }

@@ -1,4 +1,4 @@
-use app::AppState;
+use app::SessionState;
 use common_utils::generate_id_with_default_len;
 use error_stack::ResultExt;
 
@@ -9,8 +9,9 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
     utils::tokio_mock_sleep(
@@ -32,7 +33,7 @@ pub async fn payment(
     .await?;
     utils::store_data_in_redis(
         &state,
-        payment_data.payment_id.clone(),
+        payment_data.payment_id.get_string_repr().to_owned(),
         payment_data.clone(),
         state.conf.dummy_connector.payment_ttl,
     )
@@ -41,7 +42,7 @@ pub async fn payment(
 }
 
 pub async fn payment_data(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
     utils::tokio_mock_sleep(
@@ -54,8 +55,9 @@ pub async fn payment_data(
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment_authorize(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentConfirmRequest,
 ) -> types::DummyConnectorResponse<String> {
     let payment_data = utils::get_payment_data_by_attempt_id(&state, req.attempt_id.clone()).await;
@@ -64,7 +66,7 @@ pub async fn payment_authorize(
     if let Ok(payment_data_inner) = payment_data {
         let return_url = format!(
             "{}/dummy-connector/complete/{}",
-            state.conf.server.base_url, req.attempt_id
+            state.base_url, req.attempt_id
         );
         Ok(api::ApplicationResponse::FileData((
             utils::get_authorize_page(payment_data_inner, return_url, dummy_connector_conf)
@@ -82,8 +84,9 @@ pub async fn payment_authorize(
     }
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment_complete(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorPaymentCompleteRequest,
 ) -> types::DummyConnectorResponse<()> {
     utils::tokio_mock_sleep(
@@ -106,7 +109,7 @@ pub async fn payment_complete(
         .change_context(errors::DummyConnectorErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let _ = redis_conn.delete_key(req.attempt_id.as_str()).await;
+    let _ = redis_conn.delete_key(&req.attempt_id.as_str().into()).await;
 
     if let Ok(payment_data) = payment_data {
         let updated_payment_data = types::DummyConnectorPaymentData {
@@ -116,7 +119,7 @@ pub async fn payment_complete(
         };
         utils::store_data_in_redis(
             &state,
-            updated_payment_data.payment_id.clone(),
+            updated_payment_data.payment_id.get_string_repr().to_owned(),
             updated_payment_data.clone(),
             state.conf.dummy_connector.payment_ttl,
         )
@@ -144,8 +147,9 @@ pub async fn payment_complete(
     ))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn refund_payment(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorRefundRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     utils::tokio_mock_sleep(
@@ -162,7 +166,8 @@ pub async fn refund_payment(
         })?;
 
     let mut payment_data =
-        utils::get_payment_data_from_payment_id(&state, payment_id.clone()).await?;
+        utils::get_payment_data_from_payment_id(&state, payment_id.get_string_repr().to_owned())
+            .await?;
 
     payment_data.is_eligible_for_refund(req.amount)?;
 
@@ -171,7 +176,7 @@ pub async fn refund_payment(
 
     utils::store_data_in_redis(
         &state,
-        payment_id,
+        payment_id.get_string_repr().to_owned(),
         payment_data.to_owned(),
         state.conf.dummy_connector.payment_ttl,
     )
@@ -196,8 +201,9 @@ pub async fn refund_payment(
     Ok(api::ApplicationResponse::Json(refund_data))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn refund_data(
-    state: AppState,
+    state: SessionState,
     req: types::DummyConnectorRefundRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     let refund_id = req.refund_id;
@@ -214,7 +220,7 @@ pub async fn refund_data(
         .attach_printable("Failed to get redis connection")?;
     let refund_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorRefundResponse>(
-            refund_id.as_str(),
+            &refund_id.as_str().into(),
             "DummyConnectorRefundResponse",
         )
         .await

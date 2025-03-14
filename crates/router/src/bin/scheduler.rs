@@ -1,10 +1,9 @@
-#![recursion_limit = "256"]
-use std::{str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
 use common_utils::ext_traits::{OptionExt, StringExt};
-use diesel_models::process_tracker as storage;
+use diesel_models::process_tracker::{self as storage, business_status};
 use error_stack::ResultExt;
 use router::{
     configs::settings::{CmdLineConf, Settings},
@@ -22,7 +21,7 @@ use router_env::{
 };
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
-    workflows::ProcessTrackerWorkflows, SchedulerAppState,
+    workflows::ProcessTrackerWorkflows, SchedulerSessionState,
 };
 use storage_impl::errors::ApplicationError;
 use tokio::sync::{mpsc, oneshot};
@@ -36,11 +35,8 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker),
-        )
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?,
+        services::ProxyClient::new(&conf.proxy)
+            .change_context(ProcessTrackerError::ConfigurationError)?,
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
@@ -63,11 +59,14 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let scheduler_flow = scheduler::SchedulerFlow::from_str(&scheduler_flow_str)
         .expect("Unable to parse SchedulerFlow from environment variable");
 
+    #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
-    println!(
-        "Starting {scheduler_flow} (Version: {})",
-        router_env::git_tag!()
-    );
+    {
+        println!(
+            "Starting {scheduler_flow} (Version: {})",
+            router_env::git_tag!()
+        );
+    }
 
     let _guard = router_env::setup(
         &state.conf.log,
@@ -95,7 +94,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
 
     start_scheduler(&state, scheduler_flow, (tx, rx)).await?;
 
-    eprintln!("Scheduler shut down");
+    logger::error!("Scheduler shut down");
     Ok(())
 }
 
@@ -116,7 +115,8 @@ pub async fn start_web_server(
     let web_server = actix_web::HttpServer::new(move || {
         actix_web::App::new().service(Health::server(state.clone(), service.clone()))
     })
-    .bind((server.host.as_str(), server.port))?
+    .bind((server.host.as_str(), server.port))
+    .change_context(ApplicationError::ConfigurationError)?
     .workers(server.workers)
     .run();
     let _ = web_server.handle();
@@ -146,33 +146,68 @@ pub async fn deep_health_check(
     state: web::Data<routes::AppState>,
     service: web::Data<String>,
 ) -> impl actix_web::Responder {
-    let report = deep_health_check_func(state, service).await;
-    match report {
-        Ok(response) => services::http_response_json(
-            serde_json::to_string(&response)
-                .map_err(|err| {
-                    logger::error!(serialization_error=?err);
-                })
-                .unwrap_or_default(),
-        ),
-        Err(err) => api::log_and_return_error_response(err),
+    let mut checks = HashMap::new();
+    let stores = state.stores.clone();
+    let app_state = Arc::clone(&state.into_inner());
+    let service_name = service.into_inner();
+    for (tenant, _) in stores {
+        let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "tenant_id",
+            }
+            .into()
+        });
+        let session_state = match session_state_res {
+            Ok(state) => state,
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        };
+        let report = deep_health_check_func(session_state, &service_name).await;
+        match report {
+            Ok(response) => {
+                checks.insert(
+                    tenant,
+                    serde_json::to_string(&response)
+                        .map_err(|err| {
+                            logger::error!(serialization_error=?err);
+                        })
+                        .unwrap_or_default(),
+                );
+            }
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        }
     }
+    services::http_response_json(
+        serde_json::to_string(&checks)
+            .map_err(|err| {
+                logger::error!(serialization_error=?err);
+            })
+            .unwrap_or_default(),
+    )
 }
 #[instrument(skip_all)]
 pub async fn deep_health_check_func(
-    state: web::Data<routes::AppState>,
-    service: web::Data<String>,
+    state: routes::SessionState,
+    service: &str,
 ) -> errors::RouterResult<SchedulerHealthCheckResponse> {
-    logger::info!("{} deep health check was called", service.into_inner());
+    logger::info!("{} deep health check was called", service);
 
     logger::debug!("Database health check begin");
 
-    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-            component: "Database",
-            message: err.to_string()
-        })
-    })?;
+    let db_status = state
+        .health_check_db()
+        .await
+        .map(|_| true)
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                component: "Database",
+                message,
+            })
+        })?;
 
     logger::debug!("Database health check end");
 
@@ -182,23 +217,26 @@ pub async fn deep_health_check_func(
         .health_check_redis()
         .await
         .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
                 component: "Redis",
-                message: err.to_string()
+                message,
             })
         })?;
 
-    let outgoing_req_check = state
-        .health_check_outgoing()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Outgoing Request",
-                message: err.to_string()
-            })
-        })?;
+    let outgoing_req_check =
+        state
+            .health_check_outgoing()
+            .await
+            .map(|_| true)
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Outgoing Request",
+                    message,
+                })
+            })?;
 
     logger::debug!("Redis health check end");
 
@@ -215,10 +253,10 @@ pub async fn deep_health_check_func(
 pub struct WorkflowRunner;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
+impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
         &'a self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         process: storage::ProcessTracker,
     ) -> CustomResult<(), ProcessTrackerError> {
         let runner = process
@@ -233,7 +271,7 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             .attach_printable("Failed to parse workflow runner name")?;
 
         let get_operation = |runner: storage::ProcessTrackerRunner| -> CustomResult<
-            Box<dyn ProcessTrackerWorkflow<routes::AppState>>,
+            Box<dyn ProcessTrackerWorkflow<routes::SessionState>>,
             ProcessTrackerError,
         > {
             match runner {
@@ -263,13 +301,36 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow => Ok(Box::new(
                     workflows::outgoing_webhook_retry::OutgoingWebhookRetryWorkflow,
                 )),
+                storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow => {
+                    #[cfg(feature = "payouts")]
+                    {
+                        Ok(Box::new(
+                            workflows::attach_payout_account_workflow::AttachPayoutAccountWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(
+                            error_stack::report!(ProcessTrackerError::UnexpectedFlow),
+                        )
+                        .attach_printable(
+                            "Cannot run Stripe external account workflow when payouts feature is disabled",
+                        )
+                    }
+                }
+                storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow => Ok(Box::new(
+                    workflows::payment_method_status_update::PaymentMethodStatusUpdateWorkflow,
+                )),
+                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => Ok(Box::new(
+                    workflows::passive_churn_recovery_workflow::ExecutePcrWorkflow,
+                )),
             }
         };
 
         let operation = get_operation(runner)?;
 
         let app_state = &state.clone();
-        let output = operation.execute_workflow(app_state, process.clone()).await;
+        let output = operation.execute_workflow(state, process.clone()).await;
         match output {
             Ok(_) => operation.success_handler(app_state, process).await,
             Err(error) => match operation
@@ -278,14 +339,21 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             {
                 Ok(_) => (),
                 Err(error) => {
-                    logger::error!(%error, "Failed while handling error");
+                    logger::error!(?error, "Failed while handling error");
                     let status = state
                         .get_db()
                         .as_scheduler()
-                        .finish_process_with_business_status(process, "GLOBAL_FAILURE".to_string())
+                        .finish_process_with_business_status(
+                            process,
+                            business_status::GLOBAL_FAILURE,
+                        )
                         .await;
-                    if let Err(err) = status {
-                        logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
+                    if let Err(error) = status {
+                        logger::error!(
+                            ?error,
+                            "Failed while performing database operation: {}",
+                            business_status::GLOBAL_FAILURE
+                        );
                     }
                 }
             },
@@ -303,13 +371,17 @@ async fn start_scheduler(
         .conf
         .scheduler
         .clone()
-        .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
+        .ok_or(ProcessTrackerError::ConfigurationError)?;
     scheduler::start_process_tracker(
         state,
         scheduler_flow,
         Arc::new(scheduler_settings),
         channel,
         WorkflowRunner {},
+        |state, tenant| {
+            Arc::new(state.clone())
+                .get_session_state(tenant, None, || ProcessTrackerError::TenantNotFound.into())
+        },
     )
     .await
 }

@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -9,14 +10,27 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{self, PayoutsData, RouterData},
     types::{
         api::payouts,
         storage::enums::{self as storage_enums, PayoutEntityType},
-        transformers::ForeignFrom,
     },
 };
 use crate::{core::errors, types};
+#[derive(Debug, Serialize)]
+pub struct WiseRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for WiseRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
 
 pub struct WiseAuthType {
     pub(super) api_key: Secret<String>,
@@ -157,8 +171,8 @@ pub struct WiseRecipientCreateResponse {
 pub struct WisePayoutQuoteRequest {
     source_currency: String,
     target_currency: String,
-    source_amount: Option<i64>,
-    target_amount: Option<i64>,
+    source_amount: Option<MinorUnit>,
+    target_amount: Option<MinorUnit>,
     pay_out: WisePayOutOption,
 }
 
@@ -292,7 +306,7 @@ pub enum WiseStatus {
 
 #[cfg(feature = "payouts")]
 fn get_payout_address_details(
-    address: Option<&api_models::payments::Address>,
+    address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> Option<WiseAddressDetails> {
     address.and_then(|add| {
         add.address.as_ref().map(|a| WiseAddressDetails {
@@ -309,7 +323,7 @@ fn get_payout_address_details(
 #[cfg(feature = "payouts")]
 fn get_payout_bank_details(
     payout_method_data: PayoutMethodData,
-    address: Option<&api_models::payments::Address>,
+    address: Option<&hyperswitch_domain_models::address::Address>,
     entity_type: PayoutEntityType,
 ) -> Result<WiseBankDetails, errors::ConnectorError> {
     let wise_address_details = match get_payout_address_details(address) {
@@ -320,7 +334,7 @@ fn get_payout_bank_details(
     }?;
     match payout_method_data {
         PayoutMethodData::Bank(payouts::BankPayout::Ach(b)) => Ok(WiseBankDetails {
-            legal_type: LegalType::foreign_from(entity_type),
+            legal_type: LegalType::from(entity_type),
             address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             abartn: Some(b.bank_routing_number),
@@ -328,14 +342,14 @@ fn get_payout_bank_details(
             ..WiseBankDetails::default()
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Bacs(b)) => Ok(WiseBankDetails {
-            legal_type: LegalType::foreign_from(entity_type),
+            legal_type: LegalType::from(entity_type),
             address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             sort_code: Some(b.bank_sort_code),
             ..WiseBankDetails::default()
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Sepa(b)) => Ok(WiseBankDetails {
-            legal_type: LegalType::foreign_from(entity_type),
+            legal_type: LegalType::from(entity_type),
             address: Some(wise_address_details),
             iban: Some(b.iban.to_owned()),
             bic: b.bic,
@@ -349,11 +363,14 @@ fn get_payout_bank_details(
 
 // Payouts recipient create request transform
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
+impl<F> TryFrom<&WiseRouterData<&types::PayoutsRouterData<F>>> for WiseRecipientCreateRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &WiseRouterData<&types::PayoutsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         let request = item.request.to_owned();
-        let customer_details = request.customer_details;
+        let customer_details = request.customer_details.to_owned();
         let payout_method_data = item.get_payout_method_data()?;
         let bank_details = get_payout_bank_details(
             payout_method_data.to_owned(),
@@ -366,7 +383,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
                 field_name: "source_id for PayoutRecipient creation",
             }),
         }?;
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Wise"),
@@ -407,8 +425,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseRecipientCreateResponse>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::RequiresCreation),
-                connector_payout_id: response.id.to_string(),
+                connector_payout_id: Some(response.id.to_string()),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -417,13 +438,17 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseRecipientCreateResponse>
 
 // Payouts quote request transform
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
+impl<F> TryFrom<&WiseRouterData<&types::PayoutsRouterData<F>>> for WisePayoutQuoteRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &WiseRouterData<&types::PayoutsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         let request = item.request.to_owned();
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
-                source_amount: Some(request.amount),
+                source_amount: Some(item_data.amount),
                 source_currency: request.source_currency.to_string(),
                 target_amount: None,
                 target_currency: request.destination_currency.to_string(),
@@ -452,8 +477,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutQuoteResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(storage_enums::PayoutStatus::RequiresCreation),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -466,7 +494,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
-        match request.payout_type.to_owned() {
+        let payout_type = request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => {
                 let connector_customer_id = item.get_connector_customer_id()?;
                 let quote_uuid = item.get_quote_id()?;
@@ -506,7 +535,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
         item: types::PayoutsResponseRouterData<F, WisePayoutResponse>,
     ) -> Result<Self, Self::Error> {
         let response: WisePayoutResponse = item.response;
-        let status = match storage_enums::PayoutStatus::foreign_from(response.status) {
+        let status = match storage_enums::PayoutStatus::from(response.status) {
             storage_enums::PayoutStatus::Cancelled => storage_enums::PayoutStatus::Cancelled,
             _ => storage_enums::PayoutStatus::RequiresFulfillment,
         };
@@ -514,8 +543,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(status),
-                connector_payout_id: response.id.to_string(),
+                connector_payout_id: Some(response.id.to_string()),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -527,8 +559,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        let request = item.request.to_owned();
-        match request.payout_type.to_owned() {
+        let payout_type = item.request.get_payout_type()?;
+        match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),
@@ -554,9 +586,18 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseFulfillResponse>>
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::foreign_from(response.status)),
-                connector_payout_id: "".to_string(),
+                status: Some(storage_enums::PayoutStatus::from(response.status)),
+                connector_payout_id: Some(
+                    item.data
+                        .request
+                        .connector_payout_id
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                ),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -564,8 +605,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseFulfillResponse>>
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<WiseStatus> for storage_enums::PayoutStatus {
-    fn foreign_from(wise_status: WiseStatus) -> Self {
+impl From<WiseStatus> for storage_enums::PayoutStatus {
+    fn from(wise_status: WiseStatus) -> Self {
         match wise_status {
             WiseStatus::Completed => Self::Success,
             WiseStatus::Rejected => Self::Failed,
@@ -578,8 +619,8 @@ impl ForeignFrom<WiseStatus> for storage_enums::PayoutStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<PayoutEntityType> for LegalType {
-    fn foreign_from(entity_type: PayoutEntityType) -> Self {
+impl From<PayoutEntityType> for LegalType {
+    fn from(entity_type: PayoutEntityType) -> Self {
         match entity_type {
             PayoutEntityType::Individual
             | PayoutEntityType::Personal

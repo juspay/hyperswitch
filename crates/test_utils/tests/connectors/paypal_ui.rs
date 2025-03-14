@@ -17,7 +17,7 @@ async fn should_make_paypal_paypal_wallet_payment(
     let conn = PaypalSeleniumTest {};
     conn.make_paypal_payment(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/21"),
+        &format!("{CHECKOUT_BASE_URL}/saved/21"),
         vec![
             Event::Trigger(Trigger::Click(By::Css("#payment-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -36,7 +36,7 @@ async fn should_make_paypal_ideal_payment(web_driver: WebDriver) -> Result<(), W
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/181"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/181"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Name("Successful"))),
             Event::Assert(Assert::IsPresent("processing")),
@@ -51,7 +51,7 @@ async fn should_make_paypal_giropay_payment(web_driver: WebDriver) -> Result<(),
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/233"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/233"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Name("Successful"))),
             Event::Assert(Assert::IsPresent("processing")),
@@ -66,7 +66,7 @@ async fn should_make_paypal_eps_payment(web_driver: WebDriver) -> Result<(), Web
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/234"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/234"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Name("Successful"))),
             Event::Assert(Assert::IsPresent("processing")),
@@ -81,7 +81,7 @@ async fn should_make_paypal_sofort_payment(web_driver: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/235"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/235"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Name("Successful"))),
             Event::Assert(Assert::IsPresent("processing")),

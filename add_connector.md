@@ -311,7 +311,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data,
-            mandate_reference: None,
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(
@@ -913,7 +913,6 @@ Utility functions for tests are also available at `tests/connector/utils`. These
             Box::new(services::MockApiClient),
         )
         .await;
-        integration.execute_pretasks(&mut request, &state).await?;
         Box::pin(call_connector(request, integration)).await
     }
 ```

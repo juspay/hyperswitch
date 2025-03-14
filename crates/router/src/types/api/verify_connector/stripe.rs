@@ -3,21 +3,16 @@ use router_env::env;
 
 use super::VerifyConnector;
 use crate::{
-    connector,
-    core::errors,
-    services::{self, ConnectorIntegration},
-    types,
+    connector, core::errors, services, types,
+    types::api::verify_connector::BoxedConnectorIntegrationInterface,
 };
 
 #[async_trait::async_trait]
 impl VerifyConnector for connector::Stripe {
-    async fn handle_payment_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
+    async fn handle_payment_error_response<F, ResourceCommonData, Req, Resp>(
+        connector: BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
         error_response: types::Response,
-    ) -> errors::RouterResponse<()>
-    where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
-    {
+    ) -> errors::RouterResponse<()> {
         let error = connector
             .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

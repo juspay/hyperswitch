@@ -1,28 +1,37 @@
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        auth_events::{AuthEventDimensions, AuthEventFlows},
         disputes::DisputeDimensions,
+        frm::{FrmDimensions, FrmTransactionType},
+        payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
-        refunds::{RefundDimensions, RefundType},
+        refunds::{RefundDimensions, RefundDistributions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
-        PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
+        PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
 };
-use common_utils::errors::{CustomResult, ParsingError};
-use diesel_models::enums as storage_enums;
+use common_enums::{
+    AuthenticationConnectors, AuthenticationStatus, DecoupledAuthenticationType, TransactionStatus,
+};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    id_type::{MerchantId, OrganizationId, ProfileId},
+};
+use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
-use crate::types::QueryExecutionError;
+use crate::{enums::AuthInfo, types::QueryExecutionError};
 pub type QueryResult<T> = error_stack::Result<T, QueryBuildingError>;
 pub trait QueryFilter<T>
 where
@@ -247,6 +256,15 @@ pub enum Aggregate<R> {
         field: R,
         alias: Option<&'static str>,
     },
+    Percentile {
+        field: R,
+        alias: Option<&'static str>,
+        percentile: Option<&'static u8>,
+    },
+    DistinctCount {
+        field: R,
+        alias: Option<&'static str>,
+    },
 }
 
 // Window functions in query
@@ -286,12 +304,12 @@ pub enum Order {
     Descending,
 }
 
-impl ToString for Order {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Ascending => "asc",
-            Self::Descending => "desc",
-        })
+impl fmt::Display for Order {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ascending => write!(f, "asc"),
+            Self::Descending => write!(f, "desc"),
+        }
     }
 }
 
@@ -311,12 +329,75 @@ impl ToString for Order {
 //     "count",
 //     Order::Descending,
 // )
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TopN {
     pub columns: String,
     pub count: u64,
     pub order_column: String,
     pub order: Order,
+}
+
+#[derive(Debug, Clone)]
+pub struct LimitByClause {
+    limit: u64,
+    columns: Vec<String>,
+}
+
+impl fmt::Display for LimitByClause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LIMIT {} BY {}", self.limit, self.columns.join(", "))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum FilterCombinator {
+    #[default]
+    And,
+    Or,
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(match self {
+            Self::And => " AND ",
+            Self::Or => " OR ",
+        }
+        .to_owned())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Filter {
+    Plain(String, FilterTypes, String),
+    NestedFilter(FilterCombinator, Vec<Filter>),
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Self::NestedFilter(FilterCombinator::default(), Vec::new())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for Filter {
+    fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(match self {
+            Self::Plain(l, op, r) => filter_type_to_sql(l, *op, r),
+            Self::NestedFilter(operator, filters) => {
+                format!(
+                    "( {} )",
+                    filters
+                        .iter()
+                        .map(|f| <Self as ToSql<T>>::to_sql(f, table_engine))
+                        .collect::<Result<Vec<String>, _>>()?
+                        .join(
+                            <FilterCombinator as ToSql<T>>::to_sql(operator, table_engine)?
+                                .as_ref()
+                        )
+                )
+            }
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -326,9 +407,11 @@ where
     AnalyticsCollection: ToSql<T>,
 {
     columns: Vec<String>,
-    filters: Vec<(String, FilterTypes, String)>,
+    filters: Filter,
     group_by: Vec<String>,
+    order_by: Vec<String>,
     having: Option<Vec<(String, FilterTypes, String)>>,
+    limit_by: Option<LimitByClause>,
     outer_select: Vec<String>,
     top_n: Option<TopN>,
     table: AnalyticsCollection,
@@ -339,6 +422,49 @@ where
 
 pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &OrganizationId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for ProfileId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::PaymentId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for common_utils::id_type::CustomerId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for bool {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        let flag = *self;
+        Ok(i8::from(flag).to_string())
+    }
 }
 
 /// Implement `ToSql` on arrays of types that impl `ToString`.
@@ -358,19 +484,31 @@ impl_to_sql_for_to_string!(
     String,
     &str,
     &PaymentDimensions,
+    &PaymentIntentDimensions,
     &RefundDimensions,
+    &FrmDimensions,
     PaymentDimensions,
+    PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    &RefundDistributions,
+    FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
     Connector,
     AttemptStatus,
+    IntentStatus,
     RefundStatus,
+    FraudCheckStatus,
     storage_enums::RefundStatus,
     Currency,
     RefundType,
+    FrmTransactionType,
+    TransactionStatus,
+    AuthenticationStatus,
+    AuthenticationConnectors,
+    DecoupledAuthenticationType,
     Flow,
     &String,
     &bool,
@@ -379,13 +517,21 @@ impl_to_sql_for_to_string!(
     Order
 );
 
-impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
+impl_to_sql_for_to_string!(
+    &SdkEventDimensions,
+    SdkEventDimensions,
+    SdkEventNames,
+    AuthEventFlows,
+    &ApiEventDimensions,
+    ApiEventDimensions,
+    &DisputeDimensions,
+    DisputeDimensions,
+    DisputeStage,
+    AuthEventDimensions,
+    &AuthEventDimensions
+);
 
-impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
-
-impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum FilterTypes {
     Equal,
     NotEqual,
@@ -399,7 +545,7 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
-pub fn filter_type_to_sql(l: &String, op: &FilterTypes, r: &String) -> String {
+pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
         FilterTypes::Equal => format!("{l} = '{r}'"),
@@ -424,7 +570,9 @@ where
             columns: Default::default(),
             filters: Default::default(),
             group_by: Default::default(),
+            order_by: Default::default(),
             having: Default::default(),
+            limit_by: Default::default(),
             outer_select: Default::default(),
             top_n: Default::default(),
             table,
@@ -507,13 +655,21 @@ where
         self.add_custom_filter_clause(key, value, FilterTypes::EqualBool)
     }
 
+    pub fn add_negative_filter_clause(
+        &mut self,
+        key: impl ToSql<T>,
+        value: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        self.add_custom_filter_clause(key, value, FilterTypes::NotEqual)
+    }
+
     pub fn add_custom_filter_clause(
         &mut self,
         lhs: impl ToSql<T>,
         rhs: impl ToSql<T>,
         comparison: FilterTypes,
     ) -> QueryResult<()> {
-        self.filters.push((
+        let filter = Filter::Plain(
             lhs.to_sql(&self.table_engine)
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter key")?,
@@ -521,8 +677,17 @@ where
             rhs.to_sql(&self.table_engine)
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter value")?,
-        ));
+        );
+        self.add_nested_filter_clause(filter);
         Ok(())
+    }
+    pub fn add_nested_filter_clause(&mut self, filter: Filter) {
+        match &mut self.filters {
+            Filter::NestedFilter(_, ref mut filters) => filters.push(filter),
+            f @ Filter::Plain(_, _, _) => {
+                self.filters = Filter::NestedFilter(FilterCombinator::And, vec![f.clone(), filter]);
+            }
+        }
     }
 
     pub fn add_filter_in_range_clause(
@@ -556,7 +721,38 @@ where
         Ok(())
     }
 
-    pub fn add_granularity_in_mins(&mut self, granularity: &Granularity) -> QueryResult<()> {
+    pub fn add_order_by_clause(
+        &mut self,
+        column: impl ToSql<T>,
+        order: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        let column_sql = column
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing order by column")?;
+
+        let order_sql = order
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing order direction")?;
+
+        self.order_by.push(format!("{} {}", column_sql, order_sql));
+        Ok(())
+    }
+
+    pub fn set_limit_by(&mut self, limit: u64, columns: &[impl ToSql<T>]) -> QueryResult<()> {
+        let columns = columns
+            .iter()
+            .map(|col| col.to_sql(&self.table_engine))
+            .collect::<Result<Vec<String>, _>>()
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing LIMIT BY columns")?;
+
+        self.limit_by = Some(LimitByClause { limit, columns });
+        Ok(())
+    }
+
+    pub fn add_granularity_in_mins(&mut self, granularity: Granularity) -> QueryResult<()> {
         let interval = match granularity {
             Granularity::OneMin => "1",
             Granularity::FiveMin => "5",
@@ -571,12 +767,9 @@ where
         Ok(())
     }
 
-    fn get_filter_clause(&self) -> String {
-        self.filters
-            .iter()
-            .map(|(l, op, r)| filter_type_to_sql(l, op, r))
-            .collect::<Vec<String>>()
-            .join(" AND ")
+    fn get_filter_clause(&self) -> QueryResult<String> {
+        <Filter as ToSql<T>>::to_sql(&self.filters, &self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
     }
 
     fn get_select_clause(&self) -> String {
@@ -630,7 +823,7 @@ where
     pub fn get_filter_type_clause(&self) -> Option<String> {
         self.having.as_ref().map(|vec| {
             vec.iter()
-                .map(|(l, op, r)| filter_type_to_sql(l, op, r))
+                .map(|(l, op, r)| filter_type_to_sql(l, *op, r))
                 .collect::<Vec<String>>()
                 .join(" AND ")
         })
@@ -664,9 +857,10 @@ where
                 .attach_printable("Error serializing table value")?,
         );
 
-        if !self.filters.is_empty() {
+        let filter_clause = self.get_filter_clause()?;
+        if !filter_clause.is_empty() {
             query.push_str(" WHERE ");
-            query.push_str(&self.get_filter_clause());
+            query.push_str(filter_clause.as_str());
         }
 
         if !self.group_by.is_empty() {
@@ -691,6 +885,15 @@ where
             }
         }
 
+        if !self.order_by.is_empty() {
+            query.push_str(" ORDER BY ");
+            query.push_str(&self.order_by.join(", "));
+        }
+
+        if let Some(limit_by) = &self.limit_by {
+            query.push_str(&format!(" {}", limit_by));
+        }
+
         if !self.outer_select.is_empty() {
             query.insert_str(
                 0,
@@ -704,17 +907,17 @@ where
             query.push_str(format!(") _ WHERE top_n <= {}", top_n.count).as_str());
         }
 
-        println!("{}", query);
+        logger::debug!(%query);
 
         Ok(query)
     }
 
-    pub async fn execute_query<R, P: AnalyticsDataSource>(
+    pub async fn execute_query<R, P>(
         &mut self,
         store: &P,
     ) -> CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>
     where
-        P: LoadRow<R>,
+        P: LoadRow<R> + AnalyticsDataSource,
         Aggregate<&'static str>: ToSql<T>,
         Window<&'static str>: ToSql<T>,
     {
@@ -722,7 +925,50 @@ where
             .build_query()
             .change_context(QueryBuildingError::SqlSerializeError)
             .attach_printable("Failed to execute query")?;
-        logger::debug!(?query);
+
         Ok(store.load_results(query.as_str()).await)
+    }
+}
+
+impl<T> QueryFilter<T> for AuthInfo
+where
+    T: AnalyticsDataSource,
+    AnalyticsCollection: ToSql<T>,
+{
+    fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
+        match self {
+            Self::OrgLevel { org_id } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+            }
+            Self::MerchantLevel {
+                org_id,
+                merchant_ids,
+            } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+                builder
+                    .add_filter_in_range_clause("merchant_id", merchant_ids)
+                    .attach_printable("Error adding merchant_id filter")?;
+            }
+            Self::ProfileLevel {
+                org_id,
+                merchant_id,
+                profile_ids,
+            } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+                builder
+                    .add_filter_clause("merchant_id", merchant_id)
+                    .attach_printable("Error adding merchant_id filter")?;
+                builder
+                    .add_filter_in_range_clause("profile_id", profile_ids)
+                    .attach_printable("Error adding profile_id filter")?;
+            }
+        }
+        Ok(())
     }
 }

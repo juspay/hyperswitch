@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "אינך מורשה לצפות בתוכן זה"
+    title: "קישורי תשלום"
+  status:
+    title: "סטטוס תשלום"
+    info:
+      ref_id: "מספר הפניה"
+      error_code: "קוד שגיאה"
+      error_message: "הודעת שגיאה"
+    message:
+      failed: "נכשל בעיבוד התשלום שלך. אנא בדוק עם הספק שלך למידע נוסף."
+      processing: "התשלום שלך צריך להיות מעובד בתוך 2-3 ימי עסקים."
+      success: "התשלום שלך בוצע לשיטת התשלום שנבחרה."
+    redirection_text:
+      redirecting: "מופנה..."
+      redirecting_in: "מופנה בעוד"
+      seconds: "שניות..."
+    text:
+      failed: "תשלום נכשל"
+      processing: "תשלום בתהליך"
+      success: "תשלום הצליח"
+
+time:
+  am: "בבוקר"
+  pm: "בערב"
+
+months:
+  january: "ינואר"
+  february: "פברואר"
+  march: "מרץ"
+  april: "אפריל"
+  may: "מאי"
+  june: "יוני"
+  july: "יולי"
+  august: "אוגוסט"
+  september: "ספטמבר"
+  october: "אוקטובר"
+  november: "נובמבר"
+  december: "דצמבר"

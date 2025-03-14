@@ -1,0 +1,372 @@
+openapi: "3.0.2"
+info:
+  title: Tartarus - OpenAPI 3.0
+  description: |-
+    This is the OpenAPI 3.0 specification for the card locker.
+    This is used by the [hyperswitch](https://github.com/juspay/hyperswitch) for storing card information securely.
+  version: "1.0"
+tags:
+  - name: Key Custodian
+    description: API used to initialize the locker after deployment.
+  - name: Data
+    description: CRUD APIs for working with data to be stored in the locker
+  - name: Cards
+    description: CRUD APIs for working with cards data to be stored in the locker (deprecated)
+paths:
+  /custodian/key1:
+    post:
+      tags:
+        - Key Custodian
+      summary: Provide Key 1
+      description: Provide the first key to unlock the locker
+      operationId: setKey1
+      requestBody:
+        description: Provide key 1 to unlock the locker
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Key"
+        required: true
+      responses:
+        "200":
+          description: Key 1 provided
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Key1Set"
+  /custodian/key2:
+    post:
+      tags:
+        - Key Custodian
+      summary: Provide Key 2
+      description: Provide the second key to unlock the locker
+      operationId: setKey2
+      requestBody:
+        description: Provide key 2 to unlock the locker
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Key"
+        required: true
+      responses:
+        "200":
+          description: Key 2 provided
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Key2Set"
+  /custodian/decrypt:
+    post:
+      tags:
+        - Key Custodian
+      summary: Unlock the locker
+      description: Unlock the locker with the key1 and key2 provided
+      responses:
+        "200":
+          description: Successfully Unlocked
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Decrypt200"
+  /health:
+    get:
+      summary: Get Health
+      description: To check whether the application is up
+      responses:
+        "200":
+          description: Health is good
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /data/add:
+    post:
+      tags:
+        - Cards
+        - Data
+      summary: Add Data in Locker
+      description: Add sensitive data in the locker
+      requestBody:
+        description: The request body might be JWE + JWS encrypted when using middleware
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/StoreDataReq"
+                - $ref: "#/components/schemas/JWEReq"
+        required: true
+      responses:
+        "200":
+          description: Store Data Response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/StoreDataRes"
+                  - $ref: "#/components/schemas/JWERes"
+  /data/delete:
+    post:
+      tags:
+        - Cards
+        - Data
+      summary: Delete Data from Locker
+      description: Delete sensitive data from the locker
+      requestBody:
+        description: The request body might be JWE + JWS encrypted when using middleware
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/DeleteDataReq"
+                - $ref: "#/components/schemas/JWEReq"
+        required: true
+      responses:
+        "200":
+          description: Delete Data Response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DeleteDataRes"
+                  - $ref: "#/components/schemas/JWERes"
+  /data/retrieve:
+    post:
+      tags:
+        - Cards
+        - Data
+      summary: Retrieve Data from Locker
+      description: Retrieve sensitive data from the locker
+      requestBody:
+        description: The request body might be JWE + JWS encrypted when using middleware
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/RetrieveDataReq"
+                - $ref: "#/components/schemas/JWEReq"
+        required: true
+      responses:
+        "200":
+          description: Retrieve Data Response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RetrieveDataRes"
+                  - $ref: "#/components/schemas/JWERes"
+  /data/fingerprint:
+    post:
+      tags:
+        - Cards
+        - Data
+      summary: Get or insert the card fingerprint
+      description: Get or insert the card fingerprint
+      requestBody:
+        description: Provide card number and hash key
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FingerprintReq"
+        required: true
+      responses:
+        "200":
+          description: Fingerprint Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FingerprintRes"
+components:
+  schemas:
+    Key:
+      type: object
+      properties:
+        key:
+          type: string
+          example: 801bb63c1bd51820acbc8ac20c674675
+      required:
+        - key
+    StoreDataReq:
+      title: StoreDataReq
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          example: m0100
+        merchant_customer_id:
+          type: string
+          example: HsCustomer1
+        requester_card_reference:
+          type: string
+          example: 3ffdf1e5-7f38-4f26-936f-c66a6f4296fa
+        card:
+          $ref: "#/components/schemas/Card"
+        enc_card_data:
+          type: string
+          example: "qwe4tyusdfg"
+    RetrieveDataReq:
+      title: RetrieveDataReq
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          example: m0100
+        merchant_customer_id:
+          type: string
+          example: HsCustomer1
+        card_reference:
+          type: string
+          example: 3ffdf1e5-7f38-4f26-936f-c66a6f4296fa
+    DeleteDataReq:
+      title: DeleteDataReq
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          example: m0100
+        merchant_customer_id:
+          type: string
+          example: HsCustomer1
+        card_reference:
+          type: string
+          example: 3ffdf1e5-7f38-4f26-936f-c66a6f4296fa
+    FingerprintReq:
+      type: object
+      properties:
+        card:
+          $ref: "#/components/schemas/FingerprintCardData"
+        hash_key:
+          type: string
+          example: Hash1
+    JWEReq:
+      title: JWEReq
+      type: object
+      properties:
+        header:
+          type: string
+        iv:
+          type: string
+        encrypted_payload:
+          type: string
+        tag:
+          type: string
+        encrypted_key:
+          type: string
+    RetrieveRes:
+      title: RetrieveRes
+      oneOf:
+        - type: object
+          properties:
+            card:
+              $ref: "#/components/schemas/Card"
+        - type: object
+          properties:
+            enc_card_data:
+              type: string
+    Card:
+      title: Card
+      type: object
+      required:
+        - card_number
+      properties:
+        card_number:
+          type: string
+        name_on_card:
+          type: string
+        card_exp_month:
+          type: string
+        card_exp_year:
+          type: string
+        card_brand:
+          type: string
+        card_isin:
+          type: string
+        nick_name:
+          type: string
+    FingerprintCardData:
+      type: object
+      properties:
+        card_number:
+          type: string
+          example: 4242424242424242
+    Key1Set:
+      title: Key1Set
+      type: string
+      # summary: Response after setting key1
+      description: Received Key1
+      example: Received Key1
+    Key2Set:
+      title: Key2Set
+      type: string
+      # description: Response after setting key2
+      description: Received Key2
+      example: Received Key2
+    Decrypt200:
+      title: Decrypt200
+      type: string
+      # description: Response if the locker key custodian decryption was successful
+      description: Decryption successful
+      example: Decryption successful
+    Health:
+      title: Health
+      type: string
+      # description: Response when the health is good
+      description: health is good
+      example: health is good
+    StoreDataRes:
+      title: StoreDataRes
+      type: object
+      description: Response received if the data was stored successfully
+      properties:
+        status:
+          type: string
+          enum: [Ok]
+        payload:
+          type: object
+          properties:
+            card_reference:
+              type: string
+    RetrieveDataRes:
+      title: RetrieveDataRes
+      type: object
+      description: Response received with the sensitive data, associated to the card reference
+      properties:
+        status:
+          type: string
+          enum: [Ok]
+        payload:
+          $ref: "#/components/schemas/RetrieveRes"
+    DeleteDataRes:
+      title: DeleteDataRes
+      type: object
+      description: Response received if the data deletion was successful
+      properties:
+        status:
+          type: string
+          enum: [Ok]
+    FingerprintRes:
+      type: object
+      description: Response received if the fingerprint insertion or retrieval was successful
+      properties:
+        status:
+          type: string
+          enum: [Ok]
+        payload:
+          type: object
+          properties:
+            fingerprint:
+              type: string
+    JWERes:
+      title: JWERes
+      type: object
+      description: JWE encrypted response equivalent
+      properties:
+        header:
+          type: string
+        iv:
+          type: string
+        encrypted_payload:
+          type: string
+        tag:
+          type: string
+        encrypted_key:
+          type: string

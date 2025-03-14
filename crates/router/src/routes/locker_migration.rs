@@ -10,7 +10,7 @@ use crate::{
 pub async fn rust_locker_migration(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::RustLockerMigration;
     let merchant_id = path.into_inner();

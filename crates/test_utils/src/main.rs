@@ -1,9 +1,12 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use std::process::{exit, Command};
 
+use anyhow::Result;
 use test_utils::newman_runner;
 
-fn main() {
-    let mut runner = newman_runner::generate_newman_command();
+fn main() -> Result<()> {
+    let mut runner = newman_runner::generate_runner()?;
 
     // Execute the newman command
     let output = runner.newman_command.spawn();

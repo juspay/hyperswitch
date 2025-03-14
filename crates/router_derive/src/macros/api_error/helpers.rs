@@ -260,9 +260,9 @@ pub(super) fn get_unused_fields(
     ignore: &std::collections::HashSet<String>,
 ) -> Vec<Field> {
     let fields = match fields {
-        syn::Fields::Unit => Vec::new(),
-        syn::Fields::Unnamed(_) => Vec::new(),
-        syn::Fields::Named(fields) => fields.named.iter().cloned().collect(),
+        Fields::Unit => Vec::new(),
+        Fields::Unnamed(_) => Vec::new(),
+        Fields::Named(fields) => fields.named.iter().cloned().collect(),
     };
     fields
         .iter()

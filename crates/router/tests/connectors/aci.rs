@@ -1,10 +1,12 @@
-use std::{marker::PhantomData, str::FromStr};
+#![allow(clippy::print_stdout)]
 
-use api_models::payments::{Address, AddressDetails};
+use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
+
+use common_utils::id_type;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
-    connector::aci,
     core::payments,
     db::StorageImpl,
     routes, services,
@@ -19,10 +21,13 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
+    let merchant_id = id_type::MerchantId::try_from(Cow::from("aci")).unwrap();
+
     types::RouterData {
         flow: PhantomData,
-        merchant_id: String::from("aci"),
-        customer_id: Some(String::from("aci")),
+        merchant_id,
+        customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
+        tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -31,9 +36,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method: enums::PaymentMethod::Card,
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
-        return_url: None,
         payment_method_status: None,
-        payment_method_id: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
@@ -47,7 +50,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -76,6 +80,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::new(
@@ -87,12 +92,18 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     last_name: Some(Secret::new("Doe".to_string())),
                     ..Default::default()
                 }),
-                phone: None,
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("9123456789".to_string())),
+                    country_code: Some("+351".to_string()),
+                }),
                 email: None,
             }),
+            None,
         ),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -115,6 +126,12 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
     }
 }
 
@@ -123,21 +140,22 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
+    let merchant_id = id_type::MerchantId::try_from(Cow::from("aci")).unwrap();
+
     types::RouterData {
         flow: PhantomData,
-        merchant_id: String::from("aci"),
-        customer_id: Some(String::from("aci")),
+        merchant_id,
+        customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
+        tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
-        payment_method_id: None,
         payment_method_status: None,
         status: enums::AttemptStatus::default(),
         payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
-        return_url: None,
         request: types::RefundsData {
             payment_amount: 1000,
             currency: enums::Currency::USD,
@@ -150,11 +168,14 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             reason: None,
             connector_refund_id: None,
             browser_info: None,
+            ..utils::PaymentRefundType::default().0
         },
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -177,32 +198,43 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
     }
 }
 
 #[actix_web::test]
-
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
+    let state = Arc::new(app_state)
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
+        .unwrap();
 
-    static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    use router::connector::Aci;
+    let connector = utils::construct_connector_data_old(
+        Box::new(Aci::new()),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -228,24 +260,30 @@ async fn payments_create_success() {
 async fn payments_create_failure() {
     {
         let conf = Settings::new().unwrap();
-        static CV: aci::Aci = aci::Aci;
+        use router::connector::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let app_state = Box::pin(routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        let connector = types::api::ConnectorData {
-            connector: Box::new(&CV),
-            connector_name: types::Connector::Aci,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        };
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let state = Arc::new(app_state)
+            .get_session_state(
+                &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
+            .unwrap();
+        let connector = utils::construct_connector_data_old(
+            Box::new(Aci::new()),
+            types::Connector::Aci,
+            types::api::GetToken::Connector,
+            None,
+        );
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             types::api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -262,7 +300,8 @@ async fn payments_create_failure() {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
             });
 
         let response = services::api::execute_connector_processing_step(
@@ -280,27 +319,32 @@ async fn payments_create_failure() {
 }
 
 #[actix_web::test]
-
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
-    static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
+    use router::connector::Aci;
+    let connector = utils::construct_connector_data_old(
+        Box::new(Aci::new()),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let state = Arc::new(app_state)
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
+        .unwrap();
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
@@ -319,8 +363,7 @@ async fn refund_for_successful_payments() {
         response.status == enums::AttemptStatus::Charged,
         "The payment failed"
     );
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
@@ -352,24 +395,30 @@ async fn refund_for_successful_payments() {
 #[ignore]
 async fn refunds_create_failure() {
     let conf = Settings::new().unwrap();
-    static CV: aci::Aci = aci::Aci;
-    let connector = types::api::ConnectorData {
-        connector: Box::new(&CV),
-        connector_name: types::Connector::Aci,
-        get_token: types::api::GetToken::Connector,
-        merchant_connector_id: None,
-    };
+    use router::connector::Aci;
+    let connector = utils::construct_connector_data_old(
+        Box::new(Aci::new()),
+        types::Connector::Aci,
+        types::api::GetToken::Connector,
+        None,
+    );
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
-    let state = Box::pin(routes::AppState::with_storage(
+    let app_state = Box::pin(routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
     ))
     .await;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let state = Arc::new(app_state)
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
+        .unwrap();
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,
         types::RefundsData,
         types::RefundsResponseData,

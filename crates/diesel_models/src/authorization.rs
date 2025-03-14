@@ -1,17 +1,19 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::types::MinorUnit;
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::incremental_authorization};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Hash)]
-#[diesel(table_name = incremental_authorization)]
-#[diesel(primary_key(authorization_id, merchant_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize, Hash,
+)]
+#[diesel(table_name = incremental_authorization, primary_key(authorization_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct Authorization {
     pub authorization_id: String,
-    pub merchant_id: String,
-    pub payment_id: String,
-    pub amount: i64,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -20,21 +22,21 @@ pub struct Authorization {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
-    pub previously_authorized_amount: i64,
+    pub previously_authorized_amount: MinorUnit,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = incremental_authorization)]
 pub struct AuthorizationNew {
     pub authorization_id: String,
-    pub merchant_id: String,
-    pub payment_id: String,
-    pub amount: i64,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub amount: MinorUnit,
     pub status: storage_enums::AuthorizationStatus,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
-    pub previously_authorized_amount: i64,
+    pub previously_authorized_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

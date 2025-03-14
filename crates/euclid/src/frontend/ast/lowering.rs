@@ -25,7 +25,6 @@ use crate::{
 /// This serves for the purpose were we have the DirKey as an explicit Enum type and value as one
 /// of the member of the same Enum.
 /// So particularly it lowers a predefined Enum from DirKey to an Enum of DirValue.
-
 macro_rules! lower_enum {
     ($key:ident, $value:ident) => {
         match $value {
@@ -70,7 +69,6 @@ macro_rules! lower_enum {
 /// This is for the cases in which there are numerical values involved and they are lowered
 /// accordingly on basis of the supplied key, currently payment_amount is the only key having this
 /// use case
-
 macro_rules! lower_number {
     ($key:ident, $value:ident, $comp:ident) => {
         match $value {
@@ -117,7 +115,6 @@ macro_rules! lower_number {
 ///
 /// This serves for the purpose were we have the DirKey as Card_bin and value as an arbitrary string
 /// So particularly it lowers an arbitrary value to a predefined key.
-
 macro_rules! lower_str {
     ($key:ident, $value:ident $(, $validation_closure:expr)?) => {
         match $value {
@@ -155,7 +152,6 @@ macro_rules! lower_metadata {
 /// by throwing required errors for comparisons that can't be performed for a certain value type
 /// for example
 /// can't have greater/less than operations on enum types
-
 fn lower_comparison_inner<O: EuclidDirFilter>(
     comp: ast::Comparison,
 ) -> Result<Vec<dir::DirValue>, AnalysisErrorType> {
@@ -264,6 +260,8 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
 
         dir::DirKeyKind::UpiType => lower_enum!(UpiType, value),
 
+        dir::DirKeyKind::OpenBankingType => lower_enum!(OpenBankingType, value),
+
         dir::DirKeyKind::VoucherType => lower_enum!(VoucherType, value),
 
         dir::DirKeyKind::GiftCardType => lower_enum!(GiftCardType, value),
@@ -271,6 +269,10 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::BankTransferType => lower_enum!(BankTransferType, value),
 
         dir::DirKeyKind::CardRedirectType => lower_enum!(CardRedirectType, value),
+
+        dir::DirKeyKind::MobilePaymentType => lower_enum!(MobilePaymentType, value),
+
+        dir::DirKeyKind::RealTimePaymentType => lower_enum!(RealTimePaymentType, value),
 
         dir::DirKeyKind::CardBin => {
             let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {

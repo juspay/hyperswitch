@@ -25,6 +25,12 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   redis-standalone:
     image: redis:7
@@ -32,25 +38,33 @@ services:
       - router_net
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
     working_dir: /app
     networks:
       - router_net
     volumes:
       - ./:/app
     environment:
-      - DATABASE_USER=db_user
-      - DATABASE_PASSWORD=db_pass
-      - DATABASE_HOST=pg
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=hyperswitch_db
+      # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
+      - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
   ### Application services
   hyperswitch-server:
-    image: rust:latest
+    build:
+      dockerfile_inline: |
+        FROM rust:latest
+        RUN apt-get update && \
+            apt-get install -y protobuf-compiler
+        RUN rustup component add rustfmt clippy  
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
@@ -64,6 +78,11 @@ services:
     environment:
       - CARGO_HOME=/cargo_cache
       - CARGO_TARGET_DIR=/cargo_build_cache
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
     labels:
       logs: "promtail"
     healthcheck:
@@ -295,3 +314,30 @@ services:
       - "8001:8001"
     volumes:
       - redisinsight_store:/db
+
+  hyperswitch-control-center:
+    image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
+    pull_policy: always
+    networks:
+      - router_net
+    ports:
+      - "9000:9000"
+    environment:
+      apiBaseUrl: http://localhost:8080
+      sdkBaseUrl: http://localhost:9050/HyperLoader.js
+
+  hyperswitch-web-sdk:
+    build:
+      dockerfile_inline: |
+        FROM node:lts
+        RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
+        WORKDIR hyperswitch-web
+        RUN npm i --force
+    command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
+    ports:
+      - "9050:9050"
+    environment:
+      sdkEnv: local
+      envSdkUrl: http://localhost:9050
+      envBackendUrl: http://localhost:8080
+      envLoggingUrl: http://localhost:8207

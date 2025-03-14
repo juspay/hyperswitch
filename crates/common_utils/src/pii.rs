@@ -14,6 +14,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret, Strategy, WithType};
 #[cfg(feature = "logs")]
 use router_env::logger;
+use serde::Deserialize;
 
 use crate::{
     crypto::Encryptable,
@@ -38,7 +39,7 @@ pub struct PhoneNumber(Secret<String, PhoneNumberStrategy>);
 
 impl<T> Strategy<T> for PhoneNumberStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
@@ -85,7 +86,7 @@ impl ops::DerefMut for PhoneNumber {
     }
 }
 
-impl<DB> Queryable<diesel::sql_types::Text, DB> for PhoneNumber
+impl<DB> Queryable<sql_types::Text, DB> for PhoneNumber
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -205,12 +206,12 @@ where
 }
 
 /// Strategy for masking Email
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub enum EmailStrategy {}
 
 impl<T> Strategy<T> for EmailStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
@@ -224,7 +225,7 @@ where
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
 )]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::Text)]
 #[serde(try_from = "String")]
 pub struct Email(Secret<String, EmailStrategy>);
 
@@ -262,7 +263,7 @@ impl ops::DerefMut for Email {
     }
 }
 
-impl<DB> Queryable<diesel::sql_types::Text, DB> for Email
+impl<DB> Queryable<sql_types::Text, DB> for Email
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -347,13 +348,12 @@ where
 }
 
 /// Strategy for masking UPI VPA's
-
 #[derive(Debug)]
 pub enum UpiVpaMaskingStrategy {}
 
 impl<T> Strategy<T> for UpiVpaMaskingStrategy
 where
-    T: AsRef<str> + std::fmt::Debug,
+    T: AsRef<str> + fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let vpa_str: &str = val.as_ref();
@@ -378,7 +378,7 @@ mod pii_masking_strategy_tests {
     /*
     #[test]
     fn test_valid_phone_number_masking() {
-        let secret: Secret<String, PhoneNumber> = Secret::new("9922992299".to_string());
+        let secret: Secret<String, PhoneNumber> = Secret::new("9123456789".to_string());
         assert_eq!("99*****299", format!("{}", secret));
     }
 

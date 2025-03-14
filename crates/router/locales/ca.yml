@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "No tens permís per veure aquest contingut"
+    title: "Enllaços de Pagament"
+  status:
+    title: "Estat del Pagament"
+    info:
+      ref_id: "ID de Referència"
+      error_code: "Codi d'Error"
+      error_message: "Missatge d'Error"
+    message:
+      failed: "No s'ha pogut processar el teu pagament. Si us plau, comprova-ho amb el teu proveïdor per obtenir més detalls."
+      processing: "El teu pagament hauria de ser processat en 2-3 dies hàbils."
+      success: "El teu pagament s'ha realitzat al mètode de pagament seleccionat."
+    redirection_text:
+      redirecting: "Redirigint..."
+      redirecting_in: "Redirigint en"
+      seconds: "segons..."
+    text:
+      failed: "Falla en el Pagament"
+      processing: "Pagament en Procés"
+      success: "Pagament Exitos"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Gener"
+  february: "Febrer"
+  march: "Març"
+  april: "Abril"
+  may: "Maig"
+  june: "Juny"
+  july: "Juliol"
+  august: "Agost"
+  september: "Setembre"
+  october: "Octubre"
+  november: "Novembre"
+  december: "Desembre"

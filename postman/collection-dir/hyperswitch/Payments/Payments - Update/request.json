@@ -26,7 +26,7 @@
       "amount_to_capture": 6540,
       "email": "joseph@example.com",
       "name": "joseph Doe",
-      "phone": "8888888888",
+      "phone": "9123456789",
       "phone_country_code": "+65",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",

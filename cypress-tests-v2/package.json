@@ -1,0 +1,24 @@
+{
+  "name": "cypress",
+  "version": "1.0.0",
+  "description": "Cypress tests suite",
+  "scripts": {
+    "cypress": "npx cypress open",
+    "cypress-e2e": "npx cypress run --e2e",
+    "cypress:ci": "npx cypress run --headless",
+    "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
+    "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
+    "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'"
+  },
+  "author": "Hyperswitch Team",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "cypress": "^13.16.0",
+    "cypress-mochawesome-reporter": "^3.8.2",
+    "jsqr": "^1.4.0",
+    "prettier": "^3.3.2",
+    "nanoid": "^5.0.8"
+  }
+}

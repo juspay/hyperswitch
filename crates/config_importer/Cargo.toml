@@ -22,3 +22,6 @@ toml = { version = "0.8.12", default-features = false, features = ["parse"] }
 [features]
 default = ["preserve_order"]
 preserve_order = ["dep:indexmap", "serde_json/preserve_order", "toml/preserve_order"]
+
+[lints]
+workspace = true

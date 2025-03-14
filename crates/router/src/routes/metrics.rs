@@ -1,6 +1,9 @@
-use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
+pub mod bg_metrics_collector;
+pub mod request;
+pub mod utils;
 
-metrics_context!(CONTEXT);
+use router_env::{counter_metric, global_meter, histogram_metric_f64};
+
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
@@ -9,14 +12,16 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 counter_metric!(REQUEST_STATUS, GLOBAL_METER);
-histogram_metric!(REQUEST_TIME, GLOBAL_METER);
-histogram_metric!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
+histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
+histogram_metric_f64!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
 counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
 
 counter_metric!(PAYMENT_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
+//TODO: This can be removed, added for payment list debugging
+histogram_metric_f64!(PAYMENT_LIST_LATENCY, GLOBAL_METER);
 
 counter_metric!(REFUND_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);
@@ -52,8 +57,7 @@ counter_metric!(MCA_CREATE, GLOBAL_METER);
 
 // Flow Specific Metrics
 
-counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
-histogram_metric!(CONNECTOR_REQUEST_TIME, GLOBAL_METER);
+histogram_metric_f64!(CONNECTOR_REQUEST_TIME, GLOBAL_METER);
 counter_metric!(SESSION_TOKEN_CREATED, GLOBAL_METER);
 
 counter_metric!(CONNECTOR_CALL_COUNT, GLOBAL_METER); // Attributes needed
@@ -73,7 +77,6 @@ counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
 
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
-counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 // Connector http status code metrics
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT, GLOBAL_METER);
 counter_metric!(CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT, GLOBAL_METER);
@@ -85,13 +88,9 @@ counter_metric!(CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT, GLOBAL_METER);
 counter_metric!(CARD_LOCKER_FAILURES, GLOBAL_METER);
 counter_metric!(CARD_LOCKER_SUCCESSFUL_RESPONSE, GLOBAL_METER);
 counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
-histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
-histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
-histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
-
-// Encryption and Decryption metrics
-histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
-histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
+histogram_metric_f64!(CARD_ADD_TIME, GLOBAL_METER);
+histogram_metric_f64!(CARD_GET_TIME, GLOBAL_METER);
+histogram_metric_f64!(CARD_DELETE_TIME, GLOBAL_METER);
 
 // Apple Pay Flow Metrics
 counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
@@ -123,5 +122,25 @@ counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process trac
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
-pub mod request;
-pub mod utils;
+// Access token metrics
+//
+// A counter to indicate the number of new access tokens created
+counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
+
+// A counter to indicate the access token cache hits
+counter_metric!(ACCESS_TOKEN_CACHE_HIT, GLOBAL_METER);
+
+// A counter to indicate the access token cache miss
+counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
+
+// A counter to indicate the integrity check failures
+counter_metric!(INTEGRITY_CHECK_FAILED, GLOBAL_METER);
+
+// Network Tokenization metrics
+histogram_metric_f64!(GENERATE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(FETCH_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(DELETE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(CHECK_NETWORK_TOKEN_STATUS_TIME, GLOBAL_METER);
+
+// A counter to indicate allowed payment method types mismatch
+counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);

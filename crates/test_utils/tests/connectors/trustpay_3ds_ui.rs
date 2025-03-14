@@ -16,7 +16,7 @@ async fn should_make_trustpay_3ds_payment(web_driver: WebDriver) -> Result<(), W
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/206"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/206"))),
             Event::Trigger(Trigger::Sleep(1)),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css(

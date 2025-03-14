@@ -26,7 +26,7 @@
       "amount_to_capture": 6540,
       "email": "joseph@example.com",
       "name": "joseph Doe",
-      "phone": "8888888888",
+      "phone": "9123456789",
       "phone_country_code": "+65",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
@@ -34,7 +34,7 @@
       "return_url": "https://duck.com",
       "payment_method_data": {
         "card": {
-          "card_number": "4242424242424242",
+          "card_number": "378282246310005",
           "card_exp_month": "10",
           "card_exp_year": "25",
           "card_holder_name": "joseph Doe",

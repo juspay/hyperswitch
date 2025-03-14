@@ -17,7 +17,7 @@ impl FileMetadataNew {
 impl FileMetadata {
     pub async fn find_by_merchant_id_file_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -31,7 +31,7 @@ impl FileMetadata {
 
     pub async fn delete_by_merchant_id_file_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(

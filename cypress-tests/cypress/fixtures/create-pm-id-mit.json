@@ -1,0 +1,41 @@
+{
+  "amount": 999,
+  "currency": "USD",
+  "confirm": true,
+  "customer_id": "customer098765",
+  "return_url": "https://hyperswitch.io",
+  "recurring_details": {
+    "type": "payment_method_id",
+    "data": "{{payment_method_id}}"
+  },
+  "off_session": true,
+  "billing": {
+    "address": {
+      "first_name": "John",
+      "last_name": "Doe",
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US"
+    },
+    "phone": {
+      "number": "9123456789",
+      "country_code": "+91"
+    }
+  },
+  "browser_info": {
+    "ip_address": "129.0.0.1",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "language": "en-US",
+    "color_depth": 32,
+    "screen_height": 1117,
+    "screen_width": 1728,
+    "time_zone": -330,
+    "java_enabled": true,
+    "java_script_enabled": true
+  }
+}

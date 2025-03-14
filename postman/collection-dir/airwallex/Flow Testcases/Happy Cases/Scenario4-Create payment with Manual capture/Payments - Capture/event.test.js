@@ -88,7 +88,7 @@ if (jsonData?.amount_received) {
   pm.test(
     "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'",
     function () {
-      pm.expect(jsonData.amount_received).to.eql(6000);
+      pm.expect(jsonData.amount_received).to.eql(6540);
     },
   );
 }

@@ -1,16 +1,9 @@
-use std::fmt::Display;
-
-use actix_web::ResponseError;
+pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
 use common_utils::errors::ErrorSwitch;
-use config::ConfigError;
-use data_models::errors::StorageError as DataStorageError;
-use http::StatusCode;
+use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
-use router_env::opentelemetry::metrics::MetricsError;
 
-use crate::{errors as storage_errors, store::errors::DatabaseError};
-
-pub type ApplicationResult<T> = Result<T, ApplicationError>;
+use crate::store::errors::DatabaseError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -56,20 +49,16 @@ impl Into<DataStorageError> for &StorageError {
     fn into(self) -> DataStorageError {
         match self {
             StorageError::DatabaseError(i) => match i.current_context() {
-                storage_errors::DatabaseError::DatabaseConnectionError => {
-                    DataStorageError::DatabaseConnectionError
-                }
+                DatabaseError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
                 // TODO: Update this error type to encompass & propagate the missing type (instead of generic `db value not found`)
-                storage_errors::DatabaseError::NotFound => {
+                DatabaseError::NotFound => {
                     DataStorageError::ValueNotFound(String::from("db value not found"))
                 }
                 // TODO: Update this error type to encompass & propagate the duplicate type (instead of generic `db value not found`)
-                storage_errors::DatabaseError::UniqueViolation => {
-                    DataStorageError::DuplicateValue {
-                        entity: "db entity",
-                        key: None,
-                    }
-                }
+                DatabaseError::UniqueViolation => DataStorageError::DuplicateValue {
+                    entity: "db entity",
+                    key: None,
+                },
                 err => DataStorageError::DatabaseError(error_stack::report!(*err)),
             },
             StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
@@ -105,6 +94,12 @@ impl From<error_stack::Report<RedisError>> for StorageError {
     }
 }
 
+impl From<diesel::result::Error> for StorageError {
+    fn from(err: diesel::result::Error) -> Self {
+        Self::from(error_stack::report!(DatabaseError::from(err)))
+    }
+}
+
 impl From<error_stack::Report<DatabaseError>> for StorageError {
     fn from(err: error_stack::Report<DatabaseError>) -> Self {
         Self::DatabaseError(err)
@@ -116,6 +111,7 @@ impl StorageError {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
             Self::ValueNotFound(_) => true,
+            Self::RedisError(err) => matches!(err.current_context(), RedisError::NotFound),
             _ => false,
         }
     }
@@ -149,115 +145,6 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
             }
             _ => self.change_context(DataStorageError::KVError),
         }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ApplicationError {
-    // Display's impl can be overridden by the attribute error marco.
-    // Don't use Debug here, Debug gives error stack in response.
-    #[error("Application configuration error: {0}")]
-    ConfigurationError(ConfigError),
-
-    #[error("Invalid configuration value provided: {0}")]
-    InvalidConfigurationValueError(String),
-
-    #[error("Metrics error: {0}")]
-    MetricsError(MetricsError),
-
-    #[error("I/O: {0}")]
-    IoError(std::io::Error),
-
-    #[error("Error while constructing api client: {0}")]
-    ApiClientError(ApiClientError),
-}
-
-impl From<MetricsError> for ApplicationError {
-    fn from(err: MetricsError) -> Self {
-        Self::MetricsError(err)
-    }
-}
-
-impl From<std::io::Error> for ApplicationError {
-    fn from(err: std::io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
-
-impl From<ConfigError> for ApplicationError {
-    fn from(err: ConfigError) -> Self {
-        Self::ConfigurationError(err)
-    }
-}
-
-fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    actix_web::HttpResponse::BadRequest()
-        .content_type(mime::APPLICATION_JSON)
-        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
-}
-
-impl ResponseError for ApplicationError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::MetricsError(_)
-            | Self::IoError(_)
-            | Self::ConfigurationError(_)
-            | Self::InvalidConfigurationValueError(_)
-            | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
-    fn error_response(&self) -> actix_web::HttpResponse {
-        error_response(self)
-    }
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Clone)]
-pub enum ApiClientError {
-    #[error("Header map construction failed")]
-    HeaderMapConstructionFailed,
-    #[error("Invalid proxy configuration")]
-    InvalidProxyConfiguration,
-    #[error("Client construction failed")]
-    ClientConstructionFailed,
-    #[error("Certificate decode failed")]
-    CertificateDecodeFailed,
-    #[error("Request body serialization failed")]
-    BodySerializationFailed,
-    #[error("Unexpected state reached/Invariants conflicted")]
-    UnexpectedState,
-
-    #[error("URL encoding of request payload failed")]
-    UrlEncodingFailed,
-    #[error("Failed to send request to connector {0}")]
-    RequestNotSent(String),
-    #[error("Failed to decode response")]
-    ResponseDecodingFailed,
-
-    #[error("Server responded with Request Timeout")]
-    RequestTimeoutReceived,
-
-    #[error("connection closed before a message could complete")]
-    ConnectionClosedIncompleteMessage,
-
-    #[error("Server responded with Internal Server Error")]
-    InternalServerErrorReceived,
-    #[error("Server responded with Bad Gateway")]
-    BadGatewayReceived,
-    #[error("Server responded with Service Unavailable")]
-    ServiceUnavailableReceived,
-    #[error("Server responded with Gateway Timeout")]
-    GatewayTimeoutReceived,
-    #[error("Server responded with unexpected response")]
-    UnexpectedServerResponse,
-}
-
-impl ApiClientError {
-    pub fn is_upstream_timeout(&self) -> bool {
-        self == &Self::RequestTimeoutReceived
-    }
-    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
-        self == &Self::ConnectionClosedIncompleteMessage
     }
 }
 
@@ -369,6 +256,8 @@ pub enum HealthCheckDBError {
     SqlxAnalyticsError,
     #[error("Error while executing query in Clickhouse Analytics")]
     ClickhouseAnalyticsError,
+    #[error("Error while executing query in Opensearch")]
+    OpensearchError,
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {
@@ -403,4 +292,22 @@ pub enum HealthCheckRedisError {
 pub enum HealthCheckLockerError {
     #[error("Failed to establish Locker connection")]
     FailedToCallLocker,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckGRPCServiceError {
+    #[error("Failed to establish connection with gRPC service")]
+    FailedToCallService,
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum RecoveryError {
+    #[error("Failed to make a recovery payment")]
+    PaymentCallFailed,
+    #[error("Encountered a Process Tracker Task Failure")]
+    ProcessTrackerFailure,
+    #[error("The encountered task is invalid")]
+    InvalidTask,
+    #[error("The Intended data was not found")]
+    ValueNotFound,
 }

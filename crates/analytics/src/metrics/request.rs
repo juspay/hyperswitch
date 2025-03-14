@@ -1,9 +1,4 @@
-pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
-    key: &'static str,
-    value: T,
-) -> router_env::opentelemetry::KeyValue {
-    router_env::opentelemetry::KeyValue::new(key, value)
-}
+use std::time;
 
 #[inline]
 pub async fn record_operation_time<F, R, T>(
@@ -17,18 +12,16 @@ where
     T: ToString,
 {
     let (result, time) = time_future(future).await;
-    let attributes = &[
-        add_attributes("metric_name", metric_name.to_string()),
-        add_attributes("source", source.to_string()),
-    ];
+    let attributes = router_env::metric_attributes!(
+        ("metric_name", metric_name.to_string()),
+        ("source", source.to_string()),
+    );
     let value = time.as_secs_f64();
-    metric.record(&super::CONTEXT, value, attributes);
+    metric.record(value, attributes);
 
     router_env::logger::debug!("Attributes: {:?}, Time: {}", attributes, value);
     result
 }
-
-use std::time;
 
 #[inline]
 pub async fn time_future<F, R>(future: F) -> (R, time::Duration)

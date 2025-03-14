@@ -16,7 +16,7 @@ impl BlocklistNew {
 impl Blocklist {
     pub async fn find_by_merchant_id_fingerprint_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -30,7 +30,7 @@ impl Blocklist {
 
     pub async fn list_by_merchant_id_data_kind(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -49,7 +49,7 @@ impl Blocklist {
 
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -63,7 +63,7 @@ impl Blocklist {
 
     pub async fn delete_by_merchant_id_fingerprint_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(

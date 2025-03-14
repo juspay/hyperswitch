@@ -1,9 +1,10 @@
 pub use common_utils::errors::{ParsingError, ValidationError};
 #[cfg(feature = "email")]
 use external_services::email::EmailError;
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
-use storage_impl::errors::StorageError;
+use storage_impl::errors::{RecoveryError, StorageError};
 
 use crate::env::logger::{self, error};
 
@@ -45,6 +46,8 @@ pub enum ProcessTrackerError {
     EApiErrorResponse,
     #[error("Received Error ClientError")]
     EClientError,
+    #[error("Received RecoveryError: {0:?}")]
+    ERecoveryError(error_stack::Report<RecoveryError>),
     #[error("Received Error StorageError: {0:?}")]
     EStorageError(error_stack::Report<StorageError>),
     #[error("Received Error RedisError: {0:?}")]
@@ -58,6 +61,8 @@ pub enum ProcessTrackerError {
     EEmailError(error_stack::Report<EmailError>),
     #[error("Type Conversion error")]
     TypeConversionError,
+    #[error("Tenant not found")]
+    TenantNotFound,
 }
 
 #[macro_export]
@@ -88,11 +93,17 @@ impl<T: PTError> From<T> for ProcessTrackerError {
     }
 }
 
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(&self) -> ProcessTrackerError {
+        ProcessTrackerError::EApiErrorResponse
+    }
+}
+
 impl<T: PTError + std::fmt::Debug + std::fmt::Display> From<error_stack::Report<T>>
     for ProcessTrackerError
 {
     fn from(error: error_stack::Report<T>) -> Self {
-        logger::error!(error=%error.current_context());
+        logger::error!(?error);
         error.current_context().to_pt_error()
     }
 }
@@ -121,4 +132,9 @@ error_to_process_tracker_error!(
 error_to_process_tracker_error!(
     error_stack::Report<EmailError>,
     ProcessTrackerError::EEmailError(error_stack::Report<EmailError>)
+);
+
+error_to_process_tracker_error!(
+    error_stack::Report<RecoveryError>,
+    ProcessTrackerError::ERecoveryError(error_stack::Report<RecoveryError>)
 );

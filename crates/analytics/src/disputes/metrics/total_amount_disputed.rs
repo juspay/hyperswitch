@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -8,6 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::DisputeMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
@@ -27,12 +30,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
     where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
@@ -63,9 +66,7 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)
@@ -76,7 +77,7 @@ where
             query_builder.add_group_by_clause(dim).switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .switch()?;
@@ -96,6 +97,7 @@ where
                     DisputeMetricsBucketIdentifier::new(
                         i.dispute_stage.as_ref().map(|i| i.0),
                         i.connector.clone(),
+                        i.currency.as_ref().map(|i| i.0),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
@@ -110,7 +112,7 @@ where
                     i,
                 ))
             })
-            .collect::<error_stack::Result<Vec<_>, crate::query::PostProcessingError>>()
+            .collect::<error_stack::Result<HashSet<_>, crate::query::PostProcessingError>>()
             .change_context(MetricsError::PostProcessingFailure)
     }
 }

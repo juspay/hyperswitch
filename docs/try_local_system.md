@@ -13,8 +13,12 @@ Check the Table Of Contents to jump to the relevant section.
 **Table Of Contents:**
 
 - [Run hyperswitch using Docker Compose](#run-hyperswitch-using-docker-compose)
-  - [Run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+  - [Running additional services](#running-additional-services)
 - [Set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose)
+- [Set up a Nix development environment](#set-up-a-nix-development-environment)
+   - [Install Nix](#install-nix)
+   - [Using external services through Nix](#using-external-services-through-nix)
+   - [Develop in a Nix environment (coming soon)](#develop-in-a-nix-environment-coming-soon)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
   - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
@@ -36,7 +40,7 @@ Check the Table Of Contents to jump to the relevant section.
 2. Clone the repository and switch to the project directory:
 
    ```shell
-   git clone https://github.com/juspay/hyperswitch
+   git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
    cd hyperswitch
    ```
 
@@ -51,13 +55,13 @@ Check the Table Of Contents to jump to the relevant section.
    docker compose up -d
    ```
 
-   This should run the hyperswitch payments router, the primary component within
-   hyperswitch.
+   This should run the hyperswitch app server, web client and control center.
    Wait for the `migration_runner` container to finish installing `diesel_cli`
-   and running migrations (approximately 2 minutes) before proceeding further.
+   and running migrations (approximately 2 minutes), and for the
+   `hyperswitch-web` container to finish compiling before proceeding further.
    You can also choose to
-   [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
-   in addition to the payments router.
+   [run the scheduler and monitoring services](#running-additional-services)
+   in addition to the app server, web client and control center.
 
 5. Verify that the server is up and running by hitting the health endpoint:
 
@@ -68,9 +72,17 @@ Check the Table Of Contents to jump to the relevant section.
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
 
-### Run the scheduler and monitoring services
+### Running additional services
 
-You can run the scheduler and monitoring services by specifying suitable profile
+The default behaviour for docker compose only runs the following services:
+
+1. postgres
+2. redis (standalone)
+3. hyperswitch server
+4. hyperswitch control center
+5. hyperswitch web sdk
+
+You can run the scheduler, data and monitoring services by specifying suitable profile
 names to the above Docker Compose command.
 To understand more about the hyperswitch architecture and the components
 involved, check out the [architecture document][architecture].
@@ -93,6 +105,14 @@ involved, check out the [architecture document][architecture].
   logs using the "Explore" tab, select Loki as the data source, and select the
   container to query logs from.
 
+- To run the data services (Clickhouse, Kafka and Opensearch) you can specify the `olap` profile
+
+  ```shell
+  docker compose --profile olap up -d
+  ```
+
+  You can read more about using the data services [here][data-docs]
+
 - You can also specify multiple profile names by specifying the `--profile` flag
   multiple times.
   To run both the scheduler components and monitoring services, the Docker
@@ -109,6 +129,7 @@ Once the services have been confirmed to be up and running, you can proceed with
 [docker-compose-config]: /config/docker_compose.toml
 [docker-compose-yml]: /docker-compose.yml
 [architecture]: /docs/architecture.md
+[data-docs]: /crates/analytics/docs/README.md
 
 ## Set up a development environment using Docker Compose
 
@@ -137,7 +158,7 @@ Once the services have been confirmed to be up and running, you can proceed with
    around 15 minutes.
 
 5. (Optional) You can also choose to
-   [start the scheduler and/or monitoring services](#run-the-scheduler-and-monitoring-services)
+   [start the scheduler and/or monitoring services](#running-additional-services)
    in addition to the payments router.
 
 6. Verify that the server is up and running by hitting the health endpoint:
@@ -148,6 +169,43 @@ Once the services have been confirmed to be up and running, you can proceed with
 
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
+
+## Set up a Nix development environment
+
+A Nix development environment simplifies the setup of required project dependencies. This is available for MacOS, Linux and WSL2 users.
+
+### Install nix
+
+We recommend that you install Nix using [the DetSys nix-installer][detsys-nixos-installer], which automatically enables flakes.
+
+As an **optional** next step, if you are interested in using Nix to manage your dotfiles and local packages, you can setup [nixos-unified-template][nixos-unified-template-repo].
+
+### Using external services through Nix
+
+Once Nix is installed, you can use it to manage external services via `flakes`. More services will be added soon.
+
+- Run below command in hyperswitch directory
+
+   ```shell
+   nix run .#ext-services
+   ```
+
+This will start the following services using `process-compose`
+- PostgreSQL
+   - Creates database and an user to be used by the application
+- Redis
+
+### Develop in a Nix environment (coming soon)
+
+Nix development environment ensures all the required project dependencies, including both the tools and services are readily available, eliminating the need for manual setup.
+
+Run below command in hyperswitch directory
+
+   ```shell
+   nix develop
+   ```
+
+**NOTE:** This is a work in progress, and only a selected commands are available at the moment. Look in `flake.nix` (hyperswitch-shell) for a full list of packages.
 
 ## Set up a Rust environment and other dependencies
 
@@ -211,7 +269,7 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features postgres
    ```
 
-5. Make sure your system has the `pkg-config` package and OpenSSL installed:
+5. Make sure your system has the `pkg-config` package and OpenSSL installed
 
    ```shell
    sudo apt install pkg-config libssl-dev
@@ -222,6 +280,7 @@ Once you're done with setting up the dependencies, proceed with
 
 [postgresql-install]: https://www.postgresql.org/download/
 [redis-install]: https://redis.io/docs/getting-started/installation/
+[wsl-config]: https://learn.microsoft.com/en-us/windows/wsl/wsl-config/
 
 ### Set up dependencies on Windows (Ubuntu on WSL2)
 
@@ -240,6 +299,8 @@ packages for your distribution and follow along.
    Launch the WSL instance and set up your username and password.
    The following steps assume that you are running the commands within the WSL
    shell environment.
+
+   > Note that a `SIGKILL` error may occur when compiling certain crates if WSL is unable to use sufficient memory. It may be necessary to allow up to 24GB of memory, but your mileage may vary. You may increase the amount of memory WSL can use via a `.wslconfig` file in your Windows user folder, or by creating a swap file in WSL itself. Refer to the [WSL configuration documentation][wsl-config] for more information.
 
 2. Install the stable Rust toolchain using `rustup`:
 
@@ -358,12 +419,9 @@ You can opt to use your favorite package manager instead.
 1. Install the stable Rust toolchain using `rustup`:
 
    ```shell
-   brew install rustup-init
-   rustup-init
+   brew install rustup
+   rustup default stable
    ```
-
-   When prompted, proceed with the `default` profile, which installs the stable
-   toolchain.
 
    Optionally, verify that the Rust compiler and `cargo` are successfully
    installed:
@@ -417,6 +475,14 @@ You can opt to use your favorite package manager instead.
    echo 'PQ_LIB_DIR="$(brew --prefix libpq)/lib"' >> ~/.zshrc
    ```
 
+5. Install a command runner called `just`:
+
+   In order to make running migrations easier, you can use a command runner called just
+
+   ```shell
+   cargo install just
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -458,10 +524,26 @@ Once you're done with setting up the dependencies, proceed with
    cd hyperswitch
    ```
 
-3. Run database migrations using `diesel_cli`:
+3. Run database migrations:
+
+   Export the `DATABASE_URL` env variable
 
    ```shell
-   diesel migration --database-url postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME run
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   ```
+
+   Run the migrations
+
+   - If you have just installed
+
+   ```shell
+   just migrate
+   ```
+
+   - Using the diesel-cli command
+
+   ```shell
+   diesel migration run
    ```
 
 Once you're done with setting up the database, proceed with
@@ -640,3 +722,5 @@ To explore more of our APIs, please check the remaining folders in the
 [refunds-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-4d1315c6-ac61-4411-8f7d-15d4e4e736a1
 [refunds-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-137d6260-24f7-4752-9e69-26b61b83df0d
 [connector-specific-details]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=748960791&single=true
+[detsys-nixos-installer]: https://nixos.asia/en/install
+[nixos-unified-template-repo]: https://github.com/juspay/nixos-unified-template#on-non-nixos

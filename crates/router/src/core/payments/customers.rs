@@ -1,3 +1,5 @@
+use common_utils::pii;
+use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -6,20 +8,19 @@ use crate::{
         payments,
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{self, api, domain, storage},
 };
 
 #[instrument(skip_all)]
 pub async fn create_connector_customer<F: Clone, T: Clone>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     customer_request_data: types::ConnectorCustomerData,
 ) -> RouterResult<Option<String>> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         api::CreateConnectorCustomer,
         types::ConnectorCustomerData,
         types::PaymentsResponseData,
@@ -52,12 +53,8 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     .to_payment_failed_response()?;
 
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
-        &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            connector.connector_name.to_string(),
-        )],
+        router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
 
     let connector_customer_id = match resp.response {
@@ -76,19 +73,9 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     Ok(connector_customer_id)
 }
 
-pub fn get_connector_customer_details_if_present<'a>(
-    customer: &'a domain::Customer,
-    connector_name: &str,
-) -> Option<&'a str> {
-    customer
-        .connector_customer
-        .as_ref()
-        .and_then(|connector_customer_value| connector_customer_value.get(connector_name))
-        .and_then(|connector_customer| connector_customer.as_str())
-}
-
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub fn should_call_connector_create_customer<'a>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
@@ -101,9 +88,9 @@ pub fn should_call_connector_create_customer<'a>(
         .contains(&connector.connector_name);
 
     if connector_needs_customer {
-        let connector_customer_details = customer.as_ref().and_then(|customer| {
-            get_connector_customer_details_if_present(customer, connector_label)
-        });
+        let connector_customer_details = customer
+            .as_ref()
+            .and_then(|customer| customer.get_connector_customer_id(connector_label));
         let should_call_connector = connector_customer_details.is_none();
         (should_call_connector, connector_customer_details)
     } else {
@@ -111,32 +98,73 @@ pub fn should_call_connector_create_customer<'a>(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub fn should_call_connector_create_customer<'a>(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+) -> (bool, Option<&'a str>) {
+    // Check if create customer is required for the connector
+    let connector_needs_customer = state
+        .conf
+        .connector_customer
+        .connector_list
+        .contains(&connector.connector_name);
+
+    if connector_needs_customer {
+        let connector_customer_details = customer
+            .as_ref()
+            .and_then(|customer| customer.get_connector_customer_id(merchant_connector_id));
+        let should_call_connector = connector_customer_details.is_none();
+        (should_call_connector, connector_customer_details)
+    } else {
+        (false, None)
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     customer: Option<&domain::Customer>,
-    connector_customer_id: &Option<String>,
+    connector_customer_id: Option<String>,
 ) -> Option<storage::CustomerUpdate> {
-    let connector_customer_map = customer
-        .and_then(|customer| customer.connector_customer.as_ref())
-        .and_then(|connector_customer| connector_customer.as_object())
-        .map(ToOwned::to_owned)
+    let mut connector_customer_map = customer
+        .and_then(|customer| customer.connector_customer.clone().expose_option())
+        .and_then(|connector_customer| connector_customer.as_object().cloned())
         .unwrap_or_default();
 
-    let updated_connector_customer_map =
-        connector_customer_id.as_ref().map(|connector_customer_id| {
-            let mut connector_customer_map = connector_customer_map;
-            let connector_customer_value =
-                serde_json::Value::String(connector_customer_id.to_string());
-            connector_customer_map.insert(connector_label.to_string(), connector_customer_value);
-            connector_customer_map
-        });
+    let updated_connector_customer_map = connector_customer_id.map(|connector_customer_id| {
+        let connector_customer_value = serde_json::Value::String(connector_customer_id);
+        connector_customer_map.insert(connector_label.to_string(), connector_customer_value);
+        connector_customer_map
+    });
 
     updated_connector_customer_map
         .map(serde_json::Value::Object)
         .map(
             |connector_customer_value| storage::CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(connector_customer_value),
+                connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
             },
         )
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument]
+pub async fn update_connector_customer_in_customers(
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    customer: Option<&domain::Customer>,
+    connector_customer_id: Option<String>,
+) -> Option<storage::CustomerUpdate> {
+    connector_customer_id.map(|connector_customer_id| {
+        let mut connector_customer_map = customer
+            .and_then(|customer| customer.connector_customer.clone())
+            .unwrap_or_default();
+        connector_customer_map.insert(merchant_connector_id, connector_customer_id);
+
+        storage::CustomerUpdate::ConnectorCustomer {
+            connector_customer: Some(connector_customer_map),
+        }
+    })
 }

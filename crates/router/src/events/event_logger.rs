@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use events::{EventsError, Message, MessagingInterface};
 use masking::ErasedMaskSerialize;
 use time::PrimitiveDateTime;
@@ -21,12 +23,13 @@ impl MessagingInterface for EventLogger {
     fn send_message<T>(
         &self,
         data: T,
+        metadata: HashMap<String, String>,
         _timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
         T: Message<Class = Self::MessageClass> + ErasedMaskSerialize,
     {
-        logger::info!(event =? data.masked_serialize().unwrap_or_else(|e| serde_json::json!({"error": e.to_string()})), event_type =? data.get_message_class(), event_id =? data.identifier(), log_type =? "event");
+        logger::info!(event =? data.masked_serialize().unwrap_or_else(|e| serde_json::json!({"error": e.to_string()})), event_type =? data.get_message_class(), event_id =? data.identifier(), log_type =? "event", metadata = ?metadata);
         Ok(())
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -8,6 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::PaymentMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{
         Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
         Window,
@@ -31,12 +34,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
         let mut dimensions = dimensions.to_vec();
 
@@ -67,9 +70,8 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
+
         query_builder
             .add_custom_filter_clause(PaymentDimensions::Connector, "NULL", FilterTypes::IsNotNull)
             .switch()?;
@@ -85,7 +87,7 @@ where
                 .switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
@@ -107,6 +109,14 @@ where
                         i.authentication_type.as_ref().map(|i| i.0),
                         i.payment_method.clone(),
                         i.payment_method_type.clone(),
+                        i.client_source.clone(),
+                        i.client_version.clone(),
+                        i.profile_id.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
@@ -122,7 +132,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
+                HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

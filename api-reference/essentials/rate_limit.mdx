@@ -1,0 +1,30 @@
+---
+title: Rate Limits
+---
+
+The Hyperswitch API has multiple checks in place to enhance its stability when faced with sudden surges of incoming traffic. Merchants who send numerous requests in rapid succession could encounter error responses indicated by the status code 429.
+
+<Warning>
+  The default rate limit for all Hyperswitch APIs is **80 requests per second**.
+  Reach out to biz@hyperswitch.io if you have a requirement for higher limits.
+</Warning>
+
+## How to handle rate limits
+
+Effectively handling rate limit 429 errors is crucial for maintaining a seamless user experience.
+
+- Implement retry mechanisms with progressively increasing intervals to avoid overwhelming the system with repeated requests.
+- To proactively manage these errors, monitoring tools can help track usage patterns and provide insights for adjusting rate limits as necessary.
+- Ultimately, a well-orchestrated strategy for managing 429 errors not only prevents disruption but also fosters positive user engagement by transparently addressing limitations and promoting responsible API usage.
+
+## Understanding API locking
+
+If you see a 429 error with the following error message, it is due to API locking and not due to rate limiting:
+
+```text
+At this moment, access to this object is restricted due to ongoing utilization by another API request or an ongoing Hyperswitch process. Retry after some time if this error persists.
+```
+
+API locking is a robust feature that empowers us to proactively secure and optimize access to our APIs. Our API locks objects on some operations to prevent the disruption caused by concurrent workloads that could potentially lead to inconsistent outcomes.
+
+This proactive measure not only ensures the continued integrity and performance of our APIs but also guarantees a high standard of security for our users. Once triggered, the API lock initiates a controlled pause in access, preventing any potential threats from compromising the system.

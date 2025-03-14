@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Вам не разрешено просматривать этот контент"
+    title: "Ссылки на выплаты"
+  status:
+    title: "Статус выплаты"
+    info:
+      ref_id: "ID ссылки"
+      error_code: "Код ошибки"
+      error_message: "Сообщение об ошибке"
+    message:
+      failed: "Не удалось обработать вашу выплату. Пожалуйста, проверьте у вашего поставщика более подробную информацию."
+      processing: "Ваша выплата должна быть обработана в течение 2-3 рабочих дней."
+      success: "Ваша выплата была произведена на выбранный метод оплаты."
+    redirection_text:
+      redirecting: "Перенаправление..."
+      redirecting_in: "Перенаправление через"
+      seconds: "секунд..."
+    text:
+      failed: "Выплата не удалась"
+      processing: "Выплата в процессе"
+      success: "Выплата успешна"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Январь"
+  february: "Февраль"
+  march: "Март"
+  april: "Апрель"
+  may: "Май"
+  june: "Июнь"
+  july: "Июль"
+  august: "Август"
+  september: "Сентябрь"
+  october: "Октябрь"
+  november: "Ноябрь"
+  december: "Декабрь"

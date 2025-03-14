@@ -1,6 +1,4 @@
-//!
 //! Serde-related.
-//!
 
 pub use erased_serde::Serialize as ErasedSerialize;
 pub use serde::{de, Deserialize, Serialize, Serializer};
@@ -17,7 +15,6 @@ use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};
 ///
 /// This is done deliberately to prevent accidental exfiltration of secrets
 /// via `serde` serialization.
-///
 
 #[cfg_attr(docsrs, cfg(feature = "serde"))]
 pub trait SerializableSecret: Serialize {}
@@ -29,6 +26,11 @@ impl SerializableSecret for u8 {}
 impl SerializableSecret for u16 {}
 impl SerializableSecret for i8 {}
 impl SerializableSecret for i32 {}
+impl SerializableSecret for i64 {}
+impl SerializableSecret for url::Url {}
+
+#[cfg(feature = "time")]
+impl SerializableSecret for time::Date {}
 
 impl<'de, T, I> Deserialize<'de> for Secret<T, I>
 where
@@ -82,7 +84,6 @@ where
     }
 }
 
-///
 /// Masked serialization.
 ///
 /// the default behaviour for secrets is to serialize in exposed format since the common use cases
@@ -94,7 +95,6 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
     })
 }
 
-///
 /// Masked serialization.
 ///
 /// Trait object for supporting serialization to Value while accounting for masking
@@ -113,7 +113,7 @@ impl<T: Serialize + ErasedSerialize> ErasedMaskSerialize for T {
     }
 }
 
-impl<'a> Serialize for dyn ErasedMaskSerialize + 'a {
+impl Serialize for dyn ErasedMaskSerialize + '_ {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -122,7 +122,7 @@ impl<'a> Serialize for dyn ErasedMaskSerialize + 'a {
     }
 }
 
-impl<'a> Serialize for dyn ErasedMaskSerialize + 'a + Send {
+impl Serialize for dyn ErasedMaskSerialize + '_ + Send {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

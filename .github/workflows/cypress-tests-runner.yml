@@ -1,0 +1,467 @@
+name: Run Cypress tests
+
+on:
+  merge_group:
+    types:
+      - checks_requested
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  PAYMENTS_CONNECTORS: "cybersource stripe"
+  PAYOUTS_CONNECTORS: "wise"
+  RUST_BACKTRACE: short
+  RUSTUP_MAX_RETRIES: 10
+  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+  DEBUG: cypress:cli
+  RUST_MIN_STACK: 10485760
+
+jobs:
+  formatter:
+    name: Run formatter on Cypress tests and address lints
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository with token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Checkout repository for fork
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Cypress and dependencies
+        run: |
+          npm ci --prefix ./cypress-tests
+
+      - name: Check formatting for forked pull requests
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          npm run format:check --prefix cypress-tests
+          npm run lint --prefix cypress-tests
+
+      - name: Check formatting
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          npm run format --prefix cypress-tests
+          npm run lint --prefix cypress-tests -- --fix
+
+          if ! git diff --exit-code --quiet -- cypress-tests; then
+            echo "::notice::Cypress formatting and lint check failed"
+
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+
+            git add cypress-tests
+            git commit --message 'chore(cypress): run formatter and address lints'
+            git push
+          fi
+
+  runner:
+    name: Run Cypress tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: "public.ecr.aws/docker/library/redis:alpine"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "public.ecr.aws/docker/library/postgres:alpine"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Skip tests for PRs from forks
+        shell: bash
+        if: ${{ env.RUN_TESTS == 'false' }}
+        run: echo 'Skipping tests for PRs from forks'
+
+      - name: Checkout repository
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Download Encrypted TOML from S3 and Decrypt
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
+          DESTINATION_FILE_NAME: "creds.json.gpg"
+          S3_SOURCE_FILE_NAME: "61942d87-78d1-4a1b-b040-f40c83a4430c.json.gpg"
+        shell: bash
+        run: |
+          mkdir -p ".github/secrets" ".github/test"
+
+          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" ".github/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
+
+      - name: Set paths in env
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+
+      - name: Fetch keys
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          TOML_PATH: "./config/development.toml"
+        run: |
+          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
+          echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+      - name: Install mold linker
+        if: ${{ runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
+        uses: rui314/setup-mold@v1
+        with:
+          make-default: true
+
+      - name: Install Rust
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install Diesel CLI
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: baptiste0928/cargo-install@v3.3.0
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: --no-default-features
+
+      - name: Install Just
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm ci --prefix ./cypress-tests
+
+      - name: Run database migrations
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: just migrate run --locked-schema
+
+      - name: Insert card info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Build project
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: cargo build --package router --bin router --jobs 3
+
+      - name: Setup Local Server
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
+          ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
+        run: |
+          # Start the server in the background
+          target/debug/router &
+
+          SERVER_PID=$!
+          echo "PID=${SERVER_PID}" >> $GITHUB_ENV
+
+          # Wait for the server to start in port 8080
+          COUNT=0
+          while ! nc -z localhost 8080; do
+            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+              echo "Server did not start within a reasonable time. Exiting."
+              kill ${SERVER_PID}
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
+            fi
+          done
+
+      - name: Run Cypress tests
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          CYPRESS_BASEURL: "http://localhost:8080"
+          ROUTER__SERVER__WORKERS: 4
+        shell: bash -leuo pipefail {0}
+        run: |
+          scripts/execute_cypress.sh
+
+          kill "${{ env.PID }}"
+
+      - name: Upload Cypress test results
+        if: env.RUN_TESTS == 'true' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-test-results
+          path: |
+            cypress-tests/cypress/reports/
+          retention-days: 1
+
+  runner_v2:
+    name: Run Cypress tests on v2 and generate coverage report
+    runs-on: hyperswitch-runners
+    env:
+      CODECOV_FILE: "lcov.info"
+
+    services:
+      redis:
+        image: "public.ecr.aws/docker/library/redis:alpine"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "public.ecr.aws/docker/library/postgres:alpine"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Skip tests for PRs from forks
+        shell: bash
+        if: ${{ env.RUN_TESTS == 'false' }}
+        run: echo 'Skipping tests for PRs from forks'
+
+      - name: Checkout repository
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Download Encrypted TOML from S3 and Decrypt
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
+          DESTINATION_FILE_NAME: "creds.json.gpg"
+          S3_SOURCE_FILE_NAME: "aa328308-b34e-41b7-a590-4fe45cfe7991.json.gpg"
+        shell: bash
+        run: |
+          mkdir -p ".github/secrets" ".github/test"
+
+          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" ".github/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
+
+      - name: Set paths in env
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+
+      - name: Fetch keys
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          TOML_PATH: "./config/development.toml"
+        run: |
+          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
+          echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+      - name: Install mold linker
+        if: ${{ runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
+        uses: rui314/setup-mold@v1
+        with:
+          make-default: true
+
+      - name: Install Rust
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: llvm-tools-preview
+
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install Diesel CLI
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: baptiste0928/cargo-install@v3.3.0
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: --no-default-features
+
+      - name: Install grcov
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: grcov
+          checksum: true
+
+      - name: Install Just
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm ci --prefix ./cypress-tests-v2
+
+      - name: Run database migrations
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: just migrate_v2 run --locked-schema
+
+      - name: Insert card info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Build project
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          RUSTFLAGS: "-Cinstrument-coverage"
+        run: just build_v2 --jobs 3
+
+      - name: Setup Local Server
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          LLVM_PROFILE_FILE: "coverage.profraw"
+        run: |
+          # Start the server in the background
+          target/debug/router &
+
+          SERVER_PID=$!
+          echo "PID=${SERVER_PID}" >> $GITHUB_ENV
+
+          # Wait for the server to start in port 8080
+          COUNT=0
+          while ! nc -z localhost 8080; do
+            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+              echo "Server did not start within a reasonable time. Exiting."
+              kill ${SERVER_PID}
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
+            fi
+          done
+
+      - name: Run Cypress tests
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          CYPRESS_BASEURL: "http://localhost:8080"
+          ROUTER__SERVER__WORKERS: 4
+        shell: bash -leuo pipefail {0}
+        continue-on-error: true
+        # We aren't specifying `command` and `jobs` arguments currently
+        run: scripts/execute_cypress.sh "" "" "cypress-tests-v2"
+
+      - name: Stop running server
+        if: ${{ env.RUN_TESTS == 'true' }} && always()
+        run: |
+          kill "${{ env.PID }}"
+
+      - name: Upload Cypress test results
+        if: env.RUN_TESTS == 'true' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-v2-test-results
+          path: |
+            cypress-tests-v2/cypress/reports/
+          retention-days: 1
+
+      # Notes:
+      # - The `router` process must be killed (using SIGINT/SIGTERM) to generate the `coverage.profraw` file, otherwise the coverage will only be generated for the buildscripts
+      # - Trying to generate branch coverage using "-Z coverage-options=branch" currently fails. Both grcov and cargo-llvm-cov crash when trying
+      #   to process the generated `.profraw` files.
+      # - --keep-only argument is used to exclude external crates in generated lcov.info file (~500MiB -> ~70MiB)
+      - name: Process coverage report
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' }}
+        run: grcov . --source-dir . --output-types lcov --output-path ${{ env.CODECOV_FILE }} --binary-path ./target/debug --keep-only "crates/*"
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group'}}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ env.CODECOV_FILE }}
+          disable_search: true

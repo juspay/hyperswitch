@@ -24,11 +24,7 @@
       "amount_to_capture": 8000,
       "business_country": "US",
       "customer_id": "not_a_rick_roll",
-      "return_url": "https://www.google.com",
-      "routing": {
-          "type": "single",
-          "data": "prophetpay"
-      }
+      "return_url": "https://www.google.com"
     }
   },
   "url": {

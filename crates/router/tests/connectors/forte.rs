@@ -1,6 +1,8 @@
 use std::{str::FromStr, time::Duration};
 
 use cards::CardNumber;
+use common_utils::types::MinorUnit;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 
@@ -13,14 +15,14 @@ use crate::{
 struct ForteTest;
 impl ConnectorActions for ForteTest {}
 impl utils::Connector for ForteTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Forte;
-        types::api::ConnectorData {
-            connector: Box::new(&Forte),
-            connector_name: types::Connector::Forte,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Forte::new()),
+            types::Connector::Forte,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -41,7 +43,7 @@ static CONNECTOR: ForteTest = ForteTest {};
 
 fn get_payment_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: CardNumber::from_str("4111111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
@@ -53,8 +55,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
                     line1: Some(Secret::new("line1".to_string())),
@@ -64,12 +66,13 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     country: Some(api_models::enums::CountryAlpha2::IN),
                     ..Default::default()
                 }),
-                phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
             }),
+            None,
             None,
         )),
         ..Default::default()
@@ -148,7 +151,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -157,6 +160,11 @@ async fn should_sync_authorized_payment() {
                 connector_meta: None,
                 mandate_id: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
+                payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
+                ..Default::default()
             }),
             get_default_payment_info(),
         )
@@ -318,7 +326,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -466,7 +474,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -488,7 +496,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -511,7 +519,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -629,7 +637,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 #[actix_web::test]
 async fn should_throw_not_implemented_for_unsupported_issuer() {
     let authorize_data = Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: CardNumber::from_str("6759649826438453").unwrap(),
             ..utils::CCardType::default().0
         }),

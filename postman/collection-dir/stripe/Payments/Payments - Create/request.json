@@ -36,7 +36,7 @@
       "payment_method_type": "credit",
       "payment_method_data": {
         "card": {
-          "card_number": "4242424242424242",
+          "card_number": "378282246310005",
           "card_exp_month": "10",
           "card_exp_year": "25",
           "card_holder_name": "joseph Doe",
@@ -56,7 +56,7 @@
           "last_name": "Doe"
         },
         "phone": {
-          "number": "8056594427",
+          "number": "9123456789",
           "country_code": "+91"
         }
       },
@@ -73,7 +73,7 @@
           "last_name": "Doe"
         },
         "phone": {
-          "number": "8056594427",
+          "number": "9123456789",
           "country_code": "+91"
         }
       },
@@ -83,10 +83,6 @@
         "udf1": "value1",
         "new_customer": "true",
         "login_date": "2019-09-10T10:11:12Z"
-      },
-      "routing": {
-        "type": "single",
-        "data": "stripe"
       }
     }
   },

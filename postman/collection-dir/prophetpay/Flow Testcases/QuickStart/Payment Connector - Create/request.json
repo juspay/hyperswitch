@@ -38,39 +38,39 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_name": "prophetpay",
       "connector_account_details": {
-          "auth_type": "SignatureKey",
-          "api_key": "{{connector_api_key}}",
-          "api_secret": "{{connector_api_secret}}",
-          "key1": "{{connector_key1}}"
+        "auth_type": "SignatureKey",
+        "api_key": "{{connector_api_key}}",
+        "api_secret": "{{connector_api_secret}}",
+        "key1": "{{connector_key1}}"
       },
       "business_country": "US",
       "business_label": "default",
       "test_mode": false,
       "disabled": false,
       "payment_methods_enabled": [
-          {
-              "payment_method": "card_redirect",
-              "payment_method_types": [
-                  {
-                      "payment_method_type": "card_redirect",
-                      "payment_experience": "redirect_to_url",
-                      "card_networks": null,
-                      "accepted_currencies": null,
-                      "accepted_countries": null,
-                      "minimum_amount": 1,
-                      "maximum_amount": 68607706,
-                      "recurring_enabled": true,
-                      "installment_payment_enabled": true
-                  }
-              ]
-          }
+        {
+          "payment_method": "card_redirect",
+          "payment_method_types": [
+            {
+              "payment_method_type": "card_redirect",
+              "payment_experience": "redirect_to_url",
+              "card_networks": null,
+              "accepted_currencies": null,
+              "accepted_countries": null,
+              "minimum_amount": 1,
+              "maximum_amount": 68607706,
+              "recurring_enabled": true,
+              "installment_payment_enabled": true
+            }
+          ]
+        }
       ],
       "metadata": {
-          "city": "NY",
-          "unit": "245"
+        "city": "NY",
+        "unit": "245"
       }
     }
   },

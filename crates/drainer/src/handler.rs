@@ -1,5 +1,9 @@
-use std::sync::{atomic, Arc};
+use std::{
+    collections::HashMap,
+    sync::{atomic, Arc},
+};
 
+use common_utils::id_type;
 use router_env::tracing::Instrument;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -31,12 +35,15 @@ pub struct HandlerInner {
     loop_interval: Duration,
     active_tasks: Arc<atomic::AtomicU64>,
     conf: DrainerSettings,
-    store: Arc<Store>,
+    stores: HashMap<id_type::TenantId, Arc<Store>>,
     running: Arc<atomic::AtomicBool>,
 }
 
 impl Handler {
-    pub fn from_conf(conf: DrainerSettings, store: Arc<Store>) -> Self {
+    pub fn from_conf(
+        conf: DrainerSettings,
+        stores: HashMap<id_type::TenantId, Arc<Store>>,
+    ) -> Self {
         let shutdown_interval = Duration::from_millis(conf.shutdown_interval.into());
         let loop_interval = Duration::from_millis(conf.loop_interval.into());
 
@@ -49,7 +56,7 @@ impl Handler {
             loop_interval,
             active_tasks,
             conf,
-            store,
+            stores,
             running,
         };
 
@@ -67,22 +74,24 @@ impl Handler {
         let jobs_picked = Arc::new(atomic::AtomicU8::new(0));
 
         while self.running.load(atomic::Ordering::SeqCst) {
-            metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
-            if self.store.is_stream_available(stream_index).await {
-                let _task_handle = tokio::spawn(
-                    drainer_handler(
-                        self.store.clone(),
-                        stream_index,
-                        self.conf.max_read_count,
-                        self.active_tasks.clone(),
-                        jobs_picked.clone(),
-                    )
-                    .in_current_span(),
-                );
+            metrics::DRAINER_HEALTH.add(1, &[]);
+            for store in self.stores.values() {
+                if store.is_stream_available(stream_index).await {
+                    let _task_handle = tokio::spawn(
+                        drainer_handler(
+                            store.clone(),
+                            stream_index,
+                            self.conf.max_read_count,
+                            self.active_tasks.clone(),
+                            jobs_picked.clone(),
+                        )
+                        .in_current_span(),
+                    );
+                }
             }
             stream_index = utils::increment_stream_index(
                 (stream_index, jobs_picked.clone()),
-                self.store.config.drainer_num_partitions,
+                self.conf.num_partitions,
             )
             .await;
             time::sleep(self.loop_interval).await;
@@ -94,8 +103,8 @@ impl Handler {
     pub(crate) async fn shutdown_listener(&self, mut rx: mpsc::Receiver<()>) {
         while let Some(_c) = rx.recv().await {
             logger::info!("Awaiting shutdown!");
-            metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
-            let shutdown_started = tokio::time::Instant::now();
+            metrics::SHUTDOWN_SIGNAL_RECEIVED.add(1, &[]);
+            let shutdown_started = time::Instant::now();
             rx.close();
 
             //Check until the active tasks are zero. This does not include the tasks in the stream.
@@ -103,9 +112,9 @@ impl Handler {
                 time::sleep(self.shutdown_interval).await;
             }
             logger::info!("Terminating drainer");
-            metrics::SUCCESSFUL_SHUTDOWN.add(&metrics::CONTEXT, 1, &[]);
+            metrics::SUCCESSFUL_SHUTDOWN.add(1, &[]);
             let shutdown_ended = shutdown_started.elapsed().as_secs_f64() * 1000f64;
-            metrics::CLEANUP_TIME.record(&metrics::CONTEXT, shutdown_ended, &[]);
+            metrics::CLEANUP_TIME.record(shutdown_ended, &[]);
             self.close();
         }
         logger::info!(
@@ -116,31 +125,46 @@ impl Handler {
 
     pub fn spawn_error_handlers(&self, tx: mpsc::Sender<()>) -> errors::DrainerResult<()> {
         let (redis_error_tx, redis_error_rx) = oneshot::channel();
+        let redis_conn_clone = self
+            .stores
+            .values()
+            .next()
+            .map(|store| store.redis_conn.clone());
+        match redis_conn_clone {
+            None => {
+                logger::error!("No redis connection found");
+                Err(
+                    errors::DrainerError::UnexpectedError("No redis connection found".to_string())
+                        .into(),
+                )
+            }
+            Some(redis_conn_clone) => {
+                // Spawn a task to monitor if redis is down or not
+                let _task_handle = tokio::spawn(
+                    async move { redis_conn_clone.on_error(redis_error_tx).await }
+                        .in_current_span(),
+                );
 
-        let redis_conn_clone = self.store.redis_conn.clone();
+                //Spawns a task to send shutdown signal if redis goes down
+                let _task_handle =
+                    tokio::spawn(redis_error_receiver(redis_error_rx, tx).in_current_span());
 
-        // Spawn a task to monitor if redis is down or not
-        let _task_handle = tokio::spawn(
-            async move { redis_conn_clone.on_error(redis_error_tx).await }.in_current_span(),
-        );
-
-        //Spawns a task to send shutdown signal if redis goes down
-        let _task_handle = tokio::spawn(redis_error_receiver(redis_error_rx, tx).in_current_span());
-
-        Ok(())
+                Ok(())
+            }
+        }
     }
 }
 
 pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: mpsc::Sender<()>) {
     match rx.await {
         Ok(_) => {
-            logger::error!("The redis server failed ");
+            logger::error!("The redis server failed");
             let _ = shutdown_channel.send(()).await.map_err(|err| {
                 logger::error!("Failed to send signal to the shutdown channel {err}")
             });
         }
         Err(err) => {
-            logger::error!("Channel receiver error{err}");
+            logger::error!("Channel receiver error {err}");
         }
     }
 }
@@ -173,10 +197,7 @@ async fn drainer_handler(
 
     let output = store.make_stream_available(flag_stream_name.as_str()).await;
     active_tasks.fetch_sub(1, atomic::Ordering::Release);
-    output.map_err(|err| {
-        logger::error!(operation = "unlock_stream", err=?err);
-        err
-    })
+    output.inspect_err(|err| logger::error!(operation = "unlock_stream", err=?err))
 }
 
 #[instrument(skip_all, fields(global_id, request_id, session_id))]
@@ -196,7 +217,7 @@ async fn drainer(
                 if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
                     redis_err.current_context()
                 {
-                    metrics::STREAM_EMPTY.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::STREAM_EMPTY.add(1, &[]);
                     return Ok(());
                 } else {
                     return Err(error);
@@ -208,16 +229,15 @@ async fn drainer(
     };
 
     // parse_stream_entries returns error if no entries is found, handle it
-    let entries = utils::parse_stream_entries(&stream_read, stream_name)?;
+    let entries = utils::parse_stream_entries(
+        &stream_read,
+        store.redis_conn.add_prefix(stream_name).as_str(),
+    )?;
     let read_count = entries.len();
 
     metrics::JOBS_PICKED_PER_STREAM.add(
-        &metrics::CONTEXT,
         u64::try_from(read_count).unwrap_or(u64::MIN),
-        &[metrics::KeyValue {
-            key: "stream".into(),
-            value: stream_name.to_string().into(),
-        }],
+        router_env::metric_attributes!(("stream", stream_name.to_owned())),
     );
 
     let session_id = common_utils::generate_id_with_default_len("drainer_session");
@@ -230,12 +250,8 @@ async fn drainer(
             Err(err) => {
                 logger::error!(operation = "deserialization", err=?err);
                 metrics::STREAM_PARSE_FAIL.add(
-                    &metrics::CONTEXT,
                     1,
-                    &[metrics::KeyValue {
-                        key: "operation".into(),
-                        value: "deserialization".into(),
-                    }],
+                    router_env::metric_attributes!(("operation", "deserialization")),
                 );
 
                 // break from the loop in case of a deser error

@@ -15,7 +15,7 @@ use crate::{
         payment_methods::transformers as payment_methods,
     },
     headers, routes,
-    services::{api as services, encryption},
+    services::{api as services, encryption, EncryptionAlgorithm},
     types::{storage, transformers::ForeignFrom},
     utils::ConnectorResponseExt,
 };
@@ -32,7 +32,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
-async fn generate_fingerprint_request<'a>(
+async fn generate_fingerprint_request(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: &blocklist::GenerateFingerprintRequest,
@@ -87,10 +87,11 @@ async fn generate_jwe_payload_for_request(
         }
     };
 
-    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Error on jwe encrypt")?;
+    let jwe_encrypted =
+        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
 
     let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
@@ -111,7 +112,7 @@ async fn generate_jwe_payload_for_request(
 
 #[instrument(skip_all)]
 pub async fn generate_fingerprint(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     card_number: StrongSecret<String>,
     hash_key: StrongSecret<String>,
     locker_choice: api_enums::LockerChoice,
@@ -129,7 +130,7 @@ pub async fn generate_fingerprint(
 
 #[instrument(skip_all)]
 async fn call_to_locker_for_fingerprint(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
@@ -144,11 +145,15 @@ async fn call_to_locker_for_fingerprint(
         .get_response_inner("JweBody")
         .change_context(errors::VaultError::GenerateFingerprintFailed)?;
 
-    let decrypted_payload =
-        decrypt_generate_fingerprint_response_payload(jwekey, jwe_body, Some(locker_choice))
-            .await
-            .change_context(errors::VaultError::GenerateFingerprintFailed)
-            .attach_printable("Error getting decrypted fingerprint response payload")?;
+    let decrypted_payload = decrypt_generate_fingerprint_response_payload(
+        jwekey,
+        jwe_body,
+        Some(locker_choice),
+        locker.decryption_scheme.clone(),
+    )
+    .await
+    .change_context(errors::VaultError::GenerateFingerprintFailed)
+    .attach_printable("Error getting decrypted fingerprint response payload")?;
     let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload =
         decrypted_payload
             .parse_struct("GenerateFingerprintResponse")
@@ -159,9 +164,9 @@ async fn call_to_locker_for_fingerprint(
 
 async fn decrypt_generate_fingerprint_response_payload(
     jwekey: &settings::Jwekey,
-
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
+    decryption_scheme: settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
@@ -174,7 +179,10 @@ async fn decrypt_generate_fingerprint_response_payload(
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jwt = payment_methods::get_dotted_jwe(jwe_body);
-    let alg = jwe::RSA_OAEP;
+    let alg = match decryption_scheme {
+        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+    };
 
     let jwe_decrypted = encryption::decrypt_jwe(
         &jwt,

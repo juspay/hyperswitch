@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "currency": "EUR",
+  "customer_id": "payout_customer",
+  "email": "payout_customer@example.com",
+  "name": "John Doe",
+  "phone": "999999999",
+  "phone_country_code": "+65",
+  "description": "Its my first payout request",
+  "billing": {
+    "address": {
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "NY",
+      "zip": "94122",
+      "country": "US",
+      "first_name": "John",
+      "last_name": "Doe"
+    },
+    "phone": {
+      "number": "9123456789",
+      "country_code": "+91"
+    }
+  },
+  "entity_type": "Individual",
+  "recurring": false,
+  "metadata": {
+    "ref": "123"
+  },
+  "auto_fulfill": true,
+  "confirm": true
+}

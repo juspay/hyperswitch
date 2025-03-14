@@ -52,7 +52,7 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError>;
 
     async fn find_processes_by_time_status(
@@ -101,6 +101,7 @@ impl ProcessTrackerInterface for Store {
             time_upper_limit,
             status,
             limit,
+            hyperswitch_domain_models::consts::API_VERSION,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -149,7 +150,7 @@ impl ProcessTrackerInterface for Store {
         this: storage::ProcessTracker,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<(), errors::StorageError> {
-        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASK_RETRIED.add(1, &[]);
         let retry_count = this.retry_count + 1;
         self.update_process(
             this,
@@ -166,18 +167,18 @@ impl ProcessTrackerInterface for Store {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         self.update_process(
             this,
             storage::ProcessTrackerUpdate::StatusUpdate {
                 status: storage_enums::ProcessTrackerStatus::Finish,
-                business_status: Some(business_status),
+                business_status: Some(String::from(business_status)),
             },
         )
         .await
         .attach_printable("Failed to update business status of process")?;
-        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASK_FINISHED.add(1, &[]);
         Ok(())
     }
 
@@ -229,7 +230,6 @@ impl ProcessTrackerInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
-
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,
@@ -249,6 +249,7 @@ impl ProcessTrackerInterface for MockDb {
             event: new.event,
             created_at: new.created_at,
             updated_at: new.updated_at,
+            version: new.version,
         };
         processes.push(process.clone());
         Ok(process)
@@ -284,7 +285,7 @@ impl ProcessTrackerInterface for MockDb {
     async fn finish_process_with_business_status(
         &self,
         _this: storage::ProcessTracker,
-        _business_status: String,
+        _business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

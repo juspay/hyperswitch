@@ -36,6 +36,27 @@ where
                 .attach_printable("Error adding auth type filter")?;
         }
 
+        if !self.profile_id.is_empty() {
+            builder
+                .add_filter_in_range_clause(RefundDimensions::ProfileId, &self.profile_id)
+                .attach_printable("Error adding profile id filter")?;
+        }
+
+        if !self.refund_reason.is_empty() {
+            builder
+                .add_filter_in_range_clause(RefundDimensions::RefundReason, &self.refund_reason)
+                .attach_printable("Error adding refund reason filter")?;
+        }
+
+        if !self.refund_error_message.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    RefundDimensions::RefundErrorMessage,
+                    &self.refund_error_message,
+                )
+                .attach_printable("Error adding refund error message filter")?;
+        }
+
         Ok(())
     }
 }

@@ -2,16 +2,25 @@ pub mod transformers;
 use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
-use common_utils::request::RequestContent;
-use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use base64::Engine;
+#[cfg(feature = "frm")]
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+#[cfg(feature = "frm")]
+use error_stack::ResultExt;
+#[cfg(feature = "frm")]
+use masking::{PeekInterface, Secret};
+#[cfg(feature = "frm")]
+use ring::hmac;
+#[cfg(feature = "frm")]
 use transformers as signifyd;
 
+#[cfg(feature = "frm")]
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -19,6 +28,7 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
+    consts,
     events::connector_api_logs::ConnectorEvent,
     types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
@@ -59,13 +69,17 @@ impl ConnectorCommon for Signifyd {
         connectors.signifyd.base_url.as_ref()
     }
 
+    #[cfg(feature = "frm")]
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = signifyd::SignifydAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_api_key = format!("Basic {}", auth.api_key.peek());
+        let auth_api_key = format!(
+            "Basic {}",
+            consts::BASE64_ENGINE.encode(auth.api_key.peek())
+        );
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -89,7 +103,7 @@ impl ConnectorCommon for Signifyd {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.messages.join(" &"),
             reason: Some(response.errors.to_string()),
             attempt_status: None,
@@ -223,7 +237,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/sales"
+            "v3/orders/events/sales"
         ))
     }
 
@@ -311,7 +325,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/checkouts"
+            "v3/orders/events/checkouts"
         ))
     }
 
@@ -399,7 +413,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/transactions"
+            "v3/orders/events/transactions"
         ))
     }
 
@@ -489,7 +503,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/fulfillments"
+            "v3/orders/events/fulfillments"
         ))
     }
 
@@ -579,7 +593,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/returns/records"
+            "v3/orders/events/returns/records"
         ))
     }
 
@@ -641,26 +655,104 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Signifyd {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value =
+            connector_utils::get_header_key_value("x-signifyd-sec-hmac-sha256", request.headers)?;
+        Ok(header_value.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                merchant_id,
+                &connector_webhook_secrets,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &connector_webhook_secrets.secret);
+        let signed_message = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_message.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: signifyd::SignifydWebhookBody = request
+            .body
+            .parse_struct("SignifydWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::PaymentAttemptId(resource.order_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: signifyd::SignifydWebhookBody = request
+            .body
+            .parse_struct("SignifydWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::IncomingWebhookEvent::from(resource.review_disposition))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: signifyd::SignifydWebhookBody = request
+            .body
+            .parse_struct("SignifydWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Signifyd {}

@@ -1,20 +1,28 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
-use common_utils::request::RequestContent;
-use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use base64::Engine;
+use common_utils::types::{
+    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+};
+#[cfg(feature = "frm")]
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+#[cfg(feature = "frm")]
+use error_stack::ResultExt;
+#[cfg(feature = "frm")]
+use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "frm")]
 use ring::hmac;
+#[cfg(feature = "frm")]
 use transformers as riskified;
 
+use super::utils::convert_amount;
 #[cfg(feature = "frm")]
-use super::utils::FrmTransactionRouterDataRequest;
+use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -22,15 +30,27 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
+    consts,
     events::connector_api_logs::ConnectorEvent,
+    headers,
+    services::request,
     types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Riskified;
+#[derive(Clone)]
+pub struct Riskified {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
 
 impl Riskified {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+
+    #[cfg(feature = "frm")]
     pub fn generate_authorization_signature(
         &self,
         auth: &riskified::RiskifiedAuthType,
@@ -53,6 +73,7 @@ impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Ri
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
+    #[cfg(feature = "frm")]
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
@@ -122,7 +143,7 @@ impl ConnectorCommon for Riskified {
         Ok(ErrorResponse {
             status_code: res.status_code,
             attempt_status: None,
-            code: crate::consts::NO_ERROR_CODE.to_string(),
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.error.message.clone(),
             reason: None,
             connector_transaction_id: None,
@@ -163,7 +184,17 @@ impl
         req: &frm_types::FrmCheckoutRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = riskified::RiskifiedPaymentsCheckoutRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.amount),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let req_data = riskified::RiskifiedRouterData::from((amount, req));
+        let req_obj = riskified::RiskifiedPaymentsCheckoutRequest::try_from(&req_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -268,11 +299,7 @@ impl
                 self.base_url(connectors),
                 "/checkout_denied"
             )),
-            Some(true) => Ok(format!("{}{}", self.base_url(connectors), "/decision")),
-            None => Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Transaction".to_owned(),
-                connector: req.connector.to_string(),
-            })?,
+            _ => Ok(format!("{}{}", self.base_url(connectors), "/decision")),
         }
     }
 
@@ -286,14 +313,20 @@ impl
                 let req_obj = riskified::TransactionFailedRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
-            Some(true) => {
-                let req_obj = riskified::TransactionSuccessRequest::try_from(req)?;
+            _ => {
+                let amount = convert_amount(
+                    self.amount_converter,
+                    MinorUnit::new(req.request.amount),
+                    req.request
+                        .currency
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "currency",
+                        })?,
+                )?;
+                let req_data = riskified::RiskifiedRouterData::from((amount, req));
+                let req_obj = riskified::TransactionSuccessRequest::try_from(&req_data)?;
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
-            None => Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Transaction".to_owned(),
-                connector: req.connector.to_owned(),
-            })?,
         }
     }
 
@@ -545,26 +578,104 @@ impl frm_api::FraudCheckFulfillment for Riskified {}
 #[cfg(feature = "frm")]
 impl frm_api::FraudCheckRecordReturn for Riskified {}
 
+#[cfg(feature = "frm")]
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Riskified {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value =
+            connector_utils::get_header_key_value("x-riskified-hmac-sha256", request.headers)?;
+        Ok(header_value.as_bytes().to_vec())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                merchant_id,
+                &connector_webhook_secrets,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &connector_webhook_secrets.secret);
+        let signed_message = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_message.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: riskified::RiskifiedWebhookBody = request
+            .body
+            .parse_struct("RiskifiedWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::PaymentAttemptId(resource.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: riskified::RiskifiedWebhookBody = request
+            .body
+            .parse_struct("RiskifiedWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::IncomingWebhookEvent::from(resource.status))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let resource: riskified::RiskifiedWebhookBody = request
+            .body
+            .parse_struct("RiskifiedWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Riskified {}

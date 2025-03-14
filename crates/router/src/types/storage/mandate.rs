@@ -13,7 +13,7 @@ use crate::{connection::PgPooledConn, logger};
 pub trait MandateDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         mandate_list_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
@@ -22,7 +22,7 @@ pub trait MandateDbExt: Sized {
 impl MandateDbExt for Mandate {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         mandate_list_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()

@@ -1,17 +1,13 @@
-use common_utils::ext_traits::AsyncExt;
 use diesel_models::configs::ConfigUpdateInternal;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::redis::{
-    cache::{CacheKind, CONFIG_CACHE},
-    kv_store::RedisConnInterface,
-    pub_sub::PubSubInterface,
-};
+use storage_impl::redis::cache::{self, CacheKind, CONFIG_CACHE};
 
-use super::{cache, MockDb, Store};
+use super::{MockDb, Store};
 use crate::{
-    connection, consts,
+    connection,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     types::storage,
 };
 
@@ -65,10 +61,18 @@ impl ConfigInterface for Store {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        config
+        let inserted = config
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        cache::redact_from_redis_and_publish(
+            self.get_cache_store().as_ref(),
+            [CacheKind::Config((&inserted.key).into())],
+        )
+        .await?;
+
+        Ok(inserted)
     }
 
     #[instrument(skip_all)]
@@ -126,7 +130,7 @@ impl ConfigInterface for Store {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        // If the config is not found it will be created with the default value.
+        // If the config is not found it will be cached with the default value.
         default_config: Option<String>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let find_else_unwrap_or = || async {
@@ -139,17 +143,14 @@ impl ConfigInterface for Store {
                 Err(err) => {
                     if err.current_context().is_db_not_found() {
                         default_config
-                            .ok_or(err)
-                            .async_and_then(|c| async {
+                            .map(|c| {
                                 storage::ConfigNew {
                                     key: key.to_string(),
                                     config: c,
                                 }
-                                .insert(&conn)
-                                .await
-                                .map_err(|error| report!(errors::StorageError::from(error)))
+                                .into()
                             })
-                            .await
+                            .ok_or(err)
                     } else {
                         Err(err)
                     }
@@ -170,11 +171,11 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        self.get_redis_conn()
-            .map_err(Into::<errors::StorageError>::into)?
-            .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
-            .await
-            .map_err(Into::<errors::StorageError>::into)?;
+        cache::redact_from_redis_and_publish(
+            self.get_cache_store().as_ref(),
+            [CacheKind::Config((&deleted.key).into())],
+        )
+        .await?;
 
         Ok(deleted)
     }
@@ -190,7 +191,6 @@ impl ConfigInterface for MockDb {
         let mut configs = self.configs.lock().await;
 
         let config_new = storage::Config {
-            id: i32::try_from(configs.len()).change_context(errors::StorageError::MockDbError)?,
             key: config.key,
             config: config.config,
         };

@@ -49,7 +49,7 @@
           "last_name": "Doe"
         },
         "phone": {
-          "number": "8056594427",
+          "number": "9123456789",
           "country_code": "+91"
         }
       },
@@ -62,7 +62,18 @@
       "auto_fulfill": true,
       "connector": ["adyen"],
       "business_label": "abcd",
-      "business_country": "US"
+      "business_country": "US",
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "accept_header": "text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,*\\/*;q=0.8",
+        "language": "en-GB",
+        "color_depth": 30,
+        "screen_height": 1117,
+        "screen_width": 1728,
+        "time_zone": -330,
+        "java_enabled": true,
+        "java_script_enabled": true
+      }
     }
   },
   "url": {

@@ -1,6 +1,6 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, id_type, DbConnectionParams};
 use config::{Environment, File};
 use external_services::managers::{
     encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,
@@ -31,7 +31,7 @@ pub struct CmdLineConf {
 #[derive(Clone)]
 pub struct AppState {
     pub conf: Arc<Settings<RawSecret>>,
-    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub encryption_client: Arc<dyn EncryptionManagementInterface>,
 }
 
 impl AppState {
@@ -73,6 +73,7 @@ pub struct Settings<S: SecretState> {
     pub drainer: DrainerSettings,
     pub encryption_management: EncryptionManagementConfig,
     pub secrets_management: SecretsManagementConfig,
+    pub multitenancy: Multitenancy,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -87,6 +88,24 @@ pub struct Database {
     pub connection_timeout: u64,
 }
 
+impl DbConnectionParams for Database {
+    fn get_username(&self) -> &str {
+        &self.username
+    }
+    fn get_password(&self) -> Secret<String> {
+        self.password.clone()
+    }
+    fn get_host(&self) -> &str {
+        &self.host
+    }
+    fn get_port(&self) -> u16 {
+        self.port
+    }
+    fn get_dbname(&self) -> &str {
+        &self.dbname
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct DrainerSettings {
@@ -95,6 +114,74 @@ pub struct DrainerSettings {
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
     pub loop_interval: u32,     // in milliseconds
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Multitenancy {
+    pub enabled: bool,
+    pub tenants: TenantConfig,
+}
+impl Multitenancy {
+    pub fn get_tenants(&self) -> &HashMap<id_type::TenantId, Tenant> {
+        &self.tenants.0
+    }
+    pub fn get_tenant_ids(&self) -> Vec<id_type::TenantId> {
+        self.tenants
+            .0
+            .values()
+            .map(|tenant| tenant.tenant_id.clone())
+            .collect()
+    }
+    pub fn get_tenant(&self, tenant_id: &id_type::TenantId) -> Option<&Tenant> {
+        self.tenants.0.get(tenant_id)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
+
+impl<'de> Deserialize<'de> for TenantConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Inner {
+            base_url: String,
+            schema: String,
+            accounts_schema: String,
+            redis_key_prefix: String,
+            clickhouse_database: String,
+        }
+
+        let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
+
+        Ok(Self(
+            hashmap
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        Tenant {
+                            tenant_id: key,
+                            base_url: value.base_url,
+                            schema: value.schema,
+                            accounts_schema: value.accounts_schema,
+                            redis_key_prefix: value.redis_key_prefix,
+                            clickhouse_database: value.clickhouse_database,
+                        },
+                    )
+                })
+                .collect(),
+        ))
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Tenant {
+    pub tenant_id: id_type::TenantId,
+    pub base_url: String,
+    pub schema: String,
+    pub accounts_schema: String,
+    pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -224,6 +311,8 @@ impl Settings<SecuredSecret> {
             )
             .build()?;
 
+        // The logger may not yet be initialized when constructing the application configuration
+        #[allow(clippy::print_stderr)]
         serde_path_to_error::deserialize(config).map_err(|error| {
             logger::error!(%error, "Unable to deserialize application configuration");
             eprintln!("Unable to deserialize application configuration: {error}");
@@ -234,20 +323,28 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::DrainerError> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.redis.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             errors::DrainerError::ConfigParsingError("invalid Redis configuration".into())
         })?;
         self.drainer.validate()?;
+
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.secrets_management.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             errors::DrainerError::ConfigParsingError(
                 "invalid secrets management configuration".into(),
             )
         })?;
 
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.encryption_management.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             errors::DrainerError::ConfigParsingError(
                 "invalid encryption management configuration".into(),
             )

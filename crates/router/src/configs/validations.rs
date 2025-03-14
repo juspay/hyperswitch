@@ -180,3 +180,116 @@ impl super::settings::LockSettings {
         })
     }
 }
+
+impl super::settings::GenericLinkEnvConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.expiry == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "link's expiry should not be 0".into(),
+            ))
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl super::settings::CellInformation {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::{fp_utils::when, id_type};
+
+        when(self == &Self::default(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "CellId cannot be set to a default".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::NetworkTokenizationService {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.token_service_api_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "token_service_api_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.public_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "public_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.key_id.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "key_id must not be empty".into(),
+            ))
+        })?;
+
+        when(self.private_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "private_key must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::PazeDecryptConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.paze_private_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "paze_private_key must not be empty".into(),
+            ))
+        })?;
+
+        when(
+            self.paze_private_key_passphrase.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "paze_private_key_passphrase must not be empty".into(),
+                ))
+            },
+        )
+    }
+}
+
+impl super::settings::GooglePayDecryptConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(
+            self.google_pay_root_signing_keys.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "google_pay_root_signing_keys must not be empty".into(),
+                ))
+            },
+        )
+    }
+}
+
+impl super::settings::KeyManagerConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        #[cfg(feature = "keymanager_mtls")]
+        when(
+            self.enabled && (self.ca.is_default_or_empty() || self.cert.is_default_or_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Invalid CA or Certificate for Keymanager.".into(),
+                ))
+            },
+        )?;
+
+        when(self.enabled && self.url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Invalid URL for Keymanager".into(),
+            ))
+        })
+    }
+}

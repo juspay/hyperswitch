@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "لا يُسمح لك بمشاهدة هذا المحتوى"
+    title: "روابط الدفع"
+  status:
+    title: "حالة الدفع"
+    info:
+      ref_id: "معرف المرجع"
+      error_code: "رمز الخطأ"
+      error_message: "رسالة الخطأ"
+    message:
+      failed: "فشل في معالجة الدفع الخاص بك. يرجى التحقق مع مزود الخدمة للحصول على مزيد من التفاصيل."
+      processing: "يجب معالجة الدفع الخاص بك خلال 2-3 أيام عمل."
+      success: "تم تنفيذ الدفع إلى طريقة الدفع المختارة."
+    redirection_text:
+      redirecting: "جارٍ إعادة التوجيه..."
+      redirecting_in: "إعادة التوجيه خلال"
+      seconds: "ثوانٍ..."
+    text:
+      failed: "فشل الدفع"
+      processing: "الدفع قيد المعالجة"
+      success: "الدفع ناجح"
+
+time:
+  am: "صباحا"
+  pm: "مساء"
+
+months:
+  january: "يناير"
+  february: "فبراير"
+  march: "مارس"
+  april: "أبريل"
+  may: "مايو"
+  june: "يونيو"
+  july: "يوليو"
+  august: "أغسطس"
+  september: "سبتمبر"
+  october: "أكتوبر"
+  november: "نوفمبر"
+  december: "ديسمبر"

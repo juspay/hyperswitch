@@ -6,18 +6,22 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+[features]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "common_utils/v2"]
 
 [dependencies]
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
-storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
+hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 
 #Third Party dependencies
 actix-web = "4.5.1"
@@ -25,16 +29,20 @@ async-trait = "0.1.79"
 aws-config = { version = "1.2.0", features = ["behavior-version-latest"] }
 aws-sdk-lambda = { version = "1.21.0" }
 aws-smithy-types = { version = "1.1.8" }
-bigdecimal = { version = "0.3.1", features = ["serde"] }
+bigdecimal = { version = "0.4.5", features = ["serde"] }
 error-stack = "0.4.1"
 futures = "0.3.30"
-opensearch = { version = "2.2.0", features = ["aws-auth"] }
 once_cell = "1.19.0"
+opensearch = { version = "2.2.0", features = ["aws-auth"] }
 reqwest = { version = "0.11.27", features = ["serde_json"] }
+rust_decimal = "1.35"
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.115"
-sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
+sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

@@ -1,5 +1,6 @@
+use common_enums::ApiVersion;
 use common_utils::ext_traits::Encode;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -14,10 +15,11 @@ use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResu
     Deserialize,
     Identifiable,
     Queryable,
+    Selectable,
     Serialize,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = process_tracker)]
+#[diesel(table_name = process_tracker, check_for_backend(diesel::pg::Pg))]
 pub struct ProcessTracker {
     pub id: String,
     pub name: Option<String>,
@@ -37,6 +39,7 @@ pub struct ProcessTracker {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
 }
 
 impl ProcessTracker {
@@ -62,40 +65,43 @@ pub struct ProcessTrackerNew {
     pub event: Vec<String>,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
 }
 
 impl ProcessTrackerNew {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<T>(
         process_tracker_id: impl Into<String>,
         task: impl Into<String>,
         runner: ProcessTrackerRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
+        retry_count: Option<i32>,
         schedule_time: PrimitiveDateTime,
+        api_version: ApiVersion,
     ) -> StorageResult<Self>
     where
         T: Serialize + std::fmt::Debug,
     {
-        const BUSINESS_STATUS_PENDING: &str = "Pending";
-
         let current_time = common_utils::date_time::now();
         Ok(Self {
             id: process_tracker_id.into(),
             name: Some(task.into()),
             tag: tag.into_iter().map(Into::into).collect(),
             runner: Some(runner.to_string()),
-            retry_count: 0,
+            retry_count: retry_count.unwrap_or(0),
             schedule_time: Some(schedule_time),
             rule: String::new(),
             tracking_data: tracking_data
                 .encode_to_value()
                 .change_context(errors::DatabaseError::Others)
                 .attach_printable("Failed to serialize process tracker tracking data")?,
-            business_status: String::from(BUSINESS_STATUS_PENDING),
+            business_status: String::from(business_status::PENDING),
             status: storage_enums::ProcessTrackerStatus::New,
             event: vec![],
             created_at: current_time,
             updated_at: current_time,
+            version: api_version,
         })
     }
 }
@@ -209,6 +215,9 @@ pub enum ProcessTrackerRunner {
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
     OutgoingWebhookRetryWorkflow,
+    AttachPayoutAccountWorkflow,
+    PaymentMethodStatusUpdateWorkflow,
+    PassiveRecoveryWorkflow,
 }
 
 #[cfg(test)]
@@ -225,4 +234,58 @@ mod tests {
             string_format.parse_enum("ProcessTrackerRunner").unwrap();
         assert_eq!(enum_format, ProcessTrackerRunner::PaymentsSyncWorkflow);
     }
+}
+
+pub mod business_status {
+    /// Indicates that an irrecoverable error occurred during the workflow execution.
+    pub const GLOBAL_FAILURE: &str = "GLOBAL_FAILURE";
+
+    /// Task successfully completed by consumer.
+    /// A task that reaches this status should not be retried (rescheduled for execution) later.
+    pub const COMPLETED_BY_PT: &str = "COMPLETED_BY_PT";
+
+    /// An error occurred during the workflow execution which prevents further execution and
+    /// retries.
+    /// A task that reaches this status should not be retried (rescheduled for execution) later.
+    pub const FAILURE: &str = "FAILURE";
+
+    /// The resource associated with the task was removed, due to which further retries can/should
+    /// not be done.
+    pub const REVOKED: &str = "Revoked";
+
+    /// The task was executed for the maximum possible number of times without a successful outcome.
+    /// A task that reaches this status should not be retried (rescheduled for execution) later.
+    pub const RETRIES_EXCEEDED: &str = "RETRIES_EXCEEDED";
+
+    /// The outgoing webhook was successfully delivered in the initial attempt.
+    /// Further retries of the task are not required.
+    pub const INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL: &str = "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL";
+
+    /// Indicates that an error occurred during the workflow execution.
+    /// This status is typically set by the workflow error handler.
+    /// A task that reaches this status should not be retried (rescheduled for execution) later.
+    pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR";
+
+    /// The resource associated with the task has been significantly modified since the task was
+    /// created, due to which further retries of the current task are not required.
+    /// A task that reaches this status should not be retried (rescheduled for execution) later.
+    pub const RESOURCE_STATUS_MISMATCH: &str = "RESOURCE_STATUS_MISMATCH";
+
+    /// Business status set for newly created tasks.
+    pub const PENDING: &str = "Pending";
+
+    /// For the PCR Workflow
+    ///
+    /// This status indicates the completion of a execute task
+    pub const EXECUTE_WORKFLOW_COMPLETE: &str = "COMPLETED_EXECUTE_TASK";
+
+    /// This status indicates that the execute task was completed to trigger the psync task
+    pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
+
+    /// This status indicates that the execute task was completed to trigger the review task
+    pub const EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW: &str =
+        "COMPLETED_EXECUTE_TASK_TO_TRIGGER_REVIEW";
+
+    /// This status indicates the completion of a psync task
+    pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
 }

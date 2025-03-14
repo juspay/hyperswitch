@@ -1,0 +1,62 @@
+{
+  "bp_create": {
+    "profile_name": "HyperS",
+    "return_url": "https://hyperswitch.io",
+    "enable_payment_response_hash": true,
+    "redirect_to_merchant_with_http_post": false,
+    "metadata": null,
+    "order_fulfillment_time": 900,
+    "order_fulfillment_time_origin": "create",
+    "applepay_verified_domains": null,
+    "session_expiry": 900,
+    "payment_link_config": null,
+    "authentication_connector_details": null,
+    "use_billing_as_payment_method_billing": true,
+    "collect_shipping_details_from_wallet_connector_if_required": false,
+    "collect_billing_details_from_wallet_connector_if_required": false,
+    "always_collect_shipping_details_from_wallet_connector": false,
+    "always_collect_billing_details_from_wallet_connector": false,
+    "is_connector_agnostic_mit_enabled": false,
+    "payout_link_config": null,
+    "outgoing_webhook_custom_http_headers": null,
+    "webhook_details": {
+      "webhook_version": "1.0.1",
+      "webhook_username": "ekart_retail",
+      "webhook_password": "password_ekart@123",
+      "webhook_url": "https://webhook.site",
+      "payment_created_enabled": true,
+      "payment_succeeded_enabled": true,
+      "payment_failed_enabled": true
+    }
+  },
+  "bp_update": {
+    "profile_name": "Hyperswitch",
+    "return_url": "https://hyperswitch.io",
+    "enable_payment_response_hash": true,
+    "redirect_to_merchant_with_http_post": false,
+    "metadata": null,
+    "order_fulfillment_time": 900,
+    "order_fulfillment_time_origin": "create",
+    "applepay_verified_domains": null,
+    "session_expiry": 900,
+    "payment_link_config": null,
+    "authentication_connector_details": null,
+    "use_billing_as_payment_method_billing": true,
+    "collect_shipping_details_from_wallet_connector_if_required": false,
+    "collect_billing_details_from_wallet_connector_if_required": false,
+    "always_collect_shipping_details_from_wallet_connector": false,
+    "always_collect_billing_details_from_wallet_connector": false,
+    "is_connector_agnostic_mit_enabled": false,
+    "payout_link_config": null,
+    "outgoing_webhook_custom_http_headers": null,
+    "webhook_details": {
+      "webhook_version": "1.0.1",
+      "webhook_username": "ekart_retail",
+      "webhook_password": "password_ekart@123",
+      "webhook_url": "https://webhook.site",
+      "payment_created_enabled": true,
+      "payment_succeeded_enabled": true,
+      "payment_failed_enabled": true
+    }
+  }
+}

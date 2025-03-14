@@ -1,42 +1,51 @@
+use common_enums::enums;
 use serde::{Deserialize, Serialize};
 use masking::Secret;
-use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self,api, storage::enums}};
+use common_utils::types::{StringMinorUnit};
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::errors;
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::PaymentsAuthorizeRequestData,
+};
 
 //TODO: Fill the struct with respective fields
 pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
 impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
+    From<(
+        StringMinorUnit,
         T,
     )> for {{project-name | downcase | pascal_case}}RouterData<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
+    fn from(
+        (amount, item): (
+            StringMinorUnit,
             T,
         ),
-    ) -> Result<Self, Self::Error> {
+    ) -> Self {
          //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Ok(Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {
-    amount: i64,
+    amount: StringMinorUnit,
     card: {{project-name | downcase | pascal_case}}Card
 }
 
@@ -49,11 +58,11 @@ pub struct {{project-name | downcase | pascal_case}}Card {
     complete: bool,
 }
 
-impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::PaymentsAuthorizeRouterData>> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
+impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&PaymentsAuthorizeRouterData>> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
+    fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
+            PaymentMethodData::Card(req_card) => {
                 let card = {{project-name | downcase | pascal_case}}Card {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -62,11 +71,11 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::Paymen
                     complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.amount.to_owned(),
+                    amount: item.amount.clone(),
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
@@ -77,11 +86,11 @@ pub struct {{project-name | downcase | pascal_case}}AuthType {
     pub(super) api_key: Secret<String>
 }
 
-impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
+impl TryFrom<&ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -99,7 +108,7 @@ pub enum {{project-name | downcase | pascal_case}}PaymentStatus {
     Processing,
 }
 
-impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for enums::AttemptStatus {
+impl From<{{project-name | downcase | pascal_case}}PaymentStatus> for common_enums::AttemptStatus {
     fn from(item: {{project-name | downcase | pascal_case}}PaymentStatus) -> Self {
         match item {
             {{project-name | downcase | pascal_case}}PaymentStatus::Succeeded => Self::Charged,
@@ -116,19 +125,20 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {
     id: String,
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F,T> TryFrom<ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, PaymentsResponseData>> for RouterData<F, T, PaymentsResponseData> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(item: ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
+            status: common_enums::AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
-incremental_authorization_allowed: None,
+                incremental_authorization_allowed: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -140,12 +150,12 @@ incremental_authorization_allowed: None,
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct {{project-name | downcase | pascal_case}}RefundRequest {
-    pub amount: i64
+    pub amount: StringMinorUnit
 }
 
-impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>> for {{project-name | downcase | pascal_case}}RefundRequest {
+impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&RefundsRouterData<F>>> for {{project-name | downcase | pascal_case}}RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>) -> Result<Self,Self::Error> {
+    fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&RefundsRouterData<F>>) -> Result<Self,Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -181,15 +191,15 @@ pub struct RefundResponse {
     status: RefundStatus
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -198,12 +208,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync>
 {
      type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+    fn try_from(item: RefundsResponseRouterData<RSync, RefundResponse>) -> Result<Self,Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),

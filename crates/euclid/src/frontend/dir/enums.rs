@@ -3,8 +3,8 @@ use strum::VariantNames;
 use crate::enums::collect_variants;
 pub use crate::enums::{
     AuthenticationType, CaptureMethod, CardNetwork, Country, Country as BusinessCountry,
-    Country as BillingCountry, Currency as PaymentCurrency, MandateAcceptanceType, MandateType,
-    PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
+    Country as BillingCountry, CountryAlpha2, Currency as PaymentCurrency, MandateAcceptanceType,
+    MandateType, PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
 };
 #[cfg(feature = "payouts")]
 pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
@@ -71,6 +71,7 @@ pub enum PayLaterType {
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
     GooglePay,
+    AmazonPay,
     ApplePay,
     Paypal,
     AliPay,
@@ -89,6 +90,9 @@ pub enum WalletType {
     TouchNGo,
     Swish,
     Cashapp,
+    Venmo,
+    Mifinity,
+    Paze,
 }
 
 #[derive(
@@ -143,10 +147,12 @@ pub enum BankRedirectType {
     Giropay,
     Ideal,
     Sofort,
+    Eft,
     Eps,
     BancontactCard,
     Blik,
     Interac,
+    LocalBankRedirect,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -157,6 +163,26 @@ pub enum BankRedirectType {
     Przelewy24,
     Trustly,
 }
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OpenBankingType {
+    OpenBankingPIS,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -246,6 +272,25 @@ pub enum CardRedirectType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum MobilePaymentType {
+    DirectCarrierBilling,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CryptoType {
     CryptoCurrency,
 }
@@ -265,8 +310,31 @@ pub enum CryptoType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum RealTimePaymentType {
+    Fps,
+    DuitNow,
+    PromptPay,
+    VietQr,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum UpiType {
     UpiCollect,
+    UpiIntent,
 }
 
 #[derive(
@@ -318,8 +386,11 @@ collect_variants!(BankRedirectType);
 collect_variants!(BankDebitType);
 collect_variants!(CryptoType);
 collect_variants!(RewardType);
+collect_variants!(RealTimePaymentType);
 collect_variants!(UpiType);
 collect_variants!(VoucherType);
 collect_variants!(GiftCardType);
 collect_variants!(BankTransferType);
 collect_variants!(CardRedirectType);
+collect_variants!(OpenBankingType);
+collect_variants!(MobilePaymentType);

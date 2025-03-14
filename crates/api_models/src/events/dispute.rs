@@ -1,7 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use super::{
-    DeleteEvidenceRequest, DisputeResponse, DisputeResponsePaymentsRetrieve, SubmitEvidenceRequest,
+    DeleteEvidenceRequest, DisputeResponse, DisputeResponsePaymentsRetrieve,
+    DisputesAggregateResponse, SubmitEvidenceRequest,
 };
 
 impl ApiEventMetric for SubmitEvidenceRequest {
@@ -30,5 +31,11 @@ impl ApiEventMetric for DeleteEvidenceRequest {
         Some(ApiEventsType::Dispute {
             dispute_id: self.dispute_id.clone(),
         })
+    }
+}
+
+impl ApiEventMetric for DisputesAggregateResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }

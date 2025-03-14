@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use api_models::payments::OrderDetailsWithAmount;
 use cards::CardNumber;
-use common_utils::pii::Email;
+use common_utils::{pii::Email, types::MinorUnit};
+use hyperswitch_domain_models::types::OrderDetailsWithAmount;
 use masking::Secret;
 use router::types::{self, domain, storage::enums};
 
@@ -17,12 +17,12 @@ impl ConnectorActions for ZenTest {}
 impl utils::Connector for ZenTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Zen;
-        types::api::ConnectorData {
-            connector: Box::new(&Zen),
-            connector_name: types::Connector::Zen,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Zen),
+            types::Connector::Zen,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -95,7 +95,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -104,6 +104,11 @@ async fn should_sync_authorized_payment() {
                 connector_meta: None,
                 mandate_id: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
+                payment_experience: None,
+                amount: MinorUnit::new(100),
+                integrity_object: None,
+                ..Default::default()
             }),
             None,
         )
@@ -210,7 +215,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
@@ -219,6 +224,11 @@ async fn should_sync_auto_captured_payment() {
                 connector_meta: None,
                 mandate_id: None,
                 payment_method_type: None,
+                currency: enums::Currency::USD,
+                payment_experience: None,
+                amount: MinorUnit::new(100),
+                integrity_object: None,
+                ..Default::default()
             }),
             None,
         )
@@ -308,20 +318,24 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_number: CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -349,20 +363,24 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -390,20 +408,24 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -431,20 +453,24 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
                     category: None,
+                    sub_category: None,
                     brand: None,
                     product_type: None,
+                    product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),

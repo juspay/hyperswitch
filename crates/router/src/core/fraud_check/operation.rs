@@ -10,27 +10,23 @@ use super::{
     FrmData,
 };
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        payments,
-    },
-    db::StorageInterface,
-    routes::AppState,
+    core::errors::{self, RouterResult},
+    routes::{app::ReqState, SessionState},
     types::{domain, fraud_check::FrmRouterData},
 };
 
-pub type BoxedFraudCheckOperation<F> = Box<dyn FraudCheckOperation<F> + Send + Sync>;
+pub type BoxedFraudCheckOperation<F, D> = Box<dyn FraudCheckOperation<F, D> + Send + Sync>;
 
-pub trait FraudCheckOperation<F>: Send + std::fmt::Debug {
+pub trait FraudCheckOperation<F, D>: Send + std::fmt::Debug {
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("domain interface not found for {self:?}"))
     }
-    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F> + Send + Sync)> {
+    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
@@ -40,18 +36,20 @@ pub trait FraudCheckOperation<F>: Send + std::fmt::Debug {
 pub trait GetTracker<D>: Send {
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: D,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>>;
 }
 
 #[async_trait]
-pub trait Domain<F>: Send + Sync {
+#[allow(clippy::too_many_arguments)]
+pub trait Domain<F, D>: Send + Sync {
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_data: &mut payments::PaymentData<F>,
+        state: &'a SessionState,
+        req_state: ReqState,
+        payment_data: &mut D,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         customer: &Option<domain::Customer>,
@@ -62,8 +60,8 @@ pub trait Domain<F>: Send + Sync {
 
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_data: &mut payments::PaymentData<F>,
+        state: &'a SessionState,
+        payment_data: &mut D,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         customer: &Option<domain::Customer>,
@@ -77,14 +75,17 @@ pub trait Domain<F>: Send + Sync {
     #[allow(clippy::too_many_arguments)]
     async fn execute_post_tasks(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
+        _req_state: ReqState,
         frm_data: &mut FrmData,
         _merchant_account: &domain::MerchantAccount,
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _key_store: domain::MerchantKeyStore,
-        _payment_data: &mut payments::PaymentData<F>,
+        _payment_data: &mut D,
         _customer: &Option<domain::Customer>,
+        _should_continue_capture: &mut bool,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<Option<FrmData>>
     where
         F: Send + Clone,
@@ -94,13 +95,14 @@ pub trait Domain<F>: Send + Sync {
 }
 
 #[async_trait]
-pub trait UpdateTracker<D, F: Clone>: Send {
+pub trait UpdateTracker<Fd, F: Clone, D>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
-        frm_data: D,
-        payment_data: &mut payments::PaymentData<F>,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        frm_data: Fd,
+        payment_data: &mut D,
         _frm_suggestion: Option<FrmSuggestion>,
         frm_router_data: FrmRouterData,
-    ) -> RouterResult<D>;
+    ) -> RouterResult<Fd>;
 }

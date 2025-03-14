@@ -14,7 +14,7 @@ impl SeleniumTest for NuveiSeleniumTest {
 async fn should_make_nuvei_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000027891380961&expmonth=10&expyear=25&cvv=123&amount=200&country=US&currency=USD"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000027891380961&expmonth=10&expyear=25&cvv=123&amount=200&country=US&currency=USD"))),
             Event::Assert(Assert::IsPresent("Expiry Year")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Query(By::ClassName("title"))),
@@ -31,7 +31,7 @@ async fn should_make_nuvei_3ds_payment(c: WebDriver) -> Result<(), WebDriverErro
 async fn should_make_nuvei_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000027891380961&expmonth=10&expyear=25&cvv=123&amount=200&country=US&currency=USD&setup_future_usage=off_session&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=in%20sit&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD&mandate_data[mandate_type][multi_use][start_date]=2022-09-10T00:00:00Z&mandate_data[mandate_type][multi_use][end_date]=2023-09-10T00:00:00Z&mandate_data[mandate_type][multi_use][metadata][frequency]=13&return_url={CHEKOUT_BASE_URL}/payments"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4000027891380961&expmonth=10&expyear=25&cvv=123&amount=200&country=US&currency=USD&setup_future_usage=off_session&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=in%20sit&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD&mandate_data[mandate_type][multi_use][start_date]=2022-09-10T00:00:00Z&mandate_data[mandate_type][multi_use][end_date]=2023-09-10T00:00:00Z&mandate_data[mandate_type][multi_use][metadata][frequency]=13&return_url={CHECKOUT_BASE_URL}/payments"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Query(By::ClassName("title"))),
             Event::Assert(Assert::Eq(Selector::Title, "ThreeDS ACS Emulator - Challenge Page")),
@@ -47,7 +47,7 @@ async fn should_make_nuvei_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDr
 async fn should_make_nuvei_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_gpay_payment(c,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=nuveidigital&gatewaymerchantid=googletest&amount=10.00&country=IN&currency=USD"),
+        &format!("{CHECKOUT_BASE_URL}/gpay?gatewayname=nuveidigital&gatewaymerchantid=googletest&amount=10.00&country=IN&currency=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
@@ -58,7 +58,7 @@ async fn should_make_nuvei_pypl_payment(c: WebDriver) -> Result<(), WebDriverErr
     let conn = NuveiSeleniumTest {};
     conn.make_paypal_payment(
         c,
-        &format!("{CHEKOUT_BASE_URL}/saved/5"),
+        &format!("{CHECKOUT_BASE_URL}/saved/5"),
         vec![
             Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -75,7 +75,7 @@ async fn should_make_nuvei_pypl_payment(c: WebDriver) -> Result<(), WebDriverErr
 async fn should_make_nuvei_giropay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/bank-redirect?amount=1.00&country=DE&currency=EUR&paymentmethod=giropay"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/bank-redirect?amount=1.00&country=DE&currency=EUR&paymentmethod=giropay"))),
             Event::Trigger(Trigger::Click(By::Id("bank-redirect-btn"))),
             Event::Assert(Assert::IsPresent("You are about to make a payment using the Giropay service.")),
             Event::Trigger(Trigger::Click(By::Id("ctl00_ctl00_mainContent_btnConfirm"))),
@@ -99,7 +99,7 @@ async fn should_make_nuvei_giropay_payment(c: WebDriver) -> Result<(), WebDriver
 async fn should_make_nuvei_ideal_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/bank-redirect?amount=10.00&country=NL&currency=EUR&paymentmethod=ideal&processingbank=ing"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/bank-redirect?amount=10.00&country=NL&currency=EUR&paymentmethod=ideal&processingbank=ing"))),
             Event::Trigger(Trigger::Click(By::Id("bank-redirect-btn"))),
             Event::Assert(Assert::IsPresent("Your account will be debited:")),
             Event::Trigger(Trigger::SelectOption(By::Id("ctl00_ctl00_mainContent_ServiceContent_ddlBanks"), "ING Simulator")),
@@ -116,7 +116,7 @@ async fn should_make_nuvei_ideal_payment(c: WebDriver) -> Result<(), WebDriverEr
 async fn should_make_nuvei_sofort_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/bank-redirect?amount=10.00&country=DE&currency=EUR&paymentmethod=sofort"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/bank-redirect?amount=10.00&country=DE&currency=EUR&paymentmethod=sofort"))),
             Event::Trigger(Trigger::Click(By::Id("bank-redirect-btn"))),
             Event::Assert(Assert::IsPresent("SOFORT")),
             Event::Trigger(Trigger::ChangeQueryParam("sender_holder", "John Doe")),
@@ -130,7 +130,7 @@ async fn should_make_nuvei_sofort_payment(c: WebDriver) -> Result<(), WebDriverE
 async fn should_make_nuvei_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/bank-redirect?amount=10.00&country=AT&currency=EUR&paymentmethod=eps&processingbank=ing"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/bank-redirect?amount=10.00&country=AT&currency=EUR&paymentmethod=eps&processingbank=ing"))),
             Event::Trigger(Trigger::Click(By::Id("bank-redirect-btn"))),
             Event::Assert(Assert::IsPresent("You are about to make a payment using the EPS service.")),
             Event::Trigger(Trigger::SendKeys(By::Id("ctl00_ctl00_mainContent_ServiceContent_txtCustomerName"), "John Doe")),

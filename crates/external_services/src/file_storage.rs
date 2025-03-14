@@ -1,8 +1,9 @@
-//!
 //! Module for managing file storage operations with support for multiple storage schemes.
-//!
 
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
 use common_utils::errors::CustomResult;
 
@@ -39,11 +40,11 @@ impl FileStorageConfig {
     }
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
-    pub async fn get_file_storage_client(&self) -> Box<dyn FileStorageInterface> {
+    pub async fn get_file_storage_client(&self) -> Arc<dyn FileStorageInterface> {
         match self {
             #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => Box::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
-            Self::FileSystem => Box::new(file_system::FileSystem),
+            Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
+            Self::FileSystem => Arc::new(file_system::FileSystem),
         }
     }
 }

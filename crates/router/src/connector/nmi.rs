@@ -1,14 +1,17 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
-use super::utils::{self as connector_utils};
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::{
@@ -16,7 +19,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -25,8 +28,18 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug)]
-pub struct Nmi;
+#[derive(Clone)]
+pub struct Nmi {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Nmi {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Nmi {}
 impl api::PaymentSession for Nmi {}
@@ -95,14 +108,17 @@ impl ConnectorCommon for Nmi {
 }
 
 impl ConnectorValidation for Nmi {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -111,7 +127,10 @@ impl ConnectorValidation for Nmi {
 
     fn validate_psync_reference_id(
         &self,
-        _data: &types::PaymentsSyncRouterData,
+        _data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // in case we dont have transaction id, we can make psync using attempt id
         Ok(())
@@ -325,12 +344,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -413,12 +432,12 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiCompleteRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -565,12 +584,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
         let connector_req = nmi::NmiCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -713,12 +732,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = nmi::NmiRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = nmi::NmiRouterData::from((refund_amount, req));
         let connector_req = nmi::NmiRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -874,7 +894,7 @@ impl api::IncomingWebhook for Nmi {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let sig_header =
@@ -1007,7 +1027,12 @@ impl services::ConnectorRedirectResponse for Nmi {
                     }
                 }
             }
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
         }
     }
 }
+
+impl ConnectorSpecifications for Nmi {}

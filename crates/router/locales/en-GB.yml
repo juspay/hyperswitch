@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "You are not allowed to view this content"
+    title: "Payout Links"
+  status:
+    title: "Payout Status"
+    info:
+      ref_id: "Ref Id"
+      error_code: "Error Code"
+      error_message: "Error Message"
+    message:
+      failed: "Failed to process your payout. Please check with your provider for more details."
+      processing: "Your payout should be processed within 2-3 business days."
+      success: "Your payout was made to selected payment method."
+    redirection_text:
+      redirecting: "Redirecting..."
+      redirecting_in: "Redirecting in"
+      seconds: "seconds..."
+    text:
+      failed: "Payout Failed"
+      processing: "Payout Processing"
+      success: "Payout Successful"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "January"
+  february: "February"
+  march: "March"
+  april: "April"
+  may: "May"
+  june: "June"
+  july: "July"
+  august: "August"
+  september: "September"
+  october: "October"
+  november: "November"
+  december: "December"

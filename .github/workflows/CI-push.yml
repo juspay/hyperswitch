@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
   merge_group:
     types:
@@ -18,6 +12,27 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 0
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
 
 jobs:
   formatting:
@@ -39,14 +54,18 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      # RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
+
     strategy:
       fail-fast: true
       matrix:
-        os:
+        runner:
           - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
 
     steps:
       - name: Checkout repository
@@ -69,23 +88,41 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      - uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: cargo-hack
+          tool: cargo-hack
+          checksum: true
 
-      - name: Deny warnings
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
         shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+        run: .github/scripts/install-jq.sh
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --workspace --each-feature --all-targets
+        run: just ci_hack
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
@@ -115,14 +152,18 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      # RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
+
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        os:
+        runner:
           - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
 
     steps:
       - name: Checkout repository
@@ -140,38 +181,51 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
-      - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
         with:
-          crate: cargo-hack
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: cargo-hack
+          checksum: true
+
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.2.0
+      #   uses: taiki-e/install-action@v2
       #   with:
-      #     crate: cargo-nextest
+      #     tool: cargo-nextest
+      #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
-      # - name: Setup Embark Studios lint rules
-      #   shell: bash
-      #   run: |
-      #     mkdir -p .cargo
-      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Run clippy
         shell: bash
-        run: cargo clippy --all-features --all-targets
+        run: just clippy
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --workspace --each-feature --all-targets
+        run: just ci_hack
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
@@ -187,3 +241,34 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  check-v2:
+    name: Check compilation for V2 features
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
+
+      - name: Run cargo check enabling only the release and v2 features
+        shell: bash
+        run: cargo check --no-default-features --features "release,v2"

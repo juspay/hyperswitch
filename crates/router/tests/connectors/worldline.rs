@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     connector::Worldline,
@@ -18,12 +18,12 @@ struct WorldlineTest;
 impl ConnectorActions for WorldlineTest {}
 impl utils::Connector for WorldlineTest {
     fn get_data(&self) -> types::api::ConnectorData {
-        types::api::ConnectorData {
-            connector: Box::new(&Worldline),
-            connector_name: types::Connector::Worldline,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Worldline),
+            types::Connector::Worldline,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -56,6 +56,7 @@ impl WorldlineTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             ..Default::default()
         })
@@ -81,7 +82,8 @@ impl WorldlineTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -110,6 +112,7 @@ impl WorldlineTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         })
     }
 }
@@ -179,7 +182,7 @@ async fn should_throw_missing_required_field_for_country() {
         .make_payment(
             authorize_data,
             Some(PaymentInfo {
-                address: Some(PaymentAddress::new(None, None, None)),
+                address: Some(PaymentAddress::new(None, None, None, None)),
                 ..Default::default()
             }),
         )
@@ -231,7 +234,7 @@ async fn should_sync_manual_auth_payment() {
     let sync_response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
                 capture_method: Some(enums::CaptureMethod::Manual),
@@ -264,7 +267,7 @@ async fn should_sync_auto_auth_payment() {
     let sync_response = connector
         .sync_payment(
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),

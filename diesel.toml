@@ -5,3 +5,4 @@
 file = "crates/diesel_models/src/schema.rs"
 import_types = ["diesel::sql_types::*", "crate::enums::diesel_exports::*"]
 generate_missing_sql_type_definitions = false
+patch_file="crates/diesel_models/drop_id.patch"

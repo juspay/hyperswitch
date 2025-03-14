@@ -1,9 +1,6 @@
-#![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
-//!
 //! Environment of payment router: logger, basic config, its environment awareness.
-//!
 
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 

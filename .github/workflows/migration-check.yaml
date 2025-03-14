@@ -17,17 +17,22 @@ env:
   # from transient network timeouts or other issues.
   CARGO_NET_RETRY: 10
   RUSTUP_MAX_RETRIES: 10
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
   migration_verify:
     name: Verify consistency of migrations with `schema.rs` file
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch_db
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: 5432
+
     services:
       postgres:
-        image: postgres
+        image: "postgres:alpine"
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -47,20 +52,37 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
           features: postgres
-          args: "--no-default-features"
+          args: --no-default-features
 
-      - name: Verify `diesel migration run`
-        shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration run --locked-schema
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
 
-      - name: Verify `diesel migration redo`
+      - name: Create database
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration redo -a --locked-schema
+        run: just resurrect hyperswitch_db
+
+      - name: Verify `diesel migration run for v1`
+        shell: bash
+        run: just migrate run --locked-schema
+
+      - name: Verify `diesel migration redo for v1`
+        shell: bash
+        run: just migrate redo --locked-schema --all
+
+      - name: Drop `DB for v2 column ordering mismatch`
+        shell: bash
+        run: just resurrect hyperswitch_db
+
+      - name: Verify `diesel migration run for v2`
+        shell: bash
+        run: just migrate_v2 run --locked-schema
+
+      - name: Verify `diesel migration redo for v2`
+        shell: bash
+        run: just migrate_v2 redo --locked-schema --all

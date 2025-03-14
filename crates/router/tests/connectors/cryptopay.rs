@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, PaymentAddress};
 
@@ -10,14 +11,14 @@ use crate::{
 struct CryptopayTest;
 impl ConnectorActions for CryptopayTest {}
 impl utils::Connector for CryptopayTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cryptopay;
-        types::api::ConnectorData {
-            connector: Box::new(&Cryptopay),
-            connector_name: types::Connector::Cryptopay,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Cryptopay::new()),
+            types::Connector::Cryptopay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -40,8 +41,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
                     line1: Some(Secret::new("line1".to_string())),
@@ -51,15 +52,15 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     country: Some(api_models::enums::CountryAlpha2::IN),
                     ..Default::default()
                 }),
-                phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
             }),
             None,
+            None,
         )),
-        return_url: Some(String::from("https://google.com")),
         ..Default::default()
     })
 }
@@ -68,8 +69,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::domain::PaymentMethodData::Crypto(domain::CryptoData {
+        payment_method_data: domain::PaymentMethodData::Crypto(domain::CryptoData {
             pay_currency: Some("XRP".to_string()),
+            network: None,
         }),
         confirm: true,
         statement_descriptor_suffix: None,
@@ -98,6 +100,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         metadata: None,
         authentication_data: None,
         customer_acceptance: None,
+        ..utils::PaymentAuthorizeType::default().0
     })
 }
 
@@ -126,7 +129,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "ea684036-2b54-44fa-bffe-8256650dce7c".to_string(),
                 ),
                 ..Default::default()
@@ -145,7 +148,7 @@ async fn should_sync_unresolved_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "7993d4c2-efbc-4360-b8ce-d1e957e6f827".to_string(),
                 ),
                 ..Default::default()

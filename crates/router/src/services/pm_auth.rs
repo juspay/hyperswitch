@@ -7,26 +7,20 @@ use pm_auth::{
 use crate::{
     core::errors::{self},
     logger,
-    routes::AppState,
+    routes::SessionState,
     services::{self},
 };
 
-pub async fn execute_connector_processing_step<
-    'b,
-    'a,
-    T: 'static,
-    Req: Clone + 'static,
-    Resp: Clone + 'static,
->(
-    state: &'b AppState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+pub async fn execute_connector_processing_step<'b, T, Req, Resp>(
+    state: &'b SessionState,
+    connector_integration: BoxedConnectorIntegration<'_, T, Req, Resp>,
     req: &'b PaymentAuthRouterData<T, Req, Resp>,
     connector: &pm_auth_types::PaymentMethodAuthConnectors,
 ) -> errors::CustomResult<PaymentAuthRouterData<T, Req, Resp>, ConnectorError>
 where
-    T: Clone,
-    Req: Clone,
-    Resp: Clone,
+    T: Clone + 'static,
+    Req: Clone + 'static,
+    Resp: Clone + 'static,
 {
     let mut router_data = req.clone();
 

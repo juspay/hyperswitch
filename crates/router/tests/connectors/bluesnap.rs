@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
 use common_utils::pii::Email;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, domain, storage::enums, ConnectorAuthType, PaymentAddress};
 
@@ -17,12 +17,12 @@ static CONNECTOR: BluesnapTest = BluesnapTest {};
 impl utils::Connector for BluesnapTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bluesnap;
-        types::api::ConnectorData {
-            connector: Box::new(&Bluesnap),
-            connector_name: types::Connector::Bluesnap,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Bluesnap::new()),
+            types::Connector::Bluesnap,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
@@ -57,6 +57,7 @@ fn get_payment_info() -> Option<PaymentInfo> {
                 phone: None,
                 email: None,
             }),
+            None,
             None,
         )),
         ..Default::default()
@@ -121,7 +122,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -261,7 +262,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -401,7 +402,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -426,7 +427,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -451,7 +452,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

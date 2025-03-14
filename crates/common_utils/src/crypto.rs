@@ -38,14 +38,14 @@ impl NonceSequence {
     }
 
     /// Returns the current nonce value as bytes.
-    fn current(&self) -> [u8; ring::aead::NONCE_LEN] {
-        let mut nonce = [0_u8; ring::aead::NONCE_LEN];
+    fn current(&self) -> [u8; aead::NONCE_LEN] {
+        let mut nonce = [0_u8; aead::NONCE_LEN];
         nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
         nonce
     }
 
     /// Constructs a nonce sequence from bytes
-    fn from_bytes(bytes: [u8; ring::aead::NONCE_LEN]) -> Self {
+    fn from_bytes(bytes: [u8; aead::NONCE_LEN]) -> Self {
         let mut sequence_number = [0_u8; 128 / 8];
         sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..].copy_from_slice(&bytes);
         let sequence_number = u128::from_be_bytes(sequence_number);
@@ -53,16 +53,16 @@ impl NonceSequence {
     }
 }
 
-impl ring::aead::NonceSequence for NonceSequence {
-    fn advance(&mut self) -> Result<ring::aead::Nonce, ring::error::Unspecified> {
-        let mut nonce = [0_u8; ring::aead::NONCE_LEN];
+impl aead::NonceSequence for NonceSequence {
+    fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
+        let mut nonce = [0_u8; aead::NONCE_LEN];
         nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
 
         // Increment sequence number
         self.0 = self.0.wrapping_add(1);
 
         // Return previous sequence number as bytes
-        Ok(ring::aead::Nonce::assume_unique_for_key(nonce))
+        Ok(aead::Nonce::assume_unique_for_key(nonce))
     }
 }
 
@@ -238,6 +238,42 @@ impl VerifySignature for HmacSha512 {
     }
 }
 
+/// Blake3
+#[derive(Debug)]
+pub struct Blake3(String);
+
+impl Blake3 {
+    /// Create a new instance of Blake3 with a key
+    pub fn new(key: impl Into<String>) -> Self {
+        Self(key.into())
+    }
+}
+
+impl SignMessage for Blake3 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let key = blake3::derive_key(&self.0, secret);
+        let output = blake3::keyed_hash(&key, msg).as_bytes().to_vec();
+        Ok(output)
+    }
+}
+
+impl VerifySignature for Blake3 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let key = blake3::derive_key(&self.0, secret);
+        let output = blake3::keyed_hash(&key, msg);
+        Ok(output.as_bytes() == signature)
+    }
+}
+
 /// Represents the GCM-AES-256 algorithm
 #[derive(Debug)]
 pub struct GcmAes256;
@@ -275,8 +311,8 @@ impl DecodeMessage for GcmAes256 {
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         let nonce_sequence = NonceSequence::from_bytes(
-            <[u8; ring::aead::NONCE_LEN]>::try_from(
-                msg.get(..ring::aead::NONCE_LEN)
+            <[u8; aead::NONCE_LEN]>::try_from(
+                msg.get(..aead::NONCE_LEN)
                     .ok_or(errors::CryptoError::DecodingFailed)
                     .attach_printable("Failed to read the nonce form the encrypted ciphertext")?,
             )
@@ -288,7 +324,7 @@ impl DecodeMessage for GcmAes256 {
         let output = binding.as_mut_slice();
 
         let result = key
-            .open_within(aead::Aad::empty(), output, ring::aead::NONCE_LEN..)
+            .open_within(aead::Aad::empty(), output, aead::NONCE_LEN..)
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         Ok(result.to_vec())
@@ -400,9 +436,7 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
     bytes
 }
 
-///
 /// A wrapper type to store the encrypted data for sensitive pii domain data types
-///
 #[derive(Debug, Clone)]
 pub struct Encryptable<T: Clone> {
     inner: T,
@@ -410,9 +444,7 @@ pub struct Encryptable<T: Clone> {
 }
 
 impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
-    ///
     /// constructor function to be used by the encryptor and decryptor to generate the data type
-    ///
     pub fn new(
         masked_data: Secret<T, S>,
         encrypted_data: Secret<Vec<u8>, EncryptionStrategy>,
@@ -425,28 +457,47 @@ impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
 }
 
 impl<T: Clone> Encryptable<T> {
-    ///
     /// Get the inner data while consuming self
-    ///
     #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
 
-    ///
     /// Get the reference to inner value
-    ///
     #[inline]
     pub fn get_inner(&self) -> &T {
         &self.inner
     }
 
-    ///
     /// Get the inner encrypted data while consuming self
-    ///
     #[inline]
     pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStrategy> {
         self.encrypted
+    }
+
+    /// Deserialize inner value and return new Encryptable object
+    pub fn deserialize_inner_value<U, F>(
+        self,
+        f: F,
+    ) -> CustomResult<Encryptable<U>, errors::ParsingError>
+    where
+        F: FnOnce(T) -> CustomResult<U, errors::ParsingError>,
+        U: Clone,
+    {
+        let inner = self.inner;
+        let encrypted = self.encrypted;
+        let inner = f(inner)?;
+        Ok(Encryptable { inner, encrypted })
+    }
+
+    /// consume self and modify the inner value
+    pub fn map<U: Clone>(self, f: impl FnOnce(T) -> U) -> Encryptable<U> {
+        let encrypted_data = self.encrypted;
+        let masked_data = f(self.inner);
+        Encryptable {
+            inner: masked_data,
+            encrypted: encrypted_data,
+        }
     }
 }
 
@@ -490,6 +541,10 @@ pub type OptionalEncryptablePhone = Option<Encryptable<Secret<String>>>;
 pub type OptionalEncryptableValue = Option<Encryptable<Secret<serde_json::Value>>>;
 /// Type alias for `Option<Secret<serde_json::Value>>`
 pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
+/// Type alias for `Encryptable<Secret<String>>` used for `name` field
+pub type EncryptableName = Encryptable<Secret<String>>;
+/// Type alias for `Encryptable<Secret<String>>` used for `email` field
+pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 
 #[cfg(test)]
 mod crypto_tests {

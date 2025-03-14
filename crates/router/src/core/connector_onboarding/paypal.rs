@@ -11,10 +11,10 @@ use crate::{
     services::{send_request, ApplicationResponse, Request},
     types::{self as oss_types, api as oss_api_types, api::connector_onboarding as types},
     utils::connector_onboarding as utils,
-    AppState,
+    SessionState,
 };
 
-fn build_referral_url(state: AppState) -> String {
+fn build_referral_url(state: SessionState) -> String {
     format!(
         "{}v2/customer/partner-referrals",
         state.conf.connectors.paypal.base_url
@@ -22,7 +22,7 @@ fn build_referral_url(state: AppState) -> String {
 }
 
 async fn build_referral_request(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
     return_url: String,
 ) -> RouterResult<Request> {
@@ -37,7 +37,7 @@ async fn build_referral_request(
 }
 
 pub async fn get_action_url_from_paypal(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
     return_url: String,
 ) -> RouterResult<String> {
@@ -61,7 +61,7 @@ pub async fn get_action_url_from_paypal(
     parsed_response.extract_action_url()
 }
 
-fn merchant_onboarding_status_url(state: AppState, tracking_id: String) -> String {
+fn merchant_onboarding_status_url(state: SessionState, tracking_id: String) -> String {
     let partner_id = state
         .conf
         .connector_onboarding
@@ -78,7 +78,7 @@ fn merchant_onboarding_status_url(state: AppState, tracking_id: String) -> Strin
 }
 
 pub async fn sync_merchant_onboarding_status(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
 ) -> RouterResult<api::OnboardingStatus> {
     let access_token = utils::paypal::generate_access_token(state.clone()).await?;
@@ -113,7 +113,7 @@ pub async fn sync_merchant_onboarding_status(
 }
 
 async fn find_paypal_merchant_by_tracking_id(
-    state: AppState,
+    state: SessionState,
     tracking_id: String,
     access_token: &oss_types::AccessToken,
 ) -> RouterResult<Option<types::paypal::SellerStatusResponse>> {
@@ -139,32 +139,50 @@ async fn find_paypal_merchant_by_tracking_id(
 }
 
 pub async fn update_mca(
-    state: &AppState,
-    merchant_id: String,
-    connector_id: String,
+    state: &SessionState,
+    merchant_id: common_utils::id_type::MerchantId,
+    connector_id: common_utils::id_type::MerchantConnectorAccountId,
     auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
     let connector_auth_json = auth_details
         .encode_to_value()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Error while deserializing connector_account_details")?;
-
+    #[cfg(feature = "v1")]
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,
         connector_account_details: Some(Secret::new(connector_auth_json)),
         disabled: Some(false),
         status: Some(common_enums::ConnectorStatus::Active),
-        test_mode: None,
         connector_label: None,
         payment_methods_enabled: None,
         metadata: None,
         frm_configs: None,
         connector_webhook_details: None,
         pm_auth_config: None,
+        test_mode: None,
+        additional_merchant_data: None,
+        connector_wallets_details: None,
+    };
+    #[cfg(feature = "v2")]
+    let request = MerchantConnectorUpdate {
+        connector_type: common_enums::ConnectorType::PaymentProcessor,
+        connector_account_details: Some(Secret::new(connector_auth_json)),
+        disabled: Some(false),
+        status: Some(common_enums::ConnectorStatus::Active),
+        connector_label: None,
+        payment_methods_enabled: None,
+        metadata: None,
+        frm_configs: None,
+        connector_webhook_details: None,
+        pm_auth_config: None,
+        merchant_id: merchant_id.clone(),
+        additional_merchant_data: None,
+        connector_wallets_details: None,
+        feature_metadata: None,
     };
     let mca_response =
-        admin::update_payment_connector(state.clone(), &merchant_id, &connector_id, request)
-            .await?;
+        admin::update_connector(state.clone(), &merchant_id, None, &connector_id, request).await?;
 
     match mca_response {
         ApplicationResponse::Json(mca_data) => Ok(mca_data),

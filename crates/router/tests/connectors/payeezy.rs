@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
 use cards::CardNumber;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     core::errors,
@@ -20,13 +20,13 @@ static CONNECTOR: PayeezyTest = PayeezyTest {};
 impl utils::Connector for PayeezyTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payeezy;
-        types::api::ConnectorData {
-            connector: Box::new(&Payeezy),
+        utils::construct_connector_data_old(
+            Box::new(&Payeezy),
             // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
-            connector_name: types::Connector::DummyConnector1,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+            types::Connector::DummyConnector1,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -66,11 +66,12 @@ impl PayeezyTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             ..Default::default()
         })
     }
-    fn get_request_interval(&self) -> u64 {
+    fn get_request_interval(self) -> u64 {
         20
     }
 }

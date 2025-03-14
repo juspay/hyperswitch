@@ -1,4 +1,3 @@
-//!
 //! Secret strings
 //!
 //! There is not alias type by design.

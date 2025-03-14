@@ -1,9 +1,10 @@
+use common_utils::types::MinorUnit;
 use nom::{
     branch, bytes::complete, character::complete as pchar, combinator, error, multi, sequence,
 };
 
 use crate::{frontend::ast, types::DummyOutput};
-pub type ParseResult<T, U> = nom::IResult<T, U, nom::error::VerboseError<T>>;
+pub type ParseResult<T, U> = nom::IResult<T, U, error::VerboseError<T>>;
 
 pub enum EuclidError {
     InvalidPercentage(String),
@@ -50,9 +51,9 @@ impl EuclidParsable for DummyOutput {
         )(input)
     }
 }
-pub fn skip_ws<'a, F: 'a, O>(inner: F) -> impl FnMut(&'a str) -> ParseResult<&str, O>
+pub fn skip_ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> ParseResult<&'a str, O>
 where
-    F: FnMut(&'a str) -> ParseResult<&str, O>,
+    F: FnMut(&'a str) -> ParseResult<&'a str, O> + 'a,
 {
     sequence::preceded(pchar::multispace0, inner)
 }
@@ -115,7 +116,7 @@ pub fn percentage(input: &str) -> ParseResult<&str, u8> {
 pub fn number_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     error::context(
         "number_value",
-        combinator::map(num_i64, ast::ValueType::Number),
+        combinator::map(num_i64, |n| ast::ValueType::Number(MinorUnit::new(n))),
     )(input)
 }
 
@@ -143,12 +144,15 @@ pub fn enum_variant_value(input: &str) -> ParseResult<&str, ast::ValueType> {
 }
 
 pub fn number_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
+    fn num_minor_unit(input: &str) -> ParseResult<&str, MinorUnit> {
+        combinator::map(num_i64, MinorUnit::new)(input)
+    }
     let many_with_comma = multi::many0(sequence::preceded(
         skip_ws(complete::tag(",")),
-        skip_ws(num_i64),
+        skip_ws(num_minor_unit),
     ));
 
-    let full_sequence = sequence::pair(skip_ws(num_i64), many_with_comma);
+    let full_sequence = sequence::pair(skip_ws(num_minor_unit), many_with_comma);
 
     error::context(
         "number_array_value",
@@ -158,7 +162,7 @@ pub fn number_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
                 full_sequence,
                 skip_ws(complete::tag(")")),
             ),
-            |tup: (i64, Vec<i64>)| {
+            |tup: (MinorUnit, Vec<MinorUnit>)| {
                 let mut rest = tup.1;
                 rest.insert(0, tup.0);
                 ast::ValueType::NumberArray(rest)
@@ -215,7 +219,7 @@ pub fn number_comparison(input: &str) -> ParseResult<&str, ast::NumberComparison
             sequence::pair(operator, num_i64),
             |tup: (ast::ComparisonType, i64)| ast::NumberComparison {
                 comparison_type: tup.0,
-                number: tup.1,
+                number: MinorUnit::new(tup.1),
             },
         ),
     )(input)

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::ProcessTrackerStatus;
 use error_stack::{report, ResultExt};
 use router_env::{
@@ -16,17 +16,20 @@ use super::{
 };
 use crate::{
     configs::settings::SchedulerSettings, errors, flow::SchedulerFlow,
-    scheduler::SchedulerInterface, utils::*, SchedulerAppState,
+    scheduler::SchedulerInterface, utils::*, SchedulerAppState, SchedulerSessionState,
 };
 
 #[instrument(skip_all)]
-pub async fn start_producer<T>(
+pub async fn start_producer<T, U, F>(
     state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
+    app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
+    F: Fn(&T, &id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
     T: SchedulerAppState,
+    U: SchedulerSessionState,
 {
     use std::time::Duration;
 
@@ -43,11 +46,10 @@ where
 
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
-    let mut interval = tokio::time::interval(std::time::Duration::from_millis(
-        scheduler_settings.loop_interval,
-    ));
+    let mut interval =
+        tokio::time::interval(Duration::from_millis(scheduler_settings.loop_interval));
 
-    let mut shutdown_interval = tokio::time::interval(std::time::Duration::from_millis(
+    let mut shutdown_interval = tokio::time::interval(Duration::from_millis(
         scheduler_settings.graceful_shutdown_interval,
     ));
 
@@ -65,13 +67,17 @@ where
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
                 interval.tick().await;
-                match run_producer_flow(state, &scheduler_settings).await {
-                    Ok(_) => (),
-                    Err(error) => {
-                        // Intentionally not propagating error to caller.
-                        // Any errors that occur in the producer flow must be handled here only, as
-                        // this is the topmost level function which is concerned with the producer flow.
-                        error!(%error);
+                let tenants = state.get_tenants();
+                for tenant in tenants {
+                    let session_state = app_state_to_session_state(state, &tenant)?;
+                    match run_producer_flow(&session_state, &scheduler_settings).await {
+                        Ok(_) => (),
+                        Err(error) => {
+                            // Intentionally not propagating error to caller.
+                            // Any errors that occur in the producer flow must be handled here only, as
+                            // this is the topmost level function which is concerned with the producer flow.
+                            error!(?error);
+                        }
                     }
                 }
             }
@@ -79,7 +85,7 @@ where
                 logger::debug!("Awaiting shutdown!");
                 rx.close();
                 shutdown_interval.tick().await;
-                logger::info!("Terminating consumer");
+                logger::info!("Terminating producer");
                 break;
             }
         }
@@ -98,7 +104,7 @@ pub async fn run_producer_flow<T>(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState,
+    T: SchedulerSessionState,
 {
     lock_acquire_release::<_, _, _>(state.get_db().as_scheduler(), settings, move || async {
         let tasks = fetch_producer_tasks(state.get_db().as_scheduler(), settings).await?;
@@ -169,6 +175,6 @@ pub async fn fetch_producer_tasks(
 
     // Safety: Assuming we won't deal with more than `u64::MAX` tasks at once
     #[allow(clippy::as_conversions)]
-    metrics::TASKS_PICKED_COUNT.add(&metrics::CONTEXT, new_tasks.len() as u64, &[]);
+    metrics::TASKS_PICKED_COUNT.add(new_tasks.len() as u64, &[]);
     Ok(new_tasks)
 }

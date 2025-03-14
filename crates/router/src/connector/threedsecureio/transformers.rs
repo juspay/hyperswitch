@@ -4,6 +4,7 @@ use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
 use common_utils::date_time;
 use error_stack::ResultExt;
+use hyperswitch_connectors::utils::AddressDetailsData;
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, Secret};
@@ -11,14 +12,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
 use crate::{
-    connector::utils::{to_connector_meta, AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
+    connector::utils::{get_card_details, to_connector_meta, CardData},
     consts::{BASE64_ENGINE, NO_ERROR_MESSAGE},
     core::errors,
     types::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
-        domain,
     },
     utils::OptionExt,
 };
@@ -28,18 +28,13 @@ pub struct ThreedsecureioRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ThreedsecureioRouterData<T>
+impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
+    for ThreedsecureioRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
+            &api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
@@ -114,6 +109,7 @@ impl
                         )
                         .change_context(errors::ConnectorError::ParsingFailed)?,
                         connector_metadata: Some(connector_metadata),
+                        directory_server_id: None,
                     },
                 )
             }
@@ -169,7 +165,7 @@ impl
                 let creq_str = to_string(&creq)
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing creq_str")?;
-                let creq_base64 = base64::Engine::encode(&BASE64_ENGINE, creq_str)
+                let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
                     .trim_end_matches('=')
                     .to_owned();
                 Ok(
@@ -192,6 +188,8 @@ impl
                             types::authentication::AuthNFlowType::Frictionless
                         },
                         authentication_value: response.authentication_value,
+                        connector_metadata: None,
+                        ds_trans_id: Some(response.ds_trans_id),
                     },
                 )
             }
@@ -244,18 +242,6 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
     }
 }
 
-fn get_card_details(
-    payment_method_data: domain::PaymentMethodData,
-) -> Result<domain::payments::Card, errors::ConnectorError> {
-    match payment_method_data {
-        domain::PaymentMethodData::Card(details) => Ok(details),
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: "threedsecureio",
-        })?,
-    }
-}
-
 impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
     for ThreedsecureioAuthenticationRequest
 {
@@ -277,13 +263,13 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 }
             }
         }?;
-        let card_details = get_card_details(request.payment_method_data.clone())?;
+        let card_details = get_card_details(request.payment_method_data.clone(), "threedsecureio")?;
         let currency = request
             .currency
             .map(|currency| currency.to_string())
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("missing field currency")?;
-        let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
+        let purchase_currency: Currency = Currency::from_code(&currency)
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(
@@ -417,7 +403,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
-            message_version: pre_authentication_data.message_version.clone(),
+            message_version: pre_authentication_data.message_version.to_string(),
             purchase_amount: item.amount.clone(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),
@@ -708,7 +694,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         Ok(Self {
-            acct_number: router_data.request.card_holder_account_number.clone(),
+            acct_number: router_data.request.card.card_number.clone(),
             ds: None,
         })
     }

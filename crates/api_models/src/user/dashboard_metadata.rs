@@ -1,5 +1,5 @@
 use common_enums::CountryAlpha2;
-use common_utils::pii;
+use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
 
@@ -26,13 +26,14 @@ pub enum SetMetaDataRequest {
     IsMultipleConfiguration,
     #[serde(skip)]
     IsChangePasswordRequired,
+    OnboardingSurvey(OnboardingSurvey),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ProductionAgreementRequest {
     pub version: String,
     #[serde(skip_deserializing)]
-    pub ip_address: Option<Secret<String, common_utils::pii::IpAddress>>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -42,8 +43,22 @@ pub struct SetupProcessor {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ProcessorConnected {
-    pub processor_id: String,
+    pub processor_id: id_type::MerchantConnectorAccountId,
     pub processor_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct OnboardingSurvey {
+    pub designation: Option<String>,
+    pub about_business: Option<String>,
+    pub business_website: Option<String>,
+    pub hyperswitch_req: Option<String>,
+    pub major_markets: Option<Vec<String>>,
+    pub business_size: Option<String>,
+    pub required_features: Option<Vec<String>>,
+    pub required_processors: Option<Vec<String>>,
+    pub planned_live_date: Option<String>,
+    pub miscellaneous: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -53,7 +68,7 @@ pub struct ConfiguredRouting {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TestPayment {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -79,7 +94,7 @@ pub struct ProdIntent {
     pub business_label: Option<String>,
     pub business_location: Option<CountryAlpha2>,
     pub display_name: Option<String>,
-    pub poc_email: Option<String>,
+    pub poc_email: Option<Secret<String>>,
     pub business_type: Option<String>,
     pub business_identifier: Option<String>,
     pub business_website: Option<String>,
@@ -113,6 +128,7 @@ pub enum GetMetaDataRequest {
     SetupWoocomWebhook,
     IsMultipleConfiguration,
     IsChangePasswordRequired,
+    OnboardingSurvey,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -150,4 +166,5 @@ pub enum GetMetaDataResponse {
     SetupWoocomWebhook(bool),
     IsMultipleConfiguration(bool),
     IsChangePasswordRequired(bool),
+    OnboardingSurvey(Option<OnboardingSurvey>),
 }

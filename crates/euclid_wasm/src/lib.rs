@@ -7,8 +7,8 @@ use std::{
 };
 
 use api_models::{
-    admin as admin_api, conditional_configs::ConditionalConfigs, enums as api_model_enums,
-    routing::ConnectorSelection, surcharge_decision_configs::SurchargeDecisionConfigs,
+    enums as api_model_enums, routing::ConnectorSelection,
+    surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
 use connector_configs::{
@@ -20,11 +20,7 @@ use currency_conversion::{
 };
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
-    dssa::{
-        self, analyzer,
-        graph::{self, Memoization},
-        state_machine, truth,
-    },
+    dssa::{self, analyzer, graph::CgraphExt, state_machine},
     frontend::{
         ast,
         dir::{self, enums as dir_enums, EuclidDirFilter},
@@ -37,12 +33,12 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
-struct SeedData<'a> {
-    kgraph: graph::KnowledgeGraph<'a>,
+struct SeedData {
+    cgraph: hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
-static SEED_DATA: OnceCell<SeedData<'_>> = OnceCell::new();
+static SEED_DATA: OnceCell<SeedData> = OnceCell::new();
 static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
@@ -80,29 +76,36 @@ pub fn convert_forex_value(amount: i64, from_currency: JsValue, to_currency: JsV
 /// This function can be used by the frontend to provide the WASM with information about
 /// all the merchant's connector accounts. The input argument is a vector of all the merchant's
 /// connector accounts from the API.
+#[cfg(feature = "v1")]
 #[wasm_bindgen(js_name = seedKnowledgeGraph)]
 pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
-    let mcas: Vec<admin_api::MerchantConnectorResponse> = serde_wasm_bindgen::from_value(mcas)?;
+    let mcas: Vec<api_models::admin::MerchantConnectorResponse> =
+        serde_wasm_bindgen::from_value(mcas)?;
     let connectors: Vec<ast::ConnectorChoice> = mcas
         .iter()
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
                 connector: RoutableConnectors::from_str(&mca.connector_name)?,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: mca.business_sub_label.clone(),
             })
         })
         .collect::<Result<_, _>>()
         .map_err(|_| "invalid connector name received")
         .err_to_js()?;
-
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas).err_to_js()?;
-    let analysis_graph =
-        graph::KnowledgeGraph::combine(&mca_graph, &truth::ANALYSIS_GRAPH).err_to_js()?;
+    let pm_filter = kgraph_utils::types::PaymentMethodFilters(HashMap::new());
+    let config = kgraph_utils::types::CountryCurrencyFilter {
+        connector_configs: HashMap::new(),
+        default_configs: Some(pm_filter),
+    };
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
+    let analysis_graph = hyperswitch_constraint_graph::ConstraintGraph::combine(
+        &mca_graph,
+        &dssa::truth::ANALYSIS_GRAPH,
+    )
+    .err_to_js()?;
 
     SEED_DATA
         .set(SeedData {
-            kgraph: analysis_graph,
+            cgraph: analysis_graph,
             connectors,
         })
         .map_err(|_| "Knowledge Graph has been already seeded".to_string())
@@ -138,8 +141,12 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
         // Standalone conjunctive context analysis to ensure the context itself is valid before
         // checking it against merchant's connectors
         seed_data
-            .kgraph
-            .perform_context_analysis(ctx, &mut Memoization::new())
+            .cgraph
+            .perform_context_analysis(
+                ctx,
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                None,
+            )
             .err_to_js()?;
 
         // Update conjunctive context and run analysis on all of merchant's connectors.
@@ -150,9 +157,11 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 
             let ctx_val = dssa::types::ContextValue::assertion(choice, &dummy_meta);
             ctx.push(ctx_val);
-            let analysis_result = seed_data
-                .kgraph
-                .perform_context_analysis(ctx, &mut Memoization::new());
+            let analysis_result = seed_data.cgraph.perform_context_analysis(
+                ctx,
+                &mut hyperswitch_constraint_graph::Memoization::new(),
+                None,
+            );
             if analysis_result.is_err() {
                 invalid_connectors.insert(conn.clone());
             }
@@ -171,7 +180,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 #[wasm_bindgen(js_name = analyzeProgram)]
 pub fn analyze_program(js_program: JsValue) -> JsResult {
     let program: ast::Program<ConnectorSelection> = serde_wasm_bindgen::from_value(js_program)?;
-    analyzer::analyze(program, SEED_DATA.get().map(|sd| &sd.kgraph)).err_to_js()?;
+    analyzer::analyze(program, SEED_DATA.get().map(|sd| &sd.cgraph)).err_to_js()?;
     Ok(JsValue::NULL)
 }
 
@@ -190,9 +199,7 @@ pub fn run_program(program: JsValue, input: JsValue) -> JsResult {
 
 #[wasm_bindgen(js_name = getAllConnectors)]
 pub fn get_all_connectors() -> JsResult {
-    Ok(serde_wasm_bindgen::to_value(
-        common_enums::RoutableConnectors::VARIANTS,
-    )?)
+    Ok(serde_wasm_bindgen::to_value(RoutableConnectors::VARIANTS)?)
 }
 
 #[wasm_bindgen(js_name = getAllKeys)]
@@ -214,7 +221,7 @@ pub fn get_key_type(key: &str) -> Result<String, String> {
 
 #[wasm_bindgen(js_name = getThreeDsKeys)]
 pub fn get_three_ds_keys() -> JsResult {
-    let keys = <ConditionalConfigs as EuclidDirFilter>::ALLOWED;
+    let keys = <common_types::payments::ConditionalConfigs as EuclidDirFilter>::ALLOWED;
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
@@ -257,6 +264,9 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::GiftCardType => dir_enums::GiftCardType::VARIANTS,
         dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
         dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
+        dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
+        dir::DirKeyKind::OpenBankingType => dir_enums::OpenBankingType::VARIANTS,
+        dir::DirKeyKind::MobilePaymentType => dir_enums::MobilePaymentType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
@@ -319,6 +329,22 @@ pub fn get_authentication_connector_config(key: &str) -> JsResult {
     let key = api_model_enums::AuthenticationConnectors::from_str(key)
         .map_err(|_| "Invalid key received".to_string())?;
     let res = connector::ConnectorConfig::get_authentication_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getTaxProcessorConfig)]
+pub fn get_tax_processor_config(key: &str) -> JsResult {
+    let key = api_model_enums::TaxConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_tax_processor_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getPMAuthenticationProcessorConfig)]
+pub fn get_pm_authentication_processor_config(key: &str) -> JsResult {
+    let key: api_model_enums::PmAuthConnectors = api_model_enums::PmAuthConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_pm_authentication_processor_config(key)?;
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 

@@ -5,18 +5,18 @@ use super::app::AppState;
 use crate::{
     core::{
         api_locking,
-        payment_methods::Oss,
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+#[cfg(feature = "v1")]
 pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
@@ -25,9 +25,9 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         flow.clone(),
         state,
         &req,
-        WebhookBytes(body),
-        |state, auth, payload, req_state| {
-            webhooks::webhooks_wrapper::<W, Oss>(
+        (),
+        |state, auth, _, req_state| {
+            webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,
@@ -35,7 +35,8 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
                 auth.merchant_account,
                 auth.key_store,
                 &connector_id_or_name,
-                payload.0,
+                body.clone(),
+                false,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -44,18 +45,128 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     .await
 }
 
-#[derive(Debug)]
-struct WebhookBytes(web::Bytes);
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::IncomingRelayWebhookReceive))]
+pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Bytes,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+) -> impl Responder {
+    let flow = Flow::IncomingWebhookReceive;
+    let (merchant_id, connector_id) = path.into_inner();
+    let is_relay_webhook = true;
 
-impl serde::Serialize for WebhookBytes {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let payload: serde_json::Value = serde_json::from_slice(&self.0).unwrap_or_default();
-        payload.serialize(serializer)
-    }
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &req,
+        (),
+        |state, auth, _, req_state| {
+            webhooks::incoming_webhooks_wrapper::<W>(
+                &flow,
+                state.to_owned(),
+                req_state,
+                &req,
+                auth.merchant_account,
+                auth.key_store,
+                connector_id.get_string_repr(),
+                body.clone(),
+                is_relay_webhook,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
-impl common_utils::events::ApiEventMetric for WebhookBytes {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Miscellaneous)
-    }
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::IncomingRelayWebhookReceive))]
+pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Bytes,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+) -> impl Responder {
+    let flow = Flow::IncomingWebhookReceive;
+    let (merchant_id, profile_id, connector_id) = path.into_inner();
+    let is_relay_webhook = true;
+
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &req,
+        (),
+        |state, auth, _, req_state| {
+            webhooks::incoming_webhooks_wrapper::<W>(
+                &flow,
+                state.to_owned(),
+                req_state,
+                &req,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                &connector_id,
+                body.clone(),
+                is_relay_webhook,
+            )
+        },
+        &auth::MerchantIdAndProfileIdAuth {
+            merchant_id,
+            profile_id,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+#[cfg(feature = "v2")]
+pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Bytes,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+) -> impl Responder {
+    let flow = Flow::IncomingWebhookReceive;
+    let (merchant_id, profile_id, connector_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &req,
+        (),
+        |state, auth, _, req_state| {
+            webhooks::incoming_webhooks_wrapper::<W>(
+                &flow,
+                state.to_owned(),
+                req_state,
+                &req,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                &connector_id,
+                body.clone(),
+                false,
+            )
+        },
+        &auth::MerchantIdAndProfileIdAuth {
+            merchant_id,
+            profile_id,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }

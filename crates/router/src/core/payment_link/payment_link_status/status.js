@@ -71,6 +71,7 @@ function invert(color, bw) {
   );
 }
 
+
 /**
  * UTIL FUNCTIONS END HERE
  */
@@ -85,6 +86,7 @@ window.state = {
   isMobileView: window.innerWidth <= 1400,
 };
 
+const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -135,7 +137,7 @@ function renderStatusDetails(paymentDetails) {
   };
 
   // Payment details
-  var paymentId = createItem("Ref Id", paymentDetails.payment_id);
+  var paymentId = createItem(translations.refId, paymentDetails.payment_id);
   // @ts-ignore
   statusDetails.items.push(paymentId);
 
@@ -143,15 +145,14 @@ function renderStatusDetails(paymentDetails) {
   switch (status) {
     case "expired":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
-      statusDetails.status = "Payment Link Expired";
-      statusDetails.message =
-        "Sorry, this payment link has expired. Please use below reference for further investigation.";
+      statusDetails.status = translations.paymentLinkExpired;
+      statusDetails.message = translations.paymentLinkExpiredMessage;
       break;
 
     case "succeeded":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
-      statusDetails.message = "We have successfully received your payment";
-      statusDetails.status = "Paid successfully";
+      statusDetails.message = translations.paymentReceived;
+      statusDetails.status = translations.paidSuccessfully;
       statusDetails.amountText = new Date(
         paymentDetails.created
       ).toTimeString();
@@ -159,18 +160,19 @@ function renderStatusDetails(paymentDetails) {
 
     case "processing":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/pending.png";
-      statusDetails.message =
-        "Sorry! Your payment is taking longer than expected. Please check back again in sometime.";
-      statusDetails.status = "Payment Pending";
+      statusDetails.message = translations.paymentTakingLonger;
+      statusDetails.status = translations.paymentPending;
       break;
 
     case "failed":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
-      statusDetails.status = "Payment Failed!";
-      var errorCodeNode = createItem("Error code", paymentDetails.error_code);
+      statusDetails.status = translations.paymentFailed;
+      var unifiedErrorCode = paymentDetails.unified_code || paymentDetails.error_code;
+      var unifiedErrorMessage = paymentDetails.unified_message || paymentDetails.error_message;
+      var errorCodeNode = createItem(translations.errorCode, unifiedErrorCode);
       var errorMessageNode = createItem(
-        "Error message",
-        paymentDetails.error_message
+        translations.errorMessage,
+        unifiedErrorMessage
       );
       // @ts-ignore
       statusDetails.items.push(errorMessageNode, errorCodeNode);
@@ -178,34 +180,34 @@ function renderStatusDetails(paymentDetails) {
 
     case "cancelled":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
-      statusDetails.status = "Payment Cancelled";
+      statusDetails.status = translations.paymentCancelled;
       break;
 
     case "requires_merchant_action":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/pending.png";
-      statusDetails.status = "Payment under review";
+      statusDetails.status = translations.paymentUnderReview;
       break;
 
     case "requires_capture":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
-      statusDetails.message = "We have successfully received your payment";
-      statusDetails.status = "Payment Success";
+      statusDetails.message = translations.paymentReceived;
+      statusDetails.status = translations.paymentSuccess;
       break;
 
     case "partially_captured":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
-      statusDetails.message = "Partial payment was captured.";
-      statusDetails.status = "Payment Success";
+      statusDetails.message = translations.partialPaymentCaptured;
+      statusDetails.status = translations.paymentSuccess;
       break;
 
     default:
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
-      statusDetails.status = "Something went wrong";
+      statusDetails.status = translations.somethingWentWrong;
       // Error details
       if (typeof paymentDetails.error === "object") {
-        var errorCodeNode = createItem("Error Code", paymentDetails.error.code);
+        var errorCodeNode = createItem(translations.errorCode, paymentDetails.error.code);
         var errorMessageNode = createItem(
-          "Error Message",
+          translations.errorMessage,
           paymentDetails.error.message
         );
         // @ts-ignore
@@ -276,8 +278,8 @@ function renderStatusDetails(paymentDetails) {
           var secondsLeft = timeout - j++;
           var innerText =
             secondsLeft === 0
-              ? "Redirecting ..."
-              : "Redirecting in " + secondsLeft + " seconds ...";
+              ? translations.redirecting
+              : translations.redirectingIn + secondsLeft + " "+translations.seconds;
           // @ts-ignore
           statusRedirectTextNode.innerText = innerText;
           if (secondsLeft === 0) {

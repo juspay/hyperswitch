@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use serde::Serialize;
 
@@ -18,7 +18,7 @@ pub enum CtxValueKind<'a> {
     Negation(&'a [dir::DirValue]),
 }
 
-impl<'a> CtxValueKind<'a> {
+impl CtxValueKind<'_> {
     pub fn get_assertion(&self) -> Option<&dir::DirValue> {
         if let Self::Assertion(val) = self {
             Some(val)
@@ -140,7 +140,10 @@ pub enum AnalysisErrorType {
         negation_metadata: Metadata,
     },
     #[error("Graph analysis error: {0:#?}")]
-    GraphAnalysis(graph::AnalysisError, graph::Memoization),
+    GraphAnalysis(
+        graph::AnalysisError<dir::DirValue>,
+        hyperswitch_constraint_graph::Memoization<dir::DirValue>,
+    ),
     #[error("State machine error")]
     StateMachine(dssa::state_machine::StateMachineError),
     #[error("Unsupported program key '{0}'")]
@@ -155,4 +158,26 @@ pub enum AnalysisErrorType {
 pub enum ValueType {
     EnumVariants(Vec<EuclidValue>),
     Number,
+}
+
+impl EuclidAnalysable for common_enums::AuthenticationType {
+    fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(dir::DirValue, Metadata)> {
+        let auth = self.to_string();
+
+        let dir_value = match self {
+            Self::ThreeDs => dir::DirValue::AuthenticationType(Self::ThreeDs),
+            Self::NoThreeDs => dir::DirValue::AuthenticationType(Self::NoThreeDs),
+        };
+
+        vec![(
+            dir_value,
+            HashMap::from_iter([(
+                "AUTHENTICATION_TYPE".to_string(),
+                serde_json::json!({
+                    "rule_name": rule_name,
+                    "Authentication_type": auth,
+                }),
+            )]),
+        )]
+    }
 }

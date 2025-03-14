@@ -26,15 +26,12 @@ pub trait OptionExt<T> {
     fn update_value(&mut self, value: Option<T>);
 }
 
-impl<T> OptionExt<T> for Option<T>
-where
-    T: std::fmt::Debug,
-{
+impl<T> OptionExt<T> for Option<T> {
     fn check_value_present(&self, field_name: &'static str) -> RouterResult<()> {
         when(self.is_none(), || {
             Err(
                 Report::new(ApiErrorResponse::MissingRequiredField { field_name })
-                    .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+                    .attach_printable(format!("Missing required field {field_name}")),
             )
         })
     }
@@ -46,7 +43,7 @@ where
             Some(v) => Ok(v),
             None => Err(
                 Report::new(ApiErrorResponse::MissingRequiredField { field_name })
-                    .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+                    .attach_printable(format!("Missing required field {field_name}")),
             ),
         }
     }
@@ -63,7 +60,7 @@ where
 
         E::from_str(value.as_ref())
             .change_context(errors::ParsingError::UnknownError)
-            .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
+            .attach_printable_lazy(|| format!("Invalid {{ {enum_name} }} "))
     }
 
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>

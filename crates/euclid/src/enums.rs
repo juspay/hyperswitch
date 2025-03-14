@@ -1,5 +1,5 @@
 pub use common_enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Country, Currency,
+    AuthenticationType, CaptureMethod, CardNetwork, Country, CountryAlpha2, Currency,
     FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType, RoutableConnectors,
 };
 use strum::VariantNames;
@@ -79,6 +79,9 @@ pub enum MandateAcceptanceType {
 pub enum PaymentType {
     SetupMandate,
     NonMandate,
+    NewMandate,
+    UpdateMandate,
+    PptMandate,
 }
 
 #[derive(
