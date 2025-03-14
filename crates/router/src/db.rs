@@ -32,6 +32,7 @@ pub mod payment_link;
 pub mod payment_method_session;
 pub mod refund;
 pub mod relay;
+pub mod co_badged_cards_info;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -137,6 +138,7 @@ pub trait StorageInterface:
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
+    + co_badged_cards_info::CoBadgedCardInfoInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
     + 'static
