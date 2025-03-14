@@ -72,7 +72,7 @@ impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject
 fn fetch_payment_instrument(
     payment_method: PaymentMethodData,
     billing_address: Option<&address::Address>,
-    mandate_ids: Option<MandateIds>,
+    mandate_ids: Option<hyperswitch_domain_models::payments::MandateIds>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
@@ -247,7 +247,7 @@ trait WorldpayPaymentsRequestData {
     fn get_payment_method_data(&self) -> &PaymentMethodData;
     fn get_setup_future_usage(&self) -> Option<enums::FutureUsage>;
     fn get_off_session(&self) -> Option<bool>;
-    fn get_mandate_id(&self) -> Option<MandateIds>;
+    fn get_mandate_id(&self) -> Option<hyperswitch_domain_models::payments::MandateIds>;
     fn get_currency(&self) -> enums::Currency;
     fn get_optional_billing_address(&self) -> Option<&address::Address>;
     fn get_connector_meta_data(&self) -> Option<&pii::SecretSerdeValue>;
@@ -347,7 +347,7 @@ impl WorldpayPaymentsRequestData
         self.request.off_session
     }
 
-    fn get_mandate_id(&self) -> Option<MandateIds> {
+    fn get_mandate_id(&self) -> Option<hyperswitch_domain_models::payments::MandateIds> {
         self.request.mandate_id.clone()
     }
 
@@ -462,7 +462,7 @@ fn get_token_and_agreement(
     payment_method_data: &PaymentMethodData,
     setup_future_usage: Option<enums::FutureUsage>,
     off_session: Option<bool>,
-    mandate_ids: Option<MandateIds>,
+    mandate_ids: Option<hyperswitch_domain_models::payments::MandateIds>,
 ) -> (Option<TokenCreation>, Option<CustomerAgreement>) {
     match (payment_method_data, setup_future_usage, off_session) {
         // CIT
