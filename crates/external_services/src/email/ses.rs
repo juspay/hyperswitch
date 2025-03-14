@@ -7,6 +7,7 @@ use aws_sdk_sesv2::{
     Client,
 };
 use aws_sdk_sts::config::Credentials;
+use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
 use common_utils::{errors::CustomResult, pii};
 use error_stack::{report, ResultExt};
 use hyper::Uri;
@@ -53,7 +54,7 @@ impl SESConfig {
 pub enum AwsSesError {
     /// An error occurred in the SDK while sending email.
     #[error("Failed to Send Email {0:?}")]
-    SendingFailure(aws_smithy_client::SdkError<SendEmailError>),
+    SendingFailure(aws_sdk_sesv2::error::SdkError<SendEmailError>),
 
     /// Configuration variable is missing to construct the email client
     #[error("Missing configuration variable {0}")]
@@ -131,29 +132,13 @@ impl AwsSes {
         )?;
 
         let credentials = Credentials::new(
-            creds
-                .access_key_id()
-                .ok_or(
-                    report!(AwsSesError::TemporaryCredentialsMissing(format!(
-                        "{role:?}"
-                    )))
-                    .attach_printable("Access Key ID not found"),
-                )?
-                .to_owned(),
-            creds
-                .secret_access_key()
-                .ok_or(
-                    report!(AwsSesError::TemporaryCredentialsMissing(format!(
-                        "{role:?}"
-                    )))
-                    .attach_printable("Secret Access Key not found"),
-                )?
-                .to_owned(),
-            creds.session_token().map(|s| s.to_owned()),
-            creds.expiration().and_then(|dt| {
-                SystemTime::UNIX_EPOCH
-                    .checked_add(Duration::from_nanos(u64::try_from(dt.as_nanos()).ok()?))
-            }),
+            creds.access_key_id(),
+            creds.secret_access_key(),
+            Some(creds.session_token().to_owned()),
+            u64::try_from(creds.expiration().as_nanos())
+                .ok()
+                .map(Duration::from_nanos)
+                .and_then(|val| SystemTime::UNIX_EPOCH.checked_add(val)),
             "custom_provider",
         );
 
@@ -176,15 +161,11 @@ impl AwsSes {
     ) -> CustomResult<aws_config::ConfigLoader, AwsSesError> {
         let region_provider = Region::new(region);
         let mut config = aws_config::from_env().region(region_provider);
+
         if let Some(proxy_url) = proxy_url {
             let proxy_connector = Self::get_proxy_connector(proxy_url)?;
-            let provider_config = aws_config::provider_config::ProviderConfig::default()
-                .with_tcp_connector(proxy_connector.clone());
-            let http_connector =
-                aws_smithy_client::hyper_ext::Adapter::builder().build(proxy_connector);
-            config = config
-                .configure(provider_config)
-                .http_connector(http_connector);
+            let http_client = HyperClientBuilder::new().build(proxy_connector);
+            config = config.http_client(http_client);
         };
         Ok(config)
     }
@@ -218,7 +199,8 @@ impl EmailClient for AwsSes {
                 Content::builder()
                     .data(intermediate_string.into_inner())
                     .charset("UTF-8")
-                    .build(),
+                    .build()
+                    .change_context(EmailError::ContentBuildFailure)?,
             )
             .build();
 
@@ -250,7 +232,12 @@ impl EmailClient for AwsSes {
                 EmailContent::builder()
                     .simple(
                         Message::builder()
-                            .subject(Content::builder().data(subject).build())
+                            .subject(
+                                Content::builder()
+                                    .data(subject)
+                                    .build()
+                                    .change_context(EmailError::ContentBuildFailure)?,
+                            )
                             .body(body)
                             .build(),
                     )
