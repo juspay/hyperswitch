@@ -26,7 +26,7 @@ currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 #Third Party dependencies
 actix-web = "4.5.1"
 async-trait = "0.1.79"
-aws-config = { version = "1.6.0", features = ["behavior-version-latest"] }
+aws-config = { version = "1.5.10", features = ["behavior-version-latest"] }
 aws-sdk-lambda = { version = "1.60.0" }
 aws-smithy-types = { version = "1.3.0" }
 bigdecimal = { version = "0.4.5", features = ["serde"] }
