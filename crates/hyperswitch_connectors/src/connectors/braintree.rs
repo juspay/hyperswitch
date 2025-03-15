@@ -640,7 +640,7 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<MandateRevokeRouterData, errors::ConnectorError> {
-        let response: BraintreeRevokeMandateResponse = res
+        let response: transformers::BraintreeRevokeMandateResponse = res
             .response
             .parse_struct("BraintreeRevokeMandateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
