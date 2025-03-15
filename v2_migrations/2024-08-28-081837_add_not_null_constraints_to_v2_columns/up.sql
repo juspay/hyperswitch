@@ -24,3 +24,7 @@ ALTER TABLE payment_attempt
     ALTER COLUMN authentication_type SET NOT NULL,
     ALTER COLUMN payment_method_type_v2 SET NOT NULL,
     ALTER COLUMN payment_method_subtype SET NOT NULL;
+
+-- This migration is to make fields mandatory in refund table
+ALTER TABLE refund
+    ALTER COLUMN merchant_reference_id SET NOT NULL;

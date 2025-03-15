@@ -1160,11 +1160,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (merchant_id, refund_id) {
-        #[max_length = 64]
-        internal_reference_id -> Varchar,
-        #[max_length = 64]
-        refund_id -> Varchar,
+    refund (id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -1200,8 +1196,6 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         updated_by -> Varchar,
-        #[max_length = 32]
-        merchant_connector_id -> Nullable<Varchar>,
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
@@ -1212,6 +1206,12 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         processor_refund_data -> Nullable<Text>,
         processor_transaction_data -> Nullable<Text>,
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        merchant_reference_id -> Varchar,
+        #[max_length = 64]
+        connector_id -> Nullable<Varchar>,
     }
 }
 

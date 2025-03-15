@@ -2647,6 +2647,7 @@ impl CaptureInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl RefundInterface for KafkaStore {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
@@ -2662,6 +2663,7 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -2673,6 +2675,7 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_refund_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2684,6 +2687,7 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2722,6 +2726,7 @@ impl RefundInterface for KafkaStore {
         Ok(refund)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2734,6 +2739,17 @@ impl RefundInterface for KafkaStore {
                 connector_transaction_id,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn find_refund_by_id(
+        &self,
+        id: &id_type::GlobalRefundId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
+        self.diesel_store
+            .find_refund_by_id(id, storage_scheme)
             .await
     }
 
@@ -2754,7 +2770,11 @@ impl RefundInterface for KafkaStore {
         Ok(refund)
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2774,7 +2794,11 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2786,7 +2810,11 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn get_refund_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2799,7 +2827,11 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &id_type::MerchantId,
