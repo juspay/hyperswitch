@@ -211,6 +211,7 @@ pub enum FieldType {
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserCardNetwork,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
