@@ -945,7 +945,7 @@ impl NetAmount {
         Self {
             order_amount,
             shipping_cost: payments_request.shipping_cost,
-            order_tax_amount: None,
+            order_tax_amount: payments_request.order_tax_amount,
             surcharge_amount,
             tax_on_surcharge,
         }

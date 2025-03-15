@@ -161,6 +161,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
