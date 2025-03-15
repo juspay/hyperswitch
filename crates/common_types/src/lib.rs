@@ -5,4 +5,6 @@
 pub mod domain;
 pub mod payment_methods;
 pub mod payments;
+/// types that are wrappers around primitive types
+pub mod primitive_wrappers;
 pub mod refunds;
