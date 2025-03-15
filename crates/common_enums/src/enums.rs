@@ -2038,7 +2038,7 @@ pub enum RequestIncrementalAuthorization {
     Default,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, strum::Display,)]
 #[rustfmt::skip]
 pub enum CountryAlpha3 {
     AFG, ALA, ALB, DZA, ASM, AND, AGO, AIA, ATA, ATG, ARG, ARM, ABW, AUS, AUT,

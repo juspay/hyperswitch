@@ -527,7 +527,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
                 // enums::Connector::Recurly => Ok(ConnectorEnum::Old(Box::new(connector::Recurly))),
-                // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
+                enums::Connector::Redsys => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
+                }
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }
