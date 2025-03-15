@@ -7222,7 +7222,7 @@ pub enum AmazonPayPaymentIntent {
     AuthorizeWithCapture,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmazonPayDeliveryOptions {
     /// Delivery Option identifier
     pub id: String,
@@ -7234,15 +7234,18 @@ pub struct AmazonPayDeliveryOptions {
     pub is_default: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmazonPayDeliveryPrice {
-    /// Transaction amount
-    pub amount: StringMajorUnit,
+    /// Transaction amount in MinorUnit
+    pub amount: MinorUnit,
+    #[serde(skip_deserializing)]
+    /// Transaction amount in StringMajorUnit
+    pub display_amount: StringMajorUnit,
     /// Transaction currency code in ISO 4217 format
     pub currency_code: common_enums::Currency,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmazonPayShippingMethod {
     /// Name of the shipping method
     pub shipping_method_name: String,
