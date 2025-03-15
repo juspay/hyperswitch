@@ -98,7 +98,7 @@ if (!isFramed) {
     // @ts-ignore
     mountUnifiedCheckout("#unified-checkout");
     // @ts-ignore
-    showSDK(paymentDetails.display_sdk_only);
+    showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
 
     let shimmer = document.getElementById("payment-details-shimmer");
     shimmer.classList.add("reduce-opacity");
