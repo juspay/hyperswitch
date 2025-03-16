@@ -1895,20 +1895,31 @@ pub enum MandateStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
+    #[strum(serialize = "Visa")]
+    #[strum(serialize = "VISA")]
     Visa,
     #[serde(alias = "MASTERCARD")]
+    #[strum(serialize = "MASTERCARD")]
+    #[strum(serialize = "Mastercard")]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
     #[serde(alias = "AMEX")]
+    #[strum(serialize = "AMEX")]
+    #[strum(serialize = "AmericanExpress")]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
+    #[strum(serialize = "DINERS CLUB")]
+    #[strum(serialize = "DinersClub")]
     DinersClub,
     #[serde(alias = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
+    #[strum(serialize = "CartesBancaires")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
+    #[strum(serialize = "UNIONPAY")]
+    #[strum(serialize = "UnionPay")]
     UnionPay,
     #[serde(alias = "INTERAC")]
     Interac,
@@ -2034,7 +2045,9 @@ pub enum CountryAlpha2 {
 #[serde(rename_all = "snake_case")]
 pub enum PanOrToken {
     #[default]
+    #[strum(serialize = "pan")]
     Pan,
+    #[strum(serialize = "token")]
     Token,
 }
 
@@ -2055,7 +2068,9 @@ pub enum PanOrToken {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 pub enum CardType {
+    #[strum(serialize = "credit")]
     Credit,
+    #[strum(serialize = "debit")]
     Debit,
 }
 
