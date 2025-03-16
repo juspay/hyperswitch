@@ -3297,7 +3297,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
