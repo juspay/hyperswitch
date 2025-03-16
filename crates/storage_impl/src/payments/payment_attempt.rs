@@ -646,6 +646,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1647,6 +1649,8 @@ impl DataModelExt for PaymentAttempt {
             processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            issuer_error_code: self.issuer_error_code,
+            issuer_error_message: self.issuer_error_message,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
         }
@@ -1730,6 +1734,8 @@ impl DataModelExt for PaymentAttempt {
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             charges: storage_model.charges,
+            issuer_error_code: storage_model.issuer_error_code,
+            issuer_error_message: storage_model.issuer_error_message,
         }
     }
 }
