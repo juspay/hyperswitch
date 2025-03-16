@@ -144,6 +144,8 @@ pub struct AdditionalData {
     #[cfg(feature = "payouts")]
     payout_eligible: Option<PayoutEligibility>,
     funds_availability: Option<String>,
+    refusal_reason_raw: Option<String>,
+    refusal_code_raw: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -444,6 +446,10 @@ pub struct AdyenWebhookResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     event_code: WebhookEventCode,
+    // Raw acquirer refusal code
+    refusal_code_raw: Option<String>,
+    // Raw acquirer refusal reason
+    refusal_reason_raw: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -453,6 +459,7 @@ pub struct RedirectionErrorResponse {
     refusal_reason: Option<String>,
     psp_reference: Option<String>,
     merchant_reference: Option<String>,
+    additional_data: Option<AdditionalData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -466,6 +473,10 @@ pub struct RedirectionResponse {
     merchant_reference: Option<String>,
     store: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
+    // Raw acquirer refusal code
+    refusal_code_raw: Option<String>,
+    // Raw acquirer refusal reason
+    refusal_reason_raw: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3461,8 +3472,14 @@ pub fn get_adyen_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.psp_reference.clone()),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            issuer_error_code: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.refusal_code_raw.clone()),
+            issuer_error_message: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.refusal_reason_raw.clone()),
         })
     } else {
         None
@@ -3535,8 +3552,8 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            issuer_error_code: response.refusal_code_raw.clone(),
+            issuer_error_message: response.refusal_reason_raw.clone(),
         })
     } else {
         None
@@ -3602,8 +3619,8 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            issuer_error_code: response.refusal_code_raw.clone(),
+            issuer_error_message: response.refusal_reason_raw.clone(),
         })
     } else {
         None
@@ -3806,8 +3823,14 @@ pub fn get_redirection_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: response.psp_reference.clone(),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        issuer_error_code: response
+            .additional_data
+            .as_ref()
+            .and_then(|data| data.refusal_code_raw.clone()),
+        issuer_error_message: response
+            .additional_data
+            .as_ref()
+            .and_then(|data| data.refusal_code_raw.clone()),
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -4319,6 +4342,10 @@ pub struct AdyenAdditionalDataWH {
     #[serde(rename = "recurring.recurringDetailReference")]
     pub recurring_detail_reference: Option<Secret<String>>,
     pub network_tx_reference: Option<Secret<String>>,
+    /// [only for cards] Enable raw acquirer from Adyen dashboard to receive this (https://docs.adyen.com/development-resources/raw-acquirer-responses/#search-modal)
+    pub refusal_reason_raw: Option<String>,
+    /// [only for cards] This is only available for Visa and Mastercard
+    pub refusal_code_raw: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4604,6 +4631,8 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
             refusal_reason,
             refusal_reason_code,
             event_code: notif.event_code,
+            refusal_code_raw: notif.additional_data.refusal_code_raw,
+            refusal_reason_raw: notif.additional_data.refusal_reason_raw,
         }
     }
 }
