@@ -9,7 +9,7 @@ pub struct CoBadgedCardInfoList(Vec<CoBadgedCardInfo>);
 
 impl CoBadgedCardInfoList {
     fn pad_card_number_to_16_digit(card_number: cards::CardNumber) -> String {
-        let card_number = card_number.to_string();
+        let card_number = card_number.get_card_isin();
         format!("{:0>19}", card_number)
     }
     pub fn is_valid_length(&self) -> bool {

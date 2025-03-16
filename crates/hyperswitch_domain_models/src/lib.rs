@@ -275,6 +275,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             ),
             payment_method_type: from.payment_method_type,
             payment_method_subtype: from.payment_method_subtype,
+            connector: from.connector,
         }
     }
 
@@ -289,6 +290,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .convert_back(),
             payment_method_type: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
+            connector: self.connector,
         }
     }
 }
