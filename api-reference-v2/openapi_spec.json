@@ -7633,6 +7633,7 @@
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
@@ -8717,6 +8718,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
               }
             ],
             "nullable": true
@@ -11583,6 +11592,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11717,6 +11734,14 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15350,6 +15375,14 @@
             },
             "description": "The connector token details if available",
             "nullable": true
+          },
+          "network_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15883,7 +15916,8 @@
           "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
           "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_subtype",
+          "connector"
         ],
         "properties": {
           "total_retry_count": {
@@ -15914,6 +15948,9 @@
           },
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
           }
         }
       },
@@ -20300,6 +20337,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",

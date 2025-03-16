@@ -9732,6 +9732,7 @@
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
@@ -13921,6 +13922,14 @@
               }
             ],
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14151,6 +14160,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -19584,6 +19601,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
           }
         }
       },
@@ -20851,6 +20878,16 @@
                 "$ref": "#/components/schemas/CardDiscovery"
               }
             ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           }
         }
@@ -24131,6 +24168,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed refunds",
+            "nullable": true
           }
         }
       },
@@ -24786,6 +24833,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",

@@ -1488,10 +1488,10 @@ fn get_payment_response(
         enums::AttemptStatus,
         u16,
     ),
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
-        Some(error) => Err(error),
+        Some(error) => Err(Box::new(error)),
         None => {
             let mandate_reference =
                 info_response
@@ -1551,7 +1551,8 @@ impl<F>
                     info_response.status.clone(),
                     item.data.request.is_auto_capture()?,
                 ));
-                let response = get_payment_response((&info_response, status, item.http_code));
+                let response = get_payment_response((&info_response, status, item.http_code))
+                    .map_err(|err| *err);
                 let connector_response = match item.data.payment_method {
                     common_enums::PaymentMethod::Card => info_response
                         .processor_information
@@ -1650,7 +1651,8 @@ impl<F>
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = map_boa_attempt_status((info_response.status.clone(), true));
-                let response = get_payment_response((&info_response, status, item.http_code));
+                let response = get_payment_response((&info_response, status, item.http_code))
+                    .map_err(|err| *err);
                 Ok(Self {
                     status,
                     response,
@@ -1686,7 +1688,8 @@ impl<F>
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = map_boa_attempt_status((info_response.status.clone(), false));
-                let response = get_payment_response((&info_response, status, item.http_code));
+                let response = get_payment_response((&info_response, status, item.http_code))
+                    .map_err(|err| *err);
                 Ok(Self {
                     status,
                     response,
