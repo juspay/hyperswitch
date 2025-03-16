@@ -605,6 +605,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -802,6 +804,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1017,6 +1021,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1259,6 +1265,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
