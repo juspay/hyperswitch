@@ -115,7 +115,9 @@ DROP TYPE IF EXISTS "PaymentMethodIssuerCode";
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE refund DROP COLUMN connector_refund_data,
-    DROP COLUMN connector_transaction_data;
+    DROP COLUMN connector_transaction_data,
+    DROP COLUMN issuer_error_code,
+    DROP COLUMN issuer_error_message;
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE captures DROP COLUMN connector_capture_data;
