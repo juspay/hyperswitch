@@ -481,6 +481,8 @@ pub enum RevenueRecoveryError {
     PaymentIntentFetchFailed,
     #[error("Failed to fetch payment attempt")]
     PaymentAttemptFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptIdNotFound,
     #[error("Failed to get revenue recovery invoice webhook")]
     InvoiceWebhookProcessingFailed,
     #[error("Failed to get revenue recovery invoice transaction")]
@@ -491,4 +493,10 @@ pub enum RevenueRecoveryError {
     WebhookAuthenticationFailed,
     #[error("Payment merchant connector account not found using account reference id")]
     PaymentMerchantConnectorAccountNotFound,
+    #[error("Failed to fetch primitive date_time")]
+    ScheduleTimeFetchFailed,
+    #[error("Failed to create process tracker")]
+    ProcessTrackerCreationError,
+    #[error("Failed to get the response from process tracker")]
+    ProcessTrackerResponseError,
 }
