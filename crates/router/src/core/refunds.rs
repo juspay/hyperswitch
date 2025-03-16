@@ -1277,6 +1277,8 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             split_refunds: refund.split_refunds,
             unified_code: refund.unified_code,
             unified_message: refund.unified_message,
+            issuer_error_code: refund.issuer_error_code,
+            issuer_error_message: refund.issuer_error_message,
         }
     }
 }

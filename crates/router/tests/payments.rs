@@ -454,6 +454,8 @@ async fn payments_create_core() {
         connector_mandate_id: None,
         shipping_cost: None,
         card_discovery: None,
+        issuer_error_code: None,
+        issuer_error_message: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
