@@ -1,13 +1,12 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -44,12 +43,23 @@ use time::OffsetDateTime;
 use transformers as fiserv;
 use uuid::Uuid;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{construct_not_implemented_error_report, convert_amount},
+};
 
-#[derive(Debug, Clone)]
-pub struct Fiserv;
+#[derive(Clone)]
+pub struct Fiserv {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
 
 impl Fiserv {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
     pub fn generate_authorization_signature(
         &self,
         auth: fiserv::FiservAuthType,
@@ -198,7 +208,7 @@ impl ConnectorValidation for Fiserv {
             | enums::CaptureMethod::Manual
             | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
+                construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
     }
@@ -425,12 +435,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let router_obj = fiserv::FiservRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_to_capture = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let router_obj = fiserv::FiservRouterData::try_from((amount_to_capture, req))?;
         let connector_req = fiserv::FiservCaptureRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -534,12 +544,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let router_obj = fiserv::FiservRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let router_obj = fiserv::FiservRouterData::try_from((amount, req))?;
         let connector_req = fiserv::FiservPaymentsRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -628,12 +638,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiserv 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let router_obj = fiserv::FiservRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let router_obj = fiserv::FiservRouterData::try_from((refund_amount, req))?;
         let connector_req = fiserv::FiservRefundRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

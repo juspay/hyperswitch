@@ -1,10 +1,12 @@
 pub mod transformers;
-
+use base64::Engine;
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
-    errors::CustomResult,
+    consts::BASE64_ENGINE,
+    errors::{self as common_errors, CustomResult},
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -21,8 +23,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -33,23 +35,51 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, Response, TokenizationType},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{Mask, PeekInterface};
+use reqwest::multipart::Form;
+use serde::Serialize;
+use serde_json::Value;
 use transformers as hipay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
+pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_errors::ParsingError> {
+    let mut form = Form::new();
+    let serialized = serde_json::to_value(&data).map_err(|e| {
+        router_env::logger::error!("Error serializing data to JSON value: {:?}", e);
+        common_errors::ParsingError::EncodeError("json-value")
+    })?;
+    let serialized_object = serialized.as_object().ok_or_else(|| {
+        router_env::logger::error!("Error: Expected JSON object but got something else");
+        common_errors::ParsingError::EncodeError("Expected object")
+    })?;
+    for (key, values) in serialized_object {
+        let value = match values {
+            Value::String(s) => s.clone(),
+            Value::Number(n) => n.to_string(),
+            Value::Bool(b) => b.to_string(),
+            Value::Null => "".to_string(),
+            Value::Array(_) | Value::Object(_) => {
+                router_env::logger::error!(serialization_error =? "Form Construction Failed.");
+                "".to_string()
+            }
+        };
+        form = form.text(key.clone(), value.clone());
+    }
+    Ok(form)
+}
 #[derive(Clone)]
 pub struct Hipay {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Hipay {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -70,7 +100,82 @@ impl api::PaymentToken for Hipay {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Hipay
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}v2/token/create",
+            connectors.hipay.secondary_base_url.clone()
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = transformers::HiPayTokenRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&TokenizationType::get_url(self, req, connectors)?)
+                .headers(TokenizationType::get_headers(self, req, connectors)?)
+                .set_body(TokenizationType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
+    where
+        PaymentsResponseData: Clone,
+    {
+        let response: transformers::HipayTokenResponse = res
+            .response
+            .parse_struct("HipayTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+        Ok(ErrorResponse::get_not_implemented())
+    }
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Hipay
@@ -83,8 +188,8 @@ where
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            headers::ACCEPT.to_string(),
+            "application/json".to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -99,13 +204,6 @@ impl ConnectorCommon for Hipay {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
-    }
-
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -118,9 +216,11 @@ impl ConnectorCommon for Hipay {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = hipay::HipayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!("{}:{}", auth.api_key.peek(), auth.key1.peek());
+        let auth_header = format!("Basic {}", BASE64_ENGINE.encode(auth_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth_header.into_masked(),
         )])
     }
 
@@ -139,9 +239,9 @@ impl ConnectorCommon for Hipay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
+            code: response.code.to_string(),
             message: response.message,
-            reason: response.reason,
+            reason: response.description,
             attempt_status: None,
             connector_transaction_id: None,
             issuer_error_code: None,
@@ -151,12 +251,29 @@ impl ConnectorCommon for Hipay {
 }
 
 impl ConnectorValidation for Hipay {
-    //TODO: implement functions when support enabled
+    fn validate_connector_against_payment_request(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic
+            | CaptureMethod::Manual
+            | CaptureMethod::SequentialAutomatic => Ok(()),
+            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into())
+            }
+        }
+    }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Hipay {
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Hipay {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Hipay {}
 
@@ -171,16 +288,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}v1/order", connectors.hipay.base_url.clone()))
     }
 
     fn get_request_body(
@@ -196,7 +309,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = hipay::HipayRouterData::from((amount, req));
         let connector_req = hipay::HipayPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -210,7 +326,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -258,16 +373,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}v3/transaction/{}",
+            connectors.hipay.third_base_url.clone(),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -291,9 +411,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: hipay::HipayPaymentsResponse = res
+        let response: hipay::HipaySyncResponse = res
             .response
-            .parse_struct("hipay PaymentsSyncResponse")
+            .parse_struct("hipay HipaySyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -322,24 +442,35 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}v1/maintenance/transaction/{}",
+            connectors.hipay.base_url.clone(),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let capture_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = hipay::HipayRouterData::from((capture_amount, req));
+        let connector_req = hipay::HipayMaintenanceRequest::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -368,9 +499,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: hipay::HipayPaymentsResponse = res
+        let response: hipay::HipayMaintenanceResponse<hipay::HipayPaymentStatus> = res
             .response
-            .parse_struct("Hipay PaymentsCaptureResponse")
+            .parse_struct("Hipay HipayMaintenanceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -390,7 +521,72 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hipay {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hipay {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}v1/maintenance/transaction/{}",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .set_body(types::PaymentsVoidType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = hipay::HipayMaintenanceRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: hipay::HipayMaintenanceResponse<hipay::HipayPaymentStatus> = res
+            .response
+            .parse_struct("Hipay HipayMaintenanceResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
     fn get_headers(
@@ -401,16 +597,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}v1/maintenance/transaction/{}",
+            connectors.hipay.base_url.clone(),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -425,8 +621,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
         )?;
 
         let connector_router_data = hipay::HipayRouterData::from((refund_amount, req));
-        let connector_req = hipay::HipayRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = hipay::HipayMaintenanceRequest::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req);
+        let connector_req = build_form_from_struct(connector_req)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -454,7 +653,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: hipay::RefundResponse = res
+        let response: hipay::HipayMaintenanceResponse<hipay::RefundStatus> = res
             .response
             .parse_struct("hipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -485,16 +684,17 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}v3/transaction/{}",
+            connectors.hipay.third_base_url.clone(),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -523,7 +723,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: hipay::RefundResponse = res
             .response
-            .parse_struct("hipay RefundSyncResponse")
+            .parse_struct("hipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

@@ -481,12 +481,24 @@ impl
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
         let status = payment_data.payment_attempt.status.is_terminal_status();
-        let updated_feature_metadata = payment_data
-            .payment_intent
-            .set_payment_connector_transmission(
-                payment_data.payment_intent.feature_metadata.clone(),
-                status,
-            );
+        let updated_feature_metadata =
+            payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(|mut feature_metadata| {
+                    if let Some(ref mut payment_revenue_recovery_metadata) =
+                        feature_metadata.payment_revenue_recovery_metadata
+                    {
+                        payment_revenue_recovery_metadata.payment_connector_transmission =
+                            if self.response.is_ok() {
+                                common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                            } else {
+                                common_enums::PaymentConnectorTransmission::ConnectorCallFailed
+                            };
+                    }
+                    Box::new(feature_metadata)
+                });
 
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {

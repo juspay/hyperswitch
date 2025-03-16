@@ -436,10 +436,9 @@ impl webhooks::IncomingWebhook for Coinbase {
 
 lazy_static! {
     static ref COINBASE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name:
-            "Coinbase is a place for people and businesses to buy, sell, and manage crypto.",
+        display_name: "Coinbase",
         description:
-            "Square is the largest business technology platform serving all kinds of businesses.",
+            "Coinbase is a place for people and businesses to buy, sell, and manage crypto.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref COINBASE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {

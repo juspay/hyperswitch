@@ -6,9 +6,12 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId},
+    router_request_types::{
+        CompleteAuthorizeData, MandateRevokeRequestData, PaymentsAuthorizeData, ResponseId,
+    },
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        MandateReference, MandateRevokeResponseData, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::{self, RefundsRouterData},
 };
@@ -38,6 +41,7 @@ pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  R
 pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
 pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str="mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
 pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
+pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
 pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
 pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
 
@@ -588,7 +592,9 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
         match item {
             BraintreePaymentStatus::Settling
             | BraintreePaymentStatus::Settled
-            | BraintreePaymentStatus::SettlementConfirmed => Self::Charged,
+            | BraintreePaymentStatus::SettlementConfirmed
+            | BraintreePaymentStatus::SubmittedForSettlement
+            | BraintreePaymentStatus::SettlementPending => Self::Charged,
             BraintreePaymentStatus::Authorizing => Self::Authorizing,
             BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
@@ -597,8 +603,6 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
             BraintreePaymentStatus::Authorized => Self::Authorized,
             BraintreePaymentStatus::Voided => Self::Voided,
-            BraintreePaymentStatus::SubmittedForSettlement
-            | BraintreePaymentStatus::SettlementPending => Self::Pending,
         }
     }
 }
@@ -927,9 +931,10 @@ pub enum BraintreeRefundStatus {
 impl From<BraintreeRefundStatus> for enums::RefundStatus {
     fn from(item: BraintreeRefundStatus) -> Self {
         match item {
-            BraintreeRefundStatus::Settled | BraintreeRefundStatus::Settling => Self::Success,
-            BraintreeRefundStatus::SubmittedForSettlement
-            | BraintreeRefundStatus::SettlementPending => Self::Pending,
+            BraintreeRefundStatus::Settled
+            | BraintreeRefundStatus::Settling
+            | BraintreeRefundStatus::SubmittedForSettlement
+            | BraintreeRefundStatus::SettlementPending => Self::Success,
             BraintreeRefundStatus::Failed => Self::Failure,
         }
     }
@@ -1366,6 +1371,94 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
             }),
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletePaymentMethodFromVaultInputData {
+    payment_method_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VariableDeletePaymentMethodFromVaultInput {
+    input: DeletePaymentMethodFromVaultInputData,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BraintreeRevokeMandateRequest {
+    query: String,
+    variables: VariableDeletePaymentMethodFromVaultInput,
+}
+
+impl TryFrom<&types::MandateRevokeRouterData> for BraintreeRevokeMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::MandateRevokeRouterData) -> Result<Self, Self::Error> {
+        let query = DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION.to_string();
+        let variables = VariableDeletePaymentMethodFromVaultInput {
+            input: DeletePaymentMethodFromVaultInputData {
+                payment_method_id: Secret::new(
+                    item.request
+                        .connector_mandate_id
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                ),
+            },
+        };
+        Ok(Self { query, variables })
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            BraintreeRevokeMandateResponse,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    > for RouterData<F, MandateRevokeRequestData, MandateRevokeResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            BraintreeRevokeMandateResponse,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: match item.response {
+                BraintreeRevokeMandateResponse::ErrorResponse(error_response) => {
+                    build_error_response(error_response.errors.as_ref(), item.http_code)
+                }
+                BraintreeRevokeMandateResponse::RevokeMandateResponse(..) => {
+                    Ok(MandateRevokeResponseData {
+                        mandate_status: common_enums::MandateStatus::Revoked,
+                    })
+                }
+            },
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeRevokeMandateResponse {
+    RevokeMandateResponse(Box<RevokeMandateResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RevokeMandateResponse {
+    data: DeletePaymentMethodFromVault,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletePaymentMethodFromVault {
+    client_mutation_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
