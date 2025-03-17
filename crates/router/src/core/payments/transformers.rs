@@ -958,6 +958,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         metadata: payment_data.payment_intent.metadata,
         minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+        capture_method: Some(payment_data.payment_intent.capture_method),
+        complete_authorize_url,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt

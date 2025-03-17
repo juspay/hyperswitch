@@ -1308,20 +1308,26 @@ impl TryFrom<&SetupMandateRouterData> for NexixpaySetupMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let billing_address_street = format!(
-            "{}, {}",
-            item.get_billing_line1()?.expose(),
-            item.get_billing_line2()?.expose()
-        );
-
-        let billing_address = BillingAddress {
-            name: item.get_billing_full_name()?,
-            street: Secret::new(billing_address_street),
-            city: item.get_billing_city()?,
-            post_code: item.get_billing_zip()?,
-            country: item.get_billing_country()?,
+        let billing_address_street = match (
+            item.get_optional_billing_line1(),
+            item.get_optional_billing_line2(),
+        ) {
+            (Some(line1), Some(line2)) => Some(Secret::new(format!(
+                "{}, {}",
+                line1.expose(),
+                line2.expose()
+            ))),
+            (Some(line1), None) => Some(line1),
+            (None, Some(line2)) => Some(line2),
+            (None, None) => None,
         };
-
+        let billing_address = item.get_optional_billing().map(|_| BillingAddress {
+            name: item.get_optional_billing_full_name(),
+            street: billing_address_street,
+            city: item.get_optional_billing_city(),
+            post_code: item.get_optional_billing_zip(),
+            country: item.get_optional_billing_country(),
+        });
         let shipping_address_street = match (
             item.get_optional_shipping_line1(),
             item.get_optional_shipping_line2(),
@@ -1336,20 +1342,18 @@ impl TryFrom<&SetupMandateRouterData> for NexixpaySetupMandateRequest {
             (None, None) => None,
         };
 
-        let shipping_address = item.get_optional_billing().map(|_| ShippingAddress {
+        let shipping_address = item.get_optional_shipping().map(|_| ShippingAddress {
             name: item.get_optional_shipping_full_name(),
             street: shipping_address_street,
             city: item.get_optional_shipping_city(),
             post_code: item.get_optional_shipping_zip(),
             country: item.get_optional_shipping_country(),
         });
-
         let customer_info = CustomerInfo {
             card_holder_name: item.get_billing_full_name()?,
             billing_address: billing_address.clone(),
             shipping_address: shipping_address.clone(),
         };
-
         let order = Order {
             order_id: item.connector_request_reference_id.clone(),
             amount: StringMinorUnit::new("0".to_string()),
