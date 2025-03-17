@@ -3187,7 +3187,6 @@ default_imp_for_revoking_mandates!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
-    connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
     connectors::Chargebee,
