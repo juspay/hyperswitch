@@ -727,7 +727,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
-
     if let Some(success_based_algo_ref) = dynamic_routing_algo_ref.success_based_algorithm {
         if success_based_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
             let client = state
