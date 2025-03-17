@@ -202,6 +202,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         authentication_status,
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
+                        eci: None,
                     },
                 )
             }

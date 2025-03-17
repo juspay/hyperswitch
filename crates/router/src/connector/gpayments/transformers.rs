@@ -290,6 +290,7 @@ impl
                 authentication_value: response_auth.authentication_value,
                 ds_trans_id: Some(response_auth.ds_trans_id),
                 connector_metadata: None,
+                eci: None,
             },
         );
         Ok(Self {

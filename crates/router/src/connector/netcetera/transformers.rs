@@ -167,16 +167,11 @@ impl
                 Ok(
                     types::authentication::AuthenticationResponseData::AuthNResponse {
                         authn_flow_type,
-                        authentication_value: if response.trans_status
-                            == common_enums::TransactionStatus::Success
-                        {
-                            Some("xgQYYgZVAAAAAAAAAAAAAAAAAAAA".to_string())
-                        } else {
-                            response.authentication_value
-                        },
+                        authentication_value: response.authentication_response.authentication_value,
                         trans_status: response.trans_status,
                         connector_metadata: None,
                         ds_trans_id: response.authentication_response.ds_trans_id,
+                        eci: response.authentication_response.eci,
                     },
                 )
             }
@@ -676,6 +671,8 @@ pub struct AuthenticationResponse {
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
+    pub authentication_value: Option<String>,
+    pub eci: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

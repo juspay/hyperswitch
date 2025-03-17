@@ -90,6 +90,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 trans_status,
                 connector_metadata,
                 ds_trans_id,
+                eci,
             } => {
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
@@ -105,6 +106,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_status,
                     connector_metadata,
                     ds_trans_id,
+                    eci,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {

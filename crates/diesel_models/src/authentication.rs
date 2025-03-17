@@ -140,6 +140,7 @@ pub enum AuthenticationUpdate {
         connector_metadata: Option<serde_json::Value>,
         authentication_status: common_enums::AuthenticationStatus,
         ds_trans_id: Option<String>,
+        eci: Option<String>,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -380,6 +381,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 connector_metadata,
                 authentication_status,
                 ds_trans_id,
+                eci,
             } => Self {
                 cavv: authentication_value,
                 trans_status: Some(trans_status),
@@ -392,6 +394,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 connector_metadata,
                 authentication_status: Some(authentication_status),
                 ds_trans_id,
+                eci,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
