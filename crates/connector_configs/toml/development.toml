@@ -2846,6 +2846,14 @@ client_id="Client ID"
 api_key="Client Secret"
 key1="Client ID"
 
+[paystack]
+[[paystack.bank_redirect]]
+  payment_method_type = "eft"
+[paystack.connector_auth.HeaderKey]
+api_key="API Key"
+[paystack.connector_webhook_details]
+merchant_secret="API Key"
+
 [payu]
 [[payu.credit]]
   payment_method_type = "Mastercard"
