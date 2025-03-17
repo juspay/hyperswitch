@@ -3955,6 +3955,14 @@ api_key="Api Key"
 [paypal_test.connector_auth.HeaderKey]
 api_key="Api Key"
 
+[paystack]
+[[paystack.bank_redirect]]
+  payment_method_type = "eft"
+[paystack.connector_auth.HeaderKey]
+api_key="API Key"
+[paystack.connector_webhook_details]
+merchant_secret="API Key"
+
 [stripe_test]
 [[stripe_test.credit]]
   payment_method_type = "Mastercard"
