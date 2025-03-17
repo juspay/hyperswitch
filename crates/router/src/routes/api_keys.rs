@@ -268,7 +268,7 @@ pub async fn api_key_revoke(
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
