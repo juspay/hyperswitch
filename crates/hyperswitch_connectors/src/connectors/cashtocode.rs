@@ -146,6 +146,8 @@ impl ConnectorCommon for Cashtocode {
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

@@ -829,6 +829,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -899,6 +901,8 @@ impl<F>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(data.txn_id),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -945,6 +949,8 @@ impl<F>
                                 status_code: item.http_code,
                                 attempt_status: None,
                                 connector_transaction_id: recurring_response.tran_id.clone(),
+                                issuer_error_code: None,
+                                issuer_error_message: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1078,6 +1084,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1102,6 +1110,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.refund_id.to_string()),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         }),
                         ..item.data
                     })
@@ -1241,6 +1251,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: response.error_desc,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     None
@@ -1306,6 +1318,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: response.error_desc.clone(),
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     None
@@ -1475,6 +1489,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 ),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             None
@@ -1588,6 +1604,8 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                 ),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             None
@@ -1683,6 +1701,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),

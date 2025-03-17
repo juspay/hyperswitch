@@ -322,6 +322,8 @@ impl ConnectorCommon for Amazonpay {
             attempt_status: None,
             connector_transaction_id: None,
             reason: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

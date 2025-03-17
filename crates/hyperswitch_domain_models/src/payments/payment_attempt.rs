@@ -846,6 +846,8 @@ pub struct PaymentAttempt {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1239,6 +1241,8 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        issuer_error_code: Option<String>,
+        issuer_error_message: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -1542,6 +1546,8 @@ impl PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                issuer_error_code,
+                issuer_error_message,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1555,6 +1561,8 @@ impl PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                issuer_error_code,
+                issuer_error_message,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -1824,6 +1832,8 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            issuer_error_code: self.issuer_error_code,
+            issuer_error_message: self.issuer_error_message,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
         })
@@ -1912,6 +1922,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 capture_before: storage_model.capture_before,
                 card_discovery: storage_model.card_discovery,
                 charges: storage_model.charges,
+                issuer_error_code: storage_model.issuer_error_code,
+                issuer_error_message: storage_model.issuer_error_message,
             })
         }
         .await
