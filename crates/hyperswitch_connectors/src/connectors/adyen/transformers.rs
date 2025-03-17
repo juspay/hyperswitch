@@ -5531,6 +5531,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,
+        request_extended_authorization: None,
         customer_acceptance: data.request.customer_acceptance.clone(),
         split_payments: None, // TODO: allow charges on mandates?
         merchant_order_reference_id: None,
