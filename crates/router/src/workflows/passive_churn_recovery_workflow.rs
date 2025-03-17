@@ -76,14 +76,14 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                pcr::perform_execute_payment(
+                Box::pin(pcr::perform_execute_payment(
                     state,
                     &process,
                     &tracking_data,
                     &pcr_data,
                     key_manager_state,
                     &payment_data.payment_intent,
-                )
+                ))
                 .await
             }
             Some("PSYNC_WORKFLOW") => todo!(),
