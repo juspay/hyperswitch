@@ -12,6 +12,10 @@ pub mod session_update_flow;
 pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_flow_types::{
+    revenue_recovery::RecoveryRecordBack, GetAdditionalRevenueRecoveryDetails,
+};
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
@@ -22,11 +26,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
     UasPreAuthentication, UnifiedAuthenticationService,
-};
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::router_flow_types::{
-    revenue_recovery::RecoveryRecordBack, GetAdditionalRevenueRecoveryDetails,
 };
 
 #[cfg(feature = "frm")]
