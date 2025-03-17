@@ -52,8 +52,8 @@ function invertToBW(color, bw, asArr) {
       ? hexToRgbArray(options.black)
       : options.black
     : asArr
-    ? hexToRgbArray(options.white)
-    : options.white;
+      ? hexToRgbArray(options.white)
+      : options.white;
 }
 function invert(color, bw) {
   if (bw === void 0) {
@@ -87,6 +87,21 @@ window.state = {
 };
 
 const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
+
+/**
+ * Trigger - on boot
+ * Use - emit latest payment status to parent window
+ */
+function emitPaymentStatus(paymentDetails) {
+  var message = {
+    payment: {
+      status: paymentDetails.status,
+    }
+  };
+
+  window.parent.postMessage(message, "*");
+}
+
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -99,6 +114,9 @@ const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 function boot() {
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
+
+  // Emit latest payment status
+  emitPaymentStatus(paymentDetails);
 
   // Attach document icon
   if (paymentDetails.merchant_logo) {
@@ -158,6 +176,7 @@ function renderStatusDetails(paymentDetails) {
       ).toTimeString();
       break;
 
+    case "requires_customer_action":
     case "processing":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/pending.png";
       statusDetails.message = translations.paymentTakingLonger;
@@ -279,7 +298,7 @@ function renderStatusDetails(paymentDetails) {
           var innerText =
             secondsLeft === 0
               ? translations.redirecting
-              : translations.redirectingIn + secondsLeft + " "+translations.seconds;
+              : translations.redirectingIn + secondsLeft + " " + translations.seconds;
           // @ts-ignore
           statusRedirectTextNode.innerText = innerText;
           if (secondsLeft === 0) {
@@ -341,5 +360,5 @@ function initializeEventListeners(paymentDetails) {
   if (statusRedirectTextNode instanceof HTMLDivElement) {
     statusRedirectTextNode.style.color = contrastBWColor;
   }
-  };
+};
 

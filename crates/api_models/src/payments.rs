@@ -7938,6 +7938,7 @@ pub struct PaymentLinkDetails {
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub status: api_enums::IntentStatus,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]

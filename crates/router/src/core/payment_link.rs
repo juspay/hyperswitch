@@ -189,7 +189,7 @@ pub async fn form_payment_link_data(
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
     let payment_link_status = check_payment_link_status(session_expiry);
 
-    let is_terminal_state = check_payment_link_invalid_conditions(
+    let is_payment_link_terminal_state = check_payment_link_invalid_conditions(
         payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
@@ -199,9 +199,10 @@ pub async fn form_payment_link_data(
             storage_enums::IntentStatus::RequiresMerchantAction,
             storage_enums::IntentStatus::Succeeded,
             storage_enums::IntentStatus::PartiallyCaptured,
+            storage_enums::IntentStatus::RequiresCustomerAction,
         ],
     );
-    if is_terminal_state || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
+    if is_payment_link_terminal_state || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
         let status = match payment_link_status {
             api_models::payments::PaymentLinkStatus::Active => {
@@ -209,7 +210,7 @@ pub async fn form_payment_link_data(
                 PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
             }
             api_models::payments::PaymentLinkStatus::Expired => {
-                if is_terminal_state {
+                if is_payment_link_terminal_state {
                     logger::info!("displaying status page as the requested payment link has reached terminal state with payment status as {:?}", payment_intent.status);
                     PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
                 } else {
@@ -290,6 +291,7 @@ pub async fn form_payment_link_data(
         payment_button_text_colour: payment_link_config.payment_button_text_colour.clone(),
         sdk_ui_rules: payment_link_config.sdk_ui_rules.clone(),
         payment_link_ui_rules: payment_link_config.payment_link_ui_rules.clone(),
+        status: payment_intent.status,
     };
 
     Ok((

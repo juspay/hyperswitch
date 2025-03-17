@@ -182,6 +182,20 @@ var hyper = null;
 const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 
 /**
+ * Trigger - on boot
+ * Use - emit latest payment status to parent window
+ */
+function emitPaymentStatus(paymentDetails) {
+  var message = {
+    payment: {
+      status: paymentDetails.status,
+    }
+  };
+
+  window.parent.postMessage(message, "*");
+}
+
+/**
  * Trigger - init function invoked once the script tag is loaded
  * Use
  *  - Update document's title
@@ -190,12 +204,13 @@ const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
-
-
 function boot() {
 
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
+
+  // Emit latest payment status
+  emitPaymentStatus(paymentDetails);
 
   if (paymentDetails.display_sdk_only) {
     hide(".checkout-page")
