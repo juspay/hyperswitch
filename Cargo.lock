@@ -5642,6 +5642,7 @@ dependencies = [
  "hyperswitch_interfaces",
  "masking",
  "serde",
+ "serde_json",
  "storage_impl",
 ]
 

@@ -10,6 +10,7 @@ async-trait = "0.1.79"
 dyn-clone = "1.0.17"
 masking = { version = "0.1.0", path = "../masking" }
 serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
 
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }
