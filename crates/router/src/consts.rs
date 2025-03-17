@@ -44,12 +44,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-
-pub(crate) const CANNOT_CONTINUE_AUTH: &str =
-    "Cannot continue with Authorization due to failed Liability Shift.";
-#[cfg(feature = "payouts")]
-pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
 

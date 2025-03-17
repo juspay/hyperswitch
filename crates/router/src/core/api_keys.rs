@@ -228,6 +228,7 @@ pub async fn add_api_key_expiry_task(
         API_KEY_EXPIRY_RUNNER,
         [API_KEY_EXPIRY_TAG],
         api_key_expiry_tracker,
+        None,
         schedule_time,
         hyperswitch_domain_models::consts::API_VERSION,
     )

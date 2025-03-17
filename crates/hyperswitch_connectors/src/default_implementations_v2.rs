@@ -264,6 +264,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -313,6 +314,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 
 default_imp_for_new_connector_integration_refund!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -364,6 +366,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -408,6 +411,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -459,6 +463,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -509,6 +514,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -559,6 +565,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -608,6 +615,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -658,6 +666,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -707,6 +716,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -758,6 +768,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -817,6 +828,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -868,6 +880,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -919,6 +932,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -970,6 +984,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1021,6 +1036,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1072,6 +1088,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1123,6 +1140,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1174,6 +1192,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1225,6 +1244,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1276,6 +1296,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1327,6 +1348,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1378,6 +1400,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1429,6 +1452,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1480,6 +1504,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1531,6 +1556,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1582,6 +1608,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1633,6 +1660,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1684,6 +1712,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1733,6 +1762,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1784,6 +1814,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1835,6 +1866,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1886,6 +1918,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -1937,6 +1970,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1988,6 +2022,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -2039,6 +2074,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2090,6 +2126,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -2141,6 +2178,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2192,6 +2230,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -2243,6 +2282,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2294,6 +2334,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
@@ -2342,6 +2383,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
