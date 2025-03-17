@@ -987,7 +987,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
 
         let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
             details.payments.map(|payments| {
-                payments.0.values().any(|connector_token_reference| {
+                payments.values().any(|connector_token_reference| {
                     connector_token_reference.connector_token_status
                         == api_enums::ConnectorTokenStatus::Active
                 })
