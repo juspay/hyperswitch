@@ -6,8 +6,6 @@ use common_utils::id_type;
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;
 
-pub mod payment_connector_required_fields;
-
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {

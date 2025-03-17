@@ -5639,6 +5639,7 @@ dependencies = [
  "common_utils",
  "dyn-clone",
  "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
  "masking",
  "serde",
  "storage_impl",

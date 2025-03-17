@@ -1,6 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
+use common_utils::errors::CustomResult;
+use hyperswitch_interfaces::secrets_interface::{
+    secret_handler::SecretsHandler,
+    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    SecretManagementInterface, SecretsManagementError,
+};
 use masking::Secret;
 use serde::{self, Deserialize, Serialize};
 
@@ -35,6 +41,25 @@ pub struct RequiredFieldFinal {
 pub struct PaymentMethodAuth {
     pub redis_expiry: i64,
     pub pm_auth_key: Secret<String>,
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for PaymentMethodAuth {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let payment_method_auth = value.get_inner();
+
+        let pm_auth_key = secret_management_client
+            .get_secret(payment_method_auth.pm_auth_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|payment_method_auth| Self {
+            pm_auth_key,
+            ..payment_method_auth
+        }))
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
