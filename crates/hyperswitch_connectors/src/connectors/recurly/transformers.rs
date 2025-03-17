@@ -1,5 +1,6 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -225,4 +226,28 @@ pub struct RecurlyErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RecurlyWebhookBody {
+    // transaction id
+    pub uuid: String,
+    pub event_type: RecurlyPaymentEventType,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RecurlyPaymentEventType {
+    #[serde(rename = "succeeded")]
+    PaymentSucceeded,
+    #[serde(rename = "failed")]
+    PaymentFailed,
+}
+
+impl RecurlyWebhookBody {
+    pub fn get_webhook_object_from_body(body: &[u8]) -> CustomResult<Self, errors::ConnectorError> {
+        let webhook_body = body
+            .parse_struct::<Self>("RecurlyWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(webhook_body)
+    }
 }
