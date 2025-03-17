@@ -1,5 +1,3 @@
-#[cfg(feature = "v2")]
-use common_types::customers::ConnectorCustomerMap;
 use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -186,7 +184,7 @@ pub struct CustomerResponse {
     pub merchant_reference_id: Option<id_type::CustomerId>,
     /// Connector specific customer reference ids
     #[schema(value_type = Option<Object>, example = json!({"mca_hwySG2NtpzX0qr7toOy8": "cus_Rnm2pDKGyQi506"}))]
-    pub connector_customer_ids: Option<ConnectorCustomerMap>,
+    pub connector_customer_ids: Option<common_types::customers::ConnectorCustomerMap>,
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: crypto::OptionalEncryptableName,

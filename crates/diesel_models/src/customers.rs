@@ -1,6 +1,4 @@
 use common_enums::ApiVersion;
-#[cfg(feature = "v2")]
-use common_types::customers::ConnectorCustomerMap;
 use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
@@ -78,7 +76,7 @@ pub struct CustomerNew {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -160,7 +158,7 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -238,7 +236,7 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub default_payment_method_id: Option<Option<common_utils::id_type::GlobalPaymentMethodId>>,
     pub updated_by: Option<String>,
     pub default_billing_address: Option<Encryption>,
