@@ -231,6 +231,7 @@ where
                     let response =
                         call_connector_api(state, request, "execute_connector_processing_step")
                             .await;
+                    println!(">>>>>response\n{:?}", response);
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
                     let status_code = response
@@ -256,10 +257,12 @@ where
                         status_code,
                     );
 
-                    match response {
+                    match response { // router data
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => {
+                                    println!(">>>>>body.response\n{:?}", body.response);
+                                    logger::info!(bodyresponse=?body.response);
                                     let connector_http_status_code = Some(body.status_code);
                                     let handle_response_result = connector_integration
                                         .handle_response(req, Some(&mut connector_event), body)
@@ -344,6 +347,7 @@ where
                                     router_data
                                 }
                             };
+                            println!(">>>>>matchresponse\n{:?}",response);
                             Ok(response)
                         }
                         Err(error) => {
@@ -398,6 +402,8 @@ pub async fn call_connector_api(
         Ok(resp) => {
             let status_code = resp.status().as_u16();
             let elapsed_time = current_time.elapsed();
+            println!("Inside Call Connector API");
+            println!(">>>>>resp\n{:?}", resp);
             logger::info!(
                 ?headers,
                 url,

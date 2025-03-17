@@ -397,6 +397,7 @@ pub async fn payments_retrieve(
         client_secret: json_payload.client_secret.clone(),
         expand_attempts: json_payload.expand_attempts,
         expand_captures: json_payload.expand_captures,
+        all_keys_required: json_payload.all_keys_required,
         ..Default::default()
     };
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {

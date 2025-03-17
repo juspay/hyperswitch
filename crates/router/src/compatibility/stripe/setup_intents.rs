@@ -105,6 +105,7 @@ pub async fn setup_intents_retrieve(
         client_secret: query_payload.client_secret.clone(),
         expand_attempts: None,
         expand_captures: None,
+        all_keys_required: None,
     };
 
     let (auth_type, auth_flow) =
