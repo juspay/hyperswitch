@@ -6,17 +6,17 @@ use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-use hyperswitch_domain_models::{
-    errors::StorageError,
-    payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
+use hyperswitch_domain_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate,
 };
 
 use super::MockDb;
 #[cfg(feature = "v1")]
-use crate::DataModelExt;
+use crate::{errors::StorageError, DataModelExt};
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
+    type Error = StorageError;
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,

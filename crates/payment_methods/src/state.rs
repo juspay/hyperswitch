@@ -18,7 +18,7 @@ use storage_impl::{kv_router_store::KVRouterStore, DatabaseStore, MockDb, Router
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsStorageInterface:
-    Send + Sync + dyn_clone::DynClone + PaymentMethodInterface + 'static
+    Send + Sync + dyn_clone::DynClone + PaymentMethodInterface<Error = storage_impl::errors::StorageError> + 'static
 {
 }
 dyn_clone::clone_trait_object!(PaymentMethodsStorageInterface);

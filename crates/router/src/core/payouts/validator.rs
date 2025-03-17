@@ -6,7 +6,6 @@ use common_utils::errors::CustomResult;
 use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
-pub use hyperswitch_domain_models::errors::StorageError;
 use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
@@ -19,6 +18,7 @@ use super::helpers;
 ))]
 use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
+    errors::StorageError,
     core::{
         errors::{self, RouterResult},
         utils as core_utils,

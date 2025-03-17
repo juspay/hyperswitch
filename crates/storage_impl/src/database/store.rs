@@ -3,9 +3,10 @@ use bb8::CustomizeConnection;
 use common_utils::DbConnectionParams;
 use diesel::PgConnection;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
-
-use crate::config::{Database, TenantConfig};
+use crate::{
+    config::{Database, TenantConfig},
+    errors::{StorageError, StorageResult},
+};
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;

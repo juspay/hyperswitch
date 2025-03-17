@@ -2,8 +2,6 @@
 use api_models::enums::PayoutConnectors;
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-#[cfg(feature = "olap")]
-use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
 #[cfg(all(
     feature = "olap",
@@ -43,12 +41,9 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payouts::PayoutFetchConstraints;
-use hyperswitch_domain_models::{
-    errors::StorageError,
-    payouts::{
-        payout_attempt::PayoutAttempt,
-        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
-    },
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::PayoutAttempt,
+    payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
 };
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
@@ -67,7 +62,7 @@ use crate::store::schema::{
     payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
 };
 use crate::{
-    diesel_error_to_data_error,
+    diesel_error_to_data_error, errors::StorageError,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
@@ -77,6 +72,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
+    type Error = StorageError;
     #[instrument(skip_all)]
     async fn insert_payout(
         &self,
@@ -413,6 +409,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
+    type Error = StorageError;
     #[instrument(skip_all)]
     async fn insert_payout(
         &self,
@@ -492,7 +489,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
@@ -606,9 +603,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )>,
         StorageError,
     > {
-        use common_utils::errors::ReportSwitchExt;
 
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
             .inner_join(
@@ -831,7 +827,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
             .inner_join(

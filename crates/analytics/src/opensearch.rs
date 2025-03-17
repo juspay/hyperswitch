@@ -10,7 +10,7 @@ use common_utils::{
     types::TimeRange,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
+use storage_impl::errors::{StorageError, StorageResult};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
