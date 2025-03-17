@@ -367,11 +367,11 @@ impl ConnectorData {
                 enums::Connector::Cashtocode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
-                enums::Connector::Checkout => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
-                }
                 enums::Connector::Chargebee => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Chargebee::new())))
+                }
+                enums::Connector::Checkout => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
                 enums::Connector::Coinbase => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Coinbase)))
