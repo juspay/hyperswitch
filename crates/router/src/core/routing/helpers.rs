@@ -14,7 +14,7 @@ use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
+use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
@@ -727,7 +727,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
-    use diesel_models::dynamic_routing_stats::DynamicRoutingStatsUpdate;
 
     if let Some(success_based_algo_ref) = dynamic_routing_algo_ref.success_based_algorithm {
         if success_based_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
@@ -903,7 +902,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("dynamic_routing_stats entry not found")?;
+                .attach_printable("Database connection error")?;
 
             if duplicate_stats.is_some() {
                 let dynamic_routing_update = DynamicRoutingStatsUpdate {
@@ -932,7 +931,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to push dynamic routing stats to db")?;
+                    .attach_printable("Unable to update dynamic routing stats to db")?;
             } else {
                 let dynamic_routing_stats = DynamicRoutingStatsNew {
                     payment_id: payment_attempt.payment_id.to_owned(),
