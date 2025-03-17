@@ -50,15 +50,14 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
         not_found_response: errors::ApiErrorResponse,
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
-            if err.current_context().is_db_not_found() {
-                return err.change_context(not_found_response);
-            };
-            match err.current_context() {
+            let new_err = match err.current_context() {
+                errors::StorageError::ValueNotFound(_) => not_found_response,
                 errors::StorageError::CustomerRedacted => {
-                    err.change_context(errors::ApiErrorResponse::CustomerRedacted)
+                    errors::ApiErrorResponse::CustomerRedacted
                 }
-                _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
-            }
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
         })
     }
 
@@ -68,11 +67,11 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
         duplicate_response: errors::ApiErrorResponse,
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
-            if err.current_context().is_db_unique_violation() {
-                err.change_context(duplicate_response)
-            } else {
-                err.change_context(errors::ApiErrorResponse::InternalServerError)
-            }
+            let new_err = match err.current_context() {
+                errors::StorageError::DuplicateValue { .. } => duplicate_response,
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
         })
     }
 }
