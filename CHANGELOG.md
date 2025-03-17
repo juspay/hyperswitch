@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.05.0-hotfix6
+
+### Features
+
+- **connector:** [BRAINTREE] Add revoke mandate flow ([#7530](https://github.com/juspay/hyperswitch/pull/7530)) ([`94974bd`](https://github.com/juspay/hyperswitch/commit/94974bdca5c29a9d83ff545c452d0fe9743e83b7))
+
+**Full Changelog:** [`2025.03.05.0-hotfix5...2025.03.05.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.03.05.0-hotfix5...2025.03.05.0-hotfix6)
+
+
+- - -
+
 ## 2025.03.05.0-hotfix5
 
 ### Bug Fixes
