@@ -2,6 +2,8 @@ pub mod transformers;
 
 use std::collections::HashMap;
 
+use std::collections::HashMap;
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -163,6 +165,8 @@ impl ConnectorCommon for Stripebilling {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -735,6 +739,30 @@ impl webhooks::IncomingWebhook for Stripebilling {
     }
 
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_webhook_event_type(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        let webhook =
+            stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        let event = match webhook.event_type {
+            stripebilling::StripebillingEventType::PaymentSucceeded => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess
+            }
+            stripebilling::StripebillingEventType::PaymentFailed => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentFailure
+            }
+            stripebilling::StripebillingEventType::InvoiceDeleted => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel
+            }
+        };
+        Ok(event)
+    }
+
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -742,6 +770,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_resource_object(
         &self,

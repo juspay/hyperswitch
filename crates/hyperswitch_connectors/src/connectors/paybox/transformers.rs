@@ -715,6 +715,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -773,6 +775,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(response.transaction_number),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         }),
                         ..item.data
                     }),
@@ -802,6 +806,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -845,6 +851,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -933,6 +941,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, PayboxSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -964,6 +974,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, TransactionResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1033,6 +1045,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),

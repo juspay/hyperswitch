@@ -340,6 +340,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
@@ -1859,6 +1861,7 @@ pub trait PaymentsCaptureRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCaptureRequestData for PaymentsCaptureData {
@@ -1874,6 +1877,11 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -1928,6 +1936,7 @@ pub trait PaymentsCancelRequestData {
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -1951,6 +1960,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
