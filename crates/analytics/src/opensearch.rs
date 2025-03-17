@@ -10,7 +10,6 @@ use common_utils::{
     types::TimeRange,
 };
 use error_stack::ResultExt;
-use storage_impl::errors::{StorageError, StorageResult};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
@@ -24,7 +23,7 @@ use opensearch::{
     MsearchParts, OpenSearch, SearchParts,
 };
 use serde_json::{json, Map, Value};
-use storage_impl::errors::ApplicationError;
+use storage_impl::errors::{ApplicationError, StorageError, StorageResult};
 use time::PrimitiveDateTime;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};

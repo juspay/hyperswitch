@@ -9,9 +9,9 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
-use crate::errors::StorageError;
 
 use super::MockDb;
+use crate::errors::StorageError;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {

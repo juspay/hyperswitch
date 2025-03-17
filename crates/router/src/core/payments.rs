@@ -5571,7 +5571,10 @@ pub async fn list_payments(
             {
                 Ok(pa) => Some(Ok((pi, pa))),
                 Err(error) => {
-                    if matches!(error.current_context(), errors::StorageError::ValueNotFound(_)) {
+                    if matches!(
+                        error.current_context(),
+                        errors::StorageError::ValueNotFound(_)
+                    ) {
                         logger::warn!(
                             ?error,
                             "payment_attempts missing for payment_id : {:?}",

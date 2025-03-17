@@ -47,8 +47,7 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
-    errors::StorageError,
-    errors::RedisErrorExt,
+    errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},

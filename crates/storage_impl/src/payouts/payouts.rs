@@ -62,8 +62,8 @@ use crate::store::schema::{
     payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
 };
 use crate::{
-    diesel_error_to_data_error, errors::StorageError,
-    errors::RedisErrorExt,
+    diesel_error_to_data_error,
+    errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
@@ -603,7 +603,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )>,
         StorageError,
     > {
-
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()

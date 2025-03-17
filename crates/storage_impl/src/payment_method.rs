@@ -20,13 +20,12 @@ use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
-    diesel_error_to_data_error,
-    errors,
+    diesel_error_to_data_error, errors,
     kv_router_store::{
         FilterResourceParams, FindResourceBy, InsertResourceParams, KVRouterStore,
         UpdateResourceParams,
     },
-    redis::kv_store::{ Op, PartitionKey},
+    redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,
 };
@@ -72,7 +71,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             key_store,
             storage_scheme,
             PaymentMethod::find_by_id(&conn, payment_method_id),
-            FindResourceBy::LookupId(format!("payment_method_{}", payment_method_id.get_string_repr())),
+            FindResourceBy::LookupId(format!(
+                "payment_method_{}",
+                payment_method_id.get_string_repr()
+            )),
         )
         .await
     }

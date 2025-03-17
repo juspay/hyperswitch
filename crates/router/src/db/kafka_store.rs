@@ -2010,10 +2010,8 @@ impl PaymentIntentInterface for KafkaStore {
         profile_id: &id_type::ProfileId,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: &MerchantStorageScheme,
-    ) -> error_stack::Result<
-        hyperswitch_domain_models::payments::PaymentIntent,
-        errors::StorageError,
-    > {
+    ) -> error_stack::Result<hyperswitch_domain_models::payments::PaymentIntent, errors::StorageError>
+    {
         self.diesel_store
             .find_payment_intent_by_merchant_reference_id_profile_id(
                 state,
@@ -3510,8 +3508,7 @@ impl BatchSampleDataInterface for KafkaStore {
     async fn insert_refunds_batch_for_sample_data(
         &self,
         batch: Vec<diesel_models::RefundNew>,
-    ) -> CustomResult<Vec<diesel_models::Refund>, storage_impl::errors::StorageError>
-    {
+    ) -> CustomResult<Vec<diesel_models::Refund>, storage_impl::errors::StorageError> {
         let refunds_list = self
             .diesel_store
             .insert_refunds_batch_for_sample_data(batch)
@@ -3530,8 +3527,7 @@ impl BatchSampleDataInterface for KafkaStore {
     async fn insert_disputes_batch_for_sample_data(
         &self,
         batch: Vec<diesel_models::DisputeNew>,
-    ) -> CustomResult<Vec<diesel_models::Dispute>, storage_impl::errors::StorageError>
-    {
+    ) -> CustomResult<Vec<diesel_models::Dispute>, storage_impl::errors::StorageError> {
         let disputes_list = self
             .diesel_store
             .insert_disputes_batch_for_sample_data(batch)
@@ -3597,8 +3593,7 @@ impl BatchSampleDataInterface for KafkaStore {
     async fn delete_refunds_for_sample_data(
         &self,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Vec<diesel_models::Refund>, storage_impl::errors::StorageError>
-    {
+    ) -> CustomResult<Vec<diesel_models::Refund>, storage_impl::errors::StorageError> {
         let refunds_list = self
             .diesel_store
             .delete_refunds_for_sample_data(merchant_id)
@@ -3618,8 +3613,7 @@ impl BatchSampleDataInterface for KafkaStore {
     async fn delete_disputes_for_sample_data(
         &self,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Vec<diesel_models::Dispute>, storage_impl::errors::StorageError>
-    {
+    ) -> CustomResult<Vec<diesel_models::Dispute>, storage_impl::errors::StorageError> {
         let disputes_list = self
             .diesel_store
             .delete_disputes_for_sample_data(merchant_id)

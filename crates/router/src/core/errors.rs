@@ -10,7 +10,9 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage};
+pub use hyperswitch_domain_models::errors::api_error_response::{
+    ApiErrorResponse, ErrorType, NotImplementedMessage,
+};
 pub use hyperswitch_interfaces::errors::ConnectorError;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
