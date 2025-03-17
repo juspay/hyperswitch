@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.17.0
+
+### Features
+
+- **connector:** [BRAINTREE] Add revoke mandate flow ([#7525](https://github.com/juspay/hyperswitch/pull/7525)) ([`2f55be4`](https://github.com/juspay/hyperswitch/commit/2f55be45fba43484b5d1ae36864028388b02e67a))
+
+**Full Changelog:** [`2025.03.14.0...2025.03.17.0`](https://github.com/juspay/hyperswitch/compare/2025.03.14.0...2025.03.17.0)
+
+
+- - -
+
 ## 2025.03.14.0
 
 ### Features
