@@ -5,6 +5,8 @@ use common_utils::{
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
+use crate::events;
+
 #[cfg(feature = "v1")]
 #[serde_with::skip_serializing_none]
 #[derive(serde::Serialize, Debug)]
@@ -144,8 +146,8 @@ impl super::KafkaMessage for KafkaRefundEvent<'_> {
             self.refund_id
         )
     }
-    fn event_type(&self) -> crate::events::EventType {
-        crate::events::EventType::Refund
+    fn event_type(&self) -> events::EventType {
+        events::EventType::Refund
     }
 }
 
@@ -160,7 +162,7 @@ impl super::KafkaMessage for KafkaRefundEvent<'_> {
             self.merchant_reference_id.get_string_repr()
         )
     }
-    fn event_type(&self) -> crate::events::EventType {
-        crate::events::EventType::Refund
+    fn event_type(&self) -> events::EventType {
+        events::EventType::Refund
     }
 }

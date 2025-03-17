@@ -5,6 +5,8 @@ use common_utils::{
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
+use crate::events;
+
 #[cfg(feature = "v1")]
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaRefund<'a> {
@@ -143,8 +145,8 @@ impl super::KafkaMessage for KafkaRefund<'_> {
         )
     }
 
-    fn event_type(&self) -> crate::events::EventType {
-        crate::events::EventType::Refund
+    fn event_type(&self) -> events::EventType {
+        events::EventType::Refund
     }
 }
 
@@ -160,7 +162,7 @@ impl super::KafkaMessage for KafkaRefund<'_> {
         )
     }
 
-    fn event_type(&self) -> crate::events::EventType {
-        crate::events::EventType::Refund
+    fn event_type(&self) -> events::EventType {
+        events::EventType::Refund
     }
 }
