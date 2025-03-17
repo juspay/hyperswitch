@@ -188,7 +188,8 @@ impl<T: DatabaseStore> RouterStore<T> {
     where
         D: Debug + Sync + Conversion,
         R: futures::Future<
-        Output = error_stack::Result<Option<M>, diesel_models::errors::DatabaseError>,> + Send,
+                Output = error_stack::Result<Option<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
         M: ReverseConversion<D>,
     {
         match execute_query_fut.await.map_err(|error| {
