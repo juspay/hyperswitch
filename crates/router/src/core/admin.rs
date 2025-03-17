@@ -1404,10 +1404,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
                 Ok(())
             }
-            // api_enums::Connector::Hipay => {
-            //     hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Hipay => {
+                hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Helcim => {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())

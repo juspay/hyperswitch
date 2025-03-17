@@ -31,6 +31,8 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
@@ -272,6 +274,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             ),
             payment_method_type: from.payment_method_type,
             payment_method_subtype: from.payment_method_subtype,
+            connector: from.connector,
         }
     }
 
@@ -286,6 +289,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .convert_back(),
             payment_method_type: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
+            connector: self.connector,
         }
     }
 }
@@ -566,6 +570,24 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payments::AmountDetails> for api_models::payments::AmountDetailsSetter {
+    fn from(amount_details: payments::AmountDetails) -> Self {
+        Self {
+            order_amount: amount_details.order_amount.into(),
+            currency: amount_details.currency,
+            shipping_cost: amount_details.shipping_cost,
+            order_tax_amount: amount_details
+                .tax_details
+                .and_then(|tax_detail| tax_detail.get_default_tax_amount()),
+            skip_external_tax_calculation: amount_details.skip_external_tax_calculation,
+            skip_surcharge_calculation: amount_details.skip_surcharge_calculation,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
         }
     }
 }
