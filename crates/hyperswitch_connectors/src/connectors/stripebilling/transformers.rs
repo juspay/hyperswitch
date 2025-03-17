@@ -1,6 +1,5 @@
 #[cfg(feature = "v2")]
 use std::str::FromStr;
-
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
@@ -9,8 +8,6 @@ use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::String
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
-use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
@@ -35,7 +32,6 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{convert_uppercase, PaymentsAuthorizeRequestData},
     utils::{convert_uppercase, PaymentsAuthorizeRequestData},
 };
 
@@ -121,8 +117,22 @@ impl TryFrom<&ConnectorAuthType> for StripebillingAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Copy)]
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Copy)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Copy,
+    Debug,
+    Clone,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Copy,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum StripebillingPaymentStatus {
     Succeeded,
@@ -194,8 +204,20 @@ impl<F> TryFrom<&StripebillingRouterData<&RefundsRouterData<F>>> for Stripebilli
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone, Copy)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone, Copy)]
+#[derive(
+    Debug,
+    Serialize,
+    Default,
+    Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    Serialize,
+    Default,
+    Deserialize,
+    Clone,
+    Copy,
+)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
