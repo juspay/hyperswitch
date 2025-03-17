@@ -202,7 +202,8 @@ pub async fn form_payment_link_data(
             storage_enums::IntentStatus::RequiresCustomerAction,
         ],
     );
-    if is_payment_link_terminal_state || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
+    if is_payment_link_terminal_state
+        || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
         let status = match payment_link_status {
             api_models::payments::PaymentLinkStatus::Active => {
