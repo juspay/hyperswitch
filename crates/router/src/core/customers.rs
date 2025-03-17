@@ -835,7 +835,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                         &pm.payment_method_id,
                     )
                     .await
-                    .switch()?;
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "failed to delete payment method while redacting customer details",
+                    )?;
                 }
             }
             Err(error) => {

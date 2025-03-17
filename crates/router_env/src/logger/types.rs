@@ -574,6 +574,8 @@ pub enum Flow {
     CardsInfoUpdate,
     /// Cards Info migrate flow
     CardsInfoMigrate,
+    ///Total payment method count for merchant
+    TotalPaymentMethodCount,
 }
 
 /// Trait for providing generic behaviour to flow metric

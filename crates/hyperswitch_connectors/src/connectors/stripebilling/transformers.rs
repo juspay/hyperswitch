@@ -352,8 +352,8 @@ pub struct StripebillingRecoveryDetailsData {
     pub currency: enums::Currency,
     pub customer: String,
     pub payment_method: String,
-    pub failure_code: String,
-    pub failure_message: String,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub created: PrimitiveDateTime,
     pub payment_method_details: StripePaymentMethodDetails,
@@ -389,8 +389,6 @@ pub enum StripebillingFundingTypes {
     Debit,
     #[serde(rename = "prepaid")]
     Prepaid,
-    #[serde(rename = "unknown")]
-    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -398,8 +396,13 @@ pub enum StripebillingFundingTypes {
 pub enum StripebillingChargeStatus {
     Succeeded,
     Failed,
-    Pending,
 }
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// This is the default hard coded mca Id to find the stripe account associated with the stripe biliing
+// Context : Since we dont have the concept of connector_reference_id in stripebilling because payments always go through stripe.
+// While creating stripebilling we will hard code the stripe mca id to string "stripebilling" in mca featrue metadata. So we have to pass the same as account_reference_id here in response.
+const MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA: &str = "stripebilling";
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
@@ -434,10 +437,11 @@ impl
                 amount: item.response.amount,
                 currency: item.response.currency,
                 merchant_reference_id,
-                connector_account_reference_id: "stripebilling".to_string(),
+                connector_account_reference_id:
+                    MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA.to_string(),
                 connector_transaction_id,
-                error_code: Some(item.response.failure_code),
-                error_message: Some(item.response.failure_message),
+                error_code: item.response.failure_code,
+                error_message: item.response.failure_message,
                 processor_payment_method_token: item.response.payment_method,
                 connector_customer_id: item.response.customer,
                 transaction_created_at: Some(item.response.created),
@@ -461,7 +465,7 @@ impl From<StripebillingChargeStatus> for enums::AttemptStatus {
     fn from(status: StripebillingChargeStatus) -> Self {
         match status {
             StripebillingChargeStatus::Succeeded => Self::Charged,
-            StripebillingChargeStatus::Failed | StripebillingChargeStatus::Pending => Self::Pending,
+            StripebillingChargeStatus::Failed => Self::Failure,
         }
     }
 }
@@ -471,9 +475,7 @@ impl From<StripebillingFundingTypes> for common_enums::PaymentMethodType {
     fn from(funding: StripebillingFundingTypes) -> Self {
         match funding {
             StripebillingFundingTypes::Credit => Self::Credit,
-            StripebillingFundingTypes::Debit
-            | StripebillingFundingTypes::Prepaid
-            | StripebillingFundingTypes::Unknown => Self::Debit,
+            StripebillingFundingTypes::Debit | StripebillingFundingTypes::Prepaid => Self::Debit,
         }
     }
 }

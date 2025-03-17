@@ -29,3 +29,8 @@ pub struct GetAdditionalRevenueRecoveryResponseData {
     /// payment method sub type of the payment attempt.
     pub payment_method_sub_type: common_enums::enums::PaymentMethodType,
 }
+
+#[derive(Debug, Clone)]
+pub struct RevenueRecoveryRecordBackResponse {
+    pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+}
