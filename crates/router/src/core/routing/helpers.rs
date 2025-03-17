@@ -1036,11 +1036,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             );
 
             let request_label_info = routing_types::LabelInformation {
-                label: format!(
-                    "{}:{}",
-                    final_label_info.label.clone(),
-                    final_label_info.mca_id.get_string_repr()
-                ),
+                label: final_label_info.label.clone(),
                 target_count: final_label_info.target_count,
                 target_time: final_label_info.target_time,
                 mca_id: final_label_info.mca_id.to_owned(),
@@ -1056,6 +1052,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                         vec![request_label_info],
                         "".to_string(),
                         vec![],
+                        1,
                         state.get_grpc_headers(),
                     )
                     .await
@@ -1065,12 +1062,19 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     )?;
             }
 
+            let contract_based_connectors = routable_connectors
+                .into_iter()
+                .filter(|conn| {
+                    conn.merchant_connector_id.clone() == Some(final_label_info.mca_id.clone())
+                })
+                .collect::<Vec<_>>();
+
             let contract_scores = client
                 .calculate_contract_score(
                     profile_id.get_string_repr().into(),
                     contract_based_routing_config.clone(),
                     "".to_string(),
-                    routable_connectors.clone(),
+                    contract_based_connectors,
                     state.get_grpc_headers(),
                 )
                 .await

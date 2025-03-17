@@ -41,12 +41,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-
-pub(crate) const CANNOT_CONTINUE_AUTH: &str =
-    "Cannot continue with Authorization due to failed Liability Shift.";
-#[cfg(feature = "payouts")]
-pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
 
@@ -88,6 +82,12 @@ pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
     "Approval of Recon Request - Access Granted to Recon Dashboard";
 
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
+
+pub const CARD_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "CARD_IP_BLOCKING";
+
+pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLOCKING";
+
+pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";

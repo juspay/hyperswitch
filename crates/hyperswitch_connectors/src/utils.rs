@@ -36,6 +36,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
+    mandates,
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
@@ -44,19 +45,19 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
-        RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::CaptureSyncResponse,
     types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
-use image::Luma;
+use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
-use serde::Serializer;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -288,6 +289,11 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
@@ -341,16 +347,6 @@ pub(crate) fn construct_not_implemented_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
         .into()
-}
-
-pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let float_value = value.parse::<f64>().map_err(|_| {
-        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
-    })?;
-    serializer.serialize_f64(float_value)
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
@@ -1280,6 +1276,7 @@ pub trait AddressDetailsData {
     fn get_optional_line2(&self) -> Option<Secret<String>>;
     fn get_optional_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1501,6 +1498,10 @@ impl AddressDetailsData for AddressDetails {
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
         self.last_name.clone()
     }
+
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
+    }
 }
 
 pub trait AdditionalCardInfo {
@@ -1625,6 +1626,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1829,6 +1833,22 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
     }
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_network
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_network",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_network"],
+            }
+            .into()),
+        }
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -1878,6 +1898,22 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             )
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+}
+
+pub trait PaymentsPostSessionTokensRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostSessionTokensRequestData for PaymentsPostSessionTokensData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
 }
@@ -2328,6 +2364,24 @@ impl CryptoData for payment_method_data::CryptoData {
             .clone()
             .ok_or_else(missing_field_err("crypto_data.pay_currency"))
     }
+}
+
+#[macro_export]
+macro_rules! capture_method_not_supported {
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
+    };
 }
 
 #[macro_export]
@@ -4991,12 +5045,12 @@ impl QrImage {
             .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
 
         let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
-        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
+        let qrcode_dynamic_image = DynamicImage::ImageLuma8(qrcode_image_buffer);
 
         let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
 
         // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, ImageFormat::Png);
 
         let image_data_source = format!(
             "{},{}",
@@ -5006,6 +5060,58 @@ impl QrImage {
         Ok(Self {
             data: image_data_source,
         })
+    }
+
+    pub fn new_colored_from_data(
+        data: String,
+        hex_color: &str,
+    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
+        let qr_code = qrcode::QrCode::new(data.as_bytes())
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
+        let (width, height) = qrcode_image_buffer.dimensions();
+        let mut colored_image = ImageBuffer::new(width, height);
+        let rgb = Self::parse_hex_color(hex_color)?;
+
+        for (x, y, pixel) in qrcode_image_buffer.enumerate_pixels() {
+            let luminance = pixel.0[0];
+            let color = if luminance == 0 {
+                Rgba([rgb.0, rgb.1, rgb.2, 255])
+            } else {
+                Rgba([255, 255, 255, 255])
+            };
+            colored_image.put_pixel(x, y, color);
+        }
+
+        let qrcode_dynamic_image = DynamicImage::ImageRgba8(colored_image);
+        let mut image_bytes = std::io::Cursor::new(Vec::new());
+        qrcode_dynamic_image
+            .write_to(&mut image_bytes, ImageFormat::Png)
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        let image_data_source = format!(
+            "{},{}",
+            QR_IMAGE_DATA_SOURCE_STRING,
+            BASE64_ENGINE.encode(image_bytes.get_ref())
+        );
+
+        Ok(Self {
+            data: image_data_source,
+        })
+    }
+
+    pub fn parse_hex_color(hex: &str) -> Result<(u8, u8, u8), common_utils::errors::QrCodeError> {
+        let hex = hex.trim_start_matches('#');
+        if hex.len() == 6 {
+            let r = u8::from_str_radix(&hex[0..2], 16).ok();
+            let g = u8::from_str_radix(&hex[2..4], 16).ok();
+            let b = u8::from_str_radix(&hex[4..6], 16).ok();
+            if let (Some(r), Some(g), Some(b)) = (r, g, b) {
+                return Ok((r, g, b));
+            }
+        }
+        Err(common_utils::errors::QrCodeError::InvalidHexColor)
     }
 }
 
@@ -5041,6 +5147,62 @@ pub fn is_mandate_supported(
             .into()),
         }
     }
+}
+
+pub fn get_mandate_details(
+    setup_mandate_details: Option<mandates::MandateData>,
+) -> Result<Option<mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
+    setup_mandate_details
+        .map(|mandate_data| match &mandate_data.mandate_type {
+            Some(mandates::MandateDataType::SingleUse(mandate))
+            | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate.clone()),
+            Some(mandates::MandateDataType::MultiUse(None)) => {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                }
+                .into())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "setup_future_usage.mandate_data.mandate_type",
+            }
+            .into()),
+        })
+        .transpose()
+}
+
+pub fn collect_values_by_removing_signature(value: &Value, signature: &String) -> Vec<String> {
+    match value {
+        Value::Null => vec!["null".to_owned()],
+        Value::Bool(b) => vec![b.to_string()],
+        Value::Number(n) => match n.as_f64() {
+            Some(f) => vec![format!("{f:.2}")],
+            None => vec![n.to_string()],
+        },
+        Value::String(s) => {
+            if signature == s {
+                vec![]
+            } else {
+                vec![s.clone()]
+            }
+        }
+        Value::Array(arr) => arr
+            .iter()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+        Value::Object(obj) => obj
+            .values()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+    }
+}
+
+pub fn collect_and_sort_values_by_removing_signature(
+    value: &Value,
+    signature: &String,
+) -> Vec<String> {
+    let mut values = collect_values_by_removing_signature(value, signature);
+    values.sort();
+    values
 }
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
@@ -5090,6 +5252,7 @@ pub enum PaymentMethodDataType {
     BancontactCard,
     Bizum,
     Blik,
+    Eft,
     Eps,
     Giropay,
     Ideal,
@@ -5221,6 +5384,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
+                payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
                 payment_method_data::BankRedirectData::Giropay { .. } => Self::Giropay,
                 payment_method_data::BankRedirectData::Ideal { .. } => Self::Ideal,
