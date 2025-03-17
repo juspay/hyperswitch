@@ -2367,7 +2367,7 @@ Cypress.Commands.add(
             ).to.include("pm_").and.to.not.be.null;
 
             // Determine expected status based on payment status
-            const expectedStatus = ["succeeded", "requires_capture"].includes(
+            const expectedStatus = ["succeeded", "requires_capture", "partially_captured"].includes(
               response.body.status
             )
               ? "active"
