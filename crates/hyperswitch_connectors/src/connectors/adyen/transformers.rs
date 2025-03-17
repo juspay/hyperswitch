@@ -473,10 +473,7 @@ pub struct RedirectionResponse {
     merchant_reference: Option<String>,
     store: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
-    // Raw acquirer refusal code
-    refusal_code_raw: Option<String>,
-    // Raw acquirer refusal reason
-    refusal_reason_raw: Option<String>,
+    additional_data: Option<AdditionalData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3619,8 +3616,14 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: response.refusal_code_raw.clone(),
-            issuer_error_message: response.refusal_reason_raw.clone(),
+            issuer_error_code: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.refusal_code_raw.clone()),
+            issuer_error_message: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.refusal_reason_raw.clone()),
         })
     } else {
         None
@@ -3830,7 +3833,7 @@ pub fn get_redirection_error_response(
         issuer_error_message: response
             .additional_data
             .as_ref()
-            .and_then(|data| data.refusal_code_raw.clone()),
+            .and_then(|data| data.refusal_reason_raw.clone()),
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
