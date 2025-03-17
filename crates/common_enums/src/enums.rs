@@ -429,8 +429,8 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
-    /// Represents billing processors that handle subscription management, invoicing,  
-    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.  
+    /// Represents billing processors that handle subscription management, invoicing,
+    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
 }
 
@@ -1587,6 +1587,7 @@ pub enum PaymentMethodType {
     Debit,
     DuitNow,
     Efecty,
+    Eft,
     Eps,
     Fps,
     Evoucher,
@@ -6501,6 +6502,7 @@ pub enum AuthenticationConnectors {
     Gpayments,
     CtpMastercard,
     UnifiedAuthenticationService,
+    Juspaythreedsserver,
 }
 
 impl AuthenticationConnectors {
@@ -6509,7 +6511,8 @@ impl AuthenticationConnectors {
             Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
-            | Self::UnifiedAuthenticationService => false,
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver => false,
             Self::Gpayments => true,
         }
     }
@@ -6683,6 +6686,7 @@ impl From<RoleScope> for EntityType {
     serde::Serialize,
     serde::Deserialize,
     Eq,
+    Hash,
     PartialEq,
     ToSchema,
     strum::Display,
@@ -7604,7 +7608,7 @@ pub enum AdyenSplitType {
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
     /// Failed to call the payment connector
-    ConnectorCallFailed,
+    ConnectorCallUnsuccessful,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
 }

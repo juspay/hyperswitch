@@ -104,9 +104,19 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
+pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
 
 pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;
+
+pub type BoxedGetAdditionalRecoveryRecoveryDetailsIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::GetAdditionalRevenueRecoveryFlowCommonData,
+        Req,
+        Res,
+    >;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -1588,6 +1598,7 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
+            acs_url,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1664,7 +1675,7 @@ pub fn build_redirection_form(
                                                 }} else {{
                                                     // console.log(payload);
                                                     var f = document.createElement('form');
-                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
+                                                    f.action=\"{acs_url}\";
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';

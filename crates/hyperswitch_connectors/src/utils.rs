@@ -45,8 +45,9 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
-        RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::CaptureSyncResponse,
     types::OrderDetailsWithAmount,
@@ -57,7 +58,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
-use serde::Serializer;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -289,6 +289,11 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
@@ -342,16 +347,6 @@ pub(crate) fn construct_not_implemented_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
         .into()
-}
-
-pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let float_value = value.parse::<f64>().map_err(|_| {
-        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
-    })?;
-    serializer.serialize_f64(float_value)
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
@@ -1281,6 +1276,7 @@ pub trait AddressDetailsData {
     fn get_optional_line2(&self) -> Option<Secret<String>>;
     fn get_optional_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1502,6 +1498,10 @@ impl AddressDetailsData for AddressDetails {
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
         self.last_name.clone()
     }
+
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
+    }
 }
 
 pub trait AdditionalCardInfo {
@@ -1626,6 +1626,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1830,6 +1833,22 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
     }
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_network
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_network",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_network"],
+            }
+            .into()),
+        }
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -1879,6 +1898,22 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             )
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+}
+
+pub trait PaymentsPostSessionTokensRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostSessionTokensRequestData for PaymentsPostSessionTokensData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
 }
@@ -2329,6 +2364,24 @@ impl CryptoData for payment_method_data::CryptoData {
             .clone()
             .ok_or_else(missing_field_err("crypto_data.pay_currency"))
     }
+}
+
+#[macro_export]
+macro_rules! capture_method_not_supported {
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
+    };
 }
 
 #[macro_export]
@@ -5199,6 +5252,7 @@ pub enum PaymentMethodDataType {
     BancontactCard,
     Bizum,
     Blik,
+    Eft,
     Eps,
     Giropay,
     Ideal,
@@ -5330,6 +5384,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
+                payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
                 payment_method_data::BankRedirectData::Giropay { .. } => Self::Giropay,
                 payment_method_data::BankRedirectData::Ideal { .. } => Self::Ideal,

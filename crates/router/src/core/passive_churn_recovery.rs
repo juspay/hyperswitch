@@ -1,12 +1,14 @@
 pub mod transformers;
 pub mod types;
-use api_models::payments::PaymentsRetrieveRequest;
-use common_utils::{self, id_type, types::keymanager::KeyManagerState};
+use api_models::payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest};
+use common_utils::{self, ext_traits::OptionExt, id_type, types::keymanager::KeyManagerState};
 use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
+    behaviour::ReverseConversion,
     errors::api_error_response,
     payments::{PaymentIntent, PaymentStatusData},
+    ApiModelToDieselModelConvertor,
 };
 use scheduler::errors;
 
@@ -35,34 +37,44 @@ pub async fn perform_execute_payment(
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
+
+    let mut pcr_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .get_required_value("Payment Revenue Recovery Metadata")?
+        .convert_back();
+
     let decision = pcr_types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
-        false,
+        pcr_metadata.payment_connector_transmission,
         payment_intent.active_attempt_id.clone(),
         pcr_data,
         &tracking_data.global_payment_id,
     )
     .await?;
+
     // TODO decide if its a global failure or is it requeueable error
     match decision {
         pcr_types::Decision::Execute => {
             let action = pcr_types::Action::execute_payment(
-                db,
+                state,
                 pcr_data.merchant_account.get_id(),
                 payment_intent,
                 execute_task_process,
+                pcr_data,
+                &pcr_metadata,
             )
             .await?;
-            action
-                .execute_payment_task_response_handler(
-                    db,
-                    &pcr_data.merchant_account,
-                    payment_intent,
-                    execute_task_process,
-                    &pcr_data.profile,
-                )
-                .await?;
+            Box::pin(action.execute_payment_task_response_handler(
+                state,
+                payment_intent,
+                execute_task_process,
+                pcr_data,
+                &mut pcr_metadata,
+            ))
+            .await?;
         }
 
         pcr_types::Decision::Psync(attempt_status, attempt_id) => {
@@ -142,7 +154,9 @@ async fn insert_psync_pcr_task(
         runner,
         tag,
         psync_workflow_tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .change_context(api_error_response::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;

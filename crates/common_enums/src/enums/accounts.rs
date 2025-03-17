@@ -17,9 +17,8 @@ use utoipa::ToSchema;
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantProductType {
-    Orchestration,
     #[default]
-    Legacy,
+    Orchestration,
     Vault,
     Recon,
     Recovery,
