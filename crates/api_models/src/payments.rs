@@ -5036,6 +5036,12 @@ pub struct PaymentsResponse {
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// Error code received from the issuer in case of failed payments
+    pub issuer_error_code: Option<String>,
+
+    /// Error message received from the issuer in case of failed payments
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v2")]

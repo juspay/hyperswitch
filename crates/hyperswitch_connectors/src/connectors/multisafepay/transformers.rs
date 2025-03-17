@@ -1045,6 +1045,8 @@ pub fn populate_error_reason(
         status_code: http_code,
         attempt_status,
         connector_transaction_id,
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 // REFUND :
@@ -1150,6 +1152,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, MultisafepayRefundResponse>>
                         status_code: item.http_code,
                         attempt_status,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     ..item.data
                 })

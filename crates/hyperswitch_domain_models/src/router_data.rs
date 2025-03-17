@@ -399,6 +399,8 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -410,6 +412,8 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -423,6 +427,8 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -601,6 +607,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -798,6 +806,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1013,6 +1023,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
 
                 let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
@@ -1256,6 +1268,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 

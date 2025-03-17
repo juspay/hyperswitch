@@ -144,6 +144,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsRe
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                 )
             }
@@ -251,6 +253,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsRespo
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     ..item.data
                 })
@@ -348,6 +352,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaystackRefundsResponse>>
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     ..item.data
                 })
@@ -388,6 +394,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaystackRefundsResponse>>
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     ..item.data
                 })
