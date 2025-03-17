@@ -109,8 +109,6 @@ pub async fn recovery_incoming_webhook_flow(
         ),
     };
 
-    println!("{:?}", invoice_details);
-
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
         .get_payment_intent(
@@ -155,7 +153,6 @@ pub async fn recovery_incoming_webhook_flow(
                 ),
             };
 
-            println!("{:?}", invoice_transaction_details);
 
             // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
             let payment_merchant_connector_account = invoice_transaction_details
