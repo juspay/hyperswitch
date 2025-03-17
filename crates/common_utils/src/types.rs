@@ -519,7 +519,7 @@ pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
     /// forms a new minor unit in string from amount
-    fn new(value: String) -> Self {
+    pub fn new(value: String) -> Self {
         Self(value)
     }
 

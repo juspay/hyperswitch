@@ -2014,6 +2014,8 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -2047,6 +2049,20 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
     }
 }
 

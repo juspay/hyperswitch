@@ -4001,6 +4001,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             &attempt.merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
 
         Ok(Self {
             currency: payment_data.currency,
@@ -4032,6 +4037,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
             webhook_url,
+            complete_authorize_url,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }
