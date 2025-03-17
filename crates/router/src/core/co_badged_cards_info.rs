@@ -3,13 +3,13 @@ use common_enums::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
-use hyperswitch_domain_models::co_badged_cards_info::CoBadgedCardInfo;
+use hyperswitch_domain_models::co_badged_cards_info::{CoBadgedCardInfo, CoBadgedCardInfoResponse};
 
 pub struct CoBadgedCardInfoList(Vec<CoBadgedCardInfo>);
 
 impl CoBadgedCardInfoList {
     fn pad_card_number_to_16_digit(card_number: cards::CardNumber) -> String {
-        let card_number = card_number.get_card_isin();
+        let card_number = card_number.to_string();
         format!("{:0>19}", card_number)
     }
     pub fn is_valid_length(&self) -> bool {
@@ -48,8 +48,32 @@ impl CoBadgedCardInfoList {
             .collect()
     }
 
-    pub fn is_regulated(&self) -> bool {
-        self.0[0].regulated
+    pub fn is_regulated(&self) -> CustomResult<bool, errors::ApiErrorResponse> {
+        let first_element = self
+            .0
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The filtered co-badged card info list is empty")?;
+        Ok(first_element.regulated)
+    }
+
+    pub fn get_regulated_name(&self) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+        let first_element = self
+            .0
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The filtered co-badged card info list is empty")?;
+        Ok(first_element.regulated_name.clone())
+    }
+
+    pub fn get_co_badged_cards_info_response(
+        &self,
+    ) -> CustomResult<CoBadgedCardInfoResponse, errors::ApiErrorResponse> {
+        Ok(CoBadgedCardInfoResponse {
+            card_networks: self.extract_networks(),
+            regulated: self.is_regulated()?,
+            regulated_name: self.get_regulated_name()?,
+        })
     }
 }
 
@@ -57,7 +81,7 @@ pub async fn get_co_badged_cards_info(
     state: routes::SessionState,
     key_store: domain::MerchantKeyStore,
     card_number: cards::CardNumber,
-) -> CustomResult<Option<(Vec<enums::CardNetwork>, bool)>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<CoBadgedCardInfoResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -75,37 +99,41 @@ pub async fn get_co_badged_cards_info(
         .find_co_badged_cards_info_by_card_bin(key_manager_state, &key_store, parsed_number)
         .await;
 
-    let co_badged_card_infos = match co_badged_card_infos_record {
+    let filtered_co_badged_card_info_list_optional = match co_badged_card_infos_record {
         Err(error) => {
             if error.current_context().is_db_not_found() {
-                Err(error).change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "co-badged card info not found".to_string(),
-                })?
+                logger::debug!("co-badged card info record not found");
+                Ok(None)
             } else {
-                return Err(error)
+                Err(error)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("error while fetching co-badged card info record");
+                    .attach_printable("error while fetching co-badged card info record")
             }
         }
-        Ok(co_badged_card_infos) => co_badged_card_infos,
-    };
+        Ok(co_badged_card_infos) => {
+            let co_badged_card_infos_list = CoBadgedCardInfoList(co_badged_card_infos);
 
-    let co_badged_list = CoBadgedCardInfoList(co_badged_card_infos);
+            let filtered_co_badged_card_info_list_optional = co_badged_card_infos_list
+                .is_valid_length()
+                .then(|| co_badged_card_infos_list.filter_cards())
+                .and_then(|filtered_co_badged_card_infos_list| {
+                    if filtered_co_badged_card_infos_list.is_valid_length()
+                        && filtered_co_badged_card_infos_list.has_same_issuer()
+                    {
+                        Some(filtered_co_badged_card_infos_list)
+                    } else {
+                        None
+                    }
+                });
 
-    let result = if co_badged_list.is_valid_length() {
-        let filtered_co_badged_list = co_badged_list.filter_cards();
-
-        if filtered_co_badged_list.is_valid_length() && filtered_co_badged_list.has_same_issuer() {
-            Some((
-                filtered_co_badged_list.extract_networks(),
-                filtered_co_badged_list.is_regulated(),
-            ))
-        } else {
-            None
+            Ok(filtered_co_badged_card_info_list_optional)
         }
-    } else {
-        None
-    };
+    }?;
 
-    Ok(result)
+    let co_badged_cards_info_response = filtered_co_badged_card_info_list_optional
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get co-badged card info list")?
+        .get_co_badged_cards_info_response()
+        .attach_printable("Failed to generate co-badged card info response")?;
+    Ok(Some(co_badged_cards_info_response))
 }

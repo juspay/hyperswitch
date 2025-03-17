@@ -31,6 +31,12 @@ pub struct CoBadgedCardInfo {
     pub last_updated_provider: Option<String>,
 }
 
+pub struct CoBadgedCardInfoResponse {
+    pub card_networks: Vec<enums::CardNetwork>,
+    pub regulated: bool,
+    pub regulated_name: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, router_derive::DebugAsDisplay, serde::Deserialize)]
 pub struct UpdateCoBadgedCardInfo {
     pub card_bin_min: Option<i64>,
