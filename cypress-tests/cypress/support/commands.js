@@ -1276,7 +1276,6 @@ Cypress.Commands.add(
 
     globalState.set("paymentAmount", createPaymentBody.amount);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
-    console.log("ssssssssssss", createPaymentBody);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
