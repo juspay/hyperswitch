@@ -9,20 +9,16 @@ use common_utils::types::keymanager::KeyManagerState;
     not(feature = "payment_methods_v2")
 ))]
 use hyperswitch_domain_models::{
-    errors, merchant_account::MerchantAccount, payment_methods::PaymentMethod,
+    merchant_account::MerchantAccount, payment_methods::PaymentMethod,
 };
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore, payment_methods::PaymentMethodInterface,
 };
-use storage_impl::{kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
+use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsStorageInterface:
-    Send
-    + Sync
-    + dyn_clone::DynClone
-    + PaymentMethodInterface<Error = storage_impl::errors::StorageError>
-    + 'static
+    Send + Sync + dyn_clone::DynClone + PaymentMethodInterface<Error = errors::StorageError> + 'static
 {
 }
 dyn_clone::clone_trait_object!(PaymentMethodsStorageInterface);

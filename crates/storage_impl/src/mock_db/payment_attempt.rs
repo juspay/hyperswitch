@@ -11,8 +11,9 @@ use hyperswitch_domain_models::payments::payment_attempt::{
 };
 
 use super::MockDb;
+use crate::errors::StorageError;
 #[cfg(feature = "v1")]
-use crate::{errors::StorageError, DataModelExt};
+use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
