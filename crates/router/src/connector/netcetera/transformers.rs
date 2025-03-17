@@ -153,7 +153,8 @@ impl
                                 challenge_request: response.encoded_challenge_request,
                                 acs_reference_number: response
                                     .authentication_response
-                                    .acs_reference_number,
+                                    .acs_reference_number
+                                    .clone(),
                                 acs_trans_id: response.authentication_response.acs_trans_id,
                                 three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
                                 acs_signed_content: response
@@ -172,6 +173,7 @@ impl
                         connector_metadata: None,
                         ds_trans_id: response.authentication_response.ds_trans_id,
                         eci: response.authentication_response.eci,
+                        acs_reference_number: response.authentication_response.acs_reference_number,
                     },
                 )
             }

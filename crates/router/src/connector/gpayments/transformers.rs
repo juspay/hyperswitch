@@ -291,6 +291,7 @@ impl
                 ds_trans_id: Some(response_auth.ds_trans_id),
                 connector_metadata: None,
                 eci: None,
+                acs_reference_number: None,
             },
         );
         Ok(Self {

@@ -535,6 +535,7 @@ pub enum AuthenticationResponseData {
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
         eci: Option<String>,
+        acs_reference_number: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,

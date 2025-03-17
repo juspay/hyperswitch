@@ -191,6 +191,7 @@ impl
                         connector_metadata: None,
                         ds_trans_id: Some(response.ds_trans_id),
                         eci: None,
+                        acs_reference_number: None,
                     },
                 )
             }

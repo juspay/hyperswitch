@@ -91,6 +91,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 ds_trans_id,
                 eci,
+                acs_reference_number,
             } => {
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
@@ -99,7 +100,9 @@ pub async fn update_trackers<F: Clone, Req>(
                     trans_status,
                     acs_url: authn_flow_type.get_acs_url(),
                     challenge_request: authn_flow_type.get_challenge_request(),
-                    acs_reference_number: authn_flow_type.get_acs_reference_number(),
+                    acs_reference_number: authn_flow_type
+                        .get_acs_reference_number()
+                        .or(acs_reference_number),
                     acs_trans_id: authn_flow_type.get_acs_trans_id(),
                     acs_signed_content: authn_flow_type.get_acs_signed_content(),
                     authentication_type: authn_flow_type.get_decoupled_authentication_type(),
