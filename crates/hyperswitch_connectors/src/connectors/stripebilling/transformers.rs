@@ -476,8 +476,7 @@ impl From<StripebillingFundingTypes> for common_enums::PaymentMethodType {
     fn from(funding: StripebillingFundingTypes) -> Self {
         match funding {
             StripebillingFundingTypes::Credit => Self::Credit,
-            StripebillingFundingTypes::Debit
-            | StripebillingFundingTypes::Prepaid => Self::Debit,
+            StripebillingFundingTypes::Debit | StripebillingFundingTypes::Prepaid => Self::Debit,
         }
     }
 }
