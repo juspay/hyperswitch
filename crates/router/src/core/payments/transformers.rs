@@ -4532,6 +4532,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text_colour: config.payment_button_text_colour,
             sdk_ui_rules: config.sdk_ui_rules,
             payment_link_ui_rules: config.payment_link_ui_rules,
+            enable_button_only_on_form_ready: config.enable_button_only_on_form_ready,
         }
     }
 }
@@ -4602,6 +4603,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             payment_button_text_colour: config.payment_button_text_colour,
             sdk_ui_rules: config.sdk_ui_rules,
             payment_link_ui_rules: config.payment_link_ui_rules,
+            enable_button_only_on_form_ready: config.enable_button_only_on_form_ready,
         }
     }
 }
