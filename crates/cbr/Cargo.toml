@@ -1,0 +1,22 @@
+[package]
+name = "cbr"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+common_enums = { version = "0.1.0", path = "../common_enums" }
+cbr_macros = { version = "0.1.0", path = "../cbr_macros" }
+euclid = { version = "0.1.0", path = "../euclid" }
+rustc-hash = "1.1.0"
+rust_decimal = "1.35"
+rusty-money = { git = "https://github.com/varunsrin/rusty_money", rev = "bbc0150742a0fff905225ff11ee09388e9babdcc", features = ["iso", "crypto"] }
+common_utils = { version = "0.1.0", path = "../common_utils" }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
+serde = { version = "1.0.197", features = ["derive", "rc"] }
+serde_json = "1.0.115"
+thiserror = "1.0.58"
+
+[lints]
+workspace = true

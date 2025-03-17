@@ -26,6 +26,25 @@ pub fn convert(
     }
 }
 
+pub fn convert_decimal(
+    ex_rates: &ExchangeRates,
+    from_currency: Currency,
+    to_currency: Currency,
+    amount: Decimal,
+) -> Result<Decimal, CurrencyConversionError> {
+    let money_minor = Money::from_decimal(amount, currency_match(from_currency));
+    let base_currency = ex_rates.base_currency;
+    if to_currency == base_currency {
+        ex_rates.forward_conversion(*money_minor.amount(), from_currency)
+    } else if from_currency == base_currency {
+        ex_rates.backward_conversion(*money_minor.amount(), to_currency)
+    } else {
+        let base_conversion_amt =
+            ex_rates.forward_conversion(*money_minor.amount(), from_currency)?;
+        ex_rates.backward_conversion(base_conversion_amt, to_currency)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::print_stdout)]

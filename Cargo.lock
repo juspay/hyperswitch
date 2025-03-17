@@ -1850,6 +1850,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
+name = "cbr"
+version = "0.1.0"
+dependencies = [
+ "cbr_macros",
+ "common_enums",
+ "common_utils",
+ "currency_conversion",
+ "euclid",
+ "rust_decimal",
+ "rustc-hash",
+ "rusty-money",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "cbr_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rust_decimal",
+ "rustc-hash",
+ "rusty-money",
+ "strum 0.26.3",
+ "syn 2.0.77",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

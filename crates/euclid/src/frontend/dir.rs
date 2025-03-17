@@ -55,6 +55,10 @@ impl DirKey {
     pub fn new(kind: DirKeyKind, value: Option<String>) -> Self {
         Self { kind, value }
     }
+
+    pub fn get_type(&self) -> types::DataType {
+        self.kind.get_type()
+    }
 }
 
 #[derive(
