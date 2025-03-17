@@ -15,14 +15,18 @@ use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
-        revenue_recovery::RecoveryRecordBack, Authenticate, AuthenticationConfirmation,
-        GetAdditionalRevenueRecoveryDetails, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::PaymentsCaptureData,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
     UasPreAuthentication, UnifiedAuthenticationService,
+};
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_flow_types::{
+    revenue_recovery::RecoveryRecordBack, GetAdditionalRevenueRecoveryDetails,
 };
 
 #[cfg(feature = "frm")]

@@ -9,9 +9,9 @@ use hyperswitch_domain_models::{
         GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
     },
 };
-
+use super::ConnectorIntegration;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use super::{ConnectorCommon, ConnectorIntegration};
+use super::ConnectorCommon;
 /// trait RevenueRecovery
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub trait RevenueRecovery:
