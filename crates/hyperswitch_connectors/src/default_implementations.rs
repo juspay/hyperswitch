@@ -3571,6 +3571,7 @@ macro_rules! default_imp_for_connector_request_id {
 }
 default_imp_for_connector_request_id!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Authorizedotnet,
     connectors::Amazonpay,
@@ -3621,6 +3622,7 @@ default_imp_for_connector_request_id!(
     connectors::Paystack,
     connectors::Payu,
     connectors::Payme,
+    connectors::Paypal,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -3662,6 +3664,7 @@ macro_rules! default_imp_for_fraud_check {
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -3711,6 +3714,7 @@ default_imp_for_fraud_check!(
     connectors::Opayo,
     connectors::Payeezy,
     connectors::Paystack,
+    connectors::Paypal,
     connectors::Payu,
     connectors::Powertranz,
     connectors::Prophetpay,

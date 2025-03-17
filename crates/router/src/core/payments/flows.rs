@@ -369,13 +369,11 @@ impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {
 
 default_imp_for_connector_request_id!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1125,13 +1123,11 @@ impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Nmi,
     connector::Netcetera,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1525,11 +1521,9 @@ impl<const T: u8>
 }
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
