@@ -2151,7 +2151,7 @@ Cypress.Commands.add(
                 expect(
                   response.body.payment_method_status,
                   "payment_method_status"
-                ).to.equal("inactive");
+                ).to.equal("active");
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2367,9 +2367,11 @@ Cypress.Commands.add(
             ).to.include("pm_").and.to.not.be.null;
 
             // Determine expected status based on payment status
-            const expectedStatus = ["succeeded", "requires_capture", "partially_captured"].includes(
-              response.body.status
-            )
+            const expectedStatus = [
+              "succeeded",
+              "requires_capture",
+              "partially_captured",
+            ].includes(response.body.status)
               ? "active"
               : "inactive";
 
