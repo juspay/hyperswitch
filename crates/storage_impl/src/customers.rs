@@ -44,14 +44,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                || async {
-                    Customer::find_optional_by_customer_id_merchant_id(
-                        &conn,
-                        customer_id,
-                        merchant_id,
-                    )
-                    .await
-                },
+                Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
                 FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdCustomerId {
@@ -84,10 +77,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             state,
             key_store,
             storage_scheme,
-            || async {
-                Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-                    .await
-            },
+            Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
             FindResourceBy::Id(
                 format!("cust_{}", customer_id.get_string_repr()),
                 PartitionKey::MerchantIdCustomerId {
@@ -114,14 +104,11 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                || async {
-                    Customer::find_optional_by_merchant_id_merchant_reference_id(
-                        &conn,
-                        merchant_reference_id,
-                        merchant_id,
-                    )
-                    .await
-                },
+                Customer::find_optional_by_merchant_id_merchant_reference_id(
+                    &conn,
+                    merchant_reference_id,
+                    merchant_id,
+                ),
                 FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdMerchantReferenceId {
@@ -165,15 +152,12 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             state,
             key_store,
             storage_scheme,
-            || async {
-                Customer::update_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id.clone(),
-                    merchant_id.clone(),
-                    customer_update.clone().into(),
-                )
-                .await
-            },
+            Customer::update_by_customer_id_merchant_id(
+                &conn,
+                customer_id.clone(),
+                merchant_id.clone(),
+                customer_update.clone().into(),
+            ),
             updated_customer,
             UpdateResourceParams {
                 updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
@@ -202,14 +186,11 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                || async {
-                    Customer::find_by_merchant_reference_id_merchant_id(
-                        &conn,
-                        merchant_reference_id,
-                        merchant_id,
-                    )
-                    .await
-                },
+                Customer::find_by_merchant_reference_id_merchant_id(
+                    &conn,
+                    merchant_reference_id,
+                    merchant_id,
+                ),
                 FindResourceBy::Id(
                     format!("cust_{}", merchant_reference_id.get_string_repr()),
                     PartitionKey::MerchantIdMerchantReferenceId {
@@ -242,9 +223,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                || async {
-                    Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
-                },
+                Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
                 FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdCustomerId {
@@ -303,7 +282,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             state,
             key_store,
             storage_scheme,
-            || async { new_customer.clone().insert(&conn).await },
+            new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             InsertResourceParams {
                 insertable: kv::Insertable::Customer(new_customer.clone()),
@@ -347,7 +326,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             state,
             key_store,
             storage_scheme,
-            || async { new_customer.clone().insert(&conn).await },
+            new_customer.clone().insert(&conn),
             customer,
             InsertResourceParams {
                 insertable: kv::Insertable::Customer(new_customer.clone()),
@@ -388,7 +367,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                || async { Customer::find_by_global_id(&conn, id).await },
+                Customer::find_by_global_id(&conn, id),
                 FindResourceBy::Id(
                     format!("cust_{}", id.get_string_repr()),
                     PartitionKey::GlobalId {
@@ -421,9 +400,8 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
-        let database_call = || async {
-            Customer::update_by_id(&conn, id.clone(), customer_update.clone().into()).await
-        };
+        let database_call =
+            Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -462,10 +440,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Option<DomainCustomer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let maybe_customer: Option<DomainCustomer> = self
-            .find_optional_resource(state, key_store, || async {
-                Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-                    .await
-            })
+            .find_optional_resource(
+                state,
+                key_store,
+                Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+            )
             .await?;
         maybe_customer.map_or(Ok(None), |customer| {
             // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
@@ -488,10 +467,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<DomainCustomer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_optional_resource(state, key_store, || async {
-            Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
-                .await
-        })
+        self.find_optional_resource(
+            state,
+            key_store,
+            Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+        )
         .await
     }
 
@@ -508,14 +488,15 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Option<DomainCustomer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let maybe_customer: Option<DomainCustomer> = self
-            .find_optional_resource(state, key_store, || async {
+            .find_optional_resource(
+                state,
+                key_store,
                 Customer::find_optional_by_merchant_reference_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
-                )
-                .await
-            })
+                ),
+            )
             .await?;
         maybe_customer.map_or(Ok(None), |customer| {
             // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
@@ -540,15 +521,16 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        self.call_database(state, key_store, || async {
+        self.call_database(
+            state,
+            key_store,
             Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id.clone(),
                 customer_update.into(),
-            )
-            .await
-        })
+            ),
+        )
         .await
     }
 
@@ -564,9 +546,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: DomainCustomer = self
-            .call_database(state, key_store, || async {
-                Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id).await
-            })
+            .call_database(
+                state,
+                key_store,
+                Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+            )
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -586,14 +570,15 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer = self
-            .call_database(state, key_store, || async {
+            .call_database(
+                state,
+                key_store,
                 Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
-                )
-                .await
-            })
+                ),
+            )
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -612,9 +597,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
-        self.find_resources(state, key_store, || async {
-            Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints).await
-        })
+        self.find_resources(
+            state,
+            key_store,
+            Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+        )
         .await
     }
 
@@ -631,10 +618,8 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        self.call_database(state, key_store, || async {
-            customer_new.insert(&conn).await
-        })
-        .await
+        self.call_database(state, key_store, customer_new.insert(&conn))
+            .await
     }
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -666,9 +651,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        self.call_database(state, key_store, || async {
-            Customer::find_by_global_id(&conn, customer_id, merchant_id).await
-        })
+        self.call_database(
+            state,
+            key_store,
+            Customer::find_by_global_id(&conn, customer_id, merchant_id),
+        )
         .await
     }
 
@@ -684,9 +671,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: DomainCustomer = self
-            .call_database(state, key_store, || async {
-                Customer::find_by_global_id(&conn, customer_id, merchant_id).await
-            })
+            .call_database(
+                state,
+                key_store,
+                Customer::find_by_global_id(&conn, customer_id, merchant_id),
+            )
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
