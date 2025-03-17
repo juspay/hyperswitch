@@ -144,6 +144,8 @@ impl ConnectorCommon for Bambora {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -825,6 +827,15 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+        ];
+
         let mut bambora_supported_payment_methods = SupportedPaymentMethods::new();
 
         bambora_supported_payment_methods.add(
@@ -834,23 +845,23 @@ lazy_static! {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: default_capture_methods.clone(),
-            },
-        );
-        bambora_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods: default_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
             },
         );
 
         bambora_supported_payment_methods
     };
     static ref BAMBORA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Bambora is a leading online payment provider in Canada and United States."
-            .to_string(),
+        display_name: "Bambora",
+        description: "Bambora is a leading online payment provider in Canada and United States.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref BAMBORA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

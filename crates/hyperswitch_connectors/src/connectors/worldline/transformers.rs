@@ -390,6 +390,7 @@ fn make_bank_redirect_request(
         BankRedirectData::BancontactCard { .. }
         | BankRedirectData::Bizum {}
         | BankRedirectData::Blik { .. }
+        | BankRedirectData::Eft { .. }
         | BankRedirectData::Eps { .. }
         | BankRedirectData::Interac { .. }
         | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -583,7 +584,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, Payment, T, PaymentsResponseData>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -634,7 +635,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentResponse, T, PaymentsResponseDat
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

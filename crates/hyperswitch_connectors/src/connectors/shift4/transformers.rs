@@ -286,6 +286,7 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
     fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::AliPayRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::ApplePay(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::AliPayQr(_)
@@ -504,6 +505,7 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Bizum {}
@@ -768,7 +770,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -806,7 +808,7 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

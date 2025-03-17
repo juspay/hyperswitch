@@ -188,6 +188,10 @@ pub struct RefundResponse {
     pub error_message: Option<String>,
     /// The code for the error
     pub error_code: Option<String>,
+    /// Error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+    /// Error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
     /// The timestamp at which refund is created
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -206,6 +210,10 @@ pub struct RefundResponse {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>,)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    /// Error code received from the issuer in case of failed refunds
+    pub issuer_error_code: Option<String>,
+    /// Error message received from the issuer in case of failed refunds
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]

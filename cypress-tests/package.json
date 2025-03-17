@@ -8,10 +8,11 @@
     "cypress": "npx cypress open",
     "cypress-e2e": "npx cypress run --e2e",
     "cypress:ci": "npx cypress run --headless",
-    "cypress:payments": "cypress run --headless --spec 'cypress/e2e/PaymentTest/**/*'",
-    "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
-    "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/PaymentMethodListTest/**/*'",
-    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
+    "cypress:misc": "cypress run --headless --spec 'cypress/e2e/spec/Misc/**/*'",
+    "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
+    "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
+    "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
     "format": "prettier --config .prettierrc . --write",
     "format:check": "prettier --config .prettierrc . --check",
     "lint": "eslint ."
@@ -19,15 +20,15 @@
   "author": "Hyperswitch",
   "license": "ISC",
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "cypress": "^13.17.0",
+    "@eslint/js": "^9.20.0",
+    "cypress": "^14.0.3",
     "cypress-mochawesome-reporter": "^3.8.2",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^9.20.1",
+    "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-cypress": "^4.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "globals": "^15.14.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "globals": "^15.15.0",
     "jsqr": "^1.4.0",
-    "prettier": "^3.4.2"
+    "prettier": "^3.5.1"
   }
 }

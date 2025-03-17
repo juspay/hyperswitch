@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
+use common_utils::id_type;
 
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;
@@ -58,7 +59,7 @@ impl Default for super::settings::Proxy {
             http_url: Default::default(),
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
-            bypass_proxy_urls: Vec::new(),
+            bypass_proxy_hosts: Default::default(),
         }
     }
 }
@@ -134,6 +135,17 @@ impl Default for super::settings::KvConfig {
         Self {
             ttl: 900,
             soft_kill: Some(false),
+        }
+    }
+}
+
+impl Default for super::settings::GlobalTenant {
+    fn default() -> Self {
+        Self {
+            tenant_id: id_type::TenantId::get_default_global_tenant_id(),
+            schema: String::from("global"),
+            redis_key_prefix: String::from("global"),
+            clickhouse_database: String::from("global"),
         }
     }
 }

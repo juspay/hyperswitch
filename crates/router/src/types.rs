@@ -21,7 +21,11 @@ use std::marker::PhantomData;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
+#[cfg(feature = "v2")]
+use common_utils::errors::CustomResult;
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 use hyperswitch_domain_models::router_flow_types::{
@@ -44,7 +48,8 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
+        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -52,8 +57,12 @@ pub use hyperswitch_domain_models::{
         WebhookSourceVerifyData,
     },
     router_request_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
@@ -70,6 +79,9 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        },
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -542,6 +554,7 @@ pub struct RedirectPaymentFlowResponse<D> {
     pub profile: domain::Profile,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
@@ -898,6 +911,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: data.request.shipping_cost,
+            merchant_account_id: None,
+            merchant_config_currency: None,
         }
     }
 }
@@ -914,6 +929,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
+            tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
             connector_auth_type: data.connector_auth_type.clone(),
@@ -983,6 +999,7 @@ impl<F1, F2>
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
+            tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
             connector_auth_type: data.connector_auth_type.clone(),
@@ -1025,5 +1042,56 @@ impl<F1, F2>
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
+    for api_models::admin::MerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(item: &domain::MerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = item
+            .revenue_recovery
+            .as_ref()
+            .map(
+                |revenue_recovery_metadata| api_models::admin::RevenueRecoveryMetadata {
+                    max_retry_count: revenue_recovery_metadata.max_retry_count,
+                    billing_connector_retry_threshold: revenue_recovery_metadata
+                        .billing_connector_retry_threshold,
+                    billing_account_reference: revenue_recovery_metadata
+                        .mca_reference
+                        .recovery_to_billing
+                        .clone(),
+                },
+            );
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
+    for domain::MerchantConnectorAccountFeatureMetadata
+{
+    type Error = errors::ApiErrorResponse;
+    fn foreign_try_from(
+        feature_metadata: &api_models::admin::MerchantConnectorAccountFeatureMetadata,
+    ) -> Result<Self, Self::Error> {
+        let revenue_recovery = feature_metadata
+            .revenue_recovery
+            .as_ref()
+            .map(|revenue_recovery_metadata| {
+                domain::AccountReferenceMap::new(
+                    revenue_recovery_metadata.billing_account_reference.clone(),
+                )
+                .map(|mca_reference| domain::RevenueRecoveryMetadata {
+                    max_retry_count: revenue_recovery_metadata.max_retry_count,
+                    billing_connector_retry_threshold: revenue_recovery_metadata
+                        .billing_connector_retry_threshold,
+                    mca_reference,
+                })
+            })
+            .transpose()?;
+
+        Ok(Self { revenue_recovery })
     }
 }

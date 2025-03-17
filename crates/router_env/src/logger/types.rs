@@ -144,6 +144,8 @@ pub enum Flow {
     PaymentsRetrieve,
     /// Payments Retrieve force sync flow.
     PaymentsRetrieveForceSync,
+    /// Payments Retrieve using merchant reference id
+    PaymentsRetrieveUsingMerchantReferenceId,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -172,6 +174,10 @@ pub enum Flow {
     PaymentsGetIntent,
     /// Payments Update Intent flow
     PaymentsUpdateIntent,
+    /// Payments confirm intent flow
+    PaymentsConfirmIntent,
+    /// Payments create and confirm intent flow
+    PaymentsCreateAndConfirmIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -261,6 +267,8 @@ pub enum Flow {
     ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Recovery incoming webhook receive
+    RecoveryIncomingWebhookReceive,
     /// Validate payment method flow
     ValidatePaymentMethod,
     /// API Key create flow
@@ -525,8 +533,7 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
-    /// Payments confirm intent
-    PaymentsConfirmIntent,
+    ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
     /// Payments start redirection flow
@@ -537,6 +544,38 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Card tokenization flow
+    TokenizeCard,
+    /// Card tokenization using payment method flow
+    TokenizeCardUsingPaymentMethodId,
+    /// Cards batch tokenization flow
+    TokenizeCardBatch,
+    /// Incoming Relay Webhook Receive
+    IncomingRelayWebhookReceive,
+    /// Generate Hypersense Token
+    HypersenseTokenRequest,
+    /// Verify Hypersense Token
+    HypersenseVerifyToken,
+    /// Signout Hypersense Token
+    HypersenseSignoutToken,
+    /// Payment Method Session Create
+    PaymentMethodSessionCreate,
+    /// Payment Method Session Retrieve
+    PaymentMethodSessionRetrieve,
+    // Payment Method Session Update
+    PaymentMethodSessionUpdate,
+    /// Update a saved payment method using the payment methods session
+    PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Confirm a payment method session with payment method data
+    PaymentMethodSessionConfirm,
+    /// Create Cards Info flow
+    CardsInfoCreate,
+    /// Update Cards Info flow
+    CardsInfoUpdate,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
+    ///Total payment method count for merchant
+    TotalPaymentMethodCount,
 }
 
 /// Trait for providing generic behaviour to flow metric

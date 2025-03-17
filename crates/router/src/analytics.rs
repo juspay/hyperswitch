@@ -19,11 +19,11 @@ pub mod routes {
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
         AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
-        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventMetricRequest,
-        GetDisputeMetricRequest, GetFrmFilterRequest, GetFrmMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventFilterRequest,
+        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetFrmFilterRequest,
+        GetFrmMetricRequest, GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest,
+        GetPaymentIntentMetricRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
     use common_utils::types::TimeRange;
@@ -91,6 +91,10 @@ pub mod routes {
                                 .route(web::post().to(generate_merchant_payment_report)),
                         )
                         .service(
+                            web::resource("report/authentications")
+                                .route(web::post().to(generate_merchant_authentication_report)),
+                        )
+                        .service(
                             web::resource("metrics/sdk_events")
                                 .route(web::post().to(get_sdk_event_metrics)),
                         )
@@ -105,6 +109,10 @@ pub mod routes {
                         .service(
                             web::resource("metrics/auth_events")
                                 .route(web::post().to(get_auth_event_metrics)),
+                        )
+                        .service(
+                            web::resource("filters/auth_events")
+                                .route(web::post().to(get_merchant_auth_events_filters)),
                         )
                         .service(
                             web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
@@ -187,6 +195,11 @@ pub mod routes {
                                         .route(web::post().to(generate_merchant_payment_report)),
                                 )
                                 .service(
+                                    web::resource("report/authentications").route(
+                                        web::post().to(generate_merchant_authentication_report),
+                                    ),
+                                )
+                                .service(
                                     web::resource("metrics/api_events")
                                         .route(web::post().to(get_merchant_api_events_metrics)),
                                 )
@@ -249,6 +262,10 @@ pub mod routes {
                                         .route(web::post().to(generate_org_payment_report)),
                                 )
                                 .service(
+                                    web::resource("report/authentications")
+                                        .route(web::post().to(generate_org_authentication_report)),
+                                )
+                                .service(
                                     web::resource("metrics/sankey")
                                         .route(web::post().to(get_org_sankey)),
                                 ),
@@ -301,6 +318,11 @@ pub mod routes {
                                 .service(
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_profile_payment_report)),
+                                )
+                                .service(
+                                    web::resource("report/authentications").route(
+                                        web::post().to(generate_profile_authentication_report),
+                                    ),
                                 )
                                 .service(
                                     web::resource("api_event_logs")
@@ -975,7 +997,6 @@ pub mod routes {
                 analytics::auth_events::get_metrics(
                     &state.pool,
                     auth.merchant_account.get_id(),
-                    &auth.merchant_account.publishable_key,
                     req,
                 )
                 .await
@@ -1010,6 +1031,34 @@ pub mod routes {
                 analytics::payments::get_filters(&state.pool, req, &auth)
                     .await
                     .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantAnalyticsRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_merchant_auth_events_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetAuthEventFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetAuthEventFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                analytics::auth_events::get_filters(
+                    &state.pool,
+                    req,
+                    auth.merchant_account.get_id(),
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
@@ -1715,6 +1764,7 @@ pub mod routes {
         ))
         .await
     }
+
     #[cfg(feature = "v1")]
     pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
@@ -1805,6 +1855,161 @@ pub mod routes {
                     serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
                 invoke_lambda(
                     &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_merchant_authentication_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateAuthenticationReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.authentication_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_org_authentication_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateAuthenticationReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.authentication_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_profile_authentication_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateAuthenticationReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.authentication_function,
                     &state.conf.report_download_config.region,
                     &json_bytes,
                 )
@@ -1925,32 +2130,57 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id_and_org_id(&state, &role_id, &auth.org_id)
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .change_context(OpenSearchError::UnknownError)?;
+                let role_info = RoleInfo::from_role_id_org_id_tenant_id(
+                    &state,
+                    &role_id,
+                    &auth.org_id,
+                    auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
-                let user_roles: HashSet<UserRole> = state
-                    .global_store
-                    .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                        user_id: &auth.user_id,
-                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                        org_id: Some(&auth.org_id),
-                        merchant_id: None,
-                        profile_id: None,
-                        entity_id: None,
-                        version: None,
-                        status: None,
-                        limit: None,
-                    })
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .change_context(OpenSearchError::UnknownError)?
-                    .into_iter()
-                    .collect();
+                let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
+                    EntityType::Tenant => state
+                        .global_store
+                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                            user_id: &auth.user_id,
+                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                            org_id: None,
+                            merchant_id: None,
+                            profile_id: None,
+                            entity_id: None,
+                            version: None,
+                            status: None,
+                            limit: None,
+                        })
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?
+                        .into_iter()
+                        .collect(),
+                    EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
+                        .global_store
+                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                            user_id: &auth.user_id,
+                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                            org_id: Some(&auth.org_id),
+                            merchant_id: None,
+                            profile_id: None,
+                            entity_id: None,
+                            version: None,
+                            status: None,
+                            limit: None,
+                        })
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?
+                        .into_iter()
+                        .collect(),
+                };
 
                 let state = Arc::new(state);
                 let role_info_map: HashMap<String, RoleInfo> = user_roles
@@ -1959,12 +2189,15 @@ pub mod routes {
                         let state = Arc::clone(&state);
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
+                        let tenant_id = &user_role.tenant_id;
                         async move {
-                            RoleInfo::from_role_id_and_org_id(&state, &role_id, &org_id)
-                                .await
-                                .change_context(UserErrors::InternalServerError)
-                                .change_context(OpenSearchError::UnknownError)
-                                .map(|role_info| (role_id, role_info))
+                            RoleInfo::from_role_id_org_id_tenant_id(
+                                &state, &role_id, &org_id, tenant_id,
+                            )
+                            .await
+                            .change_context(UserErrors::InternalServerError)
+                            .change_context(OpenSearchError::UnknownError)
+                            .map(|role_info| (role_id, role_info))
                         }
                     })
                     .collect::<FuturesUnordered<_>>()
@@ -2047,32 +2280,57 @@ pub mod routes {
             indexed_req,
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id_and_org_id(&state, &role_id, &auth.org_id)
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .change_context(OpenSearchError::UnknownError)?;
+                let role_info = RoleInfo::from_role_id_org_id_tenant_id(
+                    &state,
+                    &role_id,
+                    &auth.org_id,
+                    auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
-                let user_roles: HashSet<UserRole> = state
-                    .global_store
-                    .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                        user_id: &auth.user_id,
-                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                        org_id: Some(&auth.org_id),
-                        merchant_id: None,
-                        profile_id: None,
-                        entity_id: None,
-                        version: None,
-                        status: None,
-                        limit: None,
-                    })
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .change_context(OpenSearchError::UnknownError)?
-                    .into_iter()
-                    .collect();
+                let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
+                    EntityType::Tenant => state
+                        .global_store
+                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                            user_id: &auth.user_id,
+                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                            org_id: None,
+                            merchant_id: None,
+                            profile_id: None,
+                            entity_id: None,
+                            version: None,
+                            status: None,
+                            limit: None,
+                        })
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?
+                        .into_iter()
+                        .collect(),
+                    EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
+                        .global_store
+                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                            user_id: &auth.user_id,
+                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                            org_id: Some(&auth.org_id),
+                            merchant_id: None,
+                            profile_id: None,
+                            entity_id: None,
+                            version: None,
+                            status: None,
+                            limit: None,
+                        })
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .change_context(OpenSearchError::UnknownError)?
+                        .into_iter()
+                        .collect(),
+                };
                 let state = Arc::new(state);
                 let role_info_map: HashMap<String, RoleInfo> = user_roles
                     .iter()
@@ -2080,12 +2338,15 @@ pub mod routes {
                         let state = Arc::clone(&state);
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
+                        let tenant_id = &user_role.tenant_id;
                         async move {
-                            RoleInfo::from_role_id_and_org_id(&state, &role_id, &org_id)
-                                .await
-                                .change_context(UserErrors::InternalServerError)
-                                .change_context(OpenSearchError::UnknownError)
-                                .map(|role_info| (role_id, role_info))
+                            RoleInfo::from_role_id_org_id_tenant_id(
+                                &state, &role_id, &org_id, tenant_id,
+                            )
+                            .await
+                            .change_context(UserErrors::InternalServerError)
+                            .change_context(OpenSearchError::UnknownError)
+                            .map(|role_info| (role_id, role_info))
                         }
                     })
                     .collect::<FuturesUnordered<_>>()

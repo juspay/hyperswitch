@@ -174,14 +174,16 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
     profile_id: common_utils::id_type::ProfileId,
-    payment_id: Option<common_utils::id_type::PaymentId>,
+    payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    organization_id: common_utils::id_type::OrganizationId,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -214,12 +216,13 @@ pub async fn create_new_authentication(
         acs_trans_id: None,
         acs_signed_content: None,
         profile_id,
-        payment_id,
+        payment_id: Some(payment_id),
         merchant_connector_id,
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
         service_details: None,
+        organization_id,
     };
     state
         .store

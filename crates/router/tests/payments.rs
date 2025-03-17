@@ -297,6 +297,7 @@ async fn payments_create_core() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -447,9 +448,14 @@ async fn payments_create_core() {
         split_payments: None,
         frm_metadata: None,
         merchant_order_reference_id: None,
+        capture_before: None,
+        extended_authorization_applied: None,
         order_tax_amount: None,
         connector_mandate_id: None,
         shipping_cost: None,
+        card_discovery: None,
+        issuer_error_code: None,
+        issuer_error_message: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -558,6 +564,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -710,9 +717,14 @@ async fn payments_create_core_adyen_no_redirect() {
             split_payments: None,
             frm_metadata: None,
             merchant_order_reference_id: None,
+            capture_before: None,
+            extended_authorization_applied: None,
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,
+            card_discovery: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         },
         vec![],
     ));

@@ -74,6 +74,16 @@ impl From<api_models::relay::RelayData> for RelayData {
     }
 }
 
+impl From<api_models::relay::RelayRefundRequestData> for RelayRefundData {
+    fn from(relay: api_models::relay::RelayRefundRequestData) -> Self {
+        Self {
+            amount: relay.amount,
+            currency: relay.currency,
+            reason: relay.reason,
+        }
+    }
+}
+
 impl RelayUpdate {
     pub fn from(
         response: Result<router_response_types::RefundsResponseData, ErrorResponse>,
@@ -81,13 +91,27 @@ impl RelayUpdate {
         match response {
             Err(error) => Self::ErrorUpdate {
                 error_code: error.code,
-                error_message: error.message,
+                error_message: error.reason.unwrap_or(error.message),
                 status: common_enums::RelayStatus::Failure,
             },
             Ok(response) => Self::StatusUpdate {
                 connector_reference_id: Some(response.connector_refund_id),
                 status: common_enums::RelayStatus::from(response.refund_status),
             },
+        }
+    }
+}
+
+impl From<RelayData> for api_models::relay::RelayData {
+    fn from(relay: RelayData) -> Self {
+        match relay {
+            RelayData::Refund(relay_refund_request) => {
+                Self::Refund(api_models::relay::RelayRefundRequestData {
+                    amount: relay_refund_request.amount,
+                    currency: relay_refund_request.currency,
+                    reason: relay_refund_request.reason,
+                })
+            }
         }
     }
 }
@@ -106,7 +130,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
 
         let data = value.request_data.map(|relay_data| match relay_data {
             RelayData::Refund(relay_refund_request) => {
-                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequest {
+                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequestData {
                     amount: relay_refund_request.amount,
                     currency: relay_refund_request.currency,
                     reason: relay_refund_request.reason,

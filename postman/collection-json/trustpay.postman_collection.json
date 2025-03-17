@@ -497,7 +497,16 @@
                       "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
                       "  );",
                       "}",
-                      ""
+                      "",
+                      "// Response body should have value \"succeeded\" for \"status\"",
+                      "if (jsonData?.status) {",
+                      "  pm.test(",
+                      "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                      "    function () {",
+                      "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                      "    },",
+                      "  );",
+                      "}"
                     ],
                     "type": "text/javascript"
                   }
@@ -614,7 +623,16 @@
                       "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
                       "  );",
                       "}",
-                      ""
+                      "",
+                      "// Response body should have value \"Succeeded\" for \"status\"",
+                      "if (jsonData?.status) {",
+                      "  pm.test(",
+                      "    \"[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'\",",
+                      "    function () {",
+                      "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                      "    },",
+                      "  );",
+                      "}"
                     ],
                     "type": "text/javascript"
                   }
@@ -653,6 +671,18 @@
               "name": "Refunds - Create",
               "event": [
                 {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Add a delay of 10 seconds",
+                      "setTimeout(function () {",
+                      "  console.log(\"Delay of 10 seconds completed.\");",
+                      "}, 10000);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
                   "listen": "test",
                   "script": {
                     "exec": [
@@ -684,6 +714,26 @@
                       "} else {",
                       "  console.log(",
                       "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// Response body should have value \"succeeded\" for \"status\"",
+                      "if (jsonData?.status) {",
+                      "  pm.test(",
+                      "    \"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\",",
+                      "    function () {",
+                      "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                      "    },",
+                      "  );",
+                      "}",
+                      "",
+                      "// Response body should have value \"600\" for \"amount\"",
+                      "if (jsonData?.status) {",
+                      "  pm.test(",
+                      "    \"[POST]::/refunds - Content check if value for 'amount' matches '600'\",",
+                      "    function () {",
+                      "      pm.expect(jsonData.amount).to.eql(600);",
+                      "    },",
                       "  );",
                       "}",
                       ""
@@ -761,6 +811,26 @@
                       "} else {",
                       "  console.log(",
                       "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// Response body should have value \"succeeded\" for \"status\"",
+                      "if (jsonData?.status) {",
+                      "  pm.test(",
+                      "    \"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\",",
+                      "    function () {",
+                      "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                      "    },",
+                      "  );",
+                      "}",
+                      "",
+                      "// Response body should have value \"600\" for \"amount\"",
+                      "if (jsonData?.status) {",
+                      "  pm.test(",
+                      "    \"[POST]::/refunds - Content check if value for 'amount' matches '600'\",",
+                      "    function () {",
+                      "      pm.expect(jsonData.amount).to.eql(600);",
+                      "    },",
                       "  );",
                       "}",
                       ""
@@ -2838,8 +2908,7 @@
                           "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
-                          "}",
-                          ""
+                          "}"
                         ],
                         "type": "text/javascript"
                       }
@@ -2883,6 +2952,18 @@
                 {
                   "name": "Refunds - Create",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "// Add a delay of 10 seconds",
+                          "setTimeout(function () {",
+                          "  console.log(\"Delay of 10 seconds completed.\");",
+                          "}, 10000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {

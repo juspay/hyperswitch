@@ -59,7 +59,7 @@ impl ConnectorAccessToken for Store {
         let maybe_token = self
             .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .get_key::<Option<Vec<u8>>>(&key)
+            .get_key::<Option<Vec<u8>>>(&key.into())
             .await
             .change_context(errors::StorageError::KVError)
             .attach_printable("DB error when getting access token")?;
@@ -88,7 +88,7 @@ impl ConnectorAccessToken for Store {
             .change_context(errors::StorageError::SerializationFailed)?;
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
+            .set_key_with_expiry(&key.into(), serialized_access_token, access_token.expires)
             .await
             .change_context(errors::StorageError::KVError)
     }
@@ -627,7 +627,12 @@ impl MerchantConnectorAccountInterface for Store {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
+                #[cfg(feature = "v1")]
                 let _connector_name = merchant_connector_account.connector_name.clone();
+
+                #[cfg(feature = "v2")]
+                let _connector_name = merchant_connector_account.connector_name.to_string();
+
                 let _profile_id = merchant_connector_account.profile_id.clone();
 
                 let _merchant_id = merchant_connector_account.merchant_id.clone();
@@ -791,7 +796,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let _connector_name = this.connector_name.clone();
+        let _connector_name = this.connector_name;
         let _profile_id = this.profile_id.clone();
 
         let _merchant_id = this.merchant_id.clone();
@@ -1288,6 +1293,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
+            feature_metadata: t.feature_metadata.map(From::from),
         };
         accounts.push(account.clone());
         account
@@ -1561,6 +1567,7 @@ mod merchant_connector_account_cache_tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -1746,6 +1753,7 @@ mod merchant_connector_account_cache_tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -1805,7 +1813,7 @@ mod merchant_connector_account_cache_tests {
         let mca = domain::MerchantConnectorAccount {
             id: id.clone(),
             merchant_id: merchant_id.clone(),
-            connector_name: "stripe".to_string(),
+            connector_name: common_enums::connector_enums::Connector::Stripe,
             connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::MerchantConnectorAccount),
@@ -1843,6 +1851,7 @@ mod merchant_connector_account_cache_tests {
             ),
             additional_merchant_data: None,
             version: hyperswitch_domain_models::consts::API_VERSION,
+            feature_metadata: None,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)

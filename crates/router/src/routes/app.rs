@@ -33,7 +33,7 @@ use super::dummy_connector::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::payment_methods::*;
+use super::payment_methods;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
@@ -46,6 +46,8 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
+use super::recovery_webhooks::*;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -59,7 +61,7 @@ use super::{
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, payments};
+use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -69,7 +71,9 @@ use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
-use crate::routes::cards_info::card_iin_info;
+use crate::routes::cards_info::{
+    card_iin_info, create_cards_info, migrate_cards_info, update_cards_info,
+};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
@@ -78,13 +82,17 @@ use crate::routes::fraud_check as frm_routes;
 use crate::routes::recon as recon_routes;
 pub use crate::{
     configs::settings,
-    db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
+    db::{
+        AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface, StorageImpl,
+        StorageInterface,
+    },
     events::EventsHandler,
     services::{get_cache_store, get_store},
 };
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
+    routes::hypersense as hypersense_routes,
 };
 
 #[derive(Clone)]
@@ -97,6 +105,7 @@ pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
     pub global_store: Box<dyn GlobalStorageInterface>,
+    pub accounts_store: Box<dyn AccountsStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -112,6 +121,7 @@ pub struct SessionState {
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub locale: String,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -202,6 +212,8 @@ impl SessionStateInfo for SessionState {
 pub struct AppState {
     pub flow_name: String,
     pub global_store: Box<dyn GlobalStorageInterface>,
+    // TODO: use a separate schema for accounts_store
+    pub accounts_store: HashMap<id_type::TenantId, Box<dyn AccountsStorageInterface>>,
     pub stores: HashMap<id_type::TenantId, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
@@ -337,9 +349,6 @@ impl AppState {
                     .expect("Failed to create opensearch client"),
             );
 
-            #[cfg(feature = "olap")]
-            let mut pools: HashMap<id_type::TenantId, AnalyticsProvider> = HashMap::new();
-            let mut stores = HashMap::new();
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
@@ -354,23 +363,27 @@ impl AppState {
             )
             .await
             .get_global_storage_interface();
-            for (tenant_name, tenant) in conf.clone().multitenancy.get_tenants() {
-                let store: Box<dyn StorageInterface> = Self::get_store_interface(
+            #[cfg(feature = "olap")]
+            let pools = conf
+                .multitenancy
+                .tenants
+                .get_pools_map(conf.analytics.get_inner())
+                .await;
+            let stores = conf
+                .multitenancy
+                .tenants
+                .get_store_interface_map(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .await;
+            let accounts_store = conf
+                .multitenancy
+                .tenants
+                .get_accounts_store_interface_map(
                     &storage_impl,
-                    &event_handler,
                     &conf,
-                    tenant,
                     Arc::clone(&cache_store),
                     testable,
                 )
-                .await
-                .get_storage_interface();
-                stores.insert(tenant_name.clone(), store);
-                #[cfg(feature = "olap")]
-                let pool = AnalyticsProvider::from_conf(conf.analytics.get_inner(), tenant).await;
-                #[cfg(feature = "olap")]
-                pools.insert(tenant_name.clone(), pool);
-            }
+                .await;
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -384,6 +397,7 @@ impl AppState {
                 flow_name: String::from("default"),
                 stores,
                 global_store,
+                accounts_store,
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
@@ -403,7 +417,10 @@ impl AppState {
         .await
     }
 
-    async fn get_store_interface(
+    /// # Panics
+    ///
+    /// Panics if Failed to create store
+    pub async fn get_store_interface(
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
@@ -420,7 +437,7 @@ impl AppState {
                             .await
                             .expect("Failed to create store"),
                         kafka_client.clone(),
-                        TenantID(tenant.get_schema().to_string()),
+                        TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
                         tenant,
                     )
                     .await,
@@ -458,6 +475,7 @@ impl AppState {
     pub fn get_session_state<E, F>(
         self: Arc<Self>,
         tenant: &id_type::TenantId,
+        locale: Option<String>,
         err: F,
     ) -> Result<SessionState, E>
     where
@@ -466,9 +484,11 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
+        let store = self.stores.get(tenant).ok_or_else(err)?.clone();
         Ok(SessionState {
-            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            store,
             global_store: self.global_store.clone(),
+            accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
             event_handler,
@@ -484,6 +504,7 @@ impl AppState {
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
+            locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
         })
     }
 }
@@ -548,15 +569,44 @@ pub struct Payments;
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/create-intent").route(web::post().to(payments::payments_create_intent)),
-        );
+        route = route
+            .service(
+                web::resource("/create-intent")
+                    .route(web::post().to(payments::payments_create_intent)),
+            )
+            .service(web::resource("/filter").route(web::get().to(payments::get_payment_filters)))
+            .service(
+                web::resource("/profile/filter")
+                    .route(web::get().to(payments::get_payment_filters_profile)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
+            )
+            .service(web::resource("/list").route(web::get().to(payments::payments_list)))
+            .service(
+                web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
+            )
+            .service(
+                web::resource("/profile/aggregate")
+                    .route(web::get().to(payments::get_payments_aggregates_profile)),
+            );
+
+        route =
+            route
+                .service(web::resource("/ref/{merchant_reference_id}").route(
+                    web::get().to(payments::payment_get_intent_using_merchant_reference_id),
+                ));
 
         route = route.service(
             web::scope("/{payment_id}")
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/proxy-confirm-intent")
+                        .route(web::post().to(payments::proxy_confirm_intent)),
                 )
                 .service(
                     web::resource("/get-intent")
@@ -987,25 +1037,27 @@ impl Customers {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
         {
-            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
+            route = route
+                .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/total-payment-methods")
+                        .route(web::get().to(payment_methods::get_total_payment_method_count)),
+                )
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
             route = route
-                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("").route(web::post().to(customers::customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::put().to(customers_update))
-                        .route(web::get().to(customers_retrieve))
-                        .route(web::delete().to(customers_delete)),
+                        .route(web::put().to(customers::customers_update))
+                        .route(web::get().to(customers::customers_retrieve))
+                        .route(web::delete().to(customers::customers_delete)),
                 )
-        }
-        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
-        {
-            route = route.service(
-                web::resource("/{customer_id}/saved-payment-methods")
-                    .route(web::get().to(list_customer_payment_method_api)),
-            );
+                .service(
+                    web::resource("/{id}/saved-payment-methods")
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
+                )
         }
         route
     }
@@ -1026,32 +1078,33 @@ impl Customers {
             route = route
                 .service(
                     web::resource("/{customer_id}/mandates")
-                        .route(web::get().to(get_customer_mandates)),
+                        .route(web::get().to(customers::get_customer_mandates)),
                 )
-                .service(web::resource("/list").route(web::get().to(customers_list)))
+                .service(web::resource("/list").route(web::get().to(customers::customers_list)))
         }
 
         #[cfg(feature = "oltp")]
         {
             route = route
-                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("").route(web::post().to(customers::customers_create)))
                 .service(
-                    web::resource("/payment_methods")
-                        .route(web::get().to(list_customer_payment_method_api_client)),
+                    web::resource("/payment_methods").route(
+                        web::get().to(payment_methods::list_customer_payment_method_api_client),
+                    ),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods")
-                        .route(web::get().to(list_customer_payment_method_api)),
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods/{payment_method_id}/default")
-                        .route(web::post().to(default_payment_method_set_api)),
+                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
                 )
                 .service(
                     web::resource("/{customer_id}")
-                        .route(web::get().to(customers_retrieve))
-                        .route(web::post().to(customers_update))
-                        .route(web::delete().to(customers_delete)),
+                        .route(web::get().to(customers::customers_retrieve))
+                        .route(web::post().to(customers::customers_update))
+                        .route(web::delete().to(customers::customers_delete)),
                 )
         }
 
@@ -1150,24 +1203,29 @@ impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
         route = route
-            .service(web::resource("").route(web::post().to(create_payment_method_api)))
+            .service(
+                web::resource("").route(web::post().to(payment_methods::create_payment_method_api)),
+            )
             .service(
                 web::resource("/create-intent")
-                    .route(web::post().to(create_payment_method_intent_api)),
-            )
-            .service(
-                web::resource("/{id}/confirm-intent")
-                    .route(web::post().to(confirm_payment_method_intent_api)),
-            )
-            .service(
-                web::resource("/{id}/update-saved-payment-method")
-                    .route(web::patch().to(payment_method_update_api)),
-            )
-            .service(
-                web::resource("/{id}")
-                    .route(web::get().to(payment_method_retrieve_api))
-                    .route(web::delete().to(payment_method_delete_api)),
+                    .route(web::post().to(payment_methods::create_payment_method_intent_api)),
             );
+
+        route = route.service(
+            web::scope("/{id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(payment_methods::payment_method_retrieve_api))
+                        .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                )
+                .service(web::resource("/list-enabled-payment-methods").route(
+                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                ))
+                .service(
+                    web::resource("/update-saved-payment-method")
+                        .route(web::put().to(payment_methods::payment_method_update_api)),
+                ),
+        );
 
         route
     }
@@ -1184,44 +1242,61 @@ impl PaymentMethods {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
         #[cfg(feature = "olap")]
         {
-            route = route.service(
-                web::resource("/filter")
-                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
-            );
+            route =
+                route.service(web::resource("/filter").route(
+                    web::get().to(
+                        payment_methods::list_countries_currencies_for_connector_payment_method,
+                    ),
+                ));
         }
         #[cfg(feature = "oltp")]
         {
             route = route
                 .service(
                     web::resource("")
-                        .route(web::post().to(create_payment_method_api))
-                        .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                        .route(web::post().to(payment_methods::create_payment_method_api))
+                        .route(web::get().to(payment_methods::list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
                 .service(
-                    web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
+                    web::resource("/migrate")
+                        .route(web::post().to(payment_methods::migrate_payment_method_api)),
                 )
                 .service(
-                    web::resource("/migrate-batch").route(web::post().to(migrate_payment_methods)),
+                    web::resource("/migrate-batch")
+                        .route(web::post().to(payment_methods::migrate_payment_methods)),
                 )
                 .service(
-                    web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
+                    web::resource("/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_api)),
+                )
+                .service(
+                    web::resource("/tokenize-card-batch")
+                        .route(web::post().to(payment_methods::tokenize_card_batch_api)),
+                )
+                .service(
+                    web::resource("/collect")
+                        .route(web::post().to(payment_methods::initiate_pm_collect_link_flow)),
                 )
                 .service(
                     web::resource("/collect/{merchant_id}/{collect_id}")
-                        .route(web::get().to(render_pm_collect_link)),
+                        .route(web::get().to(payment_methods::render_pm_collect_link)),
                 )
                 .service(
                     web::resource("/{payment_method_id}")
-                        .route(web::get().to(payment_method_retrieve_api))
-                        .route(web::delete().to(payment_method_delete_api)),
+                        .route(web::get().to(payment_methods::payment_method_retrieve_api))
+                        .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_using_pm_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/update")
-                        .route(web::post().to(payment_method_update_api)),
+                        .route(web::post().to(payment_methods::payment_method_update_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/save")
-                        .route(web::post().to(save_payment_method_api)),
+                        .route(web::post().to(payment_methods::save_payment_method_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
@@ -1230,6 +1305,44 @@ impl PaymentMethods {
                     web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
                 )
         }
+        route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub struct PaymentMethodSession;
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+impl PaymentMethodSession {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("")
+                .route(web::post().to(payment_methods::payment_methods_session_create)),
+        );
+
+        route =
+            route.service(
+                web::scope("/{payment_method_session_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(payment_methods::payment_methods_session_retrieve))
+                            .route(web::put().to(payment_methods::payment_methods_session_update)),
+                    )
+                    .service(web::resource("/list-payment-methods").route(
+                        web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                    ))
+                    .service(
+                        web::resource("/confirm")
+                            .route(web::post().to(payment_methods::payment_method_session_confirm)),
+                    )
+                    .service(web::resource("/update-saved-payment-method").route(
+                        web::put().to(
+                            payment_methods::payment_method_session_update_saved_payment_method,
+                        ),
+                    )),
+            );
+
         route
     }
 }
@@ -1253,6 +1366,27 @@ impl Recon {
             .service(
                 web::resource("/verify_token")
                     .route(web::get().to(recon_routes::verify_recon_token)),
+            )
+    }
+}
+
+pub struct Hypersense;
+
+impl Hypersense {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hypersense")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/token")
+                    .route(web::get().to(hypersense_routes::get_hypersense_token)),
+            )
+            .service(
+                web::resource("/verify_token")
+                    .route(web::post().to(hypersense_routes::verify_hypersense_token)),
+            )
+            .service(
+                web::resource("/signout")
+                    .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             )
     }
 }
@@ -1424,7 +1558,8 @@ impl MerchantConnectorAccount {
         #[cfg(feature = "oltp")]
         {
             route = route.service(
-                web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
+                web::resource("/payment_methods")
+                    .route(web::get().to(payment_methods::list_payment_method_api)),
             );
         }
         route
@@ -1450,10 +1585,10 @@ impl EphemeralKey {
 #[cfg(feature = "v2")]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/v2/ephemeral-keys")
+        web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
+            .service(web::resource("").route(web::post().to(client_secret_create)))
+            .service(web::resource("/{id}").route(web::delete().to(client_secret_delete)))
     }
 }
 
@@ -1512,6 +1647,20 @@ impl Webhooks {
     }
 }
 
+pub struct RelayWebhooks;
+
+#[cfg(feature = "oltp")]
+impl RelayWebhooks {
+    pub fn server(state: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+        web::scope("/webhooks/relay")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/{merchant_id}/{connector_id}").route(
+                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
+            ))
+    }
+}
+
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
@@ -1530,6 +1679,16 @@ impl Webhooks {
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             );
+
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        {
+            route = route.service(
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
+                    web::post()
+                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                ),
+            );
+        }
 
         route
     }
@@ -1658,11 +1817,14 @@ impl Disputes {
 
 pub struct Cards;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
+            .service(web::resource("/create").route(web::post().to(create_cards_info)))
+            .service(web::resource("/update").route(web::post().to(update_cards_info)))
+            .service(web::resource("/update-batch").route(web::post().to(migrate_cards_info)))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }
@@ -1791,7 +1953,12 @@ impl Profile {
                                 &TransactionType::Payment,
                             )
                         },
-                    ))),
+                    )))
+                    .service(
+                        web::resource("/decision")
+                            .route(web::put().to(routing::upsert_decision_manager_config))
+                            .route(web::get().to(routing::retrieve_decision_manager_config)),
+                    ),
             )
     }
 }
@@ -1825,14 +1992,27 @@ impl Profile {
                             )),
                     )
                     .service(
+                        web::resource("/set_volume_split")
+                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                    )
+                    .service(
                         web::scope("/elimination").service(
                             web::resource("/toggle")
                                 .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
                     )
                     .service(
-                        web::resource("/set_volume_split")
-                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                        web::scope("/contracts")
+                            .service(web::resource("/toggle").route(
+                                web::post().to(routing::contract_based_routing_setup_config),
+                            ))
+                            .service(web::resource("/config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::contract_based_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
                     ),
             );
         }
@@ -1914,6 +2094,43 @@ impl Verify {
 }
 
 pub struct User;
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+
+        route = route.service(
+            web::resource("/create_merchant")
+                .route(web::post().to(user::user_merchant_account_create)),
+        );
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/switch")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(user::switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route
+    }
+}
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {

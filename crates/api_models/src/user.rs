@@ -133,6 +133,7 @@ pub struct UserOrgMerchantCreateRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
+    pub product_type: Option<common_enums::MerchantProductType>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -151,6 +152,7 @@ pub struct GetUserDetailsResponse {
     pub profile_id: id_type::ProfileId,
     pub entity_type: EntityType,
     pub theme_id: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -305,18 +307,26 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub owner_type: common_enums::Owner,
     pub auth_method: AuthConfig,
     pub allow_signup: bool,
+    pub email_domain: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdateUserAuthenticationMethodRequest {
-    pub id: String,
-    // TODO: When adding more fields make config and new fields option
-    pub auth_method: AuthConfig,
+#[serde(rename_all = "snake_case")]
+pub enum UpdateUserAuthenticationMethodRequest {
+    AuthMethod {
+        id: String,
+        auth_config: AuthConfig,
+    },
+    EmailDomain {
+        owner_id: String,
+        email_domain: String,
+    },
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetUserAuthenticationMethodsRequest {
-    pub auth_id: String,
+    pub auth_id: Option<String>,
+    pub email_domain: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -374,9 +384,11 @@ pub struct ListOrgsForUserResponse {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct ListMerchantsForUserInOrgResponse {
+pub struct UserMerchantAccountResponse {
     pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
+    pub product_type: Option<common_enums::MerchantProductType>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[derive(Debug, serde::Serialize)]

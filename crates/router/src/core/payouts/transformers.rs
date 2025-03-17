@@ -115,10 +115,12 @@ impl
             phone_country_code: customer
                 .as_ref()
                 .and_then(|customer| customer.phone_country_code.clone()),
+            payout_method_id: payout.payout_method_id,
         }
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         &PayoutRequiredFields,

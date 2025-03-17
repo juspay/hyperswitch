@@ -148,7 +148,7 @@ pub struct ThreeDSPaymentsRequest {
     address1: Secret<String>,
     zip_code: Secret<String>,
     city: String,
-    country_code: api_models::enums::CountryAlpha2,
+    country_code: String,
     total_quantity: i32,
 }
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -422,7 +422,11 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         address1: address.get_line1()?.clone(),
                         zip_code: address.get_zip()?.clone(),
                         city: address.get_city()?.clone(),
-                        country_code: *address.get_country()?,
+                        country_code: format!(
+                            "{:03}",
+                            common_enums::Country::from_alpha2(*address.get_country()?)
+                                .to_numeric()
+                        ),
                         total_quantity: 1,
                     }))
                 } else {
@@ -601,7 +605,7 @@ pub struct TransactionResponse {
 pub fn parse_url_encoded_to_struct<T: DeserializeOwned>(
     query_bytes: Bytes,
 ) -> CustomResult<T, errors::ConnectorError> {
-    let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&query_bytes);
+    let (cow, _, _) = encoding_rs::ISO_8859_15.decode(&query_bytes);
     serde_qs::from_str::<T>(cow.as_ref()).change_context(errors::ConnectorError::ParsingFailed)
 }
 
@@ -609,12 +613,11 @@ pub fn parse_paybox_response(
     query_bytes: Bytes,
     is_three_ds: bool,
 ) -> CustomResult<PayboxResponse, errors::ConnectorError> {
-    let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&query_bytes);
-    let response_str = cow.as_ref();
-
-    if response_str.starts_with("<html>") && is_three_ds {
+    let (cow, _, _) = encoding_rs::ISO_8859_15.decode(&query_bytes);
+    let response_str = cow.as_ref().trim();
+    if utils::is_html_response(response_str) && is_three_ds {
         let response = response_str.to_string();
-        return Ok(if response.contains("Erreur") {
+        return Ok(if response.contains("Erreur 201") {
             PayboxResponse::Error(response)
         } else {
             PayboxResponse::ThreeDs(response.into())
@@ -699,7 +702,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -712,6 +715,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -758,7 +763,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     }),
@@ -770,6 +775,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(response.transaction_number),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         }),
                         ..item.data
                     }),
@@ -787,7 +794,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -799,6 +806,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -830,7 +839,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -842,6 +851,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -930,6 +941,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, PayboxSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -961,6 +974,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, TransactionResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1018,7 +1033,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -1030,6 +1045,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(response.transaction_number),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),

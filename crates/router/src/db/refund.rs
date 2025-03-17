@@ -435,8 +435,15 @@ mod storage {
                         charges: new.charges.clone(),
                         split_refunds: new.split_refunds.clone(),
                         organization_id: new.organization_id.clone(),
-                        connector_refund_data: new.connector_refund_data.clone(),
-                        connector_transaction_data: new.connector_transaction_data.clone(),
+                        unified_code: None,
+                        unified_message: None,
+                        processor_refund_data: new.processor_refund_data.clone(),
+                        processor_transaction_data: new.processor_transaction_data.clone(),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
+                        // Below fields are deprecated. Please add any new fields above this line.
+                        connector_refund_data: None,
+                        connector_transaction_data: None,
                     };
 
                     let field = format!(
@@ -618,12 +625,12 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::RefundUpdate(
+                            updatable: Box::new(kv::Updateable::RefundUpdate(Box::new(
                                 kv::RefundUpdateMems {
                                     orig: this,
                                     update_data: refund,
                                 },
-                            )),
+                            ))),
                         },
                     };
 
@@ -930,8 +937,15 @@ impl RefundInterface for MockDb {
             charges: new.charges,
             split_refunds: new.split_refunds,
             organization_id: new.organization_id,
-            connector_refund_data: new.connector_refund_data,
-            connector_transaction_data: new.connector_transaction_data,
+            unified_code: None,
+            unified_message: None,
+            processor_refund_data: new.processor_refund_data.clone(),
+            processor_transaction_data: new.processor_transaction_data.clone(),
+            issuer_error_code: None,
+            issuer_error_message: None,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_refund_data: None,
+            connector_transaction_data: None,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -1132,7 +1146,7 @@ impl RefundInterface for MockDb {
                     || refund
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
+                        .is_some_and(|id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
@@ -1338,7 +1352,7 @@ impl RefundInterface for MockDb {
                     || refund
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
+                        .is_some_and(|id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)

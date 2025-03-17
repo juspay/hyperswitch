@@ -35,6 +35,14 @@ pub trait RelayInterface {
         merchant_key_store: &domain::MerchantKeyStore,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
+
+    async fn find_relay_by_profile_id_connector_reference_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_reference_id: &str,
+    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -105,6 +113,30 @@ impl RelayInterface for Store {
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
+
+    async fn find_relay_by_profile_id_connector_reference_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_reference_id: &str,
+    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        diesel_models::relay::Relay::find_by_profile_id_connector_reference_id(
+            &conn,
+            profile_id,
+            connector_reference_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))?
+        .convert(
+            key_manager_state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
 }
 
 #[async_trait::async_trait]
@@ -133,6 +165,16 @@ impl RelayInterface for MockDb {
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _relay_id: &common_utils::id_type::RelayId,
+    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_relay_by_profile_id_connector_reference_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _connector_reference_id: &str,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -176,6 +218,23 @@ impl RelayInterface for KafkaStore {
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
             .find_relay_by_id(key_manager_state, merchant_key_store, relay_id)
+            .await
+    }
+
+    async fn find_relay_by_profile_id_connector_reference_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_reference_id: &str,
+    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+        self.diesel_store
+            .find_relay_by_profile_id_connector_reference_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+                connector_reference_id,
+            )
             .await
     }
 }

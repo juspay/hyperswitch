@@ -10,7 +10,8 @@
 function initializeSDK() {
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
-  var client_secret = paymentDetails.client_secret;
+  var clientSecret = paymentDetails.client_secret;
+  var sdkUiRules = paymentDetails.sdk_ui_rules;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -24,20 +25,28 @@ function initializeSDK() {
       colorBackground: "rgb(255, 255, 255)",
     },
   };
+  if (sdkUiRules !== null && typeof sdkUiRules === "object" && Object.getPrototypeOf(sdkUiRules) === Object.prototype) {
+    appearance.rules = sdkUiRules;
+  }
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
     isPreloadEnabled: false,
+    // TODO: Remove in next deployment
     shouldUseTopRedirection: true,
+    redirectionFlags: {
+      shouldRemoveBeforeUnloadEvents: true,
+      shouldUseTopRedirection: true,
+    },
   });
   // @ts-ignore
   widgets = hyper.widgets({
     appearance: appearance,
-    clientSecret: client_secret,
+    clientSecret: clientSecret,
     locale: paymentDetails.locale,
   });
   var type =
     paymentDetails.sdk_layout === "spaced_accordion" ||
-    paymentDetails.sdk_layout === "accordion"
+      paymentDetails.sdk_layout === "accordion"
       ? "accordion"
       : paymentDetails.sdk_layout;
   var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
@@ -59,13 +68,14 @@ function initializeSDK() {
     },
     showCardFormByDefault: paymentDetails.show_card_form_by_default,
     hideCardNicknameField: hideCardNicknameField,
+    customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
   };
   // @ts-ignore
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   // @ts-ignore
   mountUnifiedCheckout("#unified-checkout");
   // @ts-ignore
-  showSDK(paymentDetails.display_sdk_only);
+  showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
 
   let shimmer = document.getElementById("payment-details-shimmer");
   shimmer.classList.add("reduce-opacity");
@@ -81,9 +91,19 @@ function initializeSDK() {
 function redirectToStatus() {
   var paymentDetails = window.__PAYMENT_DETAILS;
   var arr = window.location.pathname.split("/");
-  arr.splice(0, 2);
-  arr.unshift("status");
-  arr.unshift("payment_link");
+
+  // NOTE - This code preserves '/api' in url for integ and sbx
+  // e.g. url for integ/sbx - https://integ.hyperswitch.io/api/payment_link/merchant_1234/pay_1234?locale=en
+  // e.g. url for others - https://abc.dev.com/payment_link/merchant_1234/pay_1234?locale=en
+  var hasApiInPath = arr.includes("api");
+  if (hasApiInPath) {
+    arr.splice(0, 3);
+    arr.unshift("api", "payment_link", "status");
+  } else {
+    arr.splice(0, 2);
+    arr.unshift("payment_link", "status");
+  }
+
   window.location.href =
     window.location.origin +
     "/" +

@@ -1,8 +1,9 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod revenue_recovery;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types as common_types, types::MinorUnit};
+use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
 use crate::{
@@ -26,7 +27,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        charge_id: Option<String>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -149,6 +150,7 @@ impl PaymentsResponseData {
             .into()),
         }
     }
+
     pub fn merge_transaction_responses(
         auth_response: &Self,
         capture_response: &Self,
@@ -163,7 +165,7 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
-                    charge_id: auth_charge_id,
+                    charges: auth_charges,
                 },
                 Self::TransactionResponse {
                     resource_id: capture_resource_id,
@@ -173,7 +175,7 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
-                    charge_id: capture_charge_id,
+                    charges: capture_charges,
                 },
             ) => Ok(Self::TransactionResponse {
                 resource_id: capture_resource_id.clone(),
@@ -198,12 +200,37 @@ impl PaymentsResponseData {
                     .or(auth_connector_response_reference_id.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
-                charge_id: capture_charge_id.clone().or(auth_charge_id.clone()),
+                charges: auth_charges.clone().or(capture_charges.clone()),
             }),
             _ => Err(ApiErrorResponse::NotSupported {
                 message: "Invalid Flow ".to_owned(),
             }
             .into()),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_updated_connector_token_details(
+        &self,
+        original_connector_mandate_request_reference_id: Option<String>,
+    ) -> Option<diesel_models::ConnectorTokenDetails> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.clone().map(|mandate_ref| {
+                let connector_mandate_id = mandate_ref.connector_mandate_id;
+                let connector_mandate_request_reference_id = mandate_ref
+                    .connector_mandate_request_reference_id
+                    .or(original_connector_mandate_request_reference_id);
+
+                diesel_models::ConnectorTokenDetails {
+                    connector_mandate_id,
+                    connector_token_request_reference_id: connector_mandate_request_reference_id,
+                }
+            })
+        } else {
+            None
         }
     }
 }
@@ -236,11 +263,16 @@ pub enum RedirectForm {
         access_token: String,
         step_up_url: String,
     },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
+    },
     Payme,
     Braintree {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -313,15 +345,20 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 access_token,
                 step_up_url,
             },
+            RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             RedirectForm::Payme => Self::Payme,
             RedirectForm::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             RedirectForm::Nmi {
                 amount,
@@ -392,15 +429,20 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 access_token,
                 step_up_url,
             },
+            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             diesel_models::payment_attempt::RedirectForm::Nmi {
                 amount,
@@ -474,7 +516,7 @@ pub struct MandateRevokeResponseData {
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
     PreAuthVersionCallResponse {
-        maximum_supported_3ds_version: common_types::SemanticVersion,
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
     },
     PreAuthThreeDsMethodCallResponse {
         threeds_server_transaction_id: String,
@@ -521,6 +563,8 @@ pub struct PaymentMethodDetails {
     pub refunds: common_enums::FeatureStatus,
     /// List of supported capture methods
     pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
+    /// Payment method specific features
+    pub specific_features: Option<api_models::feature_matrix::PaymentMethodSpecificFeatures>,
 }
 
 /// list of payment method types and metadata related to them
@@ -531,9 +575,10 @@ pub type SupportedPaymentMethods = HashMap<common_enums::PaymentMethod, PaymentM
 
 #[derive(Debug, Clone)]
 pub struct ConnectorInfo {
+    /// Display name of the Connector
+    pub display_name: &'static str,
     /// Description of the connector.
-    pub description: String,
-
+    pub description: &'static str,
     /// Connector Type
     pub connector_type: common_enums::PaymentConnectorCategory,
 }

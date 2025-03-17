@@ -290,6 +290,9 @@ api_secret = "Client Key"
 [thunes]
 api_key="API Key"
 
+[getnet]
+api_key="API Key"
+
 [inespay]
 api_key="API Key"
 
@@ -301,7 +304,23 @@ key1 ="Client Secret"
 api_key="API Key"
 
 [nomupay]
-api_key="API Key"
+api_key="kid"
+key1="eid"
 
 [unified_authentication_service]
 api_key="API Key"
+
+[chargebee]
+api_key= "API Key"
+
+[moneris]
+api_key= "API Key"
+
+[stripebilling]
+api_key= "API Key"
+
+[paystack]
+api_key = "API Key"
+
+[recurly]
+api_key= "API Key"
