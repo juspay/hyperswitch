@@ -79,6 +79,28 @@ impl<T: ForeignIDRef> RemoteStorageObject<T> {
         }
     }
 }
+pub trait ForeignTryFrom<F>: Sized {
+    type Error;
+
+    fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
+}
+
+pub trait ForeignTryInto<T> {
+    type Error;
+
+    fn foreign_try_into(self) -> Result<T, Self::Error>;
+}
+
+impl<F, T> ForeignTryInto<T> for F
+where
+    T: ForeignTryFrom<F>,
+{
+    type Error = <T as ForeignTryFrom<F>>::Error;
+
+    fn foreign_try_into(self) -> Result<T, Self::Error> {
+        T::foreign_try_from(self)
+    }
+}
 
 use std::fmt::Debug;
 

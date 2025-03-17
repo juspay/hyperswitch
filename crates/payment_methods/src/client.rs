@@ -1,20 +1,21 @@
-use crate::core::settings;
-use crate::db::StorageInterface;
+use std::sync::Arc;
+
 use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
 use hyperswitch_domain_models::{
-    errors,
-    merchant_account::MerchantAccount,
-    merchant_key_store::MerchantKeyStore,
-    payment_methods::{PaymentMethod, PaymentMethodInterface},
+    merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore,
+    payment_methods::PaymentMethod,
 };
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
-use std::sync::Arc;
+use storage_impl::errors;
+
+use crate::{core::settings, db::StorageInterface};
 
 #[derive(Clone)]
 pub struct PaymentMethodsState {
     pub store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub key_store: Option<MerchantKeyStore>,
+    pub base_url: String,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub limit: Option<i64>,

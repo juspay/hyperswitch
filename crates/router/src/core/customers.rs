@@ -9,6 +9,7 @@ use common_utils::{
     },
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::customer;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
@@ -524,7 +525,7 @@ pub async fn list_customers(
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
 
-    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+    let customer_list_constraints = customer::CustomerListConstraints {
         limit: request
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),

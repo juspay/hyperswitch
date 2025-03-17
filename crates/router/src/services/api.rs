@@ -21,7 +21,7 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::{DEFAULT_TENANT, headers, TENANT_HEADER, X_HS_LATENCY},
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
@@ -68,7 +68,8 @@ use crate::{
     events::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
         connector_api_logs::ConnectorEvent,
-    }, logger,
+    },
+    logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics, AppState, SessionState,
@@ -720,7 +721,10 @@ where
                 common_utils::id_type::TenantId::try_from_string(header_value.to_string()).map_err(
                     |_| {
                         errors::ApiErrorResponse::InvalidRequestData {
-                            message: format!("`{}` header is invalid", common_utils::consts::headers::X_TENANT_ID),
+                            message: format!(
+                                "`{}` header is invalid",
+                                common_utils::consts::headers::X_TENANT_ID
+                            ),
                         }
                         .switch()
                     },

@@ -13,3 +13,19 @@ pub trait ForeignTryFrom<F>: Sized {
     /// Convert from a foreign type to the current type and return an error if the conversion fails
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
+
+/// Trait for converting to a foreign type
+pub trait ForeignInto<T> {
+    /// Convert to a foreign type
+    fn foreign_into(self) -> T;
+}
+
+/// impl for ForeignFrom
+impl<F, T> ForeignInto<T> for F
+where
+    T: ForeignFrom<F>,
+{
+    fn foreign_into(self) -> T {
+        T::foreign_from(self)
+    }
+}

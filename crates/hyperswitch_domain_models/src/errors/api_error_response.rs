@@ -705,3 +705,17 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
         }
     }
 }
+
+impl From<common_utils::errors::IdFormatError> for ApiErrorResponse {
+    fn from(error: common_utils::errors::IdFormatError) -> Self {
+        match error {
+            common_utils::errors::IdFormatError::InvalidIDFormat {
+                field_name,
+                expected_format,
+            } => ApiErrorResponse::InvalidDataFormat {
+                field_name,
+                expected_format,
+            },
+        }
+    }
+}

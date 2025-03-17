@@ -4,6 +4,10 @@ use std::{
     str::FromStr,
 };
 
+use ::payment_methods::{
+    configs::default::{get_billing_required_fields, get_shipping_required_fields},
+    core::settings as pm_settings,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -76,9 +80,23 @@ use super::surcharge_decision_configs::{
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
-use ::payment_methods::configs::default::{get_billing_required_fields, get_shipping_required_fields};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    configs::settings,
+    consts as router_consts, core::payment_methods as pm_core, headers,
+    types::payment_methods as pm_types, utils::ConnectorResponseExt,
+};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::{
+    core::payment_methods::{
+        add_payment_method_status_update_task,
+        utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
+    },
+    types::transformers::ForeignFrom,
+};
+use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
@@ -100,22 +118,6 @@ use crate::{
     },
     utils,
     utils::OptionExt,
-};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{
-    consts as router_consts, core::payment_methods as pm_core, headers,
-    types::payment_methods as pm_types, utils::ConnectorResponseExt,
-};
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use crate::{
-    core::payment_methods::{
-        add_payment_method_status_update_task,
-        utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
-    },
-    types::transformers::ForeignFrom,
 };
 
 #[cfg(all(
@@ -4475,7 +4477,7 @@ pub async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&domain::Address>,
     connector: String,
-    saved_payment_methods: &settings::EligiblePaymentMethods,
+    saved_payment_methods: &pm_settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -5981,12 +5983,12 @@ pub async fn list_countries_currencies_for_connector_payment_method(
 // This feature will be more efficient as a WASM function rather than as an API.
 // So extracting this logic to a separate function so that it can be used in WASM as well.
 pub async fn list_countries_currencies_for_connector_payment_method_util(
-    connector_filters: settings::ConnectorFilters,
+    connector_filters: pm_settings::ConnectorFilters,
     connector: api_enums::Connector,
     payment_method_type: api_enums::PaymentMethodType,
 ) -> ListCountriesCurrenciesResponse {
     let payment_method_type =
-        settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
+        pm_settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
 
     let (currencies, country_codes) = connector_filters
         .0

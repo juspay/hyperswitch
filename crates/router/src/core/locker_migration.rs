@@ -56,7 +56,7 @@ pub async fn rust_locker_migration(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
-    use crate::db::customers::CustomerListConstraints;
+    use hyperswitch_domain_models::customer::CustomerListConstraints;
 
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();

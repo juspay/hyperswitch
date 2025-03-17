@@ -1,12 +1,13 @@
-use common_enums::{PaymentMethod, PaymentMethodType, CountryAlpha2};
+use common_enums::{PaymentMethod, PaymentMethodType};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::request;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
-    ext_traits::{BytesExt, Encode},
+    ext_traits::{BytesExt, Encode, StringExt},
     generate_id_with_default_len, id_type,
     pii::Email,
 };
+use diesel_models::TokenizeCoreWorkflow;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, logger, tracing};
@@ -16,10 +17,14 @@ use scheduler::{errors::ProcessTrackerError, types::process_data, utils as proce
 use crate::utils::ConnectorResponseExt;
 use crate::{
     client::PaymentMethodsState,
+    configs::consts,
     core::{
-        domain::{self, api},
+        domain::{
+            self,
+            api::{self, api_enums},
+        },
         errors::{self, CustomResult, RouterResult},
-        storage,
+        vault::process_tracker_utils::storage,
     },
     db, metrics,
 };
@@ -620,7 +625,7 @@ pub struct TokenizedBankSensitiveValues {
 pub struct TokenizedBankInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
     pub bank_name: Option<String>,
-    pub bank_country_code: Option<api::enums::CountryAlpha2>,
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
     pub bank_city: Option<String>,
     pub bank_branch: Option<String>,
 }
@@ -761,15 +766,13 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (None, None, None, Some(iban), bic, None, None) => {
-                Self::Sepa(api::SepaBankTransfer {
-                    iban,
-                    bic,
-                    bank_name: bank_insensitive_data.bank_name,
-                    bank_country_code: bank_insensitive_data.bank_country_code,
-                    bank_city: bank_insensitive_data.bank_city,
-                })
-            }
+            (None, None, None, Some(iban), bic, None, None) => Self::Sepa(api::SepaBankTransfer {
+                iban,
+                bic,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+            }),
             (Some(ban), None, None, None, None, Some(pix_key), tax_id) => {
                 Self::Pix(api::PixBankTransfer {
                     bank_account_number: ban,
@@ -1379,7 +1382,7 @@ pub async fn add_delete_tokenized_data_task(
     let process_tracker_id = format!("{runner}_{lookup_key}");
     let task = runner.to_string();
     let tag = ["BASILISK-V3"];
-    let tracking_data = storage::TokenizeCoreWorkflow {
+    let tracking_data = TokenizeCoreWorkflow {
         lookup_key: lookup_key.to_owned(),
         pm,
     };
@@ -1414,16 +1417,15 @@ pub async fn start_tokenize_data_workflow(
     tokenize_tracker: &storage::ProcessTracker,
 ) -> Result<(), ProcessTrackerError> {
     let db = &*state.store;
-    let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
-        tokenize_tracker.tracking_data.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| {
-        format!(
-            "unable to convert into DeleteTokenizeByTokenRequest {:?}",
-            tokenize_tracker.tracking_data
-        )
-    })?;
+    let delete_tokenize_data =
+        serde_json::from_value::<TokenizeCoreWorkflow>(tokenize_tracker.tracking_data.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "unable to convert into DeleteTokenizeByTokenRequest {:?}",
+                    tokenize_tracker.tracking_data
+                )
+            })?;
 
     match delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await {
         Ok(()) => {

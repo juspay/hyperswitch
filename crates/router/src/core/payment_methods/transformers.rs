@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use josekit::jwe;
+use payment_methods::core::settings as pm_settings;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
@@ -212,10 +213,10 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 }
 
 pub async fn get_decrypted_response_payload(
-    jwekey: &settings::Jwekey,
+    jwekey: &pm_settings::Jwekey,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
-    decryption_scheme: settings::DecryptionScheme,
+    decryption_scheme: pm_settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
@@ -229,8 +230,8 @@ pub async fn get_decrypted_response_payload(
 
     let jwt = get_dotted_jwe(jwe_body);
     let alg = match decryption_scheme {
-        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
-        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+        pm_settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        pm_settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
     };
 
     let jwe_decrypted = encryption::decrypt_jwe(
@@ -256,7 +257,7 @@ pub async fn get_decrypted_response_payload(
 pub async fn get_decrypted_vault_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
-    decryption_scheme: settings::DecryptionScheme,
+    decryption_scheme: pm_settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
     let public_key = jwekey.vault_encryption_key.peek().as_bytes();
 
@@ -264,8 +265,8 @@ pub async fn get_decrypted_vault_response_payload(
 
     let jwt = get_dotted_jwe(jwe_body);
     let alg = match decryption_scheme {
-        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
-        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+        pm_settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        pm_settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
     };
 
     let jwe_decrypted = encryption::decrypt_jwe(
@@ -336,7 +337,7 @@ pub async fn create_jwe_body_for_vault(
 }
 
 pub async fn mk_basilisk_req(
-    jwekey: &settings::Jwekey,
+    jwekey: &pm_settings::Jwekey,
     jws: &str,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
@@ -385,8 +386,8 @@ pub async fn mk_basilisk_req(
 }
 
 pub async fn mk_add_locker_request_hs(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
+    jwekey: &pm_settings::Jwekey,
+    locker: &pm_settings::Locker,
     payload: &StoreLockerReq,
     locker_choice: api_enums::LockerChoice,
     tenant_id: id_type::TenantId,
@@ -581,8 +582,8 @@ pub fn generate_payment_method_response(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn mk_get_card_request_hs(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
+    jwekey: &pm_settings::Jwekey,
+    locker: &pm_settings::Locker,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
@@ -631,7 +632,7 @@ pub async fn mk_get_card_request_hs(
 }
 
 pub fn mk_get_card_request(
-    locker: &settings::Locker,
+    locker: &pm_settings::Locker,
     locker_id: &'static str,
     card_id: &'static str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -666,8 +667,8 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 }
 
 pub async fn mk_delete_card_request_hs(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
+    jwekey: &pm_settings::Jwekey,
+    locker: &pm_settings::Locker,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
@@ -716,7 +717,7 @@ pub async fn mk_delete_card_request_hs(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn mk_delete_card_request_hs_by_id(
     jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
+    locker: &pm_settings::Locker,
     id: &String,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
@@ -841,7 +842,7 @@ impl From<api::PaymentMethodCreateData> for pm_types::PaymentMethodVaultingData 
 
 //------------------------------------------------TokenizeService------------------------------------------------
 pub fn mk_crud_locker_request(
-    locker: &settings::Locker,
+    locker: &pm_settings::Locker,
     path: &str,
     req: api::TokenizePayloadEncrypted,
     tenant_id: id_type::TenantId,

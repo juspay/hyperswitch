@@ -9,6 +9,7 @@ use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
 use masking::{ExposeInterface, ExposeOptionInterface};
+use payment_methods::core::settings as pm_settings;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -18,7 +19,7 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
-    routes::{self, app::settings, metrics},
+    routes::{self, metrics},
     services,
     types::{
         self,
@@ -159,7 +160,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 /// the list of required_field_type is present in dynamic fields
 #[cfg(feature = "v1")]
 fn is_dynamic_fields_required(
-    required_fields: &settings::RequiredFields,
+    required_fields: &pm_settings::RequiredFields,
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
     connector: types::Connector,
@@ -193,7 +194,7 @@ fn is_dynamic_fields_required(
 /// the list of required_field_type is present in dynamic fields
 #[cfg(feature = "v2")]
 fn is_dynamic_fields_required(
-    required_fields: &settings::RequiredFields,
+    required_fields: &pm_settings::RequiredFields,
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
     connector: types::Connector,

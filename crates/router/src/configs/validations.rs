@@ -26,27 +26,6 @@ impl super::settings::Secrets {
     }
 }
 
-impl super::settings::Locker {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(!self.mock_locker && self.host.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "locker host must not be empty when mock locker is disabled".into(),
-            ))
-        })?;
-
-        when(
-            !self.mock_locker && self.basilisk_host.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "basilisk host must not be empty when mock locker is disabled".into(),
-                ))
-            },
-        )
-    }
-}
-
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -176,18 +155,6 @@ impl super::settings::LockSettings {
         when(self.lock_retries.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "lock_retries must not be empty or 0".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::GenericLinkEnvConfig {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.expiry == 0, || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "link's expiry should not be 0".into(),
             ))
         })
     }

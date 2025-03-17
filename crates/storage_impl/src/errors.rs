@@ -5,8 +5,11 @@ pub use redis_interface::errors::RedisError;
 
 use crate::store::errors::DatabaseError;
 
+pub type StorageResult<T> = error_stack::Result<T, StorageError>;
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
+    #[error("Initialization Error")]
+    InitializationError,
     #[error("DatabaseError: {0:?}")]
     DatabaseError(error_stack::Report<DatabaseError>),
     #[error("ValueNotFound: {0}")]
@@ -48,6 +51,7 @@ impl ErrorSwitch<DataStorageError> for StorageError {
 impl Into<DataStorageError> for &StorageError {
     fn into(self) -> DataStorageError {
         match self {
+            StorageError::InitializationError => DataStorageError::InitializationError,
             StorageError::DatabaseError(i) => match i.current_context() {
                 DatabaseError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
                 // TODO: Update this error type to encompass & propagate the missing type (instead of generic `db value not found`)
@@ -127,22 +131,22 @@ impl StorageError {
 
 pub trait RedisErrorExt {
     #[track_caller]
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError>;
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<StorageError>;
 }
 
 impl RedisErrorExt for error_stack::Report<RedisError> {
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<StorageError> {
         match self.current_context() {
-            RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
+            RedisError::NotFound => self.change_context(StorageError::ValueNotFound(format!(
                 "Data does not exist for key {key}",
             ))),
             RedisError::SetNxFailed | RedisError::SetAddMembersFailed => {
-                self.change_context(DataStorageError::DuplicateValue {
+                self.change_context(StorageError::DuplicateValue {
                     entity: "redis",
                     key: Some(key.to_string()),
                 })
             }
-            _ => self.change_context(DataStorageError::KVError),
+            _ => self.change_context(StorageError::KVError),
         }
     }
 }

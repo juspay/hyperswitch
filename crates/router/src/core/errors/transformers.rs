@@ -1,5 +1,7 @@
 use common_utils::errors::ErrorSwitch;
-use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+use hyperswitch_domain_models::errors::{
+    api_error_response::ApiErrorResponse, StorageError as DomainStorageError,
+};
 
 use super::{CustomersErrorResponse, StorageError};
 
@@ -34,6 +36,17 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 "Customer with the given `customer_id` already exists",
                 None,
             )),
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for DomainStorageError {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            err if err.is_db_not_found() => CER::CustomerNotFound,
+            Self::CustomerRedacted => CER::CustomerRedacted,
+            _ => CER::InternalServerError,
         }
     }
 }

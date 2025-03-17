@@ -6,7 +6,6 @@ use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
-    errors::{self, StorageResult},
     merchant_key_store::MerchantKeyStore,
 };
 #[cfg(not(feature = "payouts"))]
@@ -22,7 +21,7 @@ use crate::{
     config::TenantConfig,
     database::store::PgPool,
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{self, RedisErrorExt, StorageResult},
     lookup::ReverseLookupInterface,
     metrics,
     redis::kv_store::{
@@ -63,6 +62,41 @@ pub struct FilterResourceParams<'a> {
     pub key: PartitionKey<'a>,
     pub pattern: &'static str,
     pub limit: Option<i64>,
+}
+
+pub enum FindResourceBy<'a> {
+    Id(String, PartitionKey<'a>),
+    LookupId(String),
+}
+
+pub trait DomainType: Debug + Sync + Conversion {}
+impl<T: Debug + Sync + Conversion> DomainType for T {}
+
+/// Storage model with all required capabilities for KV operations
+pub trait StorageModel<D: Conversion>:
+    de::DeserializeOwned
+    + serde::Serialize
+    + Debug
+    + KvStorePartition
+    + UniqueConstraints
+    + Sync
+    + Send
+    + ReverseConversion<D>
+{
+}
+
+impl<T, D> StorageModel<D> for T
+where
+    T: de::DeserializeOwned
+        + serde::Serialize
+        + Debug
+        + KvStorePartition
+        + UniqueConstraints
+        + Sync
+        + Send
+        + ReverseConversion<D>,
+    D: DomainType,
+{
 }
 
 #[async_trait::async_trait]
@@ -175,17 +209,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fn: R,
-        lookup_id: String,
+        find_by: FindResourceBy<'_>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
-        D: Debug + Sync + Conversion,
-        M: de::DeserializeOwned
-            + serde::Serialize
-            + Debug
-            + KvStorePartition
-            + UniqueConstraints
-            + Sync
-            + ReverseConversion<D>,
+        D: DomainType,
+        M: StorageModel<D>,
         DFut: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
         R: FnOnce() -> DFut,
     {
@@ -205,19 +233,26 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let lookup = fallback_reverse_lookup_not_found!(
-                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                            .await,
-                        database_call().await
-                    );
-
-                    let key = PartitionKey::CombinationKey {
-                        combination: &lookup.pk_id,
+                    let (field, key) = match find_by {
+                        FindResourceBy::Id(field, key) => (field, key),
+                        FindResourceBy::LookupId(lookup_id) => {
+                            let lookup = fallback_reverse_lookup_not_found!(
+                                self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                                    .await,
+                                database_call().await
+                            );
+                            (
+                                lookup.clone().sk_id,
+                                PartitionKey::CombinationKey {
+                                    combination: &lookup.clone().pk_id,
+                                },
+                            )
+                        }
                     };
 
                     Box::pin(try_redis_get_else_try_database_get(
                         async {
-                            Box::pin(kv_wrapper(self, KvOperation::<M>::HGet(&lookup.sk_id), key))
+                            Box::pin(kv_wrapper(self, KvOperation::<M>::HGet(&field), key))
                                 .await?
                                 .try_into_hget()
                         },
@@ -238,6 +273,81 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    pub async fn find_optional_resource_by_id<DFut, D, R, M>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        find_resource_db_fn: R,
+        find_by: FindResourceBy<'_>,
+    ) -> error_stack::Result<Option<D>, errors::StorageError>
+    where
+        D: DomainType,
+        M: StorageModel<D>,
+        DFut: futures::Future<Output = error_stack::Result<Option<M>, DatabaseError>> + Send,
+        R: FnOnce() -> DFut,
+    {
+        let database_call = || async {
+            find_resource_db_fn().await.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, M>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let res = || async {
+            match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => database_call().await,
+                MerchantStorageScheme::RedisKv => {
+                    let (field, key) = match find_by {
+                        FindResourceBy::Id(field, key) => (field, key),
+                        FindResourceBy::LookupId(lookup_id) => {
+                            let lookup = fallback_reverse_lookup_not_found!(
+                                self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                                    .await,
+                                database_call().await
+                            );
+                            (
+                                lookup.clone().sk_id,
+                                PartitionKey::CombinationKey {
+                                    combination: &lookup.clone().pk_id,
+                                },
+                            )
+                        }
+                    };
+
+                    Box::pin(try_redis_get_else_try_database_get(
+                        async {
+                            Box::pin(kv_wrapper(self, KvOperation::<M>::HGet(&field), key))
+                                .await?
+                                .try_into_hget()
+                                .map(Some)
+                        },
+                        database_call,
+                    ))
+                    .await
+                }
+            }
+        };
+        match res().await? {
+            Some(resource) => Ok(Some(
+                resource
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
+    }
+
     pub async fn insert_resource<DFut, D, R, M>(
         &self,
         state: &KeyManagerState,
@@ -255,13 +365,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
-        M: de::DeserializeOwned
-            + serde::Serialize
-            + Debug
-            + KvStorePartition
-            + UniqueConstraints
-            + Sync
-            + ReverseConversion<D>,
+        M: StorageModel<D>,
         DFut: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
         R: FnOnce() -> DFut,
     {
@@ -338,13 +442,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
-        M: de::DeserializeOwned
-            + serde::Serialize
-            + Debug
-            + KvStorePartition
-            + UniqueConstraints
-            + Sync
-            + ReverseConversion<D>,
+        M: StorageModel<D>,
         DFut: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
         R: FnOnce() -> DFut,
     {
@@ -411,13 +509,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<Vec<D>, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
-        M: de::DeserializeOwned
-            + serde::Serialize
-            + Debug
-            + KvStorePartition
-            + UniqueConstraints
-            + Sync
-            + ReverseConversion<D>,
+        M: StorageModel<D>,
         DFut: futures::Future<Output = error_stack::Result<Vec<M>, DatabaseError>> + Send,
         R: FnOnce() -> DFut,
     {

@@ -1,14 +1,15 @@
+use std::collections::{HashMap, HashSet};
+
+use api_models::{
+    enums::{self, Connector, FieldType},
+    payment_methods::RequiredFieldInfo,
+};
+
 use crate::core::settings::{
     ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal, RequiredFields,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate,
 };
-use api_models::{
-    enums::{self, Connector, FieldType},
-    payment_methods::RequiredFieldInfo,
-};
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 impl Default for Mandates {
     fn default() -> Self {
@@ -189,7 +190,7 @@ enum RequiredField {
 impl RequiredField {
     fn to_tuple(&self) -> (String, RequiredFieldInfo) {
         match self {
-            RequiredField::CardNumber => (
+            Self::CardNumber => (
                 "payment_method_data.card.card_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.card.card_number".to_string(),
@@ -198,7 +199,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::CardExpMonth => (
+            Self::CardExpMonth => (
                 "payment_method_data.card.card_exp_month".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.card.card_exp_month".to_string(),
@@ -207,7 +208,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::CardExpYear => (
+            Self::CardExpYear => (
                 "payment_method_data.card.card_exp_year".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.card.card_exp_year".to_string(),
@@ -216,7 +217,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::CardCvc => (
+            Self::CardCvc => (
                 "payment_method_data.card.card_cvc".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.card.card_cvc".to_string(),
@@ -225,7 +226,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingFullFirstName => (
+            Self::BillingFullFirstName => (
                 "billing.address.first_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.first_name".to_string(),
@@ -234,7 +235,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingFullLastName => (
+            Self::BillingFullLastName => (
                 "billing.address.last_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.last_name".to_string(),
@@ -243,7 +244,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingFirstName => (
+            Self::BillingFirstName => (
                 "billing.address.first_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.first_name".to_string(),
@@ -252,7 +253,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingLastName => (
+            Self::BillingLastName => (
                 "billing.address.last_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.last_name".to_string(),
@@ -261,7 +262,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::Email => (
+            Self::Email => (
                 "email".to_string(),
                 RequiredFieldInfo {
                     required_field: "email".to_string(),
@@ -270,7 +271,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingEmail => (
+            Self::BillingEmail => (
                 "billing.email".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.email".to_string(),
@@ -279,7 +280,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingPhone => (
+            Self::BillingPhone => (
                 "billing.phone.number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.phone.number".to_string(),
@@ -288,7 +289,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::PMBillingPhone => (
+            Self::PMBillingPhone => (
                 "payment_method_data.billing.phone.number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.phone.number".to_string(),
@@ -297,7 +298,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingPhoneCountryCode => (
+            Self::BillingPhoneCountryCode => (
                 "billing.phone.country_code".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.phone.country_code".to_string(),
@@ -306,7 +307,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingAddressLine1 => (
+            Self::BillingAddressLine1 => (
                 "billing.address.line1".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.line1".to_string(),
@@ -315,7 +316,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingAddressLine2 => (
+            Self::BillingAddressLine2 => (
                 "billing.address.line2".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.line2".to_string(),
@@ -324,7 +325,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingAddressCity => (
+            Self::BillingAddressCity => (
                 "billing.address.city".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.city".to_string(),
@@ -333,7 +334,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingAddressState => (
+            Self::BillingAddressState => (
                 "billing.address.state".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.state".to_string(),
@@ -342,7 +343,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingAddressZip => (
+            Self::BillingAddressZip => (
                 "billing.address.zip".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.zip".to_string(),
@@ -351,7 +352,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingCountries(countries) => (
+            Self::BillingCountries(countries) => (
                 "billing.address.country".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.country".to_string(),
@@ -362,7 +363,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BillingAddressCountries(countries) => (
+            Self::BillingAddressCountries(countries) => (
                 "billing.address.country".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.address.country".to_string(),
@@ -373,7 +374,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingFirstName => (
+            Self::ShippingFirstName => (
                 "shipping.address.first_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.first_name".to_string(),
@@ -382,7 +383,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingLastName => (
+            Self::ShippingLastName => (
                 "shipping.address.last_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.last_name".to_string(),
@@ -391,7 +392,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingAddressCity => (
+            Self::ShippingAddressCity => (
                 "shipping.address.city".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.city".to_string(),
@@ -400,7 +401,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingAddressState => (
+            Self::ShippingAddressState => (
                 "shipping.address.state".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.state".to_string(),
@@ -409,7 +410,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingAddressZip => (
+            Self::ShippingAddressZip => (
                 "shipping.address.zip".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.zip".to_string(),
@@ -418,7 +419,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingCountries(countries) => (
+            Self::ShippingCountries(countries) => (
                 "shipping.address.country".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.country".to_string(),
@@ -429,7 +430,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingAddressCountries(countries) => (
+            Self::ShippingAddressCountries(countries) => (
                 "shipping.address.country".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.country".to_string(),
@@ -440,7 +441,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingAddressLine1 => (
+            Self::ShippingAddressLine1 => (
                 "shipping.address.line1".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.line1".to_string(),
@@ -449,7 +450,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingAddressLine2 => (
+            Self::ShippingAddressLine2 => (
                 "shipping.address.line2".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.address.line2".to_string(),
@@ -458,7 +459,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingPhone => (
+            Self::ShippingPhone => (
                 "shipping.phone.number".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.phone.number".to_string(),
@@ -467,7 +468,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingPhoneCountryCode => (
+            Self::ShippingPhoneCountryCode => (
                 "shipping.phone.country_code".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.phone.country_code".to_string(),
@@ -476,7 +477,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::ShippingEmail => (
+            Self::ShippingEmail => (
                 "shipping.email".to_string(),
                 RequiredFieldInfo {
                     required_field: "shipping.email".to_string(),
@@ -485,7 +486,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OpenBankingUkIssuer => (
+            Self::OpenBankingUkIssuer => (
                 "payment_method_data.bank_redirect.open_banking_uk.issuer".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.open_banking_uk.issuer"
@@ -495,7 +496,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OpenBankingCzechRepublicIssuer => (
+            Self::OpenBankingCzechRepublicIssuer => (
                 "payment_method_data.bank_redirect.open_banking_czech_republic.issuer".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -506,7 +507,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OpenBankingPolandIssuer => (
+            Self::OpenBankingPolandIssuer => (
                 "payment_method_data.bank_redirect.open_banking_poland.issuer".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.open_banking_poland.issuer"
@@ -516,7 +517,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OpenBankingSlovakiaIssuer => (
+            Self::OpenBankingSlovakiaIssuer => (
                 "payment_method_data.bank_redirect.open_banking_slovakia.issuer".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -526,7 +527,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OpenBankingFpxIssuer => (
+            Self::OpenBankingFpxIssuer => (
                 "payment_method_data.bank_redirect.open_banking_fpx.issuer".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.open_banking_fpx.issuer"
@@ -536,7 +537,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OpenBankingThailandIssuer => (
+            Self::OpenBankingThailandIssuer => (
                 "payment_method_data.bank_redirect.open_banking_thailand.issuer".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -546,7 +547,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BanContactCardNumber => (
+            Self::BanContactCardNumber => (
                 "payment_method_data.bank_redirect.bancontact_card.card_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.bancontact_card.card_number"
@@ -556,7 +557,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BanContactCardExpMonth => (
+            Self::BanContactCardExpMonth => (
                 "payment_method_data.bank_redirect.bancontact_card.card_exp_month".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -567,7 +568,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BanContactCardExpYear => (
+            Self::BanContactCardExpYear => (
                 "payment_method_data.bank_redirect.bancontact_card.card_exp_year".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -578,7 +579,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::IdealBankName => (
+            Self::IdealBankName => (
                 "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
@@ -587,7 +588,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::EpsBankName => (
+            Self::EpsBankName => (
                 "payment_method_data.bank_redirect.eps.bank_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.eps.bank_name".to_string(),
@@ -596,7 +597,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BlikCode => (
+            Self::BlikCode => (
                 "payment_method_data.bank_redirect.blik.blik_code".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_redirect.blik.blik_code".to_string(),
@@ -605,7 +606,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::MifinityDateOfBirth => (
+            Self::MifinityDateOfBirth => (
                 "payment_method_data.wallet.mifinity.date_of_birth".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.wallet.mifinity.date_of_birth".to_string(),
@@ -614,7 +615,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::MifinityLanguagePreference(languages) => (
+            Self::MifinityLanguagePreference(languages) => (
                 "payment_method_data.wallet.mifinity.language_preference".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.wallet.mifinity.language_preference"
@@ -626,7 +627,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::CryptoNetwork => (
+            Self::CryptoNetwork => (
                 "payment_method_data.crypto.network".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.crypto.network".to_string(),
@@ -635,7 +636,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::CyptoPayCurrency(currencies) => (
+            Self::CyptoPayCurrency(currencies) => (
                 "payment_method_data.crypto.pay_currency".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.crypto.pay_currency".to_string(),
@@ -646,7 +647,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BoletoSocialSecurityNumber => (
+            Self::BoletoSocialSecurityNumber => (
                 "payment_method_data.voucher.boleto.social_security_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.voucher.boleto.social_security_number"
@@ -656,7 +657,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::UpiCollectVpaId => (
+            Self::UpiCollectVpaId => (
                 "payment_method_data.upi.upi_collect.vpa_id".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.upi.upi_collect.vpa_id".to_string(),
@@ -665,7 +666,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::AchBankDebitAccountNumber => (
+            Self::AchBankDebitAccountNumber => (
                 "payment_method_data.bank_debit.ach_bank_debit.account_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.ach_bank_debit.account_number"
@@ -675,7 +676,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::AchBankDebitRoutingNumber => (
+            Self::AchBankDebitRoutingNumber => (
                 "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.ach_bank_debit.routing_number"
@@ -685,7 +686,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::SepaBankDebitIban => (
+            Self::SepaBankDebitIban => (
                 "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban"
@@ -695,7 +696,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BacsBankDebitAccountNumber => (
+            Self::BacsBankDebitAccountNumber => (
                 "payment_method_data.bank_debit.bacs_bank_debit.account_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.bacs_bank_debit.account_number"
@@ -705,7 +706,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BacsBankDebitSortCode => (
+            Self::BacsBankDebitSortCode => (
                 "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.bacs_bank_debit.sort_code"
@@ -715,7 +716,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BecsBankDebitAccountNumber => (
+            Self::BecsBankDebitAccountNumber => (
                 "payment_method_data.bank_debit.becs_bank_debit.account_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.becs_bank_debit.account_number"
@@ -725,7 +726,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BecsBankDebitBsbNumber => (
+            Self::BecsBankDebitBsbNumber => (
                 "payment_method_data.bank_debit.becs_bank_debit.bsb_number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.becs_bank_debit.bsb_number"
@@ -735,7 +736,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::BecsBankDebitSortCode => (
+            Self::BecsBankDebitSortCode => (
                 "payment_method_data.bank_debit.becs_bank_debit.sort_code".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_debit.becs_bank_debit.sort_code"
@@ -745,7 +746,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::PixKey => (
+            Self::PixKey => (
                 "payment_method_data.bank_transfer.pix.pix_key".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_transfer.pix.pix_key".to_string(),
@@ -754,7 +755,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::PixCnpj => (
+            Self::PixCnpj => (
                 "payment_method_data.bank_transfer.pix.cnpj".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_transfer.pix.cnpj".to_string(),
@@ -763,7 +764,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::PixCpf => (
+            Self::PixCpf => (
                 "payment_method_data.bank_transfer.pix.cpf".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.bank_transfer.pix.cpf".to_string(),
@@ -772,7 +773,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::GiftCardNumber => (
+            Self::GiftCardNumber => (
                 "payment_method_data.gift_card.number".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.number".to_string(),
@@ -781,7 +782,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::GiftCardCvc => (
+            Self::GiftCardCvc => (
                 "payment_method_data.gift_card.cvc".to_string(),
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.cvc".to_string(),
@@ -790,7 +791,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::DcbMsisdn => (
+            Self::DcbMsisdn => (
                 "payment_method_data.mobile_payment.direct_carrier_billing.msisdn".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -801,7 +802,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::DcbClientUid => (
+            Self::DcbClientUid => (
                 "payment_method_data.mobile_payment.direct_carrier_billing.client_uid".to_string(),
                 RequiredFieldInfo {
                     required_field:
@@ -812,7 +813,7 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            RequiredField::OrderDetailsProductName => (
+            Self::OrderDetailsProductName => (
                 "order_details.0.product_name".to_string(),
                 RequiredFieldInfo {
                     required_field: "order_details.0.product_name".to_string(),
@@ -889,6 +890,8 @@ fn billing_address() -> Vec<RequiredField> {
     ]
 }
 
+/// Define the mandate, non-mandate, and common required fields for a connector
+/// Eg: fields(vec![RequiredField::CardNumber], vec![RequiredField::BillingEmail], vec![RequiredField::BillingAddressCity])
 fn fields(
     mandate: Vec<RequiredField>,
     non_mandate: Vec<RequiredField>,
@@ -943,9 +946,7 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
 
 #[test]
 fn test_required_fields_to_json() -> std::io::Result<()> {
-    use std::fs::File;
-    use std::io::Write;
-    use std::path::Path;
+    use std::{fs::File, io::Write, path::Path};
 
     let billing_fields = get_billing_required_fields();
     let billing_json = serde_json::to_string_pretty(&billing_fields).unwrap();
@@ -1318,7 +1319,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Nmi,
             fields(
                 vec![],
-                vec![card_with_name(), vec![RequiredField::BillingAddressZip]].concat(),
+                [card_with_name(), vec![RequiredField::BillingAddressZip]].concat(),
                 vec![],
             ),
         ),
@@ -1333,7 +1334,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(
                 vec![],
                 vec![],
-                vec![
+                [
                     email(),
                     card_with_name(),
                     vec![
@@ -1348,7 +1349,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (
             Connector::Payme,
-            fields(vec![], vec![], vec![email(), card_with_name()].concat()),
+            fields(vec![], vec![], [email(), card_with_name()].concat()),
         ),
         (Connector::Paypal, fields(vec![], card_basic(), vec![])),
         (Connector::Payu, fields(vec![], card_basic(), vec![])),
@@ -1365,7 +1366,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Trustpay,
             fields(
                 vec![],
-                vec![
+                [
                     card_with_name(),
                     vec![
                         RequiredField::BillingAddressLine1,
@@ -1384,14 +1385,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(
                 vec![],
                 vec![],
-                vec![card_with_name(), email(), billing_address()].concat(),
+                [card_with_name(), email(), billing_address()].concat(),
             ),
         ),
         (
             Connector::Worldline,
             fields(
                 vec![],
-                vec![
+                [
                     card_basic(),
                     vec![RequiredField::BillingAddressCountries(vec!["ALL"])],
                 ]
@@ -1433,7 +1434,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(
                 vec![],
                 vec![],
-                vec![
+                [
                     card_basic(),
                     vec![RequiredField::BillingEmail, RequiredField::BillingPhone],
                 ]

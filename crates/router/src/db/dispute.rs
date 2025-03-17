@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
+use diesel_models::query::dispute as disputes;
 use error_stack::report;
-use hyperswitch_domain_models::disputes;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::storage::{self, DisputeDbExt},
+    types::storage,
 };
 
 #[async_trait::async_trait]

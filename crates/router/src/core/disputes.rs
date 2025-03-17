@@ -8,6 +8,7 @@ use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use strum::IntoEnumIterator;
 pub mod transformers;
+use hyperswitch_domain_models::ForeignTryInto;
 
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
@@ -53,7 +54,8 @@ pub async fn retrieve_disputes_list(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     constraints: api_models::disputes::DisputeListGetConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
-    let dispute_list_constraints = &(constraints.clone(), profile_id_list.clone()).try_into()?;
+    let dispute_list_constraints =
+        &(constraints.clone(), profile_id_list.clone()).foreign_try_into()?;
     let disputes = state
         .store
         .find_disputes_by_constraints(merchant_account.get_id(), dispute_list_constraints)

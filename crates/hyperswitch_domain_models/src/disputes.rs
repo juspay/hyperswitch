@@ -1,28 +1,15 @@
-use crate::errors;
+use diesel_models::query::dispute::DisputeListConstraints;
 
-pub struct DisputeListConstraints {
-    pub dispute_id: Option<String>,
-    pub payment_id: Option<common_utils::id_type::PaymentId>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-    pub profile_id: Option<Vec<common_utils::id_type::ProfileId>>,
-    pub dispute_status: Option<Vec<common_enums::DisputeStatus>>,
-    pub dispute_stage: Option<Vec<common_enums::DisputeStage>>,
-    pub reason: Option<String>,
-    pub connector: Option<Vec<String>>,
-    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub currency: Option<Vec<common_enums::Currency>>,
-    pub time_range: Option<common_utils::types::TimeRange>,
-}
+use crate::{errors, ForeignTryFrom};
 
 impl
-    TryFrom<(
+    ForeignTryFrom<(
         api_models::disputes::DisputeListGetConstraints,
         Option<Vec<common_utils::id_type::ProfileId>>,
     )> for DisputeListConstraints
 {
     type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
-    fn try_from(
+    fn foreign_try_from(
         (value, auth_profile_id_list): (
             api_models::disputes::DisputeListGetConstraints,
             Option<Vec<common_utils::id_type::ProfileId>>,

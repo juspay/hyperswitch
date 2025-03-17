@@ -41,7 +41,6 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
-use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentCaptureData, PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -54,6 +53,10 @@ pub use hyperswitch_domain_models::{
     payments::HeaderPayload,
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
+};
+use hyperswitch_domain_models::{
+    payment_methods::SurchargeInterface,
+    payments::{payment_intent::CustomerData, ClickToPayMetaData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -108,7 +111,7 @@ use crate::{
         self as router_types,
         api::{self, ConnectorCallType, ConnectorCommon},
         domain,
-        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
+        storage::{self, enums as storage_enums},
         transformers::ForeignTryInto,
     },
     utils::{
@@ -5197,7 +5200,6 @@ pub async fn list_payments(
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = merchant.get_id();
     let db = state.store.as_ref();
@@ -5225,7 +5227,10 @@ pub async fn list_payments(
             {
                 Ok(pa) => Some(Ok((pi, pa))),
                 Err(error) => {
-                    if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
+                    if matches!(
+                        error.current_context(),
+                        errors::StorageError::ValueNotFound(_)
+                    ) {
                         logger::warn!(
                             ?error,
                             "payment_attempts missing for payment_id : {:?}",

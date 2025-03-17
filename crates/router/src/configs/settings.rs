@@ -25,7 +25,9 @@ use hyperswitch_interfaces::secrets_interface::secret_state::{
     RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
 use masking::Secret;
-use payment_methods::db::StorageInterface as PaymentMethodsStorageInterface;
+use payment_methods::{
+    core::settings as pm_settings, db::StorageInterface as PaymentMethodsStorageInterface,
+};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -67,7 +69,7 @@ pub struct Settings<S: SecretState> {
     pub redis: RedisSettings,
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
-    pub locker: Locker,
+    pub locker: pm_settings::Locker,
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
@@ -76,10 +78,10 @@ pub struct Settings<S: SecretState> {
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
-    pub jwekey: SecretStateContainer<Jwekey, S>,
+    pub jwekey: SecretStateContainer<pm_settings::Jwekey, S>,
     pub webhooks: WebhooksSettings,
-    pub pm_filters: ConnectorFilters,
-    pub bank_config: BankRedirectConfig,
+    pub pm_filters: pm_settings::ConnectorFilters,
+    pub bank_config: pm_settings::BankRedirectConfig,
     pub api_keys: SecretStateContainer<ApiKeys, S>,
     pub file_storage: FileStorageConfig,
     pub encryption_management: EncryptionManagementConfig,
@@ -92,12 +94,12 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     pub user: UserSettings,
     pub cors: CorsSettings,
-    pub mandates: Mandates,
+    pub mandates: pm_settings::Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
-    pub required_fields: RequiredFields,
+    pub required_fields: pm_settings::RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
-    pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
+    pub payment_method_auth: SecretStateContainer<pm_settings::PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -109,7 +111,7 @@ pub struct Settings<S: SecretState> {
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
-    pub generic_link: GenericLink,
+    pub generic_link: pm_settings::GenericLink,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
     pub analytics: SecretStateContainer<AnalyticsConfig, S>,
@@ -126,7 +128,7 @@ pub struct Settings<S: SecretState> {
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
     pub multitenancy: Multitenancy,
-    pub saved_payment_methods: EligiblePaymentMethods,
+    pub saved_payment_methods: pm_settings::EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
@@ -138,6 +140,23 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+}
+
+impl<S: SecretState> From<Settings<S>> for pm_settings::Settings<S> {
+    fn from(settings: Settings<S>) -> Self {
+        pm_settings::Settings {
+            locker: settings.locker,
+            connectors: settings.connectors,
+            jwekey: settings.jwekey,
+            pm_filters: settings.pm_filters,
+            bank_config: settings.bank_config,
+            mandates: settings.mandates,
+            required_fields: settings.required_fields,
+            payment_method_auth: settings.payment_method_auth,
+            saved_payment_methods: settings.saved_payment_methods,
+            generic_link: settings.generic_link,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

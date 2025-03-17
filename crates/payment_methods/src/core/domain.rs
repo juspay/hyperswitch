@@ -8,12 +8,13 @@ mod merchant_connector_account {
     pub use hyperswitch_domain_models::merchant_connector_account::*;
 }
 pub mod payment_methods {
-    pub use hyperswitch_domain_models::payment_method_data::*;
-    pub use hyperswitch_domain_models::payment_methods::*;
+    pub use hyperswitch_domain_models::{payment_method_data::*, payment_methods::*};
+}
+pub mod customers {
+    pub use hyperswitch_domain_models::customer::*;
 }
 pub mod payments {
-    pub use hyperswitch_domain_models::payments::*;
-    pub use hyperswitch_domain_models::payments::payment_attempt::*;
+    pub use hyperswitch_domain_models::payments::{payment_attempt::*, *};
 }
 pub mod services {
     pub use hyperswitch_domain_models::api::ApplicationResponse;
@@ -59,9 +60,9 @@ pub mod api {
         PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodListRequest,
         PaymentMethodListResponse, PaymentMethodMigrate, PaymentMethodMigrateResponse,
         PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData, RequestPaymentMethodTypes,
-        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
-        ResponsePaymentMethodsEnabled, TokenizePayloadEncrypted, TokenizePayloadRequest,
-        TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,SurchargeDetailsResponse
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled, SurchargeDetailsResponse, TokenizePayloadEncrypted,
+        TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
     };
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub use api_models::payment_methods::{
@@ -80,6 +81,7 @@ pub mod api {
     };
     pub use api_models::{
         enums as api_enums,
+        payment_methods::{RequiredFieldInfo, TokenizePayloadRequest},
         payments::{
             Amount, BankCodeResponse, MandateAmountData, MandateTransactionType, MandateType,
         },
@@ -104,6 +106,7 @@ pub mod enums {
     pub use diesel_models::enums::*;
 }
 pub use business_profile::*;
+pub use customers::*;
 pub use merchant_account::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;

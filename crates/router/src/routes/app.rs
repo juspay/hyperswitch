@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use ::payment_methods::{db::StorageInterface as PaymentMethodsStorageInterface,client::{PaymentMethodsState, PaymentMethodsStorageInterface}};
+use ::payment_methods::{
+    client::PaymentMethodsState, core::settings as pm_settings,
+    db::StorageInterface as PaymentMethodsStorageInterface,
+};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
@@ -524,7 +527,8 @@ impl AppState {
                 customer_id: None,
                 merchant_id: None,
                 limit: None,
-                conf: Arc::clone(&self.conf),
+                base_url: tenant_conf.base_url.clone(),
+                conf: Arc::new(pm_settings::Settings::from(self.conf.as_ref().clone())),
                 key_manager_state: keymanager_conf(
                     Arc::clone(&self.conf),
                     self.request_id,

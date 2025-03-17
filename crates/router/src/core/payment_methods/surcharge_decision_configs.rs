@@ -18,6 +18,7 @@ use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
 };
+use hyperswitch_domain_models::payment_methods::SurchargeInterface;
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
 use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
@@ -31,10 +32,7 @@ use crate::{
         },
     },
     db::StorageInterface,
-    types::{
-        storage::{self, payment_attempt::PaymentAttemptExt},
-        transformers::ForeignTryFrom,
-    },
+    types::{storage, transformers::ForeignTryFrom},
     SessionState,
 };
 

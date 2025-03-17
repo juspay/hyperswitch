@@ -1,11 +1,9 @@
-use common_utils::consts::TENANT_HEADER;
+use common_utils::consts::{headers, TENANT_HEADER};
 use futures::StreamExt;
 use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
-
-use common_utils::consts::headers;
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 

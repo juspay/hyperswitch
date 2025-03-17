@@ -4,6 +4,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use payment_methods::core::settings as pm_settings;
 
 use crate::settings::{self, Settings};
 
@@ -382,7 +383,7 @@ pub(crate) async fn fetch_raw_secrets(
             .expect("Failed to decrypt forex api configs");
 
     #[allow(clippy::expect_used)]
-    let jwekey = settings::Jwekey::convert_to_raw_secret(conf.jwekey, secret_management_client)
+    let jwekey = pm_settings::Jwekey::convert_to_raw_secret(conf.jwekey, secret_management_client)
         .await
         .expect("Failed to decrypt jwekey configs");
 
@@ -429,7 +430,7 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt applepay merchant configs");
 
     #[allow(clippy::expect_used)]
-    let payment_method_auth = settings::PaymentMethodAuth::convert_to_raw_secret(
+    let payment_method_auth = pm_settings::PaymentMethodAuth::convert_to_raw_secret(
         conf.payment_method_auth,
         secret_management_client,
     )

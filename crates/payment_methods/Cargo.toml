@@ -22,7 +22,9 @@ serde_json = "1.0.115"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.8.0", features = ["v4"] }
+url = { version = "2.5.0", features = ["serde"] }
 
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
 cards = { version = "0.1.0", path = "../cards" }
@@ -45,10 +47,11 @@ masking = { version = "0.1.0", path = "../masking" }
 workspace = true
 
 [features]
-default = ["v1", "payouts", "kv_store"]
+default = ["v1", "payouts", "kv_store", "dummy_connector"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
 v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
 v2 = [ "payment_methods_v2"]
 kv_store = ["scheduler/kv_store"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]
 payment_methods_v2 = [ "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
+dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "hyperswitch_interfaces/dummy_connector", "kgraph_utils/dummy_connector"]

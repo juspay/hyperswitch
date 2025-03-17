@@ -1,17 +1,16 @@
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
-use hyperswitch_domain_models::{
-    errors::StorageError,
-    payouts::{
+use hyperswitch_domain_models::payouts::{
         payout_attempt::PayoutAttempt,
         payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
-    },
-};
+    };
+use crate::errors::StorageError;
 
 use super::MockDb;
 
 #[async_trait::async_trait]
 impl PayoutsInterface for MockDb {
+    type Error = StorageError;
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,

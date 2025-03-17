@@ -71,6 +71,17 @@ pub enum ValidationError {
     InvalidValue { message: String },
 }
 
+#[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
+#[derive(Debug, thiserror::Error, Clone, PartialEq)]
+pub enum IdFormatError {
+    /// The provided ID is invalid.
+    #[error("{field_name} contains invalid data. Expected format is {expected_format}")]
+    InvalidIDFormat {
+        field_name: String,
+        expected_format: String,
+    },
+}
+
 /// Integrity check errors.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct IntegrityCheckError {

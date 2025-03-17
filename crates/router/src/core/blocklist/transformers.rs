@@ -1,3 +1,4 @@
+use ::payment_methods::core::settings as pm_settings;
 use api_models::{blocklist, enums as api_enums};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -9,7 +10,6 @@ use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
 use crate::{
-    configs::settings,
     core::{
         errors::{self, CustomResult},
         payment_methods::transformers as payment_methods,
@@ -33,8 +33,8 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
 }
 
 async fn generate_fingerprint_request(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
+    jwekey: &pm_settings::Jwekey,
+    locker: &pm_settings::Locker,
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -60,7 +60,7 @@ async fn generate_fingerprint_request(
 }
 
 async fn generate_jwe_payload_for_request(
-    jwekey: &settings::Jwekey,
+    jwekey: &pm_settings::Jwekey,
     jws: &str,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
@@ -163,10 +163,10 @@ async fn call_to_locker_for_fingerprint(
 }
 
 async fn decrypt_generate_fingerprint_response_payload(
-    jwekey: &settings::Jwekey,
+    jwekey: &pm_settings::Jwekey,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
-    decryption_scheme: settings::DecryptionScheme,
+    decryption_scheme: pm_settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
@@ -180,8 +180,8 @@ async fn decrypt_generate_fingerprint_response_payload(
 
     let jwt = payment_methods::get_dotted_jwe(jwe_body);
     let alg = match decryption_scheme {
-        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
-        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+        pm_settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        pm_settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
     };
 
     let jwe_decrypted = encryption::decrypt_jwe(

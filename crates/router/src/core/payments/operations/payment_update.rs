@@ -10,8 +10,9 @@ use common_utils::{
     types::keymanager::KeyManagerState,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::{
-    CustomerData, PaymentIntentUpdateFields,
+use hyperswitch_domain_models::{
+    payment_methods::SurchargeInterface,
+    payments::payment_intent::{CustomerData, PaymentIntentUpdateFields},
 };
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -32,7 +33,7 @@ use crate::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
-        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
+        storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
     utils::OptionExt,

@@ -1,13 +1,27 @@
-use serde::{self, Serialize, Deserialize};
+use std::collections::{HashMap, HashSet};
+
 use api_models::enums;
-use std::collections::{HashMap,HashSet};
-use common_enums::enums::PaymentMethod;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+use common_utils::{
+    ext_traits::ConfigExt,
+    transformers::{ForeignFrom, ForeignInto},
 };
-use hyperswitch_interfaces::configs::Connectors;
+use hyperswitch_interfaces::{
+    configs::Connectors,
+    secrets_interface::{
+        secret_handler::SecretsHandler,
+        secret_state::{RawSecret, SecretState, SecretStateContainer, SecuredSecret},
+        SecretManagementInterface, SecretsManagementError,
+    },
+};
+use kgraph_utils::types;
 use masking::Secret;
-use crate::core::domain::api::RequiredFieldInfo;
+use serde::{self, Deserialize, Serialize};
+
+use crate::core::{
+    domain::{api::RequiredFieldInfo, enums::ApplicationError},
+    errors::CustomResult,
+    utils::deserialize_hashmap,
+};
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
@@ -108,19 +122,19 @@ where
     })?
 }
 
-
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Settings<S: SecretState> {
-    pub locker: Locker,//
-    pub connectors: Connectors,//
-    pub jwekey: SecretStateContainer<Jwekey, S>,//
-    pub pm_filters: ConnectorFilters,//
-    pub bank_config: BankRedirectConfig,//
-    pub mandates: Mandates,//
-    pub required_fields: RequiredFields,//
-    pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,//
-    pub saved_payment_methods: EligiblePaymentMethods,//
+    pub locker: Locker,
+    pub connectors: Connectors,
+    pub jwekey: SecretStateContainer<Jwekey, S>,
+    pub pm_filters: ConnectorFilters,
+    pub bank_config: BankRedirectConfig,
+    pub mandates: Mandates,
+    pub required_fields: RequiredFields,
+    pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
+    pub saved_payment_methods: EligiblePaymentMethods,
+    pub generic_link: GenericLink,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payment_required_fields.toml
@@ -164,6 +178,66 @@ pub struct EligiblePaymentMethods {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct GenericLink {
+    pub payment_method_collect: GenericLinkEnvConfig,
+    pub payout_link: GenericLinkEnvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GenericLinkEnvConfig {
+    pub sdk_url: url::Url,
+    pub expiry: u32,
+    pub ui_config: GenericLinkEnvUiConfig,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub enabled_payment_methods: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+}
+
+impl Default for GenericLinkEnvConfig {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("http://localhost:9050/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+            expiry: 900,
+            ui_config: GenericLinkEnvUiConfig::default(),
+            enabled_payment_methods: HashMap::default(),
+        }
+    }
+}
+
+impl GenericLinkEnvConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.expiry == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "link's expiry should not be 0".into(),
+            ))
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GenericLinkEnvUiConfig {
+    pub logo: url::Url,
+    pub merchant_name: Secret<String>,
+    pub theme: String,
+}
+
+#[allow(clippy::panic)]
+impl Default for GenericLinkEnvUiConfig {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            logo: url::Url::parse("https://hyperswitch.io/favicon.ico")
+                .expect("Failed to parse default logo URL"),
+            merchant_name: Secret::new("HyperSwitch".to_string()),
+            theme: "#4285F4".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
@@ -171,8 +245,6 @@ pub struct Jwekey {
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
-
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedPaymentMethodsForMandate(
     pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
@@ -267,7 +339,7 @@ pub struct Mandates {
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
-impl Default for super::settings::Locker {
+impl Default for Locker {
     fn default() -> Self {
         Self {
             host: "localhost".into(),
@@ -281,5 +353,106 @@ impl Default for super::settings::Locker {
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
             decryption_scheme: Default::default(),
         }
+    }
+}
+impl Locker {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.mock_locker && self.host.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "locker host must not be empty when mock locker is disabled".into(),
+            ))
+        })?;
+
+        when(
+            !self.mock_locker && self.basilisk_host.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "basilisk host must not be empty when mock locker is disabled".into(),
+                ))
+            },
+        )
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for Jwekey {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let jwekey = value.get_inner();
+        let (
+            vault_encryption_key,
+            rust_locker_encryption_key,
+            vault_private_key,
+            tunnel_private_key,
+        ) = tokio::try_join!(
+            secret_management_client.get_secret(jwekey.vault_encryption_key.clone()),
+            secret_management_client.get_secret(jwekey.rust_locker_encryption_key.clone()),
+            secret_management_client.get_secret(jwekey.vault_private_key.clone()),
+            secret_management_client.get_secret(jwekey.tunnel_private_key.clone())
+        )?;
+        Ok(value.transition_state(|_| Self {
+            vault_encryption_key,
+            rust_locker_encryption_key,
+            vault_private_key,
+            tunnel_private_key,
+        }))
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for PaymentMethodAuth {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let payment_method_auth = value.get_inner();
+
+        let pm_auth_key = secret_management_client
+            .get_secret(payment_method_auth.pm_auth_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|payment_method_auth| Self {
+            pm_auth_key,
+            ..payment_method_auth
+        }))
+    }
+}
+
+impl ForeignFrom<PaymentMethodFilterKey> for types::PaymentMethodFilterKey {
+    fn foreign_from(from: PaymentMethodFilterKey) -> Self {
+        match from {
+            PaymentMethodFilterKey::PaymentMethodType(pmt) => Self::PaymentMethodType(pmt),
+            PaymentMethodFilterKey::CardNetwork(cn) => Self::CardNetwork(cn),
+        }
+    }
+}
+impl ForeignFrom<CurrencyCountryFlowFilter> for types::CurrencyCountryFlowFilter {
+    fn foreign_from(from: CurrencyCountryFlowFilter) -> Self {
+        Self {
+            currency: from.currency,
+            country: from.country,
+            not_available_flows: from.not_available_flows.map(ForeignInto::foreign_into),
+        }
+    }
+}
+impl ForeignFrom<NotAvailableFlows> for types::NotAvailableFlows {
+    fn foreign_from(from: NotAvailableFlows) -> Self {
+        Self {
+            capture_method: from.capture_method,
+        }
+    }
+}
+impl ForeignFrom<PaymentMethodFilters> for types::PaymentMethodFilters {
+    fn foreign_from(from: PaymentMethodFilters) -> Self {
+        let iter_map = from
+            .0
+            .into_iter()
+            .map(|(key, val)| (key.foreign_into(), val.foreign_into()))
+            .collect::<HashMap<_, _>>();
+        Self(iter_map)
     }
 }

@@ -16,6 +16,7 @@ use api_models::{
 };
 #[cfg(feature = "dynamic_routing")]
 use common_utils::ext_traits::AsyncExt;
+use common_utils::transformers::ForeignFrom;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -58,7 +59,7 @@ use crate::{
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
-        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        transformers::{ForeignFrom as OtherForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{OptionExt, ValueExt},
     SessionState,
@@ -774,7 +775,10 @@ pub async fn refresh_cgraph_cache(
             let key = api_enums::RoutableConnectors::from_str(&key)
                 .map_err(|_| errors::RoutingError::InvalidConnectorName(key))?;
 
-            Ok((key, value.foreign_into()))
+            Ok((
+                key,
+                <kgraph_utils::types::PaymentMethodFilters as ForeignFrom<_>>::foreign_from(value),
+            ))
         })
         .collect::<Result<HashMap<_, _>, errors::RoutingError>>()?;
     let default_configs = state

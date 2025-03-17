@@ -5,6 +5,7 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+use payment_methods::core::settings as pm_settings;
 use router_env::{instrument, tracing, Flow};
 use strum::IntoEnumIterator;
 
@@ -12,7 +13,6 @@ use crate::{
     self as app,
     core::{api_locking::LockAction, errors::RouterResponse},
     services::{api, authentication as auth, connector_integration_interface::ConnectorEnum},
-    settings,
     types::api::{self as api_types, payments as payment_types},
 };
 
@@ -125,7 +125,7 @@ fn build_payment_method_wise_feature_details(
                     .get(connector_name)
                     .and_then(|selected_connector| {
                         selected_connector.0.get(
-                            &settings::PaymentMethodFilterKey::PaymentMethodType(
+                            &pm_settings::PaymentMethodFilterKey::PaymentMethodType(
                                 *payment_method_type,
                             ),
                         )

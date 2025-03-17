@@ -1,25 +1,25 @@
-use crate::surcharge::errors::{CustomResult, RedisError, RouterResult};
+use std::collections::HashMap;
+
+use common_utils::{
+    consts,
+    ext_traits::{Encode, OptionExt},
+};
+use error_stack::ResultExt;
+use router_env::{instrument, logger, tracing};
+
 use crate::{
     client::PaymentMethodsState,
     core::{
         domain::{
-            api::SurchargeDetailsResponse,
             diesel as storage,
             types::{AuthenticationData, SurchargeDetails},
             Profile,
         },
         errors,
+        utils::ForeignTryFrom,
     },
-    surcharge,
+    surcharge::errors::{CustomResult, RedisError, RouterResult},
 };
-use common_utils::ext_traits::OptionExt;
-use common_utils::ext_traits::Encode;
-use error_stack::ResultExt;
-use common_utils::{consts, transformers::ForeignTryFrom};
-use router_env::{instrument, logger, tracing};
-use std::collections::HashMap;
-use std::num::TryFromIntError;
-pub mod conditional_configs;
 
 #[cfg(feature = "v2")]
 impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {

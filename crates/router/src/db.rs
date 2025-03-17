@@ -53,6 +53,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    customer::CustomerInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
@@ -96,7 +97,7 @@ pub trait StorageInterface:
     + blocklist_lookup::BlocklistLookupInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + customers::CustomerInterface
+    + CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
@@ -109,15 +110,15 @@ pub trait StorageInterface:
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
-    + PaymentAttemptInterface
-    + PaymentIntentInterface
-    + PaymentMethodInterface
+    + PaymentAttemptInterface<Error = StorageError>
+    + PaymentIntentInterface<Error = StorageError>
+    + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
-    + PayoutAttemptInterface
-    + PayoutsInterface
+    + PayoutAttemptInterface<Error = StorageError>
+    + PayoutsInterface<Error = StorageError>
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
