@@ -807,21 +807,6 @@ pub async fn refresh_cgraph_cache(
     Ok(cgraph)
 }
 
-// #[cfg(feature = "v2")]
-// #[allow(clippy::too_many_arguments)]
-// pub async fn perform_cgraph_filtering(
-//     state: &SessionState,
-//     key_store: &domain::MerchantKeyStore,
-//     chosen: Vec<routing_types::RoutableConnectorChoice>,
-//     backend_input: dsl_inputs::BackendInput,
-//     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-//     profile_id: &common_utils::id_type::ProfileId,
-//     transaction_type: &api_enums::TransactionType,
-// ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-//     todo!()
-// }
-
-// #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_cgraph_filtering(
     state: &SessionState,
