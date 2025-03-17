@@ -353,8 +353,8 @@ pub struct StripebillingRecoveryDetailsData {
     pub currency: enums::Currency,
     pub customer: String,
     pub payment_method: String,
-    pub failure_code: String,
-    pub failure_message: String,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub created: PrimitiveDateTime,
     pub payment_method_details: StripePaymentMethodDetails,
@@ -390,8 +390,6 @@ pub enum StripebillingFundingTypes {
     Debit,
     #[serde(rename = "prepaid")]
     Prepaid,
-    #[serde(rename = "unknown")]
-    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -399,7 +397,6 @@ pub enum StripebillingFundingTypes {
 pub enum StripebillingChargeStatus {
     Succeeded,
     Failed,
-    Pending,
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -444,8 +441,8 @@ impl
                 connector_account_reference_id:
                     MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA.to_string(),
                 connector_transaction_id,
-                error_code: Some(item.response.failure_code),
-                error_message: Some(item.response.failure_message),
+                error_code: item.response.failure_code,
+                error_message: item.response.failure_message,
                 processor_payment_method_token: item.response.payment_method,
                 connector_customer_id: item.response.customer,
                 transaction_created_at: Some(item.response.created),
@@ -469,7 +466,7 @@ impl From<StripebillingChargeStatus> for enums::AttemptStatus {
     fn from(status: StripebillingChargeStatus) -> Self {
         match status {
             StripebillingChargeStatus::Succeeded => Self::Charged,
-            StripebillingChargeStatus::Failed | StripebillingChargeStatus::Pending => Self::Pending,
+            StripebillingChargeStatus::Failed => Self::Failure,
         }
     }
 }
@@ -480,8 +477,7 @@ impl From<StripebillingFundingTypes> for common_enums::PaymentMethodType {
         match funding {
             StripebillingFundingTypes::Credit => Self::Credit,
             StripebillingFundingTypes::Debit
-            | StripebillingFundingTypes::Prepaid
-            | StripebillingFundingTypes::Unknown => Self::Debit,
+            | StripebillingFundingTypes::Prepaid => Self::Debit,
         }
     }
 }

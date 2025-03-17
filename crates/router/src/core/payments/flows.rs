@@ -2321,13 +2321,11 @@ impl<const T: u8>
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
