@@ -3873,6 +3873,7 @@ macro_rules! default_imp_for_revenue_recovery {
 
 default_imp_for_revenue_recovery!(
     connectors::Aci,
+    connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -3922,6 +3923,7 @@ default_imp_for_revenue_recovery!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Powertranz,

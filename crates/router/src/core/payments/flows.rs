@@ -2277,13 +2277,11 @@ impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 
 default_imp_for_revenue_recovery! {
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
