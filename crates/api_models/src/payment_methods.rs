@@ -2025,7 +2025,7 @@ pub struct CustomerPaymentMethod {
     ///The network token details for the payment method
     pub network_tokenization: Option<NetworkTokenResponse>,
 
-    /// Whether psp_tokenization is enabled for the payment_method, this will be true when atleast
+    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
     /// one multi-use token with status `Active` is available for the payment method
     pub psp_tokenization_enabled: bool,
 }
