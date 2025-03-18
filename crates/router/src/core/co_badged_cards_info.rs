@@ -9,7 +9,7 @@ pub struct CoBadgedCardInfoList(Vec<CoBadgedCardInfo>);
 
 impl CoBadgedCardInfoList {
     fn pad_card_number_to_16_digit(card_number: cards::CardNumber) -> String {
-        let card_number = card_number.to_string();
+        let card_number = card_number.get_card_isin();
         format!("{:0>19}", card_number)
     }
     pub fn is_valid_length(&self) -> bool {
@@ -34,11 +34,19 @@ impl CoBadgedCardInfoList {
         Self(filtered_cards)
     }
 
-    pub fn has_same_issuer(&self) -> bool {
-        let first_issuer = &self.0[0].issuing_bank_name;
-        self.0
+    pub fn has_same_issuer(&self) -> CustomResult<bool, errors::ApiErrorResponse> {
+        let first_element = self
+            .0
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The filtered co-badged card info list is empty")?;
+
+        let first_issuer = &first_element.issuing_bank_name;
+        let has_same_issuer = self
+            .0
             .iter()
-            .all(|card| &card.issuing_bank_name == first_issuer)
+            .all(|card| &card.issuing_bank_name == first_issuer);
+        Ok(has_same_issuer)
     }
 
     pub fn extract_networks(&self) -> Vec<enums::CardNetwork> {
@@ -113,29 +121,34 @@ pub async fn get_co_badged_cards_info(
         Ok(co_badged_card_infos) => {
             let co_badged_card_infos_list = CoBadgedCardInfoList(co_badged_card_infos);
 
-            let filtered_co_badged_card_info_list_optional = co_badged_card_infos_list
+            co_badged_card_infos_list
                 .is_valid_length()
                 .then(|| co_badged_card_infos_list.filter_cards())
                 .and_then(|filtered_co_badged_card_infos_list| {
-                    if filtered_co_badged_card_infos_list.is_valid_length()
-                        && filtered_co_badged_card_infos_list.has_same_issuer()
-                    {
-                        Some(filtered_co_badged_card_infos_list)
-                    } else {
-                        None
-                    }
-                });
-
-            Ok(filtered_co_badged_card_info_list_optional)
+                    filtered_co_badged_card_infos_list
+                        .is_valid_length()
+                        .then_some(filtered_co_badged_card_infos_list)
+                })
+                .and_then(|filtered_co_badged_card_infos_list| {
+                    filtered_co_badged_card_infos_list
+                        .has_same_issuer()
+                        .and_then(|has_same_issuer| {
+                            Ok(has_same_issuer.then_some(filtered_co_badged_card_infos_list))
+                        })
+                        .transpose()
+                })
+                .transpose()
         }
     }?;
 
     let co_badged_cards_info_response = filtered_co_badged_card_info_list_optional
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get co-badged card info list")?
-        .get_co_badged_cards_info_response()
-        .attach_printable("Failed to generate co-badged card info response")?;
-    Ok(Some(co_badged_cards_info_response))
+        .map(|filtered_co_badged_card_info_lis| {
+            filtered_co_badged_card_info_lis.get_co_badged_cards_info_response()
+        })
+        .transpose()
+        .attach_printable("Failed to construct co-badged card info response")?;
+
+    Ok(co_badged_cards_info_response)
 }
 
 pub fn calculate_interchange_fee(
