@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::payments;
 #[cfg(feature = "payouts")]
@@ -58,6 +61,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
+use serde::Deserialize;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -336,6 +340,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
@@ -1855,6 +1861,7 @@ pub trait PaymentsCaptureRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCaptureRequestData for PaymentsCaptureData {
@@ -1870,6 +1877,11 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -1924,6 +1936,7 @@ pub trait PaymentsCancelRequestData {
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -1947,6 +1960,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -5825,4 +5843,15 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }
+}
+
+pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    use serde::de::Error;
+    let output = <&str>::deserialize(v)?;
+    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
 }
