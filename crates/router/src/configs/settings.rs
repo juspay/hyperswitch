@@ -110,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub generic_link: GenericLink,
+    pub debit_routing_config: DebitRoutingConfig,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
     pub analytics: SecretStateContainer<AnalyticsConfig, S>,
@@ -138,6 +139,30 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    pub network_fee: HashMap<enums::CardNetwork, NetworkProcessingData>,
+    pub interchange_fee: NetworkInterchangeFee,
+    pub fraud_check_fee: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkInterchangeFee {
+    pub non_regulated: NoneRegulatedNetworkProcessingData,
+    pub regulated: NetworkProcessingData,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NoneRegulatedNetworkProcessingData {
+    pub merchant_category_code_0001: HashMap<enums::CardNetwork, NetworkProcessingData>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkProcessingData {
+    pub percentage: String,
+    pub fixed_amount: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
