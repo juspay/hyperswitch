@@ -6606,7 +6606,8 @@
           "gpayments",
           "ctp_mastercard",
           "unified_authentication_service",
-          "juspaythreedsserver"
+          "juspaythreedsserver",
+          "ctp_visa"
         ]
       },
       "AuthenticationStatus": {
@@ -9717,6 +9718,7 @@
           "coingate",
           "cryptopay",
           "ctp_mastercard",
+          "ctp_visa",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -9765,6 +9767,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "shift4",
           "square",
           "stax",
@@ -10437,6 +10440,9 @@
       },
       "CtpServiceDetails": {
         "type": "object",
+        "required": [
+          "provider"
+        ],
         "properties": {
           "merchant_transaction_id": {
             "type": "string",
@@ -10454,8 +10460,11 @@
             "nullable": true
           },
           "provider": {
+            "$ref": "#/components/schemas/api_enums.CtpServiceProvider"
+          },
+          "encypted_payload": {
             "type": "string",
-            "description": "provider Eg: Visa, Mastercard",
+            "description": "Encrypted payload",
             "nullable": true
           }
         }
@@ -24881,6 +24890,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "riskified",
           "shift4",
           "signifyd",
