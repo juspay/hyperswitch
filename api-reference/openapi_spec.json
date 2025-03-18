@@ -9728,10 +9728,12 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
@@ -11974,6 +11976,12 @@
           {
             "type": "string",
             "enum": [
+              "user_card_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -13925,7 +13933,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantProductType"
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -14166,7 +14174,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantProductType"
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -16608,7 +16616,8 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default"
+          "show_card_form_by_default",
+          "enable_button_only_on_form_ready"
         ],
         "properties": {
           "theme": {
@@ -16732,6 +16741,10 @@
               }
             },
             "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission"
           }
         }
       },
@@ -16868,6 +16881,11 @@
                 "type": "string"
               }
             },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
           }
         }
@@ -19612,6 +19630,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
           }
         }
       },
@@ -20879,6 +20907,16 @@
                 "$ref": "#/components/schemas/CardDiscovery"
               }
             ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           }
         }
@@ -24159,6 +24197,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed refunds",
+            "nullable": true
           }
         }
       },
@@ -24811,9 +24859,11 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",

@@ -421,6 +421,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text_colour: item.payment_button_text_colour,
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
+            enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -444,6 +445,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text_colour,
             sdk_ui_rules,
             payment_link_ui_rules,
+            enable_button_only_on_form_ready,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -471,6 +473,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text_colour,
             sdk_ui_rules,
             payment_link_ui_rules,
+            enable_button_only_on_form_ready,
         }
     }
 }

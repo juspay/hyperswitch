@@ -178,6 +178,8 @@ impl ConnectorCommon for Fiserv {
                     status_code: res.status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             })
             .unwrap_or(ErrorResponse {
@@ -187,6 +189,8 @@ impl ConnectorCommon for Fiserv {
                 status_code: res.status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }))
     }
 }

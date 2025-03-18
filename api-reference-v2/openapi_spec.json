@@ -7629,10 +7629,12 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
@@ -8720,6 +8722,14 @@
               }
             ],
             "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9755,6 +9765,12 @@
             "type": "string",
             "enum": [
               "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_network"
             ]
           },
           {
@@ -11587,7 +11603,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantProductType"
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -11729,7 +11745,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantProductType"
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -14064,7 +14080,8 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default"
+          "show_card_form_by_default",
+          "enable_button_only_on_form_ready"
         ],
         "properties": {
           "theme": {
@@ -14188,6 +14205,10 @@
               }
             },
             "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission"
           }
         }
       },
@@ -14324,6 +14345,11 @@
                 "type": "string"
               }
             },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
           }
         }
@@ -15378,6 +15404,14 @@
             },
             "description": "The connector token details if available",
             "nullable": true
+          },
+          "network_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15911,7 +15945,8 @@
           "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
           "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_subtype",
+          "connector"
         ],
         "properties": {
           "total_retry_count": {
@@ -15942,6 +15977,9 @@
           },
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
           }
         }
       },
@@ -20325,9 +20363,11 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",

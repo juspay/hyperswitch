@@ -451,6 +451,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         }),
                     ),
                     _ => {
@@ -495,6 +497,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                     reason: item.response.status.message,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
             ),
         };
