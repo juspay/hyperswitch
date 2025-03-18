@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::{FloatMajorUnit, StringMinorUnit}};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -288,7 +288,7 @@ pub enum RecurlyFundingTypes {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RecurlyRecoveryDetailsData {
-    pub amount: MinorUnit, 
+    pub amount: FloatMajorUnit, 
     pub currency: common_enums::Currency,
     pub uuid: String,
     pub gateway_reference: Option<String>,
@@ -356,7 +356,7 @@ impl
         Ok(Self {
             response: Ok(GetAdditionalRevenueRecoveryResponseData{
                 status: item.response.status.into(),
-                amount : item.response.amount,
+                amount : FloatMajorUnit::to_minor_unit_as_i64(item.response.amount,item.response.currency),
                 currency : item.response.currency,
                 merchant_reference_id,
                 connector_account_reference_id : "Recurly".to_string(),
