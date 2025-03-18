@@ -19,8 +19,9 @@ use crate::user::{
     SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
     SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
     TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantAccountResponse,
+    UserMerchantCreate, UserOrgMerchantCreateRequest, VerifyEmailRequest,
+    VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 common_utils::impl_api_event_type!(
@@ -39,6 +40,7 @@ common_utils::impl_api_event_type!(
         CreateInternalUserRequest,
         CreateTenantUserRequest,
         UserOrgMerchantCreateRequest,
+        UserMerchantAccountResponse,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,

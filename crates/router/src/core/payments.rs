@@ -2328,6 +2328,12 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
             feature_metadata: Some(api_models::payments::FeatureMetadata {
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
@@ -5941,7 +5947,9 @@ pub async fn add_process_sync_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 

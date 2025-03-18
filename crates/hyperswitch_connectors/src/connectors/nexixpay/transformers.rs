@@ -158,18 +158,18 @@ pub struct Order {
 #[serde(rename_all = "camelCase")]
 pub struct CustomerInfo {
     card_holder_name: Secret<String>,
-    billing_address: BillingAddress,
+    billing_address: Option<BillingAddress>,
     shipping_address: Option<ShippingAddress>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
-    name: Secret<String>,
-    street: Secret<String>,
-    city: String,
-    post_code: Secret<String>,
-    country: enums::CountryAlpha2,
+    name: Option<Secret<String>>,
+    street: Option<Secret<String>>,
+    city: Option<String>,
+    post_code: Option<Secret<String>>,
+    country: Option<enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -445,19 +445,29 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let billing_address_street = format!(
-            "{}, {}",
-            item.router_data.get_billing_line1()?.expose(),
-            item.router_data.get_billing_line2()?.expose()
-        );
-
-        let billing_address = BillingAddress {
-            name: item.router_data.get_billing_full_name()?,
-            street: Secret::new(billing_address_street),
-            city: item.router_data.get_billing_city()?,
-            post_code: item.router_data.get_billing_zip()?,
-            country: item.router_data.get_billing_country()?,
+        let billing_address_street = match (
+            item.router_data.get_optional_billing_line1(),
+            item.router_data.get_optional_billing_line2(),
+        ) {
+            (Some(line1), Some(line2)) => Some(Secret::new(format!(
+                "{}, {}",
+                line1.expose(),
+                line2.expose()
+            ))),
+            (Some(line1), None) => Some(line1),
+            (None, Some(line2)) => Some(line2),
+            (None, None) => None,
         };
+        let billing_address = item
+            .router_data
+            .get_optional_billing()
+            .map(|_| BillingAddress {
+                name: item.router_data.get_optional_billing_full_name(),
+                street: billing_address_street,
+                city: item.router_data.get_optional_billing_city(),
+                post_code: item.router_data.get_optional_billing_zip(),
+                country: item.router_data.get_optional_billing_country(),
+            });
         let shipping_address_street = match (
             item.router_data.get_optional_shipping_line1(),
             item.router_data.get_optional_shipping_line2(),
@@ -474,7 +484,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
         let shipping_address = item
             .router_data
-            .get_optional_billing()
+            .get_optional_shipping()
             .map(|_| ShippingAddress {
                 name: item.router_data.get_optional_shipping_full_name(),
                 street: shipping_address_street,
@@ -995,19 +1005,29 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
         let order_id = item.router_data.connector_request_reference_id.clone();
         let amount = item.amount.clone();
-        let billing_address_street = format!(
-            "{}, {}",
-            item.router_data.get_billing_line1()?.expose(),
-            item.router_data.get_billing_line2()?.expose()
-        );
-
-        let billing_address = BillingAddress {
-            name: item.router_data.get_billing_full_name()?,
-            street: Secret::new(billing_address_street),
-            city: item.router_data.get_billing_city()?,
-            post_code: item.router_data.get_billing_zip()?,
-            country: item.router_data.get_billing_country()?,
+        let billing_address_street = match (
+            item.router_data.get_optional_billing_line1(),
+            item.router_data.get_optional_billing_line2(),
+        ) {
+            (Some(line1), Some(line2)) => Some(Secret::new(format!(
+                "{}, {}",
+                line1.expose(),
+                line2.expose()
+            ))),
+            (Some(line1), None) => Some(line1),
+            (None, Some(line2)) => Some(line2),
+            (None, None) => None,
         };
+        let billing_address = item
+            .router_data
+            .get_optional_billing()
+            .map(|_| BillingAddress {
+                name: item.router_data.get_optional_billing_full_name(),
+                street: billing_address_street,
+                city: item.router_data.get_optional_billing_city(),
+                post_code: item.router_data.get_optional_billing_zip(),
+                country: item.router_data.get_optional_billing_country(),
+            });
         let shipping_address_street = match (
             item.router_data.get_optional_shipping_line1(),
             item.router_data.get_optional_shipping_line2(),
@@ -1024,7 +1044,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
         let shipping_address = item
             .router_data
-            .get_optional_billing()
+            .get_optional_shipping()
             .map(|_| ShippingAddress {
                 name: item.router_data.get_optional_shipping_full_name(),
                 street: shipping_address_street,
