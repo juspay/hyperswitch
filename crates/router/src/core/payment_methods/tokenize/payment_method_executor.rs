@@ -128,6 +128,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
         card_cvc: Option<Secret<String>>,
     ) -> NetworkTokenizationBuilder<'a, PmAssigned> {
         let card = domain::CardDetail {
+            secondary_card_networks: None,
             card_number: card_from_locker.card_number.clone(),
             card_exp_month: card_from_locker.card_exp_month.clone(),
             card_exp_year: card_from_locker.card_exp_year.clone(),

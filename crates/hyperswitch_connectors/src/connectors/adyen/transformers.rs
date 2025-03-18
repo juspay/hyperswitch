@@ -2024,7 +2024,11 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
         common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
         common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Star
+        | common_enums::CardNetwork::Accel
+        | common_enums::CardNetwork::Pulse
+        | common_enums::CardNetwork::Nyce => None,
     }
 }
 
