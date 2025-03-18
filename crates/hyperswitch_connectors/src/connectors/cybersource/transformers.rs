@@ -2679,10 +2679,10 @@ fn get_error_response_if_failure(
 
 fn get_payment_response(
     (info_response, status, http_code): (&CybersourcePaymentsResponse, enums::AttemptStatus, u16),
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
-        Some(error) => Err(error),
+        Some(error) => Err(Box::new(error)),
         None => {
             let incremental_authorization_allowed =
                 Some(status == enums::AttemptStatus::Authorized);
@@ -2747,7 +2747,8 @@ impl
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -2845,6 +2846,8 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3255,6 +3258,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -3292,7 +3297,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -3348,7 +3354,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             true,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -3383,7 +3390,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -4131,6 +4139,8 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 

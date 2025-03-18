@@ -302,6 +302,8 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.payment_id),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             } else {
                 Ok(types::PaymentsResponseData::TransactionResponse {
@@ -388,6 +390,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.payment_id),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             } else {
                 Ok(types::PaymentsResponseData::TransactionResponse {
