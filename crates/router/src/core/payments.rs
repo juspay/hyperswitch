@@ -272,7 +272,12 @@ where
     F: Send + Clone + Sync,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + OperationSessionValidators<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + OperationSessionValidators<F>
+        + Send
+        + Sync
+        + Clone,
 
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -1568,7 +1573,12 @@ where
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + OperationSessionValidators<F>+ Send + Sync + Clone,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + OperationSessionValidators<F>
+        + Send
+        + Sync
+        + Clone,
     Res: transformers::ToResponse<F, D, Op>,
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -7985,7 +7995,6 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
     }
 }
 
-
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
@@ -8347,12 +8356,15 @@ impl<F: Clone> OperationSessionValidators<F> for PaymentData<F> {
         let payment_method_data = self.get_payment_method_data();
         let customer_acceptance = self.get_customer_acceptance();
 
-        let is_network_token = matches!(payment_method_data, Some(domain::PaymentMethodData::NetworkToken(_)));
+        let is_network_token = matches!(
+            payment_method_data,
+            Some(domain::PaymentMethodData::NetworkToken(_))
+        );
         let is_permanent_token = self
             .get_token_data()
             .map(|token_data| token_data.is_permanent_or_permanent_card())
             .unwrap_or(false);
-        
+
         is_network_token && customer_acceptance.is_some() && is_permanent_token
     }
 }

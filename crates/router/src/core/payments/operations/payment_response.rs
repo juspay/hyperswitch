@@ -384,7 +384,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     {
         let merchant_account = merchant_account.clone();
 
-
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
