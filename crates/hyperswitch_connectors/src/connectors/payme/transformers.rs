@@ -232,6 +232,8 @@ fn get_pay_sale_error_response(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(pay_sale_response.payme_sale_id.clone()),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 
@@ -314,6 +316,8 @@ fn get_sale_query_error_response(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(sale_query_response.sale_payme_id.clone()),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 
@@ -1033,6 +1037,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaymeRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -1104,6 +1110,8 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             // Since we are not receiving payme_sale_id, we are not populating the transaction response
@@ -1158,6 +1166,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymeQueryTransactionResponse, T, Refun
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(pay_sale_response.payme_transaction_id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(RefundsResponseData {
