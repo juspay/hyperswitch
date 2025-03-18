@@ -929,6 +929,7 @@ pub struct TokenType(pub types::PaymentMethodTokenizationData);
 impl Default for CCardType {
     fn default() -> Self {
         Self(types::domain::Card {
+            secondary_card_networks: None,
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
