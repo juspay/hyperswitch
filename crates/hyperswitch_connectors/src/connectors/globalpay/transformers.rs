@@ -83,15 +83,8 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata = item.router_data.get_connector_meta()?;
-
-        let account_name = metadata
-            .parse_value("GlobalPayMeta")
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "Merchant connector account metadata",
-            })
-            .map(|meta: GlobalPayMeta| meta.account_name)?;
-
+        let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
+        let account_name = metadata.account_name;
         let (initiator, stored_credential, brand_reference) =
             get_mandate_details(item.router_data)?;
         let payment_method_data = get_payment_method_data(item.router_data, brand_reference)?;
