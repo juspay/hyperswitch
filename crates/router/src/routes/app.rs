@@ -897,7 +897,22 @@ impl Routing {
                 )),
             )
             .service(
-                web::resource("/decision/surcharge/{profile_id}").route(web::post().to(
+                web::resource("/decision/surcharge/active")
+                .route(web::get().to(
+                    
+                    |state, req, query_params| {
+                        routing::retrieve_linked_surcharge_config(
+                            state,
+                            req,
+                            query_params,
+                            &TransactionType::Payment,
+                        )
+                    }
+                )),
+            )
+            .service(
+                web::resource("/decision/surcharge/{profile_id}")
+                .route(web::post().to(
                     |state, req, path, payload| {
                         routing::add_surcharge_decision_manager_config(
                             state,
@@ -908,7 +923,7 @@ impl Routing {
                             AlgorithmType::Surcharge,
                         )
                     },
-                )),
+                ))
             )
             .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(

@@ -78,7 +78,7 @@ impl events::ApiEventMetric for SurchargeDecisionConfigReq {
 #[serde(deny_unknown_fields)]
 pub struct SurchargeDecisionManagerConfig {
     pub merchant_surcharge_configs: MerchantSurchargeConfigs,
-    pub algorithm: Option<Program<SurchargeDecisionConfigs>>,
+    pub algorithm: Program<SurchargeDecisionConfigs>,
 }
 
 impl events::ApiEventMetric for SurchargeDecisionManagerConfig {

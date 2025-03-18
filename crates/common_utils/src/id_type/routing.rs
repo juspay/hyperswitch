@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 crate::id_type!(
     RoutingId,
     " A type for routing_id that can be used for routing ids"
@@ -33,7 +35,15 @@ impl crate::events::ApiEventMetric for RoutingId {
 )]
 #[diesel(sql_type = diesel::sql_types::Text,)]
 #[schema(value_type = String)]
-pub struct SurchargeRoutingId(RoutingId);
+pub struct SurchargeRoutingId(pub RoutingId);
+
+impl Deref for SurchargeRoutingId {
+    type Target = RoutingId;
+    
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 crate::impl_serializable_secret_id_type!(SurchargeRoutingId);
 crate::impl_queryable_id_type!(SurchargeRoutingId);
 

@@ -75,6 +75,11 @@ pub struct RoutingRetrieveLinkQuery {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SurchargeRetrieveLinkQuery {
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQueryWrapper {
     pub routing_query: RoutingRetrieveQuery,
     pub profile_id: common_utils::id_type::ProfileId,
