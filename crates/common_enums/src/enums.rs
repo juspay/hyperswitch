@@ -2108,6 +2108,14 @@ pub enum CardNetwork {
     RuPay,
     #[serde(alias = "MAESTRO")]
     Maestro,
+    #[serde(alias = "STAR")]
+    Star,
+    #[serde(alias = "PULSE")]
+    Pulse,
+    #[serde(alias = "ACCEL")]
+    Accel,
+    #[serde(alias = "NYCE")]
+    Nyce,
 }
 
 /// Stage of the dispute
