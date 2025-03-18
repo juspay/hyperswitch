@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.17.0-hotfix2
+
+### Refactors
+
+- **core:** Revert "filter default routing config response based on connector type" ([#7557](https://github.com/juspay/hyperswitch/pull/7557)) ([`ad05791`](https://github.com/juspay/hyperswitch/commit/ad05791fc7d8cbdf588175c32abaeb34475c4480))
+
+**Full Changelog:** [`2025.03.17.0-hotfix1...2025.03.17.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.03.17.0-hotfix1...2025.03.17.0-hotfix2)
+
+
+- - -
+
 ## 2025.03.17.0-hotfix1
 
 ### Features
