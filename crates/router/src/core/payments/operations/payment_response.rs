@@ -378,14 +378,12 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
         let merchant_account = merchant_account.clone();
 
-        let business_profile = business_profile.clone();
 
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
@@ -423,7 +421,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
-            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
