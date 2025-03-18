@@ -88,6 +88,16 @@ window.state = {
 
 const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 
+var isFramed = false;
+try {
+  isFramed = window.parent.location !== window.location;
+
+  // If parent's window object is restricted, DOMException is
+  // thrown which concludes that the webpage is iframed
+} catch (err) {
+  isFramed = true;
+}
+
 /**
  * Trigger - on boot
  * Use - emit latest payment status to parent window
@@ -116,22 +126,42 @@ function boot() {
   var paymentDetails = window.__PAYMENT_DETAILS;
 
   // Emit latest payment status
-  emitPaymentStatus(paymentDetails);
-
-  // Attach document icon
-  if (paymentDetails.merchant_logo) {
-    var link = document.createElement("link");
-    link.rel = "icon";
-    link.href = paymentDetails.merchant_logo;
-    link.type = "image/x-icon";
-    document.head.appendChild(link);
+  if (isFramed) {
+    emitPaymentStatus(paymentDetails);
   }
 
-  // Render status details
-  renderStatusDetails(paymentDetails);
+  if (shouldRenderUI(paymentDetails)) {
+    removeClass("body", "hidden");
+    // Attach document icon
+    if (paymentDetails.merchant_logo) {
+      var link = document.createElement("link");
+      link.rel = "icon";
+      link.href = paymentDetails.merchant_logo;
+      link.type = "image/x-icon";
+      document.head.appendChild(link);
+    }
 
-  // Add event listeners
-  initializeEventListeners(paymentDetails);
+    // Render status details
+    renderStatusDetails(paymentDetails);
+
+    // Add event listeners
+    initializeEventListeners(paymentDetails);
+  }
+}
+
+/**
+ * Trigger - on boot
+ * Use - Check if UI should be rendered based on some conditions
+ * @returns {Boolean}
+ */
+function shouldRenderUI(paymentDetails) {
+  var status = paymentDetails.status;
+  if (isFramed) {
+    switch (status) {
+      case "requires_customer_action": return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -362,3 +392,16 @@ function initializeEventListeners(paymentDetails) {
   }
 };
 
+function addClass(id, className) {
+  var element = document.querySelector(id);
+  if (element instanceof HTMLElement) {
+    element.classList.add(className);
+  }
+}
+
+function removeClass(id, className) {
+  var element = document.querySelector(id);
+  if (element instanceof HTMLElement) {
+    element.classList.remove(className);
+  }
+}

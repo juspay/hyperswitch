@@ -181,6 +181,16 @@ var hyper = null;
 
 const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 
+var isFramed = false;
+try {
+  isFramed = window.parent.location !== window.location;
+
+  // If parent's window object is restricted, DOMException is
+  // thrown which concludes that the webpage is iframed
+} catch (err) {
+  isFramed = true;
+}
+
 /**
  * Trigger - on boot
  * Use - emit latest payment status to parent window
@@ -210,7 +220,9 @@ function boot() {
   var paymentDetails = window.__PAYMENT_DETAILS;
 
   // Emit latest payment status
-  emitPaymentStatus(paymentDetails);
+  if (isFramed) {
+    emitPaymentStatus(paymentDetails);
+  }
 
   if (paymentDetails.display_sdk_only) {
     hide(".checkout-page")
