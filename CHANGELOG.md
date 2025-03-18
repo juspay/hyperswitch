@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.17.0-hotfix1
+
+### Features
+
+- **analytics:** Add issuer as filter for authentication analytics ([#7547](https://github.com/juspay/hyperswitch/pull/7547)) ([`587aee8`](https://github.com/juspay/hyperswitch/commit/587aee814a570753b620fcb618ccd6dbd04afcbc))
+
+**Full Changelog:** [`2025.03.17.0...2025.03.17.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.03.17.0...2025.03.17.0-hotfix1)
+
+
+- - -
+
 ## 2025.03.17.0
 
 ### Features
