@@ -676,14 +676,16 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
             Connector::Zsl => Ok(Self::Zsl),
+            Connector::Recurly => Ok(Self::Recurly),
+            Connector::Getnet => Ok(Self::Getnet),
+            Connector::Hipay => Ok(Self::Hipay),
+            Connector::Inespay => Ok(Self::Inespay),
             Connector::CtpMastercard
             | Connector::Gpayments
-            | Connector::Inespay
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
-            | Connector::Threedsecureio
-            | Connector::Hipay => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Threedsecureio => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }
