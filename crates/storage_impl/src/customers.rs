@@ -110,7 +110,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                     merchant_id,
                 ),
                 FindResourceBy::Id(
-                    format!("cust_{}", customer_id.get_string_repr()),
+                    format!("cust_{}", merchant_reference_id.get_string_repr()),
                     PartitionKey::MerchantIdMerchantReferenceId {
                         merchant_id,
                         merchant_reference_id: merchant_reference_id.get_string_repr(),
@@ -119,7 +119,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             )
             .await?;
 
-        maybe_result.map_or(Ok(None), |customer: domain::Customer| match customer.name {
+        maybe_result.map_or(Ok(None), |customer: DomainCustomer| match customer.name {
             Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(Some(customer)),
         })
@@ -257,11 +257,12 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_customer(
         &self,
-        customer_data: Customer,
+        customer_data: DomainCustomer,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainCustomer, StorageError> {
+        let conn = pg_connection_write(self).await?;
         let id = customer_data.id.clone();
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
@@ -378,7 +379,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .await?;
 
         if result.status == common_enums::DeleteStatus::Redacted {
-            Err(report!(StorageError::CustomerRedacted))
+            Err(StorageError::CustomerRedacted)?
         } else {
             Ok(result)
         }
@@ -390,7 +391,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        customer: Customer,
+        customer: DomainCustomer,
         _merchant_id: &id_type::MerchantId,
         customer_update: CustomerUpdate,
         key_store: &MerchantKeyStore,
@@ -415,7 +416,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 .apply_changeset(customer.clone()),
             UpdateResourceParams {
                 updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
-                    orig: customer,
+                    orig: customer.clone(),
                     update_data: customer_update.into(),
                 }),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
@@ -475,7 +476,6 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_optional_by_merchant_id_merchant_reference_id(
@@ -491,7 +491,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                Customer::find_optional_by_merchant_reference_id_merchant_id(
+                Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -569,7 +569,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let customer = self
+        let customer: DomainCustomer = self
             .call_database(
                 state,
                 key_store,
@@ -644,7 +644,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        customer: Customer,
+        customer: DomainCustomer,
         merchant_id: &id_type::MerchantId,
         customer_update: CustomerUpdate,
         key_store: &MerchantKeyStore,
@@ -654,7 +654,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            Customer::find_by_global_id(&conn, customer_id, merchant_id),
+            Customer::update_by_id(&conn, id.clone(), customer_update.into()),
         )
         .await
     }
@@ -671,11 +671,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: DomainCustomer = self
-            .call_database(
-                state,
-                key_store,
-                Customer::find_by_global_id(&conn, customer_id, merchant_id),
-            )
+            .call_database(state, key_store, Customer::find_by_global_id(&conn, id))
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -850,7 +846,7 @@ impl CustomerInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
-        _customer: Customer,
+        _customer: DomainCustomer,
         _merchant_id: &id_type::MerchantId,
         _customer_update: CustomerUpdate,
         _key_store: &MerchantKeyStore,
