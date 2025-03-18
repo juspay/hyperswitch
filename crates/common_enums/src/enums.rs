@@ -1915,7 +1915,6 @@ pub enum CardNetwork {
     #[serde(alias = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
-    #[strum(serialize = "CartesBancaires")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
     #[strum(serialize = "UNIONPAY")]

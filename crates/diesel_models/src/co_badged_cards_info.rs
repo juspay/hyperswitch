@@ -1,7 +1,8 @@
-use crate::schema::co_badged_cards_info;
 use common_enums::enums;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
+
+use crate::schema::co_badged_cards_info;
 
 #[derive(
     Clone,
