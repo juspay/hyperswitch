@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::{FloatMajorUnit, StringMinorUnit}};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::{FloatMajorUnit, StringMinorUnit,FloatMajorUnitForConnector}};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -14,6 +14,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use common_utils::types::MinorUnit;
 use time::PrimitiveDateTime;
+use crate::utils;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
@@ -266,7 +267,9 @@ impl RecurlyWebhookBody {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum RecurlyChargeStatus {
+    #[serde(rename = "success")]
     Succeeded,
+    #[serde(rename = "failed")]
     Failed,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -298,7 +301,7 @@ pub struct RecurlyRecoveryDetailsData {
     pub invoice: Invoice, 
     pub payment_method: PaymentMethod, 
     pub payment_gateway: PaymentGateway,
-    #[serde(with = "common_utils::custom_serde::timestamp")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub collected_at: PrimitiveDateTime,
     pub status: RecurlyChargeStatus,
 }
@@ -356,14 +359,18 @@ impl
         Ok(Self {
             response: Ok(GetAdditionalRevenueRecoveryResponseData{
                 status: item.response.status.into(),
-                amount : FloatMajorUnit::to_minor_unit_as_i64(item.response.amount,item.response.currency),
+                amount : utils::convert_back_amount_to_minor_units(
+                    &FloatMajorUnitForConnector,
+                    item.response.amount,
+                    item.response.currency,
+                )?,
                 currency : item.response.currency,
                 merchant_reference_id,
-                connector_account_reference_id : "Recurly".to_string(),
+                connector_account_reference_id : "recurly".to_string(),
                 connector_transaction_id,
                 error_code : item.response.status_code,
                 error_message : item.response.status_message,
-                processor_payment_method_token : "rfefvcev".to_string(),
+                processor_payment_method_token : "recurly".to_string(),
                 connector_customer_id : item.response.account.id,
                 transaction_created_at : Some(item.response.collected_at),
                 payment_method_sub_type: common_enums::PaymentMethodType::from(item.response.payment_method.funding_source),
