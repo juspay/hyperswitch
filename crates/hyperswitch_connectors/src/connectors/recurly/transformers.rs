@@ -16,6 +16,10 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
+use hyperswitch_domain_models::router_flow_types::RecoveryRecordBack;
+use hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest;
+use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
+use hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData;
 
 //TODO: Fill the struct with respective fields
 pub struct RecurlyRouterData<T> {
@@ -225,4 +229,89 @@ pub struct RecurlyErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum RecurlyRecordStatus {
+    Success,
+    Failure,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(status: enums::AttemptStatus) -> Result<Self, Self::Error> {
+        match status {
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Success),
+            enums::AttemptStatus::Failure
+            | enums::AttemptStatus::CaptureFailed
+            | enums::AttemptStatus::RouterDeclined => Ok(Self::Failure),
+            enums::AttemptStatus::AuthenticationFailed
+            | enums::AttemptStatus::Started
+            | enums::AttemptStatus::AuthenticationPending
+            | enums::AttemptStatus::AuthenticationSuccessful
+            | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::AuthorizationFailed
+            | enums::AttemptStatus::Authorizing
+            | enums::AttemptStatus::CodInitiated
+            | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidInitiated
+            | enums::AttemptStatus::CaptureInitiated
+            | enums::AttemptStatus::VoidFailed
+            | enums::AttemptStatus::AutoRefunded
+            | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::Pending
+            | enums::AttemptStatus::PaymentMethodAwaited
+            | enums::AttemptStatus::ConfirmationAwaited
+            | enums::AttemptStatus::DeviceDataCollectionPending => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Record back flow is only supported for terminal status".to_string(),
+                    connector: "recurly",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RecurlyRecordbackResponse {
+    pub invoice: RecurlyRecordbackInvoice,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RecurlyRecordbackInvoice {
+    pub id: common_utils::id_type::PaymentReferenceId,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            RecoveryRecordBack,
+            RecurlyRecordbackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    > for RevenueRecoveryRecordBackRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            RecoveryRecordBack,
+            RecurlyRecordbackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_reference_id = item.response.invoice.id;
+        Ok(Self {
+            response: Ok(RevenueRecoveryRecordBackResponse {
+                merchant_reference_id,
+            }),
+            ..item.data
+        })
+    }
 }
