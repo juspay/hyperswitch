@@ -169,6 +169,7 @@ pub async fn get_filters(
             AuthEventDimensions::ErrorMessage => fil.error_message,
             AuthEventDimensions::AuthenticationConnector => fil.authentication_connector.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::MessageVersion => fil.message_version,
+            AuthEventDimensions::AcsReferenceNumber => fil.acs_reference_number,
         })
         .collect::<Vec<String>>();
         res.query_data.push(AuthEventFilterValue {
