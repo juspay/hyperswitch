@@ -14,7 +14,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_connectors::connectors::chargebee;
+use hyperswitch_connectors::connectors::{chargebee, recurly};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -673,6 +673,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
                     product_type: self.product_type,
                 }),
             )
@@ -1381,10 +1382,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Getnet => {
-            //     getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Getnet => {
+                getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1402,10 +1403,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
                 Ok(())
             }
-            // api_enums::Connector::Hipay => {
-            //     hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Hipay => {
+                hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Helcim => {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1534,6 +1535,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 razorpay::transformers::RazorpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Recurly => {
+                recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1554,6 +1559,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Stripebilling => {
+            //     stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())

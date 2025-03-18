@@ -168,6 +168,8 @@ impl ConnectorCommon for Boku {
                     reason: response.reason,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Err(_) => get_xml_deserialized(res, event_builder),
@@ -693,6 +695,8 @@ fn get_xml_deserialized(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }

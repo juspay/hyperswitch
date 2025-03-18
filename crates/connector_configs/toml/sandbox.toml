@@ -1617,6 +1617,30 @@ key2="Location ID"
 [forte.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[getnet]
+[[getnet.credit]]
+  payment_method_type = "Mastercard"
+[[getnet.credit]]
+  payment_method_type = "Visa"
+[[getnet.credit]]
+  payment_method_type = "Interac"
+[[getnet.credit]]
+  payment_method_type = "AmericanExpress"
+[[getnet.credit]]
+  payment_method_type = "JCB"
+[[getnet.credit]]
+  payment_method_type = "DinersClub"
+[[getnet.credit]]
+  payment_method_type = "Discover"
+[[getnet.credit]]
+  payment_method_type = "CartesBancaires"
+[[getnet.credit]]
+  payment_method_type = "UnionPay"
+[[getnet.credit]]
+  payment_method_type = "Rupay"
+[[getnet.credit]]
+  payment_method_type = "Maestro"
+
 [globalpay]
 [[globalpay.credit]]
   payment_method_type = "Mastercard"
@@ -3955,6 +3979,14 @@ api_key="Api Key"
 [paypal_test.connector_auth.HeaderKey]
 api_key="Api Key"
 
+[paystack]
+[[paystack.bank_redirect]]
+  payment_method_type = "eft"
+[paystack.connector_auth.HeaderKey]
+api_key="API Key"
+[paystack.connector_webhook_details]
+merchant_secret="API Key"
+
 [stripe_test]
 [[stripe_test.credit]]
   payment_method_type = "Mastercard"
@@ -4738,3 +4770,45 @@ required=true
 type="Text"
 [juspaythreedsserver.connector_auth.HeaderKey]
 api_key="API Key"
+
+
+[hipay]
+[[hipay.credit]]
+  payment_method_type = "Mastercard"
+[[hipay.credit]]
+  payment_method_type = "Visa"
+[[hipay.credit]]
+  payment_method_type = "Interac"
+[[hipay.credit]]
+  payment_method_type = "AmericanExpress"
+[[hipay.credit]]
+  payment_method_type = "JCB"
+[[hipay.credit]]
+  payment_method_type = "DinersClub"
+[[hipay.credit]]
+  payment_method_type = "Discover"
+[[hipay.credit]]
+  payment_method_type = "CartesBancaires"
+[[hipay.credit]]
+  payment_method_type = "UnionPay"
+[[hipay.debit]]
+  payment_method_type = "Mastercard"
+[[hipay.debit]]
+  payment_method_type = "Visa"
+[[hipay.debit]]
+  payment_method_type = "Interac"
+[[hipay.debit]]
+  payment_method_type = "AmericanExpress"
+[[hipay.debit]]
+  payment_method_type = "JCB"
+[[hipay.debit]]
+  payment_method_type = "DinersClub"
+[[hipay.debit]]
+  payment_method_type = "Discover"
+[[hipay.debit]]
+  payment_method_type = "CartesBancaires"
+[[hipay.debit]]
+  payment_method_type = "UnionPay"
+[hipay.connector_auth.BodyKey]
+api_key="API Login ID"
+key1="API password"

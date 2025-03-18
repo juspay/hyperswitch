@@ -104,6 +104,8 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
+pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
 
 pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;
@@ -168,6 +170,8 @@ where
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             } else {
                 None
@@ -357,6 +361,8 @@ where
                                     status_code: 504,
                                     attempt_status: None,
                                     connector_transaction_id: None,
+                                    issuer_error_code: None,
+                                    issuer_error_message: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);

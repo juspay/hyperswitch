@@ -158,6 +158,8 @@ impl ConnectorCommon for Datatrans {
                 reason: Some(response),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             let response: datatrans::DatatransErrorResponse = res
@@ -173,6 +175,8 @@ impl ConnectorCommon for Datatrans {
                 reason: Some(response.error.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }

@@ -1559,6 +1559,7 @@ Cypress.Commands.add(
     const merchantConnectorId = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+    const setupFutureUsage = globalState.get("setupFutureUsage");
     const paymentIntentID = globalState.get("paymentID");
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
     const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
@@ -1625,6 +1626,12 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -1650,6 +1657,12 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2455,6 +2468,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+    const setupFutureUsage = globalState.get("setupFutureUsage");
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
@@ -2526,6 +2540,12 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2549,6 +2569,12 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2735,10 +2761,19 @@ Cypress.Commands.add(
             response.body.payment_method_id,
             "payment_method_id"
           ).to.include("pm_").and.to.not.be.null;
-          expect(
-            response.body.connector_transaction_id,
-            "connector_transaction_id"
-          ).to.not.be.null;
+
+          if (response.body.status === "failed") {
+            expect(
+              response.body.connector_transaction_id,
+              "connector_transaction_id"
+            ).to.be.null;
+          } else {
+            expect(
+              response.body.connector_transaction_id,
+              "connector_transaction_id"
+            ).to.not.be.null;
+          }
+
           expect(
             response.body.payment_method_status,
             "payment_method_status"
