@@ -3680,8 +3680,8 @@ default_imp_for_revenue_recovery! {
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
-    connectors::Chargebee,
     connectors::Checkout,
+    connectors::Chargebee,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -3953,3 +3953,4 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Zen,
     connectors::Zsl
 );
+
