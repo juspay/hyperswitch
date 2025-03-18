@@ -30,6 +30,7 @@ pub struct Connectors {
     pub coingate: ConnectorParams,
     pub cryptopay: ConnectorParams,
     pub ctp_mastercard: NoParams,
+    pub ctp_visa: NoParams,
     pub cybersource: ConnectorParams,
     pub datatrans: ConnectorParamsWithSecondaryBaseUrl,
     pub deutschebank: ConnectorParams,
