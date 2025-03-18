@@ -31,7 +31,12 @@ pub mod payments_incremental_authorization;
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
+pub mod payment_attempt_record;
+#[cfg(feature = "v2")]
 pub mod payment_confirm_intent;
+#[cfg(feature = "v2")]
+pub mod proxy_payments_intent;
+
 #[cfg(feature = "v2")]
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
@@ -261,6 +266,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R, D>,
         Option<domain::PaymentMethodData>,
@@ -557,6 +563,7 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
         Option<domain::PaymentMethodData>,
@@ -651,6 +658,7 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
         Option<domain::PaymentMethodData>,
@@ -756,6 +764,7 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
         Option<domain::PaymentMethodData>,
@@ -840,6 +849,7 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,
         Option<domain::PaymentMethodData>,

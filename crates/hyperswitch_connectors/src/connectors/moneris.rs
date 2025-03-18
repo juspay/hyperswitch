@@ -43,7 +43,7 @@ use transformers as moneris;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
+    utils::{self, is_mandate_supported, PaymentMethodDataType, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -174,6 +174,8 @@ impl ConnectorCommon for Moneris {
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -194,6 +196,15 @@ impl ConnectorValidation for Moneris {
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -289,6 +300,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
