@@ -681,20 +681,19 @@ static REDSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     redsys_supported_payment_methods
 });
 
-static REDSYS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static REDSYS_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
     display_name: "Redsys",
     description: "Redsys is a Spanish payment gateway offering secure and innovative payment solutions for merchants and banks",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
-}
-});
+};
 
 static REDSYS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
     LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Redsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*REDSYS_CONNECTOR_INFO)
+        Some(&REDSYS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

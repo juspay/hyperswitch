@@ -1,6 +1,6 @@
-use base64::{engine::general_purpose::STANDARD, Engine};
+use base64::Engine;
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, types::StringMinorUnit};
+use common_utils::{consts::BASE64_ENGINE, crypto::{SignMessage,HmacSha256, TripleDesEde3CBC, EncodeMessage}, ext_traits::{ValueExt,Encode}, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hmac::{Hmac, Mac};
 use hyperswitch_domain_models::{
@@ -21,19 +21,21 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use openssl::symm::{encrypt, Cipher};
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use unicode_normalization::UnicodeNormalization;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        generate_12_digit_number, get_unimplemented_payment_method_error_message,
-        is_payment_failure, is_refund_failure, to_connector_meta, AddressDetailsData,
-        BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+        self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
+
 
 pub struct RedsysRouterData<T> {
     pub amount: StringMinorUnit,
@@ -177,14 +179,14 @@ impl EmvThreedsData {
 
     fn get_state_code(state: &str) -> Result<Secret<String>, Error> {
         let addr_state_value = if state.len() > 3 {
-            let addr_state = match state {
-                "a coruña [la coruña]" | "es-c" => Ok("C"),
+            let addr_state = match state.nfkd().collect::<String>().as_str() {
+                "a coruna [la coruna]" | "es-c" => Ok("C"),
                 "alacant" | "es-a" | "alicante" => Ok("A"),
                 "albacete" | "es-ab" => Ok("AB"),
-                "almería" | "es-al" => Ok("AL"),
-                "andalucía" | "es-an" => Ok("AN"),
+                "almeria" | "es-al" => Ok("AL"),
+                "andalucia" | "es-an" => Ok("AN"),
                 "araba" | "es-vi" => Ok("VI"),
-                "aragón" | "es-ar" => Ok("AR"),
+                "aragon" | "es-ar" => Ok("AR"),
                 "asturias" | "es-o" => Ok("O"),
                 "asturias, principado de" | "es-as" => Ok("AS"),
                 "badajoz" | "es-ba" => Ok("BA"),
@@ -193,17 +195,17 @@ impl EmvThreedsData {
                 "burgos" | "es-bu" => Ok("BU"),
                 "canarias" | "es-cn" => Ok("CN"),
                 "cantabria" | "es-s" => Ok("S"),
-                "castelló" | "es-cs" => Ok("CS"),
-                "castellón" => Ok("C"),
-                "castilla y león" | "es-cl" => Ok("CL"),
+                "castello" | "es-cs" => Ok("CS"),
+                "castellon" => Ok("C"),
+                "castilla y leon" | "es-cl" => Ok("CL"),
                 "castilla-la mancha" | "es-cm" => Ok("CM"),
-                "catalunya [cataluña]" | "es-ct" => Ok("CT"),
+                "catalunya [cataluna]" | "es-ct" => Ok("CT"),
                 "ceuta" | "es-ce" => Ok("CE"),
                 "ciudad real" | "es-cr" => Ok("CR"),
                 "cuenca" | "es-cu" => Ok("CU"),
-                "cáceres" | "es-cc" => Ok("CC"),
-                "cádiz" | "es-ca" => Ok("CA"),
-                "córdoba" | "es-co" => Ok("CO"),
+                "caceres" | "es-cc" => Ok("CC"),
+                "cadiz" | "es-ca" => Ok("CA"),
+                "cordoba" | "es-co" => Ok("CO"),
                 "euskal herria" | "es-pv" => Ok("PV"),
                 "extremadura" | "es-ex" => Ok("EX"),
                 "galicia [galicia]" | "es-ga" => Ok("GA"),
@@ -215,26 +217,26 @@ impl EmvThreedsData {
                 "huesca" | "es-hu" => Ok("HU"),
                 "illes balears [islas baleares]" | "es-pm" => Ok("PM"),
                 "es-ib" => Ok("IB"),
-                "jaén" | "es-j" => Ok("J"),
+                "jaen" | "es-j" => Ok("J"),
                 "la rioja" | "es-lo" => Ok("LO"),
                 "es-ri" => Ok("RI"),
                 "las palmas" | "es-gc" => Ok("GC"),
-                "león" | "es-le" => Ok("LE"),
-                "lleida [lérida]" | "es-l" => Ok("L"),
+                "leon" | "es-le" => Ok("LE"),
+                "lleida [lerida]" | "es-l" => Ok("L"),
                 "lugo [lugo]" | "es-lu" => Ok("LU"),
                 "madrid" | "es-m" => Ok("M"),
                 "madrid, comunidad de" | "es-md" => Ok("MD"),
                 "melilla" | "es-ml" => Ok("ML"),
                 "murcia" | "es-mu" => Ok("MU"),
-                "murcia, región de" | "es-mc" => Ok("MC"),
-                "málaga" | "es-ma" => Ok("MA"),
+                "murcia, region de" | "es-mc" => Ok("MC"),
+                "malaga" | "es-ma" => Ok("MA"),
                 "nafarroa" | "es-nc" => Ok("NC"),
                 "nafarroako foru komunitatea" | "es-na" => Ok("NA"),
                 "navarra" => Ok("NA"),
                 "navarra, comunidad foral de" => Ok("NC"),
                 "ourense [orense]" | "es-or" => Ok("OR"),
                 "palencia" | "es-p" => Ok("P"),
-                "país vasco" => Ok("PV"),
+                "pais vasco" => Ok("PV"),
                 "pontevedra [pontevedra]" | "es-po" => Ok("PO"),
                 "salamanca" | "es-sa" => Ok("SA"),
                 "santa cruz de tenerife" | "es-tf" => Ok("TF"),
@@ -248,11 +250,10 @@ impl EmvThreedsData {
                 "valenciana, comunidad" | "es-vc" => Ok("VC"),
                 "valenciana, comunitat" => Ok("V"),
                 "valladolid" | "es-va" => Ok("VA"),
-                "valència" => Ok("V"),
                 "zamora" | "es-za" => Ok("ZA"),
                 "zaragoza" | "es-z" => Ok("Z"),
-                "álava" => Ok("VI"),
-                "ávila" | "es-av" => Ok("AV"),
+                "alava" => Ok("VI"),
+                "avila" | "es-av" => Ok("AV"),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
                     field_name: "address.state",
                 }),
@@ -371,7 +372,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("redsys"),
+                connector_utils::get_unimplemented_payment_method_error_message("redsys"),
             )
             .into()),
         }
@@ -448,7 +449,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
                 } else {
                     RedsysTransactionType::Preauthorization
                 };
-                let ds_merchant_order = generate_12_digit_number().to_string();
+                let ds_merchant_order = connector_utils::generate_12_digit_number().to_string();
                 let card_data =
                     RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
                 Ok(PaymentsRequest {
@@ -512,7 +513,7 @@ pub struct RedsysPaymentsResponse {
     #[serde(rename = "Ds_Response")]
     ds_response: Option<DsResponse>,
     #[serde(rename = "Ds_AuthorisationCode")]
-    ds_authorisationcode: Option<String>,
+    ds_authorisation_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -566,7 +567,7 @@ fn to_connector_response_data<T>(connector_response: &str) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
-    let decoded_bytes = STANDARD
+    let decoded_bytes = BASE64_ENGINE
         .decode(connector_response)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode Base64")?;
@@ -682,10 +683,11 @@ fn handle_threeds_invoke<F>(
         three_d_s_method_notification_u_r_l,
     };
 
-    let three_ds_data_string = serde_json::to_string(&threeds_invoke_data)
+    let three_ds_data_string = threeds_invoke_data
+        .encode_to_string_of_json()
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-    let three_ds_method_data = STANDARD.encode(&three_ds_data_string);
+    let three_ds_method_data = BASE64_ENGINE.encode(&three_ds_data_string);
     let next_action_url = item.data.request.get_complete_authorize_url()?;
 
     let three_ds_data = RedsysThreeDsInvokeData {
@@ -757,44 +759,32 @@ fn handle_threeds_invoke_exempt<F>(
 
 pub const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
 
-fn base64_decode(input: &str) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
-    STANDARD
-        .decode(input)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Base64 decoding failed")
-}
-
 fn des_encrypt(
     message: &str,
     key: &str,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let iv_array = [0u8; 8];
+) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    // Connector decrypts the signature using an initialization vector (IV) set to all zeros
+    let iv_array = [0u8; TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
     let iv = iv_array.to_vec();
-    let key_bytes = base64_decode(key)?;
-    if key_bytes.len() != 24 {
-        return Err(
-            error_stack::Report::new(errors::ConnectorError::RequestEncodingFailed)
-                .attach_printable("Key must be 24 bytes for 3DES"),
-        );
-    }
-
-    let block_size = 8;
-    let mut buffer = message.as_bytes().to_vec();
-    let pad_len = block_size - (buffer.len() % block_size);
-    if pad_len != block_size {
-        buffer.extend(vec![0u8; pad_len]); // ZeroPadding to match CryptoJS
-    }
-    let cipher = Cipher::des_ede3_cbc();
-    let encrypted = encrypt(cipher, &key_bytes, Some(&iv), &buffer)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+    let key_bytes =   BASE64_ENGINE
+    .decode(key)
+    .change_context(errors::ConnectorError::RequestEncodingFailed)
+    .attach_printable("Base64 decoding failed")?;
+    let triple_des = TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
+    .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
-    let expected_len = buffer.len();
-    let encrypted_trimmed = encrypted
+    let encrypted = triple_des.encode_message(&key_bytes, message.as_bytes())
+    .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Triple DES encryption failed")?;
+    let expected_len = encrypted.len() - TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
+    let encrypted_trimed = encrypted
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to trim encrypted data to the expected length")?;
-    let encoded = STANDARD.encode(encrypted_trimmed);
-    Ok(encoded)
+    println!("sssssssssss hhh22 {:?}", encrypted_trimed);
+    let encoded2 = BASE64_ENGINE.encode(encrypted_trimed);
+    println!("sssssssssss hhh {}", encoded2);
+    Ok(encrypted_trimed.to_vec())
 }
 
 fn get_signature(
@@ -803,13 +793,11 @@ fn get_signature(
     clave: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let secret_ko = des_encrypt(order_id, clave)?;
-    let base_decoded = base64_decode(&secret_ko)?;
-    let mut mac = Hmac::<Sha256>::new_from_slice(&base_decoded)
-        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("HMAC-SHA256 initialization failed")?;
-    mac.update(params.as_bytes());
-    let result = mac.finalize().into_bytes();
-    let encoded = STANDARD.encode(result);
+    let result = HmacSha256::sign_message(
+        &HmacSha256,
+        &secret_ko,
+        params.as_bytes()).map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    let encoded = BASE64_ENGINE.encode(result);
     Ok(encoded)
 }
 
@@ -820,9 +808,8 @@ pub trait SignatureCalculationData {
 
 impl SignatureCalculationData for PaymentsRequest {
     fn get_merchant_parameters(&self) -> Result<String, Error> {
-        serde_json::to_string(self)
+        self.encode_to_string_of_json()
             .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed Serialization of PaymentsRequest struct")
     }
 
     fn get_order_id(&self) -> String {
@@ -832,9 +819,8 @@ impl SignatureCalculationData for PaymentsRequest {
 
 impl SignatureCalculationData for RedsysOperationRequest {
     fn get_merchant_parameters(&self) -> Result<String, Error> {
-        serde_json::to_string(self)
+        self.encode_to_string_of_json()
             .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed Serialization of RedsysOperationRequest struct")
     }
 
     fn get_order_id(&self) -> String {
@@ -850,10 +836,9 @@ where
     fn try_from(data: (&T, &RedsysAuthType)) -> Result<Self, Self::Error> {
         let (request_data, auth) = data;
         let merchant_parameters = request_data.get_merchant_parameters()?;
-        let ds_merchant_parameters = STANDARD.encode(&merchant_parameters);
+        let ds_merchant_parameters = BASE64_ENGINE.encode(&merchant_parameters);
         let sha256_pwd = auth.sha256_pwd.clone().expose();
         let ds_merchant_order = request_data.get_order_id();
-
         let signature = get_signature(&ds_merchant_order, &ds_merchant_parameters, &sha256_pwd)?;
         Ok(Self {
             ds_signature_version: SIGNATURE_VERSION.to_string(),
@@ -863,10 +848,11 @@ where
     }
 }
 
-fn map_redsys_attempt_status(
+fn get_redsys_attempt_status(
     ds_response: DsResponse,
     capture_method: Option<enums::CaptureMethod>,
 ) -> Result<enums::AttemptStatus, error_stack::Report<errors::ConnectorError>> {
+    // Redsys consistently provides a 4-digit response code, where numbers ranging from 0000 to 0099 indicate successful transactions    
     if ds_response.0.starts_with("00") {
         match capture_method {
             Some(enums::CaptureMethod::Automatic) | None => Ok(enums::AttemptStatus::Charged),
@@ -917,10 +903,11 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             }) => (connector_metadata.clone(), order_id.clone()),
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let threeds_invoke_meta_data = to_connector_meta::<ThreeDsInvokeExempt>(
-            connector_meta_data.clone(),
-        )
-        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+        let threeds_invoke_meta_data =
+            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                })?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
             .set_three_d_s_server_trans_i_d(threeds_invoke_meta_data.three_d_s_server_trans_i_d)
             .set_protocol_version(threeds_invoke_meta_data.message_version)
@@ -1048,17 +1035,21 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
 
         let emv3ds_data = match redirect_response {
             Some(payload) => {
-                if let Ok(threeds_invoke_meta_data) = to_connector_meta::<RedsysThreeDsInvokeData>(
-                    item.router_data.request.connector_meta.clone(),
-                ) {
+                if let Ok(threeds_invoke_meta_data) =
+                    connector_utils::to_connector_meta::<RedsysThreeDsInvokeData>(
+                        item.router_data.request.connector_meta.clone(),
+                    )
+                {
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(threeds_invoke_meta_data.message_version)
                         .set_three_d_s_cres(payload.cres)
                         .set_billing_data(billing_data)?
                         .set_shipping_data(shipping_data)?
-                } else if let Ok(threeds_meta_data) = to_connector_meta::<ThreeDsInvokeExempt>(
-                    item.router_data.request.connector_meta.clone(),
-                ) {
+                } else if let Ok(threeds_meta_data) =
+                    connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(
+                        item.router_data.request.connector_meta.clone(),
+                    )
+                {
                     EmvThreedsData::new(RedsysThreeDsInfo::ChallengeResponse)
                         .set_protocol_version(threeds_meta_data.message_version)
                         .set_three_d_s_cres(payload.cres)
@@ -1069,9 +1060,11 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
                 }
             }
             None => {
-                if let Ok(threeds_invoke_meta_data) = to_connector_meta::<RedsysThreeDsInvokeData>(
-                    item.router_data.request.connector_meta.clone(),
-                ) {
+                if let Ok(threeds_invoke_meta_data) =
+                    connector_utils::to_connector_meta::<RedsysThreeDsInvokeData>(
+                        item.router_data.request.connector_meta.clone(),
+                    )
+                {
                     let three_d_s_comp_ind = ThreeDSCompInd::from(
                         item.router_data.request.get_threeds_method_comp_ind()?,
                     );
@@ -1193,7 +1186,7 @@ pub struct RedsysOperationsResponse {
     #[serde(rename = "Ds_Response")]
     ds_response: DsResponse,
     #[serde(rename = "Ds_AuthorisationCode")]
-    ds_authorisationcode: Option<String>,
+    ds_authorisation_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -1234,9 +1227,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCaptureData, Payme
                         .clone()
                         .expose(),
                 )?;
-                let status = map_redsys_attempt_status(response_data.ds_response.clone(), None)?;
+                let status = get_redsys_attempt_status(response_data.ds_response.clone(), None)?;
 
-                let response = if is_payment_failure(status) {
+                let response = if connector_utils::is_payment_failure(status) {
                     Err(ErrorResponse {
                         code: response_data.ds_response.0.clone(),
                         message: response_data.ds_response.0.clone(),
@@ -1329,9 +1322,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCancelData, Paymen
                         .expose(),
                 )?;
 
-                let status = map_redsys_attempt_status(response_data.ds_response.clone(), None)?;
+                let status = get_redsys_attempt_status(response_data.ds_response.clone(), None)?;
 
-                let response = if is_payment_failure(status) {
+                let response = if connector_utils::is_payment_failure(status) {
                     Err(ErrorResponse {
                         code: response_data.ds_response.0.clone(),
                         message: response_data.ds_response.0.clone(),
@@ -1383,7 +1376,7 @@ impl TryFrom<DsResponse> for enums::RefundStatus {
         match ds_response.0.as_str() {
             "0900" => Ok(Self::Success),
             "9998" | "9999" => Ok(Self::Pending),
-            "950" => Ok(Self::Failure),
+            "0950" => Ok(Self::Failure),
             unknown_status => Err(errors::ConnectorError::ResponseHandlingFailed)
                 .attach_printable(format!("Received unknown status:{}", unknown_status))?,
         }
@@ -1404,7 +1397,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                 let refund_status =
                     enums::RefundStatus::try_from(response_data.ds_response.clone())?;
 
-                if is_refund_failure(refund_status) {
+                if connector_utils::is_refund_failure(refund_status) {
                     Err(ErrorResponse {
                         code: response_data.ds_response.0.clone(),
                         message: response_data.ds_response.0.clone(),
@@ -1450,8 +1443,8 @@ fn get_payments_response(
     Error,
 > {
     if let Some(ds_response) = redsys_payments_response.ds_response {
-        let status = map_redsys_attempt_status(ds_response.clone(), capture_method)?;
-        let response = if is_payment_failure(status) {
+        let status = get_redsys_attempt_status(ds_response.clone(), capture_method)?;
+        let response = if connector_utils::is_payment_failure(status) {
             Err(ErrorResponse {
                 code: ds_response.0.clone(),
                 message: ds_response.0.clone(),

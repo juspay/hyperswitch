@@ -416,7 +416,7 @@ impl Connector {
             | Self::Prophetpay
             | Self::Rapyd
             // | Self::Recurly
-			| Self::Redsys
+            | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax

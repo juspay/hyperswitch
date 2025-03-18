@@ -8,6 +8,9 @@ use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
 };
+use common_enums::CryptoPadding;
+use openssl::symm::Cipher;
+
 
 use crate::{
     errors::{self, CustomResult},
@@ -414,6 +417,62 @@ impl VerifySignature for Sha256 {
         let hashed_digest_into_bytes = hashed_digest.as_slice();
         Ok(hashed_digest_into_bytes == signature)
     }
+}
+
+/// TripleDesEde3 hash function
+#[derive(Debug)]
+pub struct TripleDesEde3CBC{
+    padding: CryptoPadding,
+    iv: Vec<u8>
+}
+
+impl TripleDesEde3CBC {
+
+    const TRIPLE_DES_KEY_LENGTH: usize = 24;
+    /// Initialization Vector (IV) length for TripleDesEde3
+    pub const TRIPLE_DES_IV_LENGTH: usize = 8;
+
+    /// Constructor function to be used by the encryptor and decryptor to generate the data type
+    pub fn new(padding: Option<CryptoPadding>, iv: Vec<u8>) -> Result<Self, errors::CryptoError> {
+        if iv.len() != Self::TRIPLE_DES_IV_LENGTH {
+            Err(
+                errors::CryptoError::InvalidIvLength,               
+            )?
+        };
+
+        let padding = padding.unwrap_or(CryptoPadding::PKCS7);
+        Ok(Self {iv, padding})
+    }
+}
+
+impl EncodeMessage for TripleDesEde3CBC {
+    fn encode_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        if secret.len() != Self::TRIPLE_DES_KEY_LENGTH {
+            Err(
+                errors::CryptoError::InvalidKeyLength,               
+            )?
+        }
+        let mut buffer = msg.to_vec();
+
+        if let CryptoPadding::ZeroPadding = self.padding {
+            let pad_len = Self::TRIPLE_DES_IV_LENGTH - (buffer.len() % Self::TRIPLE_DES_IV_LENGTH);
+            if pad_len != Self::TRIPLE_DES_IV_LENGTH {
+                buffer.extend(vec![0u8; pad_len]); 
+            }
+        };
+        let cipher = Cipher::des_ede3_cbc();
+        router_env::logger::debug!("sssssssssss key_bytes2: {:?}", secret);
+        // router_env::logger::debug!("sssssssssss iv2: {:?}", iv_bytes);
+        router_env::logger::debug!("sssssssssss buffer2: {:?}", buffer);
+        openssl::symm::encrypt(cipher, secret, Some(&self.iv), &buffer)
+        .change_context(errors::CryptoError::EncodingFailed)
+    }
+
+
 }
 
 /// Generate a random string using a cryptographically secure pseudo-random number generator

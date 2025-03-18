@@ -48,6 +48,7 @@ uuid = { version = "1.8.0", features = ["v4"] }
 lazy_static = "1.4.0"
 openssl = {version = "0.10.70", features = ["vendored"] }
 hmac = "0.12"
+unicode-normalization = "0.1.21"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"], default-features = false }

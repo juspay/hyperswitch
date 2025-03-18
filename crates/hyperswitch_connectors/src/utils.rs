@@ -1050,15 +1050,19 @@ impl CardData for Card {
         ))
     }
     fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let month = self.card_exp_month.clone().expose();
-        let month_length = month.len();
-        match month_length {
-            2 => Ok(self.card_exp_month.clone()),
-            1 => Ok(Secret::new(format!("0{}", month))),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
+        let exp_month = self.card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_|errors::ConnectorError::InvalidDataFormat {
                 field_name: "payment_method_data.card.card_exp_month",
-            }),
-        }
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_|
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            },
+        )?;
+        Ok(Secret::new(month.two_digits()))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -1152,15 +1156,19 @@ impl CardData for CardDetailsForNetworkTransactionId {
         ))
     }
     fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let month = self.card_exp_month.clone().expose();
-        let month_length = month.len();
-        match month_length {
-            2 => Ok(self.card_exp_month.clone()),
-            1 => Ok(Secret::new(format!("0{}", month))),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
+        let exp_month = self.card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_|errors::ConnectorError::InvalidDataFormat {
                 field_name: "payment_method_data.card.card_exp_month",
-            }),
-        }
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_|
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            },
+        )?;
+        Ok(Secret::new(month.two_digits()))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -5714,15 +5722,19 @@ impl CardData for api_models::payouts::CardPayout {
         ))
     }
     fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let month = self.expiry_month.clone().expose();
-        let month_length = month.len();
-        match month_length {
-            2 => Ok(self.expiry_month.clone()),
-            1 => Ok(Secret::new(format!("0{}", month))),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
+        let exp_month = self.expiry_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_|errors::ConnectorError::InvalidDataFormat {
                 field_name: "payment_method_data.card.card_exp_month",
-            }),
-        }
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_|
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            },
+        )?;
+        Ok(Secret::new(month.two_digits()))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())

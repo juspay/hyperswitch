@@ -7637,3 +7637,10 @@ pub enum TriggeredBy {
     /// Denotes payment attempt is been created by external system.
     External,
 }
+
+
+#[derive(Debug)]
+pub enum CryptoPadding {
+    PKCS7,
+    ZeroPadding,
+}
