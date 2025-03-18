@@ -4007,6 +4007,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
 
         Ok(Self {
