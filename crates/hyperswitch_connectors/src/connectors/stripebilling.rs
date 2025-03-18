@@ -17,15 +17,20 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
+};
+#[cfg(all(feature="v2",feature="revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::RevenueRecoveryRecordBackRouterData
 };
 use hyperswitch_interfaces::{
     api::{
@@ -548,6 +553,84 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripebil
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl ConnectorIntegration< 
+    RecoveryRecordBack,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse
+    > for Stripebilling 
+{
+
+    fn get_headers(
+        &self,
+        req: &RevenueRecoveryRecordBackRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RevenueRecoveryRecordBackRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let invoice_id = req.request.merchant_reference_id.get_string_repr().to_string();
+        match req.request.attempt_status {
+            common_enums::AttemptStatus::Charged => Ok(format!("{}/v1/invoices/{}/pay",self.base_url(connectors),invoice_id)),
+            common_enums::AttemptStatus::VoidInitiated => Ok(format!("{}/v1/invoices/{}/void",self.base_url(connectors),invoice_id)),
+            _ => Err(errors::ConnectorError::FailedToObtainIntegrationUrl.into())
+        }
+    }
+
+    fn build_request(
+        &self,
+        req: &RevenueRecoveryRecordBackRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::RevenueRecoveryRecordBackType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RevenueRecoveryRecordBackType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RevenueRecoveryRecordBackRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
+        let response  = res
+            .response
+            .parse_struct("stripebilling StripebillingRecordBackResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RevenueRecoveryRecordBackRouterData::try_from( ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
 }
 
 #[async_trait::async_trait]
