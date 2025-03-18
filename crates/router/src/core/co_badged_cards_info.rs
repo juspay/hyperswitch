@@ -1,9 +1,9 @@
-use crate::{core::errors, routes, services::logger, types::domain};
 use common_enums::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-
 use hyperswitch_domain_models::co_badged_cards_info::{CoBadgedCardInfo, CoBadgedCardInfoResponse};
+
+use crate::{core::errors, routes, services::logger, types::domain};
 
 pub struct CoBadgedCardInfoList(Vec<CoBadgedCardInfo>);
 
