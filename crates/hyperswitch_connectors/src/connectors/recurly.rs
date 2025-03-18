@@ -29,6 +29,7 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData,
     },
 };
+use masking::PeekInterface;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -144,12 +145,15 @@ impl ConnectorCommon for Recurly {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = recurly::RecurlyAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
-    }
-
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Basic {}", base64::encode(auth.api_key.peek())).into_masked(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                "application/vnd.recurly.v2021-02-25".to_string().into_masked(),
+            ), 
     fn build_error_response(
         &self,
         res: Response,
@@ -588,11 +592,12 @@ impl
         req: &RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let invoice_id = req
-            .request
-            .merchant_reference_id
-            .get_string_repr()
-            .to_string();
+        // let invoice_id = req
+        //     .request
+        //     .merchant_reference_id
+        //     .get_string_repr()
+        //     .to_string();
+        let invoice_id = "wlfucc9o7715".to_string();
 
         let status = RecurlyRecordStatus::try_from(req.request.attempt_status).map_err(|_| {
             errors::ConnectorError::NotSupported {
