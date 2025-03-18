@@ -442,9 +442,9 @@ impl ConnectorData {
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
-                // enums::Connector::Getnet => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
-                // }
+                enums::Connector::Getnet => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -454,7 +454,9 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
-                // enums::Connector::Hipay => Ok(ConnectorEnum::Old(Box::new(connector::Hipay))),
+                enums::Connector::Hipay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
+                }
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
@@ -524,7 +526,9 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
-                // enums::Connector::Recurly => Ok(ConnectorEnum::Old(Box::new(connector::Recurly))),
+                enums::Connector::Recurly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                }
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
@@ -534,7 +538,9 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                // enums::Connector::Stripebilling => Ok(ConnectorEnum::Old(Box::new(connector::Stripebilling))),
+                // enums::Connector::Stripebilling =>{
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Stripebilling::new())))
+                // },
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))

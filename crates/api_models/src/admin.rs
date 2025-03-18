@@ -2840,6 +2840,8 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2925,6 +2927,8 @@ pub struct PaymentLinkConfig {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
