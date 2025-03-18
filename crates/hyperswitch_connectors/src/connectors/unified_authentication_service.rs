@@ -329,13 +329,14 @@ impl
         )?;
 
         let connector_router_data =
-            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
-                amount, req,
-            ));
-        let connector_req =
-            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
-                &connector_router_data,
-            )?;
+        unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
+            amount, req,
+        ));
+
+        let connector_req = unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
+            &connector_router_data,
+        )?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

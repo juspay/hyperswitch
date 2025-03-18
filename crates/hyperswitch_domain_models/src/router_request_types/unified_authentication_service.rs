@@ -2,7 +2,6 @@ use api_models::payments::DeviceChannel;
 use common_utils::types::MinorUnit;
 use masking::Secret;
 use time::PrimitiveDateTime;
-
 use crate::{address::Address, payment_method_data::PaymentMethodData};
 
 #[derive(Clone, Debug)]
@@ -10,8 +9,19 @@ pub struct UasPreAuthenticationRequestData {
     pub service_details: Option<CtpServiceDetails>,
     pub transaction_details: Option<TransactionDetails>,
     pub payment_details: Option<PaymentDetails>,
+    pub authentication_info: Option<AuthenticationInfo>
 }
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct AuthenticationInfo {
+    pub authentication_type: Option<String>,
+    pub authentication_reasons: Option<Vec<String>>,
+    pub consent_received: bool,
+    pub is_authenticated: bool,
+    pub locale: Option<String>,
+    pub supported_card_brands: Option<String>,
+    pub encypted_payload: Option<String>
+}
 #[derive(Clone, Debug)]
 pub struct UasAuthenticationRequestData {
     pub payment_method_data: PaymentMethodData,
@@ -28,13 +38,13 @@ pub struct UasAuthenticationRequestData {
     pub webhook_url: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct CtpServiceDetails {
     pub service_session_ids: Option<ServiceSessionIds>,
     pub payment_details: Option<PaymentDetails>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PaymentDetails {
     pub pan: cards::CardNumber,
     pub digital_card_id: Option<String>,
@@ -80,7 +90,7 @@ pub enum UasAuthenticationResponseData {
     Confirmation {},
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PreAuthenticationDetails {
     pub threeds_server_transaction_id: Option<String>,
     pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,

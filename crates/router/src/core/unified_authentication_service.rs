@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             PaymentDetails, ServiceSessionIds, TransactionDetails, UasAuthenticationRequestData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData,AuthenticationInfo
         },
         BrowserInformation,
     },
@@ -60,24 +60,29 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             }),
             payment_details: None,
         };
-        let currency = payment_data.payment_attempt.currency.ok_or(
-            ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
-            },
-        )?;
 
         let amount = payment_data.payment_attempt.net_amount.get_order_amount();
         let transaction_details = TransactionDetails {
             amount: Some(amount),
-            currency: Some(currency),
+            currency: payment_data.payment_attempt.currency,
             device_channel: None,
             message_category: None,
         };
-
+        
+        let authentication_info = Some(AuthenticationInfo {
+            authentication_type: None,
+            authentication_reasons: None,
+            consent_received: false,
+            is_authenticated: false,
+            locale: None,
+            supported_card_brands: None,
+            encypted_payload: payment_data.service_details.as_ref().and_then(|details| details.encypted_payload.clone())
+        });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
             payment_details: None,
+            authentication_info
         })
     }
 
@@ -258,6 +263,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             service_details: None,
             transaction_details: None,
             payment_details,
+            authentication_info: None
         })
     }
 
