@@ -115,7 +115,7 @@ pub async fn dummy_connector_refund(
     let flow = types::Flow::DummyRefundCreate;
     let mut payload = json_payload.into_inner();
     payload.payment_id = Some(path.into_inner());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -123,7 +123,7 @@ pub async fn dummy_connector_refund(
         |state, _: (), req, _| core::refund_payment(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

@@ -537,6 +537,8 @@ where
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
                 payment_method_data: additional_payment_method_data,
                 authentication_type: auth_update,
+                issuer_error_code: error_response.issuer_error_code.clone(),
+                issuer_error_message: error_response.issuer_error_message.clone(),
             };
 
             #[cfg(feature = "v1")]

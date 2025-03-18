@@ -100,6 +100,11 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         mime::APPLICATION_JSON.essence_str()
     }
 
+    /// fn get_content_type
+    fn get_accept_type(&self) -> &'static str {
+        mime::APPLICATION_JSON.essence_str()
+    }
+
     /// primarily used when creating signature based on request method of payment flow
     fn get_http_method(&self) -> Method {
         Method::Post
@@ -198,6 +203,8 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 
@@ -286,6 +293,8 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
