@@ -253,7 +253,19 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexixpay::NexixpaySetupMandateRequest::try_from(req)?;
+        let authorize_req = utils::convert_payment_authorize_router_response((
+            req,
+            utils::convert_setup_mandate_router_data_to_authorize_router_data(req),
+        ));
+
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            authorize_req.request.minor_amount,
+            authorize_req.request.currency,
+        )?;
+
+        let connector_router_data = nexixpay::NexixpayRouterData::from((amount, &authorize_req));
+        let connector_req = nexixpay::NexixpayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

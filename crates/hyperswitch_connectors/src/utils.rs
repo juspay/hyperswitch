@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::collections::{HashMap, HashSet};
 
 use api_models::payments;
 #[cfg(feature = "payouts")]
@@ -44,6 +41,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        RouterData as ConnectorRouterData,
     },
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
@@ -52,8 +50,8 @@ use hyperswitch_domain_models::{
         PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
-    router_response_types::CaptureSyncResponse,
-    types::OrderDetailsWithAmount,
+    router_response_types::{CaptureSyncResponse, PaymentsResponseData},
+    types::{OrderDetailsWithAmount, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
@@ -5859,15 +5857,4 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }
-}
-
-pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
-{
-    use serde::de::Error;
-    let output = <&str>::deserialize(v)?;
-    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
 }
