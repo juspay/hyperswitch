@@ -454,7 +454,9 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
-                // enums::Connector::Hipay => Ok(ConnectorEnum::Old(Box::new(connector::Hipay))),
+                enums::Connector::Hipay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
+                }
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
@@ -524,7 +526,9 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
-                // enums::Connector::Recurly => Ok(ConnectorEnum::Old(Box::new(connector::Recurly))),
+                enums::Connector::Recurly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                }
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
