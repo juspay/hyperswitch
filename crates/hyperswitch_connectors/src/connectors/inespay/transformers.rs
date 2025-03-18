@@ -142,6 +142,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPaymentsResponse, T, PaymentsRes
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
             ),
         };
@@ -267,6 +269,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPSyncResponse, T, PaymentsRespon
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -359,6 +363,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, InespayRefundsResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -403,6 +409,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, InespayRSyncResponse>> for Refunds
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
         };
         Ok(Self {

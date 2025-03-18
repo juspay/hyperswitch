@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.18.0
+
+### Features
+
+- **connector:**
+  - [PAYSTACK] Electronic Fund Transfer(EFT) Payment Flows ([#7440](https://github.com/juspay/hyperswitch/pull/7440)) ([`c39ecda`](https://github.com/juspay/hyperswitch/commit/c39ecda79a9b1df1ccb4e469111e0dfb92a3d82c))
+  - Recurly incoming webhook support ([#7439](https://github.com/juspay/hyperswitch/pull/7439)) ([`2d17dad`](https://github.com/juspay/hyperswitch/commit/2d17dad25d0966fc95f17e0ee91598ea445d4dc9))
+  - [GETNET] Add cards payment flow ([#7256](https://github.com/juspay/hyperswitch/pull/7256)) ([`d346d38`](https://github.com/juspay/hyperswitch/commit/d346d38faf3858ec1e3360fb9e3a2a82e7d330fb))
+  - [Stripebilling] add incoming webhook support ([#7417](https://github.com/juspay/hyperswitch/pull/7417)) ([`3282444`](https://github.com/juspay/hyperswitch/commit/32824441327fce00ecf5dca21bbf48e17910f2df))
+- **payment-link:** Add config for enabling form button only when form is complete ([#7517](https://github.com/juspay/hyperswitch/pull/7517)) ([`0be1f87`](https://github.com/juspay/hyperswitch/commit/0be1f878ed58b18068dccc430d17b612e01e9fe7))
+- Scheme error code and messages in payments api response ([#7528](https://github.com/juspay/hyperswitch/pull/7528)) ([`c702535`](https://github.com/juspay/hyperswitch/commit/c702535e91cb6c489d8c24d1ab0e6be3025d015a))
+
+### Bug Fixes
+
+- **connector:**
+  - [INESPAY] Added iban as required field in Inespay ([#7350](https://github.com/juspay/hyperswitch/pull/7350)) ([`2db2738`](https://github.com/juspay/hyperswitch/commit/2db2738cf8c84704d0765f90cd421f5b5db4b7d8))
+  - Fix incorrect mapping of attempt status in AuthorizeDotNet connector ([#7523](https://github.com/juspay/hyperswitch/pull/7523)) ([`04ede12`](https://github.com/juspay/hyperswitch/commit/04ede122e45a02325b881f8772127ad3d1389895))
+- **connectors:** [Nexixpay] handle optional fields in nexixpay payments requests. ([#7465](https://github.com/juspay/hyperswitch/pull/7465)) ([`fc596ea`](https://github.com/juspay/hyperswitch/commit/fc596eaf1c45cb8ffafca3ad41945134b32b2bb4))
+
+### Refactors
+
+- **currency_conversion:** Add support for expiring forex data in redis ([#7455](https://github.com/juspay/hyperswitch/pull/7455)) ([`480e8c3`](https://github.com/juspay/hyperswitch/commit/480e8c3dcf59d6e4052aa0077dd06278fba973ff))
+- **process_tracker:** Integrate proxy_payments api to process tracker workflow ([#7480](https://github.com/juspay/hyperswitch/pull/7480)) ([`ba3ad87`](https://github.com/juspay/hyperswitch/commit/ba3ad87e06d63910d78fdb217db47064b4d926be))
+
+**Full Changelog:** [`2025.03.17.0...2025.03.18.0`](https://github.com/juspay/hyperswitch/compare/2025.03.17.0...2025.03.18.0)
+
+
+- - -
+
 ## 2025.03.17.0
 
 ### Features
