@@ -1050,7 +1050,7 @@ impl PaymentMethodInterface for MockDb {
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(
+        self.get_resource::<PaymentMethod, _>(
             state,
             key_store,
             payment_methods,
