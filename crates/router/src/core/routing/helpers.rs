@@ -901,7 +901,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Database connection error")?;
+                .attach_printable("Failed to fetch dynamic_routing_stats entry")?;
 
             if duplicate_stats.is_some() {
                 let dynamic_routing_update = DynamicRoutingStatsUpdate {
