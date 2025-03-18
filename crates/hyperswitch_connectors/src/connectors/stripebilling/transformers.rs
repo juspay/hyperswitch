@@ -14,6 +14,13 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::RevenueRecoveryRecordBackRouterData,
+};
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -21,14 +28,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{convert_uppercase, PaymentsAuthorizeRequestData},
-};
-
-#[cfg(all(feature="v2",feature="revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::RecoveryRecordBack,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData
 };
 
 //TODO: Fill the struct with respective fields
@@ -380,17 +379,19 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StripebillingRecordBackResponse {
-    pub id : common_utils::id_type::PaymentReferenceId
+    pub id: common_utils::id_type::PaymentReferenceId,
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-impl TryFrom<
-    ResponseRouterData<
-        RecoveryRecordBack,
-        StripebillingRecordBackResponse,
-        RevenueRecoveryRecordBackRequest,
-        RevenueRecoveryRecordBackResponse
-        >> for RevenueRecoveryRecordBackRouterData 
+impl
+    TryFrom<
+        ResponseRouterData<
+            RecoveryRecordBack,
+            StripebillingRecordBackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    > for RevenueRecoveryRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -398,12 +399,12 @@ impl TryFrom<
             RecoveryRecordBack,
             StripebillingRecordBackResponse,
             RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse
-            >
+            RevenueRecoveryRecordBackResponse,
+        >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self{
-            response: Ok(RevenueRecoveryRecordBackResponse{
-                merchant_reference_id :  item.response.id
+        Ok(Self {
+            response: Ok(RevenueRecoveryRecordBackResponse {
+                merchant_reference_id: item.response.id,
             }),
             ..item.data
         })
