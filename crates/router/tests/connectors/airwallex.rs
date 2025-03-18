@@ -72,6 +72,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: domain::PaymentMethodData::Card(domain::Card {
+            secondary_card_networks: None,
             card_number: cards::CardNumber::from_str("4035501000000008").unwrap(),
             card_exp_month: Secret::new("02".to_string()),
             card_exp_year: Secret::new("2035".to_string()),
