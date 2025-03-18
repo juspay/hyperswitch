@@ -24,6 +24,7 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+use masking::PeekInterface;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::connectors::recurly::transformers::RecurlyRecoveryDetailsData;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -148,10 +149,16 @@ impl ConnectorCommon for Recurly {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = recurly::RecurlyAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Basic {}", base64::encode(auth.api_key.peek())).into_masked(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                "application/vnd.recurly.v2021-02-25".to_string().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -612,13 +619,9 @@ impl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Get)
-            .url(&types::AdditionalRevenueRecoveryCallType::get_url(
-                self, req, connectors,
-            )?)
+            .url(&types::AdditionalRevenueRecoveryCallType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(
-                self, req, connectors,
-            )?)
+            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(self, req, connectors)?)
             .build();
         Ok(Some(request))
     }
@@ -629,6 +632,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError> {
+        println!("{:?}",res.response);
        let response : RecurlyRecoveryDetailsData = res
             .response
             .parse_struct::<RecurlyRecoveryDetailsData>("RecurlyRecoveryDetailsData")
@@ -734,8 +738,8 @@ impl webhooks::IncomingWebhook for Recurly {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook = RecurlyWebhookBody::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.uuid),
+        Ok(api_models::webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
+            api_models::webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(webhook.uuid),
         ))
     }
 

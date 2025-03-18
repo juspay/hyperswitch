@@ -935,4 +935,4 @@ primary_color = "#006DF9"                        # Primary color of email body
 background_color = "#FFFFFF"                     # Background color of email body
 
 [additional_revenue_recovery_details_call]
-connectors_with_additional_revenue_recovery_details_call = "stripebilling recurly" # List of connectors which has additional revenue recovery details api-call
+connectors_with_additional_revenue_recovery_details_call = "stripebilling, recurly" # List of connectors which has additional revenue recovery details api-call
