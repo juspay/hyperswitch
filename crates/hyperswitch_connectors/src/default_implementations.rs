@@ -3883,7 +3883,6 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Braintree,
     connectors::Boku,
     connectors::Cashtocode,
-    connectors::Chargebee,
     connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,

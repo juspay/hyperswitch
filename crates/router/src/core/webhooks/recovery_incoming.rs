@@ -691,7 +691,7 @@ impl AdditionalRevenueRecoveryRouterData {
             connector: connector_name.to_string(),
             customer_id: None,
             tenant_id: state.tenant.tenant_id.clone(),
-            payment_id: common_utils::id_type::PaymentId::get_irrelevant_id(
+            payment_id: id_type::PaymentId::get_irrelevant_id(
                 "additional revenue recovery details call flow",
             )
             .get_string_repr()
