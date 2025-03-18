@@ -1161,9 +1161,8 @@ pub struct CtpServiceDetails {
     /// provider Eg: Visa, Mastercard
     pub provider: api_enums::CtpServiceProvider,
     /// Encrypted payload
-    pub encypted_payload: Option<String>
+    pub encypted_payload: Option<String>,
 }
-
 
 #[cfg(feature = "v1")]
 /// Checks if the inner values of two options are equal

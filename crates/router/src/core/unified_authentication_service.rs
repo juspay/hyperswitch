@@ -10,9 +10,9 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
-            PaymentDetails, ServiceSessionIds, TransactionDetails, UasAuthenticationRequestData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,AuthenticationInfo
+            AuthenticationInfo, PaymentDetails, ServiceSessionIds, TransactionDetails,
+            UasAuthenticationRequestData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         BrowserInformation,
     },
@@ -68,7 +68,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             device_channel: None,
             message_category: None,
         };
-        
+
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
             authentication_reasons: None,
@@ -76,13 +76,16 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             is_authenticated: false,
             locale: None,
             supported_card_brands: None,
-            encypted_payload: payment_data.service_details.as_ref().and_then(|details| details.encypted_payload.clone())
+            encypted_payload: payment_data
+                .service_details
+                .as_ref()
+                .and_then(|details| details.encypted_payload.clone()),
         });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
             payment_details: None,
-            authentication_info
+            authentication_info,
         })
     }
 
@@ -263,7 +266,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             service_details: None,
             transaction_details: None,
             payment_details,
-            authentication_info: None
+            authentication_info: None,
         })
     }
 
