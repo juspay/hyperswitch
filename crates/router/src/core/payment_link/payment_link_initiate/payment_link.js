@@ -284,7 +284,7 @@ function boot() {
 
   // Update payment link styles
   var paymentLinkUiRules = paymentDetails.payment_link_ui_rules;
-  if (paymentLinkUiRules !== null && typeof paymentLinkUiRules === "object" && Object.getPrototypeOf(paymentLinkUiRules) === Object.prototype) {
+  if (isObject(paymentLinkUiRules)) {
     updatePaymentLinkUi(paymentLinkUiRules);
   }
 
@@ -306,7 +306,18 @@ function boot() {
 boot();
 
 /**
- * Use - add event listeners for changing UI on screen resize
+ * Use - checks if a given value is an object
+ * @param {any} val 
+ * @returns {boolean}
+ */
+function isObject(val) {
+  return val !== null && typeof val === "object" && Object.getPrototypeOf(val) === Object.prototype
+}
+
+/**
+ * Use - add event listeners for changing UI on
+ *        - Screen resize
+ *        - Form inputs
  * @param {PaymentDetails} paymentDetails
  */
 function initializeEventListeners(paymentDetails) {
@@ -411,17 +422,58 @@ function initializeEventListeners(paymentDetails) {
     // @ts-ignore
     window.state.isMobileView = currentWidth <= 1199;
   });
+
+  var paymentForm = document.getElementById("payment-form");
+  if (paymentForm instanceof HTMLFormElement) {
+    paymentForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleSubmit(event);
+    })
+  }
+
+  if (paymentDetails.enable_button_only_on_form_ready) {
+    handleFormReadyForSubmission();
+  }
+}
+
+function handleFormReadyForSubmission() {
+  window.addEventListener("message", function (event) {
+    // Event listener for updating the button rules
+    if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
+      let isFormReadyForSubmission = event.data["isFormReadyForSubmission"];
+      var submitButtonNode = document.getElementById("submit");
+      if (submitButtonNode instanceof HTMLButtonElement) {
+        if (isFormReadyForSubmission === false) {
+          submitButtonNode.disabled = true;
+          addClass("#submit", "not-ready");
+          addClass("#submit", "disabled");
+        } else if (isFormReadyForSubmission === true) {
+          submitButtonNode.disabled = false;
+          removeClass("#submit", "not-ready");
+          removeClass("#submit", "disabled");
+        }
+      }
+    }
+  });
 }
 
 /**
  * Trigger - post mounting SDK
  * Use - set relevant classes to elements in the doc for showing SDK
  **/
-function showSDK(display_sdk_only) {
+function showSDK(display_sdk_only, enable_button_only_on_form_ready) {
   if (!display_sdk_only) {
     show("#hyper-checkout-details");
   }
   show("#hyper-checkout-sdk");
+  if (enable_button_only_on_form_ready) {
+    addClass("#submit", "not-ready");
+    addClass("#submit", "disabled");
+    var submitButtonNode = document.getElementById("submit");
+    if (submitButtonNode instanceof HTMLButtonElement) {
+      submitButtonNode.disabled = true;
+    }
+  }
   show("#submit");
   show("#unified-checkout");
   hide("#sdk-spinner");
@@ -453,10 +505,11 @@ function handleSubmit(e) {
   // Update button loader
   hide("#submit-button-text");
   show("#submit-spinner");
+  addClass("#submit", "processing");
+  addClass("#submit", "disabled");
   var submitButtonNode = document.getElementById("submit");
   if (submitButtonNode instanceof HTMLButtonElement) {
     submitButtonNode.disabled = true;
-    submitButtonNode.classList.add("disabled");
   }
 
   hyper
@@ -499,11 +552,12 @@ function handleSubmit(e) {
       console.error("Error confirming payment_intent", error);
     })
     .finally(() => {
+      removeClass("#submit", "processing");
       hide("#submit-spinner");
       show("#submit-button-text");
+      removeClass("#submit", "disabled");
       if (submitButtonNode instanceof HTMLButtonElement) {
         submitButtonNode.disabled = false;
-        submitButtonNode.classList.remove("disabled");
       }
     });
 }
