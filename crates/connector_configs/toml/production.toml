@@ -3654,3 +3654,6 @@ type="Text"
 [hipay.connector_auth.BodyKey]
 api_key="API Login ID"
 key1="API password"
+
+[ctp_visa]
+[ctp_visa.connector_auth.NoKey]
