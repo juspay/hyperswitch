@@ -12,16 +12,21 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        RecoveryRecordBack,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        revenue_recovery::RevenueRecoveryRecordBackRequest, AccessTokenRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
+        RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -39,14 +44,11 @@ use masking::{ExposeInterface, Mask};
 use transformers as recurly;
 
 use crate::{
-    connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
-    types::ResponseRouterData, utils,
+    connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyWebhookBody},
+    constants::headers,
+    types::ResponseRouterData,
+    utils,
 };
-use hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData;
-use hyperswitch_domain_models::router_flow_types::RecoveryRecordBack;
-use hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest;
-use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
-use crate::connectors::recurly::transformers::RecurlyRecordStatus;
 #[derive(Clone)]
 pub struct Recurly {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
@@ -590,17 +592,17 @@ impl
             .get_string_repr()
             .to_string();
 
-            let status = RecurlyRecordStatus::try_from(req.request.attempt_status)
-            .map_err(|_| errors::ConnectorError::NotSupported {
+        let status = RecurlyRecordStatus::try_from(req.request.attempt_status).map_err(|_| {
+            errors::ConnectorError::NotSupported {
                 message: "Invalid attempt status for Recurly".to_string(),
                 connector: "recurly",
-            })?;
-    
-        
+            }
+        })?;
+
         let status_endpoint = match status {
             RecurlyRecordStatus::Success => "mark_successful",
             RecurlyRecordStatus::Failure => "mark_failed",
-        }; 
+        };
 
         Ok(format!(
             "{}/invoices/{}/{}",

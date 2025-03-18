@@ -4,10 +4,16 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        RecoveryRecordBack,
+    },
+    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_response_types::{
+        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
+        RefundsResponseData,
+    },
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -17,10 +23,6 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
-use hyperswitch_domain_models::router_flow_types::RecoveryRecordBack;
-use hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest;
-use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
-use hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData;
 
 //TODO: Fill the struct with respective fields
 pub struct RecurlyRouterData<T> {
