@@ -8,16 +8,22 @@ license.workspace = true
 [dependencies]
 async-trait = "0.1.79"
 dyn-clone = "1.0.17"
+masking = { version = "0.1.0", path = "../masking" }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
 
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 
 [lints]
 workspace = true
 
 [features]
-default = ["v1"]
+default = ["v1", "dummy_connector"]
 v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
 v2 = [ "payment_methods_v2"]
 payment_methods_v2 = [ "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
+dummy_connector = ["api_models/dummy_connector", "hyperswitch_interfaces/dummy_connector"]
