@@ -1,6 +1,15 @@
 // This file is the default. To override, add to connector.js
 import { getCustomExchange } from "./Modifiers";
 
+export const customerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "127.0.0.1",
+    user_agent: "amet irure esse",
+  },
+};
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -25,14 +34,7 @@ const PaymentMethodCardDetails = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -42,14 +44,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -847,14 +842,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
@@ -864,14 +852,17 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
+        customer_acceptance: customerAcceptance,
+      },
+    }),
+    SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSManualCaptureOffSession: getCustomExchange({
@@ -881,14 +872,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardConfirmAutoCaptureOffSession: getCustomExchange({
@@ -932,14 +916,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethod: {
@@ -963,14 +940,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
@@ -981,14 +951,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
@@ -1000,14 +963,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
@@ -1018,14 +974,7 @@ export const connectorDetails = {
         },
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     InvalidCardNumber: {
@@ -1377,6 +1326,17 @@ export const connectorDetails = {
               "No eligible connector was found for the current payment method configuration",
             type: "invalid_request",
           },
+        },
+      },
+    }),
+    MITWithoutBillingAddress: getCustomExchange({
+      Request: {
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),

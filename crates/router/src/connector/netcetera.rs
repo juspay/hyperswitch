@@ -111,6 +111,8 @@ impl ConnectorCommon for Netcetera {
             reason: response.error_details.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

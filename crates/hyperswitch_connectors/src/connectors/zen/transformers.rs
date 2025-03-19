@@ -724,6 +724,7 @@ impl TryFrom<&BankRedirectData> for ZenPaymentsRequest {
             | BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Trustly { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Eps { .. }
             | BankRedirectData::Giropay { .. }
             | BankRedirectData::Przelewy24 { .. }
@@ -938,6 +939,8 @@ fn get_zen_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(response.id.clone()),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -1084,6 +1087,8 @@ fn get_zen_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.id.clone()),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None

@@ -457,6 +457,7 @@ pub fn payments_cancel() {}
 /// Payments - List
 ///
 /// To list the *payments*
+#[cfg(feature = "v1")]
 #[utoipa::path(
     get,
     path = "/payments/list",
@@ -726,7 +727,7 @@ pub fn payments_update_intent() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsConfirmIntentResponse),
+      (status = 200, description = "Payment created", body = PaymentsResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payments",
@@ -747,7 +748,7 @@ pub fn payments_confirm_intent() {}
         ("force_sync" = ForceSync, Query, description = "A boolean to indicate whether to force sync the payment status. Value can be true or false")
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsRetrieveResponse),
+        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found with the given id")
     ),
     tag = "Payments",
@@ -846,3 +847,21 @@ pub(crate) enum ForceSync {
     security(("publishable_key" = []))
 )]
 pub fn list_payment_methods() {}
+
+/// Payments - List
+///
+/// To list the *payments*
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/list",
+    params(api_models::payments::PaymentListConstraints),
+    responses(
+        (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
+        (status = 404, description = "No payments found")
+    ),
+    tag = "Payments",
+    operation_id = "List all Payments",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub fn payments_list() {}
