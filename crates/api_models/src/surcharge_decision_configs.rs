@@ -1,6 +1,6 @@
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
-    events,
+    events, id_type,
     types::{MinorUnit, Percentage},
 };
 use euclid::frontend::{
@@ -59,6 +59,22 @@ impl events::ApiEventMetric for SurchargeDecisionManagerRecord {
         Some(events::ApiEventsType::Routing)
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SurchargeRecord {
+    pub name: String,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub merchant_surcharge_configs: MerchantSurchargeConfigs,
+    pub algorithm: Program<SurchargeDecisionConfigs>,
+    pub created_at: i64,
+    pub modified_at: i64,
+}
+
+impl events::ApiEventMetric for SurchargeRecord {
+    fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
+        Some(events::ApiEventsType::Routing)
+    }
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SurchargeDecisionConfigReq {
@@ -92,3 +108,5 @@ pub struct MerchantSurchargeConfigs {
 }
 
 pub type SurchargeDecisionManagerResponse = SurchargeDecisionManagerRecord;
+
+pub type SurchargeConfigResponse = SurchargeRecord;

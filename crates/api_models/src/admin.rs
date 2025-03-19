@@ -2259,6 +2259,9 @@ pub struct ProfileResponse {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: bool,
+
+    ///active surcharge config id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]

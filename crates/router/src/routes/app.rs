@@ -903,9 +903,7 @@ impl Routing {
                 )),
             )
             .service(
-                web::resource("/decision/surcharge/active")
-                .route(web::get().to(
-                    
+                web::resource("/decision/surcharge/active").route(web::get().to(
                     |state, req, query_params| {
                         routing::retrieve_linked_surcharge_config(
                             state,
@@ -913,23 +911,21 @@ impl Routing {
                             query_params,
                             &TransactionType::Payment,
                         )
-                    }
+                    },
                 )),
             )
             .service(
-                web::resource("/decision/surcharge/{profile_id}")
-                .route(web::post().to(
-                    |state, req, path, payload| {
+                web::resource("/decision/surcharge_create").route(web::post().to(
+                    |state, req, payload| {
                         routing::add_surcharge_decision_manager_config(
                             state,
                             req,
-                            path,
                             payload,
-                            TransactionType::Payment,
+                            &TransactionType::Payment,
                             AlgorithmType::Surcharge,
                         )
                     },
-                ))
+                )),
             )
             .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(
@@ -1063,6 +1059,13 @@ impl Routing {
                 web::resource("/{algorithm_id}/activate").route(web::post().to(
                     |state, req, path| {
                         routing::routing_link_config(state, req, path, &TransactionType::Payment)
+                    },
+                )),
+            )
+            .service(
+                web::resource("/{algorithm_id}/surcharge/activate").route(web::post().to(
+                    |state, req, path| {
+                        routing::surcharge_link_config(state, req, path, &TransactionType::Payment)
                     },
                 )),
             );

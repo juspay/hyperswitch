@@ -191,6 +191,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             force_3ds_challenge: item.force_3ds_challenge,
+            active_surcharge_algorithm_id: item.active_surcharge_algorithm_id,
         })
     }
 }

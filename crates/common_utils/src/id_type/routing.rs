@@ -39,7 +39,7 @@ pub struct SurchargeRoutingId(pub RoutingId);
 
 impl Deref for SurchargeRoutingId {
     type Target = RoutingId;
-    
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }

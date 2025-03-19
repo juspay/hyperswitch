@@ -13,7 +13,11 @@ use router_env::{
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
-    services::{api as oss_api, authentication::{self as auth, AuthenticationData}, authorization::permissions::Permission},
+    services::{
+        api as oss_api,
+        authentication::{self as auth, AuthenticationData},
+        authorization::permissions::Permission,
+    },
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -701,7 +705,7 @@ pub async fn retrieve_linked_surcharge_config(
     if let Some(profile_id) = query.profile_id.clone() {
         Box::pin(oss_api::server_wrap(
             flow,
-            state, 
+            state,
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query, _| {
@@ -729,8 +733,8 @@ pub async fn retrieve_linked_surcharge_config(
             api_locking::LockAction::NotApplicable,
         ))
         .await
-    } else{
-        Box::pin(oss_api::server_wrap (
+    } else {
+        Box::pin(oss_api::server_wrap(
             flow,
             state,
             &req,
@@ -798,13 +802,11 @@ pub async fn list_surcharge_decision_manager_configs(
 pub async fn add_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<common_utils::id_type::ProfileId>,
     payload: web::Json<api_models::surcharge_decision_configs::SurchargeDecisionConfigReq>,
-    transaction_type: enums::TransactionType,
+    transaction_type: &enums::TransactionType,
     algorithm_type: enums::AlgorithmType,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerUpsertConfig;
-    let profile_id = path.into_inner();
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -815,10 +817,50 @@ pub async fn add_surcharge_decision_manager_config(
                 state,
                 auth.key_store,
                 auth.merchant_account,
-                profile_id.clone(),
+                auth.profile_id.clone(),
                 payload,
                 transaction_type,
                 algorithm_type,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSurchargeDecisionManagerWrite,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileSurchargeDecisionManagerWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn surcharge_link_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::RoutingId>,
+    transaction_type: &enums::TransactionType,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        path.into_inner(),
+        |state, auth: AuthenticationData, algorithm_id, _| {
+            surcharge_decision_config::link_surcharge_decision_config(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile_id,
+                algorithm_id,
             )
         },
         #[cfg(not(feature = "release"))]
