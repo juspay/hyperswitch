@@ -1768,9 +1768,8 @@ pub enum ScaExemptionType {
 #[strum(serialize_all = "snake_case")]
 pub enum CtpServiceProvider {
     Visa,
-    Mastercard
+    Mastercard,
 }
-
 
 #[derive(
     Clone,

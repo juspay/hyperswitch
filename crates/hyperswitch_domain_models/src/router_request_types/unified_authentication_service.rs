@@ -2,6 +2,7 @@ use api_models::payments::DeviceChannel;
 use common_utils::types::MinorUnit;
 use masking::Secret;
 use time::PrimitiveDateTime;
+
 use crate::{address::Address, payment_method_data::PaymentMethodData};
 
 #[derive(Clone, Debug)]
@@ -9,7 +10,7 @@ pub struct UasPreAuthenticationRequestData {
     pub service_details: Option<CtpServiceDetails>,
     pub transaction_details: Option<TransactionDetails>,
     pub payment_details: Option<PaymentDetails>,
-    pub authentication_info: Option<AuthenticationInfo>
+    pub authentication_info: Option<AuthenticationInfo>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -20,7 +21,7 @@ pub struct AuthenticationInfo {
     pub is_authenticated: bool,
     pub locale: Option<String>,
     pub supported_card_brands: Option<String>,
-    pub encypted_payload: Option<String>
+    pub encypted_payload: Option<String>,
 }
 #[derive(Clone, Debug)]
 pub struct UasAuthenticationRequestData {

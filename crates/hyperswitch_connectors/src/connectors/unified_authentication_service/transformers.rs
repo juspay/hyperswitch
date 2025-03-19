@@ -3,8 +3,8 @@ use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::unified_authentication_service::{
-        DynamicData, PostAuthenticationDetails, PreAuthenticationDetails, TokenDetails,
-        UasAuthenticationResponseData, AuthenticationInfo
+        AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
+        TokenDetails, UasAuthenticationResponseData,
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
@@ -43,7 +43,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub customer_details: Option<CustomerDetails>,
     pub pmt_details: Option<PaymentDetails>,
     pub auth_creds: ConnectorAuthType,
-    pub transaction_details: Option<TransactionDetails>
+    pub transaction_details: Option<TransactionDetails>,
 }
 
 #[derive(Debug, Serialize)]
@@ -121,7 +121,6 @@ pub struct TransactionDetails {
     pub three_ds_data: Option<ThreeDSData>,
 }
 
-
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct ThreeDSData {
     pub browser: BrowserInfo,
@@ -149,8 +148,6 @@ pub struct BrowserInfo {
     pub time_zone: i8,
     pub challenge_window_size: String,
 }
-
-
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct CtpServiceDetails {
@@ -289,7 +286,6 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum UnifiedAuthenticationServicePreAuthenticateStatus {
@@ -385,7 +381,7 @@ impl TryFrom<&UasPostAuthenticationRouterData>
                     field_name: "authentication_id",
                 },
             )?,
-            auth_creds: item.connector_auth_type.clone()
+            auth_creds: item.connector_auth_type.clone(),
         })
     }
 }
