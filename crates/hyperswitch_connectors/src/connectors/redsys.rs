@@ -154,7 +154,10 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _req: &PaymentsPreProcessingRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/sis/rest/iniciaPeticionREST", self.base_url(connectors)))
+        Ok(format!(
+            "{}/sis/rest/iniciaPeticionREST",
+            self.base_url(connectors)
+        ))
     }
     fn get_request_body(
         &self,
@@ -243,7 +246,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/sis/rest/trataPeticionREST", self.base_url(connectors)))
+        Ok(format!(
+            "{}/sis/rest/trataPeticionREST",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -314,7 +320,10 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         _req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/sis/rest/trataPeticionREST", self.base_url(connectors)))
+        Ok(format!(
+            "{}/sis/rest/trataPeticionREST",
+            self.base_url(connectors)
+        ))
     }
     fn get_request_body(
         &self,
@@ -387,7 +396,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/sis/rest/trataPeticionREST", self.base_url(connectors)))
+        Ok(format!(
+            "{}/sis/rest/trataPeticionREST",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -457,7 +469,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Re
         _req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/sis/rest/trataPeticionREST", self.base_url(connectors)))
+        Ok(format!(
+            "{}/sis/rest/trataPeticionREST",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -542,7 +557,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys 
         _req: &RefundExecuteRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/sis/rest/trataPeticionREST", self.base_url(connectors)))
+        Ok(format!(
+            "{}/sis/rest/trataPeticionREST",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
