@@ -787,9 +787,9 @@ fn des_encrypt(
 fn get_signature(
     order_id: &str,
     params: &str,
-    clave: &str,
+    key: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let secret_ko = des_encrypt(order_id, clave)?;
+    let secret_ko = des_encrypt(order_id, key)?;
     let result = HmacSha256::sign_message(&HmacSha256, &secret_ko, params.as_bytes())
         .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
     let encoded = BASE64_ENGINE.encode(result);
