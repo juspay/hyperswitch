@@ -2700,14 +2700,10 @@ async fn add_token_call_to_store(
     ).await?;
 
     let token = payment_method_token_response
-        .payment_method_token_result
-        .map_or_else(
-            |err| {
-                logger::error!("Failed to create token for payment method session confirm call : {:?}", err);
-                None
-            },
-            |token| token
-        );
+                                    .payment_method_token_result.unwrap_or_else(|err| {
+                                    logger::error!("Failed to create token for payment method session confirm call : {:?}", err);
+                                    None
+                                });
 
     logger::info!("Tokenization response");
     logger::info!(token =? &token);
