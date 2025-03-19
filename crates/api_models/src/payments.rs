@@ -430,6 +430,40 @@ pub struct PaymentsUpdateIntentRequest {
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
 }
 
+#[cfg(feature = "v2")]
+impl PaymentsUpdateIntentRequest {
+    pub fn update_feature_metadata_and_active_attempt_with_api(
+        feature_metadata: FeatureMetadata,
+        set_active_attempt_id: api_enums::UpdateActiveAttempt,
+    ) -> Self {
+        Self {
+            feature_metadata: Some(feature_metadata),
+            set_active_attempt_id: Some(set_active_attempt_id),
+            amount_details: None,
+            routing_algorithm_id: None,
+            capture_method: None,
+            authentication_type: None,
+            billing: None,
+            shipping: None,
+            customer_present: None,
+            description: None,
+            return_url: None,
+            setup_future_usage: None,
+            apply_mit_exemption: None,
+            statement_descriptor: None,
+            order_details: None,
+            allowed_payment_method_types: None,
+            metadata: None,
+            connector_metadata: None,
+            payment_link_config: None,
+            request_incremental_authorization: None,
+            session_expiry: None,
+            frm_metadata: None,
+            request_external_three_ds_authentication: None,
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
@@ -707,7 +741,7 @@ pub struct PaymentAmountDetailsResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct PaymentAttemptAmountDetails {
     /// The total amount of the order including tax, surcharge and shipping cost
@@ -2639,6 +2673,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
             Self::Bizum {} => api_enums::PaymentMethodType::Bizum,
             Self::Blik { .. } => api_enums::PaymentMethodType::Blik,
+            Self::Eft { .. } => api_enums::PaymentMethodType::Eft,
             Self::Eps { .. } => api_enums::PaymentMethodType::Eps,
             Self::Giropay { .. } => api_enums::PaymentMethodType::Giropay,
             Self::Ideal { .. } => api_enums::PaymentMethodType::Ideal,
@@ -3015,6 +3050,11 @@ pub enum BankRedirectData {
         issuer: common_enums::BankNames,
     },
     LocalBankRedirect {},
+    Eft {
+        /// The preferred eft provider
+        #[schema(example = "ozow")]
+        provider: String,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -3130,7 +3170,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingPoland { .. }
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
-            | Self::Blik { .. } => None,
+            | Self::Blik { .. }
+            | Self::Eft { .. } => None,
         }
     }
 }
@@ -4995,6 +5036,12 @@ pub struct PaymentsResponse {
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// Error code received from the issuer in case of failed payments
+    pub issuer_error_code: Option<String>,
+
+    /// Error message received from the issuer in case of failed payments
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5409,7 +5456,7 @@ pub struct PaymentsRetrieveRequest {
 
 /// Error details for the payment
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
     pub code: String,
@@ -6566,6 +6613,7 @@ pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
     pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
+    pub braintree: Option<BraintreeData>,
 }
 
 impl ConnectorMetadata {
@@ -6604,6 +6652,16 @@ pub struct AirwallexData {
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
     pub order_category: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BraintreeData {
+    /// Information about the merchant_account_id that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
+    pub merchant_account_id: Option<Secret<String>>,
+    /// Information about the merchant_config_currency that merchant wants to specify at connector level.
+    #[schema(value_type = String)]
+    pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7441,7 +7499,7 @@ pub struct PaymentsStartRequest {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
@@ -7453,6 +7511,27 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+}
+
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn get_retry_count(&self) -> Option<u16> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|metadata| metadata.total_retry_count)
+    }
+
+    pub fn set_payment_revenue_recovery_metadata_using_api(
+        self,
+        payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
+    ) -> Self {
+        Self {
+            redirect_response: self.redirect_response,
+            search_tags: self.search_tags,
+            apple_pay_recurring_details: self.apple_pay_recurring_details,
+            payment_revenue_recovery_metadata: Some(payment_revenue_recovery_metadata),
+        }
+    }
 }
 
 /// additional data that might be required by hyperswitch
@@ -7863,6 +7942,9 @@ pub struct PaymentLinkDetails {
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7878,6 +7960,9 @@ pub struct SecurePaymentLinkDetails {
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -8356,7 +8441,32 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Connector, example = "stripe")]
+    pub connector: common_enums::connector_enums::Connector,
 }
+#[cfg(feature = "v2")]
+impl PaymentRevenueRecoveryMetadata {
+    pub fn set_payment_transmission_field_for_api_request(
+        &mut self,
+        payment_connector_transmission: PaymentConnectorTransmission,
+    ) {
+        self.payment_connector_transmission = payment_connector_transmission;
+    }
+    pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
+        ProcessorPaymentToken {
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone(),
+            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+        }
+    }
+    pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
+        self.active_attempt_payment_connector_id.clone()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
@@ -8364,4 +8474,85 @@ pub struct BillingConnectorPaymentDetails {
     pub payment_processor_token: String,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsAttemptRecordRequest {
+    /// The amount details for the payment attempt.
+    pub amount_details: PaymentAttemptAmountDetails,
+
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub status: enums::AttemptStatus,
+
+    /// The billing details of the payment attempt. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// The shipping address for the payment attempt.
+    pub shipping: Option<Address>,
+
+    /// Error details provided by the billing processor.
+    pub error: Option<RecordAttemptErrorDetails>,
+
+    /// A description for the payment attempt.
+    #[schema(example = "It's my first payment request", value_type = Option<String>)]
+    pub description: Option<common_utils::types::Description>,
+
+    /// A unique identifier for a payment provided by the connector.
+    pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
+
+    /// The payment method type used for payment attempt.
+    #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Option<Connector>, example = "stripe")]
+    pub connector: Option<common_enums::connector_enums::Connector>,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The payment instrument data to be used for the payment attempt.
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+
+    /// The time at which payment attempt was created.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_created_at: Option<PrimitiveDateTime>,
+
+    /// payment method token at payment processor end.
+    #[schema(value_type = String, example = "1234567890")]
+    pub processor_payment_method_token: String,
+
+    /// customer id at payment connector for which mandate is attached.
+    #[schema(value_type = String, example = "cust_12345")]
+    pub connector_customer_id: String,
+}
+
+/// Error details for the payment
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct RecordAttemptErrorDetails {
+    /// error code sent by billing connector.
+    pub code: String,
+    /// error message sent by billing connector.
+    pub message: String,
 }

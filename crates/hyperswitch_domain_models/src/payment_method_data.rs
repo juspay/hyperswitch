@@ -106,6 +106,20 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardDetail {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 impl CardDetailsForNetworkTransactionId {
     pub fn get_nti_and_card_details_for_mit_flow(
         recurring_details: mandates::RecurringDetails,
@@ -130,6 +144,23 @@ impl CardDetailsForNetworkTransactionId {
             mandate_reference_id,
             network_transaction_id_and_card_details.clone().into(),
         ))
+    }
+}
+
+impl From<&Card> for CardDetail {
+    fn from(item: &Card) -> Self {
+        Self {
+            card_number: item.card_number.to_owned(),
+            card_exp_month: item.card_exp_month.to_owned(),
+            card_exp_year: item.card_exp_year.to_owned(),
+            card_issuer: item.card_issuer.to_owned(),
+            card_network: item.card_network.to_owned(),
+            card_type: item.card_type.to_owned(),
+            card_issuing_country: item.card_issuing_country.to_owned(),
+            bank_code: item.bank_code.to_owned(),
+            nick_name: item.nick_name.to_owned(),
+            card_holder_name: item.card_holder_name.to_owned(),
+        }
     }
 }
 
@@ -437,6 +468,9 @@ pub enum BankRedirectData {
         issuer: common_enums::BankNames,
     },
     LocalBankRedirect {},
+    Eft {
+        provider: String,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1029,6 +1063,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::LocalBankRedirect { .. } => {
                 Self::LocalBankRedirect {}
             }
+            api_models::payments::BankRedirectData::Eft { provider } => Self::Eft { provider },
         }
     }
 }
@@ -1613,6 +1648,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
             Self::Bizum {} => api_enums::PaymentMethodType::Bizum,
             Self::Blik { .. } => api_enums::PaymentMethodType::Blik,
+            Self::Eft { .. } => api_enums::PaymentMethodType::Eft,
             Self::Eps { .. } => api_enums::PaymentMethodType::Eps,
             Self::Giropay { .. } => api_enums::PaymentMethodType::Giropay,
             Self::Ideal { .. } => api_enums::PaymentMethodType::Ideal,
@@ -1845,6 +1881,24 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+        }
+    }
+}
+
+impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDetailsPaymentMethod {
+    fn from(item: NetworkTokenDetailsPaymentMethod) -> Self {
+        Self {
+            last4_digits: item.last4_digits,
+            issuer_country: item.issuer_country,
+            network_token_expiry_month: item.network_token_expiry_month,
+            network_token_expiry_year: item.network_token_expiry_year,
+            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }

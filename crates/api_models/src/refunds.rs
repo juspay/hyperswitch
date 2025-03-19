@@ -210,6 +210,10 @@ pub struct RefundResponse {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>,)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    /// Error code received from the issuer in case of failed refunds
+    pub issuer_error_code: Option<String>,
+    /// Error message received from the issuer in case of failed refunds
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]

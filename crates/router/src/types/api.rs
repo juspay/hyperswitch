@@ -46,6 +46,8 @@ pub use hyperswitch_domain_models::router_flow_types::{
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::api::{
+    revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
+    revenue_recovery_v2::RevenueRecoveryV2,
     ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
     ConnectorVerifyWebhookSourceV2, CurrencyUnit,
@@ -108,6 +110,7 @@ pub trait Connector:
     + ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
+    + RevenueRecovery
 {
 }
 
@@ -127,7 +130,8 @@ impl<
             + ConnectorMandateRevoke
             + ExternalAuthentication
             + TaxCalculation
-            + UnifiedAuthenticationService,
+            + UnifiedAuthenticationService
+            + RevenueRecovery,
     > Connector for T
 {
 }
@@ -148,6 +152,7 @@ pub trait ConnectorV2:
     + ConnectorMandateRevokeV2
     + ExternalAuthenticationV2
     + UnifiedAuthenticationServiceV2
+    + RevenueRecoveryV2
 {
 }
 impl<
@@ -165,7 +170,8 @@ impl<
             + FraudCheckV2
             + ConnectorMandateRevokeV2
             + ExternalAuthenticationV2
-            + UnifiedAuthenticationServiceV2,
+            + UnifiedAuthenticationServiceV2
+            + RevenueRecoveryV2,
     > ConnectorV2 for T
 {
 }
@@ -426,7 +432,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
-                enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
+                enums::Connector::Fiserv => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
+                }
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
@@ -434,9 +442,9 @@ impl ConnectorData {
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
-                // enums::Connector::Getnet => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
-                // }
+                enums::Connector::Getnet => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -446,7 +454,12 @@ impl ConnectorData {
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
                 }
-                enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
+                enums::Connector::Hipay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
+                }
+                enums::Connector::Helcim => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -459,6 +472,9 @@ impl ConnectorData {
                 enums::Connector::Jpmorgan => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
+                enums::Connector::Juspaythreedsserver => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Juspaythreedsserver::new(),
+                ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
@@ -510,6 +526,9 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
+                enums::Connector::Recurly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                }
                 // enums::Connector::Redsys => Ok(ConnectorEnum::Old(Box::new(connector::Redsys))),
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
@@ -519,7 +538,9 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                // enums::Connector::Stripebilling => Ok(ConnectorEnum::Old(Box::new(connector::Stripebilling))),
+                // enums::Connector::Stripebilling =>{
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Stripebilling::new())))
+                // },
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))

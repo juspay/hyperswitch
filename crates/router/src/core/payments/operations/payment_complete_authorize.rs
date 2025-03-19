@@ -283,7 +283,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = mandate_data.map(Into::into);
+        let setup_mandate = mandate_data;
 
         let mandate_details_present =
             payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
@@ -304,6 +304,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+
+        let creds_identifier =
+            request
+                .merchant_connector_details
+                .as_ref()
+                .map(|merchant_connector_details| {
+                    merchant_connector_details.creds_identifier.to_owned()
+                });
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -336,7 +344,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             attempts: None,
             sessions_token: vec![],
             card_cvc: request.card_cvc.clone(),
-            creds_identifier: None,
+            creds_identifier,
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,

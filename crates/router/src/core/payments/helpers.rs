@@ -1262,13 +1262,18 @@ pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
     connector_name: impl std::fmt::Display,
+    creds_identifier: Option<&str>,
 ) -> String {
+    let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
+        format!("/{}", creds_identifier)
+    });
     format!(
-        "{}/payments/{}/{}/redirect/complete/{}",
+        "{}/payments/{}/{}/redirect/complete/{}{}",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
-        connector_name
+        connector_name,
+        creds_identifier
     )
 }
 
@@ -2997,6 +3002,7 @@ pub fn validate_payment_method_type_against_payment_method(
             api_enums::PaymentMethodType::Giropay
                 | api_enums::PaymentMethodType::Ideal
                 | api_enums::PaymentMethodType::Sofort
+                | api_enums::PaymentMethodType::Eft
                 | api_enums::PaymentMethodType::Eps
                 | api_enums::PaymentMethodType::BancontactCard
                 | api_enums::PaymentMethodType::Blik
@@ -4825,6 +4831,12 @@ pub async fn get_additional_payment_data(
             domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    details: None,
+                },
+            )),
+            domain::BankRedirectData::Eft { .. } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
                     details: None,
                 },
             )),

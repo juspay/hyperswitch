@@ -187,6 +187,14 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub payment_button_text_colour: Option<String>,
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules:
+        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules:
+        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);

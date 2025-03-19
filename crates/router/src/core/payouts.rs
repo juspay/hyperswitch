@@ -3092,7 +3092,9 @@ pub async fn add_external_account_addition_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 

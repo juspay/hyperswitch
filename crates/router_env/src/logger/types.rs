@@ -544,6 +544,12 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Card tokenization flow
+    TokenizeCard,
+    /// Card tokenization using payment method flow
+    TokenizeCardUsingPaymentMethodId,
+    /// Cards batch tokenization flow
+    TokenizeCardBatch,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
     /// Generate Hypersense Token
@@ -570,6 +576,8 @@ pub enum Flow {
     CardsInfoUpdate,
     /// Cards Info migrate flow
     CardsInfoMigrate,
+    ///Total payment method count for merchant
+    TotalPaymentMethodCount,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -220,6 +220,7 @@ diesel::table! {
         card_testing_guard_config -> Nullable<Jsonb>,
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
+        force_3ds_challenge -> Nullable<Bool>,
     }
 }
 
@@ -921,6 +922,9 @@ diesel::table! {
         processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 64]
+        issuer_error_code -> Nullable<Varchar>,
+        issuer_error_message -> Nullable<Text>,
     }
 }
 
@@ -1211,6 +1215,7 @@ diesel::table! {
         event -> Array<Nullable<Text>>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        version -> ApiVersion,
     }
 }
 
@@ -1274,6 +1279,9 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         processor_refund_data -> Nullable<Text>,
         processor_transaction_data -> Nullable<Text>,
+        #[max_length = 64]
+        issuer_error_code -> Nullable<Varchar>,
+        issuer_error_message -> Nullable<Text>,
     }
 }
 

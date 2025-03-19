@@ -81,10 +81,11 @@ pub enum RoutableConnectors {
     Fiservemea,
     Fiuu,
     Forte,
-    // Getnet,
+    Getnet,
     Globalpay,
     Globepay,
     Gocardless,
+    Hipay,
     Helcim,
     Iatapay,
     Inespay,
@@ -116,6 +117,7 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Razorpay,
+    Recurly,
     // Redsys,
     Riskified,
     Shift4,
@@ -222,16 +224,18 @@ pub enum Connector {
     Fiservemea,
     Fiuu,
     Forte,
-    // Getnet,
+    Getnet,
     Globalpay,
     Globepay,
     Gocardless,
     Gpayments,
+    Hipay,
     Helcim,
     Inespay,
     Iatapay,
     Itaubank,
     Jpmorgan,
+    Juspaythreedsserver,
     Klarna,
     Mifinity,
     Mollie,
@@ -259,6 +263,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
+    Recurly,
     // Redsys,
     Shift4,
     Square,
@@ -377,16 +382,18 @@ impl Connector {
             | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
-            // | Self::Getnet
+            | Self::Getnet
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
             | Self::Gpayments
+            | Self::Hipay
             | Self::Helcim
             | Self::Iatapay
 			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
+            | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
@@ -408,6 +415,7 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
+            | Self::Recurly
 			// | Self::Redsys
             | Self::Shift4
             | Self::Square
@@ -435,8 +443,9 @@ impl Connector {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
-            | Self::Stripe => false,
-            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
+            | Self::Stripe
+            | Self::Datatrans => false,
+            Self::Checkout | Self::Nmi |Self::Cybersource => true,
         }
     }
 
@@ -512,6 +521,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
             RoutableConnectors::Forte => Self::Forte,
+            RoutableConnectors::Getnet => Self::Getnet,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -543,6 +553,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Prophetpay => Self::Prophetpay,
             RoutableConnectors::Rapyd => Self::Rapyd,
             RoutableConnectors::Razorpay => Self::Razorpay,
+            RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Riskified => Self::Riskified,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
@@ -563,6 +574,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Xendit => Self::Xendit,
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
+            RoutableConnectors::Hipay => Self::Hipay,
         }
     }
 }

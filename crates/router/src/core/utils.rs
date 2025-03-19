@@ -337,6 +337,24 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_attempt.capture_method;
+
+    let braintree_metadata = payment_intent
+        .connector_metadata
+        .clone()
+        .map(|cm| {
+            cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed parsing ConnectorMetadata")
+        })
+        .transpose()?
+        .and_then(|cm| cm.braintree);
+
+    let merchant_account_id = braintree_metadata
+        .as_ref()
+        .and_then(|braintree| braintree.merchant_account_id.clone());
+    let merchant_config_currency =
+        braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -376,6 +394,9 @@ pub async fn construct_refund_router_data<'a, F>(
             split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
+            merchant_account_id,
+            merchant_config_currency,
+            capture_method,
         },
 
         response: Ok(types::RefundsResponseData {
