@@ -295,7 +295,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::VietQr
                 | PaymentMethodType::Mifinity
                 | PaymentMethodType::LocalBankRedirect
-                | PaymentMethodType::OpenBankingPIS => {
+                | PaymentMethodType::OpenBankingPIS
+                | PaymentMethodType::InstantBankTransfer => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

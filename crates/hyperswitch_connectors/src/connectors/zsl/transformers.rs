@@ -162,11 +162,14 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 | BankTransferData::DanamonVaBankTransfer { .. }
                 | BankTransferData::MandiriVaBankTransfer { .. }
                 | BankTransferData::Pix { .. }
-                | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message(
-                        item.router_data.connector.as_str(),
-                    ),
-                )),
+                | BankTransferData::Pse {}
+                | BankTransferData::InstantBankTransfer { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message(
+                            item.router_data.connector.as_str(),
+                        ),
+                    ))
+                }
             },
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardRedirect(_)

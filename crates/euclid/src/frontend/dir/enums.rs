@@ -213,6 +213,7 @@ pub enum BankTransferType {
     Pix,
     Pse,
     LocalBankTransfer,
+    InstantBankTransfer,
 }
 
 #[derive(

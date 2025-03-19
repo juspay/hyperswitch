@@ -2727,6 +2727,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
+            Self::InstantBankTransfer { .. } => api_enums::PaymentMethodType::InstantBankTransfer,
         }
     }
 }
@@ -3383,6 +3384,10 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+    InstantBankTransfer {
+        /// The billing details for Instant Bank Transfer
+        billing_details: Option<DokuBillingDetails>,
+    },
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3451,6 +3456,17 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 })
             }
             Self::LocalBankTransfer { .. } | Self::Pix { .. } | Self::Pse {} => None,
+            Self::InstantBankTransfer { billing_details } => {
+                billing_details.as_ref().map(|details| Address {
+                    address: Some(AddressDetails {
+                        first_name: details.first_name.clone(),
+                        last_name: details.last_name.clone(),
+                        ..AddressDetails::default()
+                    }),
+                    phone: None,
+                    email: details.email.clone(),
+                })
+            }
         }
     }
 }
