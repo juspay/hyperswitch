@@ -455,7 +455,7 @@ impl EncodeMessage for TripleDesEde3CBC {
         }
         let mut buffer = msg.to_vec();
 
-        if let CryptoPadding::ZeroPadding = self.padding {
+        if let common_enums::CryptoPadding::ZeroPadding = self.padding {
             let pad_len = Self::TRIPLE_DES_IV_LENGTH - (buffer.len() % Self::TRIPLE_DES_IV_LENGTH);
             if pad_len != Self::TRIPLE_DES_IV_LENGTH {
                 buffer.extend(vec![0u8; pad_len]);
