@@ -5,7 +5,11 @@ use error_stack::ResultExt;
 use router_env::logger;
 
 use crate::{
-    consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS, core::errors::ApiErrorResponse, services::ApplicationResponse, utils::currency::{self, convert_currency, get_forex_rates, ForexCacheError}, SessionState
+    consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS,
+    core::errors::ApiErrorResponse,
+    services::ApplicationResponse,
+    utils::currency::{self, convert_currency, get_forex_rates, ForexCacheError},
+    SessionState,
 };
 
 pub async fn retrieve_forex(
@@ -61,7 +65,13 @@ pub async fn get_forex_exchange_rates(
                 let is_retryable = matches!(
                     error.current_context(),
                     ForexCacheError::CouldNotAcquireLock
+                        | ForexCacheError::EntryNotFound
                         | ForexCacheError::ForexDataUnavailable
+                        | ForexCacheError::LocalReadError
+                        | ForexCacheError::LocalWriteError
+                        | ForexCacheError::RedisConnectionError
+                        | ForexCacheError::RedisLockReleaseFailed
+                        | ForexCacheError::RedisWriteError
                         | ForexCacheError::WriteLockNotAcquired
                 );
 
@@ -73,8 +83,10 @@ pub async fn get_forex_exchange_rates(
                     logger::error!("Failed to fetch forex rates after {DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS} attempts");
                     return Err(error.change_context(AnalyticsError::ForexFetchFailed));
                 }
-                logger::warn!("Forex rates fetch failed with retryable error, retrying in {attempt} seconds");
-                tokio::time::sleep(std::time::Duration::from_secs(attempt)).await;
+                logger::warn!(
+                    "Forex rates fetch failed with retryable error, retrying in {attempt} seconds"
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(attempt * 2)).await;
                 attempt += 1;
             }
         }
