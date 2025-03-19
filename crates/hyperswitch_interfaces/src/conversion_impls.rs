@@ -17,10 +17,7 @@ use hyperswitch_domain_models::{
     },
 };
 
-use crate::{
-    connector_integration_interface::RouterDataConversion,
-    errors::{self, ConnectorError},
-};
+use crate::{connector_integration_interface::RouterDataConversion, errors::ConnectorError};
 
 fn get_irrelevant_id_string(id_name: &str, flow_name: &str) -> String {
     format!("irrelevant {id_name} in {flow_name} flow")
@@ -722,7 +719,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -739,7 +736,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
