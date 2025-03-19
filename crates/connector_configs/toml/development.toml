@@ -4899,4 +4899,4 @@ key1="API password"
 [redsys.connector_auth.SignatureKey]
 api_key="Merchant ID"
 key1="Terminal ID"
-api_secret="Sha256 Pwd"
+api_secret="Secret Key"
