@@ -1,8 +1,12 @@
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{consts::BASE64_ENGINE, crypto::{SignMessage,HmacSha256, TripleDesEde3CBC, EncodeMessage}, ext_traits::{ValueExt,Encode}, types::StringMinorUnit};
+use common_utils::{
+    consts::BASE64_ENGINE,
+    crypto::{EncodeMessage, HmacSha256, SignMessage, TripleDesEde3CBC},
+    ext_traits::{Encode, ValueExt},
+    types::StringMinorUnit,
+};
 use error_stack::ResultExt;
-use hmac::{Hmac, Mac};
 use hyperswitch_domain_models::{
     address::Address,
     payment_method_data::PaymentMethodData,
@@ -20,10 +24,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
-use openssl::symm::{encrypt, Cipher};
-use router_env::logger;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use unicode_normalization::UnicodeNormalization;
 
 use crate::{
@@ -35,7 +36,6 @@ use crate::{
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
-
 
 pub struct RedsysRouterData<T> {
     pub amount: StringMinorUnit,
@@ -177,83 +177,85 @@ impl EmvThreedsData {
         self
     }
 
-    fn get_state_code(state: &str) -> Result<Secret<String>, Error> {
+    fn get_state_code(state: Secret<String>) -> Result<Secret<String>, Error> {
+        let state = connector_utils::normalize_string(state.expose())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let addr_state_value = if state.len() > 3 {
             let addr_state = match state.nfkd().collect::<String>().as_str() {
-                "a coruna [la coruna]" | "es-c" => Ok("C"),
-                "alacant" | "es-a" | "alicante" => Ok("A"),
-                "albacete" | "es-ab" => Ok("AB"),
-                "almeria" | "es-al" => Ok("AL"),
-                "andalucia" | "es-an" => Ok("AN"),
-                "araba" | "es-vi" => Ok("VI"),
-                "aragon" | "es-ar" => Ok("AR"),
-                "asturias" | "es-o" => Ok("O"),
-                "asturias, principado de" | "es-as" => Ok("AS"),
-                "badajoz" | "es-ba" => Ok("BA"),
-                "barcelona [barcelona]" | "es-b" => Ok("B"),
-                "bizkaia" | "es-bi" => Ok("BI"),
-                "burgos" | "es-bu" => Ok("BU"),
-                "canarias" | "es-cn" => Ok("CN"),
-                "cantabria" | "es-s" => Ok("S"),
-                "castello" | "es-cs" => Ok("CS"),
+                "acoruna" | "lacoruna" | "esc" => Ok("C"),
+                "alacant" | "esa" | "alicante" => Ok("A"),
+                "albacete" | "esab" => Ok("AB"),
+                "almeria" | "esal" => Ok("AL"),
+                "andalucia" | "esan" => Ok("AN"),
+                "araba" | "esvi" => Ok("VI"),
+                "aragon" | "esar" => Ok("AR"),
+                "asturias" | "eso" => Ok("O"),
+                "asturiasprincipadode" | "principadodeasturias" | "esas" => Ok("AS"),
+                "badajoz" | "esba" => Ok("BA"),
+                "barcelona" | "esb" => Ok("B"),
+                "bizkaia" | "esbi" => Ok("BI"),
+                "burgos" | "esbu" => Ok("BU"),
+                "canarias" | "escn" => Ok("CN"),
+                "cantabria" | "ess" => Ok("S"),
+                "castello" | "escs" => Ok("CS"),
                 "castellon" => Ok("C"),
-                "castilla y leon" | "es-cl" => Ok("CL"),
-                "castilla-la mancha" | "es-cm" => Ok("CM"),
-                "catalunya [cataluna]" | "es-ct" => Ok("CT"),
-                "ceuta" | "es-ce" => Ok("CE"),
-                "ciudad real" | "es-cr" => Ok("CR"),
-                "cuenca" | "es-cu" => Ok("CU"),
-                "caceres" | "es-cc" => Ok("CC"),
-                "cadiz" | "es-ca" => Ok("CA"),
-                "cordoba" | "es-co" => Ok("CO"),
-                "euskal herria" | "es-pv" => Ok("PV"),
-                "extremadura" | "es-ex" => Ok("EX"),
-                "galicia [galicia]" | "es-ga" => Ok("GA"),
-                "gipuzkoa" | "es-ss" => Ok("SS"),
-                "girona [gerona]" | "es-gi" => Ok("GI"),
-                "granada" | "es-gr" => Ok("GR"),
-                "guadalajara" | "es-gu" => Ok("GU"),
-                "huelva" | "es-h" => Ok("H"),
-                "huesca" | "es-hu" => Ok("HU"),
-                "illes balears [islas baleares]" | "es-pm" => Ok("PM"),
-                "es-ib" => Ok("IB"),
-                "jaen" | "es-j" => Ok("J"),
-                "la rioja" | "es-lo" => Ok("LO"),
-                "es-ri" => Ok("RI"),
-                "las palmas" | "es-gc" => Ok("GC"),
-                "leon" | "es-le" => Ok("LE"),
-                "lleida [lerida]" | "es-l" => Ok("L"),
-                "lugo [lugo]" | "es-lu" => Ok("LU"),
-                "madrid" | "es-m" => Ok("M"),
-                "madrid, comunidad de" | "es-md" => Ok("MD"),
-                "melilla" | "es-ml" => Ok("ML"),
-                "murcia" | "es-mu" => Ok("MU"),
-                "murcia, region de" | "es-mc" => Ok("MC"),
-                "malaga" | "es-ma" => Ok("MA"),
-                "nafarroa" | "es-nc" => Ok("NC"),
-                "nafarroako foru komunitatea" | "es-na" => Ok("NA"),
+                "castillayleon" | "escl" => Ok("CL"),
+                "castillalamancha" | "escm" => Ok("CM"),
+                "cataluna" | "catalunya" | "esct" => Ok("CT"),
+                "ceuta" | "esce" => Ok("CE"),
+                "ciudadreal" | "escr" | "ciudad" => Ok("CR"),
+                "cuenca" | "escu" => Ok("CU"),
+                "caceres" | "escc" => Ok("CC"),
+                "cadiz" | "esca" => Ok("CA"),
+                "cordoba" | "esco" => Ok("CO"),
+                "euskalherria" | "espv" => Ok("PV"),
+                "extremadura" | "esex" => Ok("EX"),
+                "galicia" | "esga" => Ok("GA"),
+                "gipuzkoa" | "esss" => Ok("SS"),
+                "girona" | "esgi" | "gerona" => Ok("GI"),
+                "granada" | "esgr" => Ok("GR"),
+                "guadalajara" | "esgu" => Ok("GU"),
+                "huelva" | "esh" => Ok("H"),
+                "huesca" | "eshu" => Ok("HU"),
+                "illesbalears" | "islasbaleares" | "espm" => Ok("PM"),
+                "esib" => Ok("IB"),
+                "jaen" | "esj" => Ok("J"),
+                "larioja" | "eslo" => Ok("LO"),
+                "esri" => Ok("RI"),
+                "laspalmas" | "palmas" | "esgc" => Ok("GC"),
+                "leon" | "esle" => Ok("LE"),
+                "lleida" | "lerida" | "esl" => Ok("L"),
+                "lugo" | "eslu" => Ok("LU"),
+                "madrid" | "esm" => Ok("M"),
+                "comunidaddemadrid" | "madridcomunidadde" | "esmd" => Ok("MD"),
+                "melilla" | "esml" => Ok("ML"),
+                "murcia" | "esmu" => Ok("MU"),
+                "murciaregionde" | "regiondemurcia" | "esmc" => Ok("MC"),
+                "malaga" | "esma" => Ok("MA"),
+                "nafarroa" | "esnc" => Ok("NC"),
+                "nafarroakoforukomunitatea" | "esna" => Ok("NA"),
                 "navarra" => Ok("NA"),
-                "navarra, comunidad foral de" => Ok("NC"),
-                "ourense [orense]" | "es-or" => Ok("OR"),
-                "palencia" | "es-p" => Ok("P"),
-                "pais vasco" => Ok("PV"),
-                "pontevedra [pontevedra]" | "es-po" => Ok("PO"),
-                "salamanca" | "es-sa" => Ok("SA"),
-                "santa cruz de tenerife" | "es-tf" => Ok("TF"),
-                "segovia" | "es-sg" => Ok("SG"),
-                "sevilla" | "es-se" => Ok("SE"),
-                "soria" | "es-so" => Ok("SO"),
-                "tarragona [tarragona]" | "es-t" => Ok("T"),
-                "teruel" | "es-te" => Ok("TE"),
-                "toledo" | "es-to" => Ok("TO"),
-                "valencia" | "es-v" => Ok("V"),
-                "valenciana, comunidad" | "es-vc" => Ok("VC"),
-                "valenciana, comunitat" => Ok("V"),
-                "valladolid" | "es-va" => Ok("VA"),
-                "zamora" | "es-za" => Ok("ZA"),
-                "zaragoza" | "es-z" => Ok("Z"),
+                "navarracomunidadforalde" | "comunidadforaldenavarra" => Ok("NC"),
+                "ourense" | "orense" | "esor" => Ok("OR"),
+                "palencia" | "esp" => Ok("P"),
+                "paisvasco" => Ok("PV"),
+                "pontevedra" | "espo" => Ok("PO"),
+                "salamanca" | "essa" => Ok("SA"),
+                "santacruzdetenerife" | "estf" => Ok("TF"),
+                "segovia" | "essg" => Ok("SG"),
+                "sevilla" | "esse" => Ok("SE"),
+                "soria" | "esso" => Ok("SO"),
+                "tarragona" | "est" => Ok("T"),
+                "teruel" | "este" => Ok("TE"),
+                "toledo" | "esto" => Ok("TO"),
+                "valencia" | "esv" => Ok("V"),
+                "valencianacomunidad" | "esvc" => Ok("VC"),
+                "valencianacomunitat" => Ok("V"),
+                "valladolid" | "esva" => Ok("VA"),
+                "zamora" | "esza" => Ok("ZA"),
+                "zaragoza" | "esz" => Ok("Z"),
                 "alava" => Ok("VI"),
-                "avila" | "es-av" => Ok("AV"),
+                "avila" | "esav" => Ok("AV"),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
                     field_name: "address.state",
                 }),
@@ -271,9 +273,7 @@ impl EmvThreedsData {
                 address.address.as_ref().map(|address_details| {
                     let state = address_details
                         .get_optional_state()
-                        .map(|addr_state| {
-                            Self::get_state_code(&addr_state.expose().to_ascii_lowercase())
-                        })
+                        .map(|addr_state| Self::get_state_code(addr_state))
                         .transpose();
 
                     match state {
@@ -304,9 +304,7 @@ impl EmvThreedsData {
                 address.address.as_ref().map(|address_details| {
                     let state = address_details
                         .get_optional_state()
-                        .map(|addr_state| {
-                            Self::get_state_code(&addr_state.expose().to_ascii_lowercase())
-                        })
+                        .map(|addr_state| Self::get_state_code(addr_state))
                         .transpose();
                     match state {
                         Ok(ship_addr_state) => Ok(ShippingData {
@@ -766,24 +764,23 @@ fn des_encrypt(
     // Connector decrypts the signature using an initialization vector (IV) set to all zeros
     let iv_array = [0u8; TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
     let iv = iv_array.to_vec();
-    let key_bytes =   BASE64_ENGINE
-    .decode(key)
-    .change_context(errors::ConnectorError::RequestEncodingFailed)
-    .attach_printable("Base64 decoding failed")?;
+    let key_bytes = BASE64_ENGINE
+        .decode(key)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Base64 decoding failed")?;
     let triple_des = TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
-    .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
-    let encrypted = triple_des.encode_message(&key_bytes, message.as_bytes())
-    .change_context(errors::ConnectorError::RequestEncodingFailed)
+    let encrypted = triple_des
+        .encode_message(&key_bytes, message.as_bytes())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
     let expected_len = encrypted.len() - TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
     let encrypted_trimed = encrypted
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to trim encrypted data to the expected length")?;
-    println!("sssssssssss hhh22 {:?}", encrypted_trimed);
     let encoded2 = BASE64_ENGINE.encode(encrypted_trimed);
-    println!("sssssssssss hhh {}", encoded2);
     Ok(encrypted_trimed.to_vec())
 }
 
@@ -793,10 +790,8 @@ fn get_signature(
     clave: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let secret_ko = des_encrypt(order_id, clave)?;
-    let result = HmacSha256::sign_message(
-        &HmacSha256,
-        &secret_ko,
-        params.as_bytes()).map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    let result = HmacSha256::sign_message(&HmacSha256, &secret_ko, params.as_bytes())
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
     let encoded = BASE64_ENGINE.encode(result);
     Ok(encoded)
 }
@@ -852,7 +847,7 @@ fn get_redsys_attempt_status(
     ds_response: DsResponse,
     capture_method: Option<enums::CaptureMethod>,
 ) -> Result<enums::AttemptStatus, error_stack::Report<errors::ConnectorError>> {
-    // Redsys consistently provides a 4-digit response code, where numbers ranging from 0000 to 0099 indicate successful transactions    
+    // Redsys consistently provides a 4-digit response code, where numbers ranging from 0000 to 0099 indicate successful transactions
     if ds_response.0.starts_with("00") {
         match capture_method {
             Some(enums::CaptureMethod::Automatic) | None => Ok(enums::AttemptStatus::Charged),

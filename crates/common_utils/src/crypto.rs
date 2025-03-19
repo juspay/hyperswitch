@@ -439,7 +439,6 @@ impl TripleDesEde3CBC {
                 errors::CryptoError::InvalidIvLength,               
             )?
         };
-
         let padding = padding.unwrap_or(CryptoPadding::PKCS7);
         Ok(Self {iv, padding})
     }
@@ -465,9 +464,6 @@ impl EncodeMessage for TripleDesEde3CBC {
             }
         };
         let cipher = Cipher::des_ede3_cbc();
-        router_env::logger::debug!("sssssssssss key_bytes2: {:?}", secret);
-        // router_env::logger::debug!("sssssssssss iv2: {:?}", iv_bytes);
-        router_env::logger::debug!("sssssssssss buffer2: {:?}", buffer);
         openssl::symm::encrypt(cipher, secret, Some(&self.iv), &buffer)
         .change_context(errors::CryptoError::EncodingFailed)
     }

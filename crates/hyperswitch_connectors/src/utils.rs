@@ -61,6 +61,7 @@ use regex::Regex;
 use router_env::logger;
 use serde_json::Value;
 use time::PrimitiveDateTime;
+use unicode_normalization::UnicodeNormalization;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
@@ -5901,4 +5902,12 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
 pub fn generate_12_digit_number() -> u64 {
     let mut rng = rand::thread_rng();
     rng.gen_range(100_000_000_000..=999_999_999_999)
+}
+
+pub fn normalize_string(value: String) -> Result<String, regex::Error> {
+    let lowercase_value = value.to_ascii_lowercase();
+    let nfkd_value = lowercase_value.nfkd().collect::<String>();
+    let re = Regex::new(r"[^a-z0-9]")?;
+    let normalized = re.replace_all(&nfkd_value, "").to_string();
+    Ok(normalized)
 }
