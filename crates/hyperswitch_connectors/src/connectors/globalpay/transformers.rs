@@ -1,7 +1,6 @@
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::ParsingError,
-    ext_traits::ValueExt,
     pii,
     request::Method,
     types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
