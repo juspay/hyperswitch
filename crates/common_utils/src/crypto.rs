@@ -431,7 +431,10 @@ impl TripleDesEde3CBC {
     pub const TRIPLE_DES_IV_LENGTH: usize = 8;
 
     /// Constructor function to be used by the encryptor and decryptor to generate the data type
-    pub fn new(padding: Option<common_enums::CryptoPadding>, iv: Vec<u8>) -> Result<Self, errors::CryptoError> {
+    pub fn new(
+        padding: Option<common_enums::CryptoPadding>,
+        iv: Vec<u8>,
+    ) -> Result<Self, errors::CryptoError> {
         if iv.len() != Self::TRIPLE_DES_IV_LENGTH {
             Err(errors::CryptoError::InvalidIvLength)?
         };
