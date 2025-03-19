@@ -222,7 +222,7 @@ impl EmvThreedsData {
                 "larioja" | "eslo" => Ok("LO"),
                 "esri" => Ok("RI"),
                 "laspalmas" | "palmas" | "esgc" => Ok("GC"),
-                "leon" | "esle" => Ok("LE"),
+                "leon" => Ok("LE"),
                 "lleida" | "lerida" | "esl" => Ok("L"),
                 "lugo" | "eslu" => Ok("LU"),
                 "madrid" | "esm" => Ok("M"),
@@ -777,11 +777,11 @@ fn des_encrypt(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
     let expected_len = encrypted.len() - TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
-    let encrypted_trimed = encrypted
+    let encrypted_trimmed = encrypted
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to trim encrypted data to the expected length")?;
-    Ok(encrypted_trimed.to_vec())
+    Ok(encrypted_trimmed.to_vec())
 }
 
 fn get_signature(
