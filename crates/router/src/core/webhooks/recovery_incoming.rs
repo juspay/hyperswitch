@@ -67,47 +67,52 @@ pub async fn recovery_incoming_webhook_flow(
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-    let recovery_details = if connectors_with_additional_recovery_details_call
+    let recovery_details = match connectors_with_additional_recovery_details_call
         .connectors_with_additional_revenue_recovery_details_call
         .contains(&connector)
     {
-        let additional_revenue_recovery_id = match object_ref_id {
-            webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
-                webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(ref id),
-            ) => Some(id.as_str()),
-            _ => None,
-        };
+        true => {
+            let additional_revenue_recovery_id = match object_ref_id {
+                webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
+                    webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(
+                        ref id,
+                    ),
+                ) => Ok(id.as_str()),
+                _ => Err(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed),
+            }?;
 
-        let additional_call_response =
-            AdditionalRevenueRecoveryResponse::handle_additional_recovery_details_call(
-                &state,
-                &merchant_account,
-                &billing_connector_account,
-                connector_name,
-                additional_revenue_recovery_id.unwrap_or("fake_id"),
-            )
-            .await?
-            .get_additional_revenue_recovery_call_response();
-
-        Some(additional_call_response)
-    } else {
-        None
+            let additional_call_response =
+                AdditionalRevenueRecoveryResponse::handle_additional_recovery_details_call(
+                    &state,
+                    &merchant_account,
+                    &billing_connector_account,
+                    connector_name,
+                    additional_revenue_recovery_id,
+                )
+                .await?
+                .inner();
+            Some(additional_call_response)
+        }
+        false => None,
     };
 
     // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
-    let invoice_details = match recovery_details.clone() {
-        Some(data) => RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData::from(
-            data.clone(),
-        )),
-        None => RevenueRecoveryInvoice(
+    let invoice_details = recovery_details
+        .as_ref()
+        .map(|data| {
+            Ok(RevenueRecoveryInvoice(
+                revenue_recovery::RevenueRecoveryInvoiceData::from(data),
+            ))
+        })
+        .unwrap_or_else(|| {
             interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
                 connector_enum,
                 request_details,
             )
             .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
-            .attach_printable("Failed while getting revenue recovery invoice details")?,
-        ),
-    };
+            .attach_printable("Failed while getting revenue recovery invoice details")
+            .map(RevenueRecoveryInvoice)
+        })?;
 
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
@@ -135,11 +140,15 @@ pub async fn recovery_incoming_webhook_flow(
 
     let payment_attempt = match event_type.is_recovery_transaction_event() {
         true => {
-            let invoice_transaction_details = match recovery_details.clone() {
-                Some(data) => {
-                    RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData::from(data))
-                }
-                None => RevenueRecoveryAttempt(
+            // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
+            let invoice_transaction_details = recovery_details
+                .as_ref()
+                .map(|data| {
+                    Ok(RevenueRecoveryAttempt(
+                        revenue_recovery::RevenueRecoveryAttemptData::from(data),
+                    ))
+                })
+                .unwrap_or_else(|| {
                     interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
                         connector_enum,
                         request_details,
@@ -149,9 +158,11 @@ pub async fn recovery_incoming_webhook_flow(
                     )
                     .attach_printable(
                         "Failed to get recovery attempt details from the billing connector",
-                    )?,
-                ),
-            };
+                    )
+                    .map(RevenueRecoveryAttempt)
+                })?;
+
+            println!("{:?}", invoice_transaction_details);
 
             // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
             let payment_merchant_connector_account = invoice_transaction_details
@@ -639,7 +650,7 @@ impl AdditionalRevenueRecoveryResponse {
             .attach_printable(
                 "Failed while constructing additional recovery details call router data",
             )?
-            .get_additional_call_router_data();
+            .inner();
 
         let response = services::execute_connector_processing_step(
             state,
@@ -663,9 +674,7 @@ impl AdditionalRevenueRecoveryResponse {
         Ok(Self(additional_recovery_details))
     }
 
-    fn get_additional_revenue_recovery_call_response(
-        self,
-    ) -> GetAdditionalRevenueRecoveryResponseData {
+    fn inner(self) -> GetAdditionalRevenueRecoveryResponseData {
         self.0
     }
 }
@@ -746,7 +755,7 @@ impl AdditionalRevenueRecoveryRouterData {
         Ok(Self(router_data))
     }
 
-    fn get_additional_call_router_data(self) -> AdditionalRevenueRecoveryDetailsRouterData {
+    fn inner(self) -> AdditionalRevenueRecoveryDetailsRouterData {
         self.0
     }
 }
