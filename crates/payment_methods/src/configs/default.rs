@@ -959,44 +959,72 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
 
 #[test]
 fn test_required_fields_to_json() -> std::io::Result<()> {
-    use std::{fs::File, io::Write, path::Path};
+    // use serde_json::Value;
 
+    // Test billing fields
     let billing_fields = get_billing_required_fields();
-    let billing_json = serde_json::to_string_pretty(&billing_fields).unwrap();
-    println!("Billing required fields JSON:\n{}", billing_json);
+    // let billing_json = serde_json::to_string_pretty(&billing_fields)?;
+    
+    // Verify billing fields have expected entries
+    assert!(billing_fields.contains_key("billing.address.first_name"));
+    assert!(billing_fields.contains_key("billing.address.last_name"));
+    assert!(billing_fields.contains_key("billing.address.city"));
+    assert!(billing_fields.contains_key("billing.address.zip"));
+    assert!(billing_fields.contains_key("billing.email"));
+    
+    // Verify specific billing field properties
+    let billing_first_name = billing_fields.get("billing.address.first_name").unwrap();
+    assert_eq!(billing_first_name.display_name, "billing_first_name");
+    assert!(matches!(billing_first_name.field_type, FieldType::UserBillingName));
 
+    // Test shipping fields
     let shipping_fields = get_shipping_required_fields();
-    let shipping_json = serde_json::to_string_pretty(&shipping_fields).unwrap();
-    println!("Shipping required fields JSON:\n{}", shipping_json);
+    // let shipping_json = serde_json::to_string_pretty(&shipping_fields)?;
+    
+    // Verify shipping fields have expected entries
+    assert!(shipping_fields.contains_key("shipping.address.first_name"));
+    assert!(shipping_fields.contains_key("shipping.address.last_name"));
+    assert!(shipping_fields.contains_key("shipping.address.city"));
+    assert!(shipping_fields.contains_key("shipping.address.zip"));
+    assert!(shipping_fields.contains_key("shipping.email"));
+    
+    // Verify specific shipping field properties
+    let shipping_address_line1 = shipping_fields.get("shipping.address.line1").unwrap();
+    assert_eq!(shipping_address_line1.display_name, "line1");
+    assert!(matches!(shipping_address_line1.field_type, FieldType::UserShippingAddressLine1));
 
     #[cfg(feature = "v1")]
     {
         let default_fields = RequiredFields::default();
-        let default_json = serde_json::to_string_pretty(&default_fields.0).unwrap();
-
-        // Create output directory if it doesn't exist
-        let output_dir = Path::new("target/required_fields");
-        std::fs::create_dir_all(output_dir)?;
-
-        // Write each JSON to separate files
-        let mut file = File::create(output_dir.join("default_fields.json"))?;
-        file.write_all(default_json.as_bytes())?;
-
-        println!("Default required fields written to target/required_fields/default_fields.json");
+        // let default_json = serde_json::to_string_pretty(&default_fields.0)?;
+        
+        // Check default fields for payment methods
+        assert!(default_fields.0.contains_key(&enums::PaymentMethod::Card));
+        assert!(default_fields.0.contains_key(&enums::PaymentMethod::Wallet));
+        
+        // Verify card payment method types
+        if let Some(card_method) = default_fields.0.get(&enums::PaymentMethod::Card) {
+            assert!(card_method.0.contains_key(&enums::PaymentMethodType::Credit));
+            assert!(card_method.0.contains_key(&enums::PaymentMethodType::Debit));
+        }
+        
+        // Verify specific connector fields
+        if let Some(card_method) = default_fields.0.get(&enums::PaymentMethod::Card) {
+            if let Some(credit_type) = card_method.0.get(&enums::PaymentMethodType::Credit) {
+                // Check if Stripe connector exists
+                assert!(credit_type.fields.contains_key(&Connector::Stripe));
+                
+                // Verify Stripe required fields
+                if let Some(stripe_fields) = credit_type.fields.get(&Connector::Stripe) {
+                    // Check that card_basic fields are in "common" fields for Stripe
+                    assert!(stripe_fields.common.contains_key("payment_method_data.card.card_number"));
+                    assert!(stripe_fields.common.contains_key("payment_method_data.card.card_exp_month"));
+                    assert!(stripe_fields.common.contains_key("payment_method_data.card.card_exp_year"));
+                    assert!(stripe_fields.common.contains_key("payment_method_data.card.card_cvc"));
+                }
+            }
+        }
     }
-
-    // Write billing and shipping fields regardless of feature flag
-    let output_dir = Path::new("target/required_fields");
-    std::fs::create_dir_all(output_dir)?;
-
-    let mut billing_file = File::create(output_dir.join("billing_fields.json"))?;
-    billing_file.write_all(billing_json.as_bytes())?;
-
-    let mut shipping_file = File::create(output_dir.join("shipping_fields.json"))?;
-    shipping_file.write_all(shipping_json.as_bytes())?;
-
-    println!("Billing required fields written to target/required_fields/billing_fields.json");
-    println!("Shipping required fields written to target/required_fields/shipping_fields.json");
 
     Ok(())
 }
