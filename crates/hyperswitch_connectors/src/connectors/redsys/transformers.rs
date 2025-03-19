@@ -272,7 +272,7 @@ impl EmvThreedsData {
                 address.address.as_ref().map(|address_details| {
                     let state = address_details
                         .get_optional_state()
-                        .map(|addr_state| Self::get_state_code(addr_state))
+                        .map(Self::get_state_code)
                         .transpose();
 
                     match state {
@@ -303,7 +303,7 @@ impl EmvThreedsData {
                 address.address.as_ref().map(|address_details| {
                     let state = address_details
                         .get_optional_state()
-                        .map(|addr_state| Self::get_state_code(addr_state))
+                        .map(Self::get_state_code)
                         .transpose();
                     match state {
                         Ok(ship_addr_state) => Ok(ShippingData {

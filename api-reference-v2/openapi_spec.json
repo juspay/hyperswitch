@@ -7666,6 +7666,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "redsys",
           "shift4",
           "square",
@@ -14034,7 +14035,7 @@
       "PaymentConnectorTransmission": {
         "type": "string",
         "enum": [
-          "ConnectorCallFailed",
+          "ConnectorCallUnsuccessful",
           "ConnectorCallSucceeded"
         ]
       },
@@ -20459,6 +20460,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "redsys",
           "riskified",
           "shift4",
