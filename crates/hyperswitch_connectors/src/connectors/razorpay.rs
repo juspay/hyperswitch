@@ -160,6 +160,8 @@ impl ConnectorCommon for Razorpay {
                             ),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     }
                     razorpay::ErrorResponse::RazorpayStringError(error_string) => {
@@ -170,6 +172,8 @@ impl ConnectorCommon for Razorpay {
                             reason: Some(error_string.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     }
                 }

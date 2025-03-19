@@ -409,6 +409,7 @@ pub trait ConnectorActions: Connector {
                 refund_status: enums::RefundStatus::Pending,
                 merchant_account_id: None,
                 merchant_config_currency: None,
+                capture_method: None,
             }),
             payment_info,
         );
@@ -1077,6 +1078,7 @@ impl Default for PaymentRefundType {
             refund_status: enums::RefundStatus::Pending,
             merchant_account_id: None,
             merchant_config_currency: None,
+            capture_method: None,
         };
         Self(data)
     }

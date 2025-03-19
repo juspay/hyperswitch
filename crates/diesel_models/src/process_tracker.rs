@@ -69,12 +69,14 @@ pub struct ProcessTrackerNew {
 }
 
 impl ProcessTrackerNew {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<T>(
         process_tracker_id: impl Into<String>,
         task: impl Into<String>,
         runner: ProcessTrackerRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
+        retry_count: Option<i32>,
         schedule_time: PrimitiveDateTime,
         api_version: ApiVersion,
     ) -> StorageResult<Self>
@@ -87,7 +89,7 @@ impl ProcessTrackerNew {
             name: Some(task.into()),
             tag: tag.into_iter().map(Into::into).collect(),
             runner: Some(runner.to_string()),
-            retry_count: 0,
+            retry_count: retry_count.unwrap_or(0),
             schedule_time: Some(schedule_time),
             rule: String::new(),
             tracking_data: tracking_data

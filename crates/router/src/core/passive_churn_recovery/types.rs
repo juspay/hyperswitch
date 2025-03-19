@@ -1,10 +1,18 @@
-use common_enums::{self, AttemptStatus, IntentStatus};
+use api_models::{
+    enums as api_enums,
+    mandates::RecurringDetails,
+    payments::{
+        AmountDetails, FeatureMetadata, PaymentRevenueRecoveryMetadata,
+        PaymentsUpdateIntentRequest, ProxyPaymentsRequest,
+    },
+};
 use common_utils::{self, ext_traits::OptionExt, id_type};
-use diesel_models::{enums, process_tracker::business_status};
+use diesel_models::{enums, process_tracker::business_status, types as diesel_types};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_account,
-    payments::{PaymentConfirmData, PaymentIntent},
+    payments::{PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    ApiModelToDieselModelConvertor,
 };
 use time::PrimitiveDateTime;
 
@@ -12,6 +20,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         passive_churn_recovery::{self as core_pcr},
+        payments::{self, operations::Operation},
     },
     db::StorageInterface,
     logger,
@@ -68,22 +77,30 @@ impl PcrAttemptStatus {
 #[derive(Debug, Clone)]
 pub enum Decision {
     Execute,
-    Psync(AttemptStatus, id_type::GlobalAttemptId),
+    Psync(enums::AttemptStatus, id_type::GlobalAttemptId),
     InvalidDecision,
 }
 
 impl Decision {
     pub async fn get_decision_based_on_params(
         state: &SessionState,
-        intent_status: IntentStatus,
-        called_connector: bool,
+        intent_status: enums::IntentStatus,
+        called_connector: enums::PaymentConnectorTransmission,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
         pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         Ok(match (intent_status, called_connector, active_attempt_id) {
-            (IntentStatus::Failed, false, None) => Self::Execute,
-            (IntentStatus::Processing, true, Some(_)) => {
+            (
+                enums::IntentStatus::Failed,
+                enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                None,
+            ) => Self::Execute,
+            (
+                enums::IntentStatus::Processing,
+                enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                Some(_),
+            ) => {
                 let psync_data = core_pcr::call_psync_api(state, payment_id, pcr_data)
                     .await
                     .change_context(errors::RecoveryError::PaymentCallFailed)
@@ -111,13 +128,16 @@ pub enum Action {
 }
 impl Action {
     pub async fn execute_payment(
-        db: &dyn StorageInterface,
+        state: &SessionState,
         merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
+        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
-        // call the proxy api
-        let response = call_proxy_api::<api_types::Authorize>(payment_intent);
+        let db = &*state.store;
+        let response =
+            call_proxy_api(state, payment_intent, pcr_data, revenue_recovery_metadata).await;
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -148,19 +168,20 @@ impl Action {
 
     pub async fn execute_payment_task_response_handler(
         &self,
-        db: &dyn StorageInterface,
-        merchant_account: &merchant_account::MerchantAccount,
+        state: &SessionState,
         payment_intent: &PaymentIntent,
         execute_task_process: &storage::ProcessTracker,
-        profile: &business_profile::Profile,
+        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
+        let db = &*state.store;
         match self {
             Self::SyncPayment(attempt_id) => {
                 core_pcr::insert_psync_pcr_task(
                     db,
-                    merchant_account.get_id().to_owned(),
+                    pcr_data.merchant_account.get_id().to_owned(),
                     payment_intent.id.clone(),
-                    profile.get_id().to_owned(),
+                    pcr_data.profile.get_id().to_owned(),
                     attempt_id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 )
@@ -180,26 +201,61 @@ impl Action {
             }
 
             Self::RetryPayment(schedule_time) => {
-                let mut pt = execute_task_process.clone();
-                // update the schedule time
-                pt.schedule_time = Some(*schedule_time);
-
-                let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
-                    status: storage::enums::ProcessTrackerStatus::Pending,
-                    business_status: Some(business_status::PENDING.to_owned()),
-                };
                 db.as_scheduler()
-                    .update_process(pt.clone(), pt_task_update)
+                    .retry_process(execute_task_process.clone(), *schedule_time)
                     .await?;
-                // TODO: update the connector called field and make the active attempt None
+
+                // update the connector payment transmission field to Unsuccessful and unset active attempt id
+                revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                    enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                );
+
+                let payment_update_req = PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                    payment_intent.feature_metadata.clone().unwrap_or_default().convert_back().set_payment_revenue_recovery_metadata_using_api(
+                            revenue_recovery_metadata.clone()
+                        ),
+                        api_enums::UpdateActiveAttempt::Unset,
+                    );
+                logger::info!(
+                    "Call made to payments update intent api , with the request body {:?}",
+                    payment_update_req
+                );
+                update_payment_intent_api(
+                    state,
+                    payment_intent.id.clone(),
+                    pcr_data,
+                    payment_update_req,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)?;
 
                 Ok(())
             }
             Self::TerminalFailure => {
                 // TODO: Record a failure transaction back to Billing Connector
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
-            Self::SuccessfulPayment => Ok(()),
+            Self::SuccessfulPayment => {
+                // TODO: Record a successful transaction back to Billing Connector
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+                Ok(())
+            }
+
             Self::ReviewPayment => Ok(()),
             Self::ManualReviewAction => {
                 logger::debug!("Invalid Payment Status For PCR Payment");
@@ -231,30 +287,90 @@ impl Action {
     }
 }
 
-// This function would be converted to proxy_payments_core
-fn call_proxy_api<F>(payment_intent: &PaymentIntent) -> RouterResult<PaymentConfirmData<F>>
-where
-    F: Send + Clone + Sync,
-{
-    let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
-        payment_intent
-            .shipping_address
-            .clone()
-            .map(|address| address.into_inner()),
-        payment_intent
-            .billing_address
-            .clone()
-            .map(|address| address.into_inner()),
-        None,
-        Some(true),
-    );
-    let response = PaymentConfirmData {
-        flow: std::marker::PhantomData,
-        payment_intent: payment_intent.clone(),
-        payment_attempt: todo!(),
-        payment_method_data: None,
-        payment_address,
-        mandate_data: None,
+async fn call_proxy_api(
+    state: &SessionState,
+    payment_intent: &PaymentIntent,
+    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+    revenue_recovery: &PaymentRevenueRecoveryMetadata,
+) -> RouterResult<PaymentConfirmData<api_types::Authorize>> {
+    let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+    let req = ProxyPaymentsRequest {
+        return_url: None,
+        amount: AmountDetails::new(payment_intent.amount_details.clone().into()),
+        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
+        shipping: None,
+        browser_info: None,
+        connector: revenue_recovery.connector.to_string(),
+        merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
     };
-    Ok(response)
+    logger::info!(
+        "Call made to payments proxy api , with the request body {:?}",
+        req
+    );
+
+    // TODO : Use api handler instead of calling get_tracker and payments_operation_core
+    // Get the tracker related information. This includes payment intent and payment attempt
+    let get_tracker_response = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            payment_intent.get_id(),
+            &req,
+            &pcr_data.merchant_account,
+            &pcr_data.profile,
+            &pcr_data.key_store,
+            &hyperswitch_domain_models::payments::HeaderPayload::default(),
+            None,
+        )
+        .await?;
+
+    let (payment_data, _req, _, _) = Box::pin(payments::proxy_for_payments_operation_core::<
+        api_types::Authorize,
+        _,
+        _,
+        _,
+        PaymentConfirmData<api_types::Authorize>,
+    >(
+        state,
+        state.get_req_state(),
+        pcr_data.merchant_account.clone(),
+        pcr_data.key_store.clone(),
+        pcr_data.profile.clone(),
+        operation,
+        req,
+        get_tracker_response,
+        payments::CallConnectorAction::Trigger,
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+    ))
+    .await?;
+    Ok(payment_data)
+}
+
+pub async fn update_payment_intent_api(
+    state: &SessionState,
+    global_payment_id: id_type::GlobalPaymentId,
+    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+    update_req: PaymentsUpdateIntentRequest,
+) -> RouterResult<PaymentIntentData<api_types::PaymentUpdateIntent>> {
+    // TODO : Use api handler instead of calling payments_intent_operation_core
+    let operation = payments::operations::PaymentUpdateIntent;
+    let (payment_data, _req, customer) = payments::payments_intent_operation_core::<
+        api_types::PaymentUpdateIntent,
+        _,
+        _,
+        PaymentIntentData<api_types::PaymentUpdateIntent>,
+    >(
+        state,
+        state.get_req_state(),
+        pcr_data.merchant_account.clone(),
+        pcr_data.profile.clone(),
+        pcr_data.key_store.clone(),
+        operation,
+        update_req,
+        global_payment_id,
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
+    )
+    .await?;
+    Ok(payment_data)
 }

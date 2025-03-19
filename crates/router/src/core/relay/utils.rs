@@ -110,6 +110,7 @@ pub async fn construct_relay_refund_router_data<F>(
             refund_status: common_enums::RefundStatus::from(relay_record.status),
             merchant_account_id: None,
             merchant_config_currency: None,
+            capture_method: None,
         },
 
         response: Err(ErrorResponse::default()),
