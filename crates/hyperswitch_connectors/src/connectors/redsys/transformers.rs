@@ -541,7 +541,6 @@ pub struct RedsysThreeDsInvokeData {
     pub message_version: String,
     pub directory_server_id: String,
     pub three_ds_method_data_submission: bool,
-    pub next_action_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -687,7 +686,6 @@ fn handle_threeds_invoke<F>(
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
     let three_ds_method_data = BASE64_ENGINE.encode(&three_ds_data_string);
-    let next_action_url = item.data.request.get_complete_authorize_url()?;
 
     let three_ds_data = RedsysThreeDsInvokeData {
         three_ds_method_url: three_d_s_method_u_r_l,
@@ -695,7 +693,6 @@ fn handle_threeds_invoke<F>(
         message_version: protocol_version.clone(),
         directory_server_id: three_d_s_server_trans_i_d,
         three_ds_method_data_submission: true,
-        next_action_url,
     };
 
     let connector_metadata = Some(
