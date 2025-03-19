@@ -12,11 +12,14 @@ pub mod session_update_flow;
 pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_flow_types::{
+    revenue_recovery::RecoveryRecordBack, GetAdditionalRevenueRecoveryDetails,
+};
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
-        revenue_recovery::RecoveryRecordBack, Authenticate, AuthenticationConfirmation,
-        GetAdditionalRevenueRecoveryDetails, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::PaymentsCaptureData,
 };
@@ -217,7 +220,6 @@ impl<const T: u8>
 
 default_imp_for_complete_authorize!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -258,7 +260,6 @@ impl<const T: u8>
 }
 default_imp_for_webhook_source_verification!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -302,13 +303,11 @@ impl<const T: u8>
 
 default_imp_for_create_customer!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -348,7 +347,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -505,7 +503,6 @@ default_imp_for_accept_dispute!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -571,7 +568,6 @@ default_imp_for_file_upload!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -614,7 +610,6 @@ default_imp_for_submit_evidence!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -657,7 +652,6 @@ default_imp_for_defend_dispute!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -737,9 +731,7 @@ impl<const T: u8>
 
 default_imp_for_post_processing_steps!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Nmi,
-    connector::Paypal,
     connector::Stripe,
     connector::Ebanx,
     connector::Gpayments,
@@ -845,7 +837,6 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
@@ -897,7 +888,6 @@ default_imp_for_payouts_eligibility!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -979,7 +969,6 @@ default_imp_for_payouts_cancel!(
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1017,12 +1006,10 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1061,12 +1048,10 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1107,13 +1092,11 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1151,13 +1134,11 @@ impl<const T: u8>
 
 default_imp_for_approve!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1196,13 +1177,11 @@ impl<const T: u8>
 
 default_imp_for_reject!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1350,13 +1329,11 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1395,13 +1372,11 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1440,13 +1415,11 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1485,13 +1458,11 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1530,13 +1501,11 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1573,13 +1542,11 @@ impl<const T: u8>
 
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1616,13 +1583,11 @@ impl<const T: u8>
 }
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1837,14 +1802,12 @@ impl<const T: u8>
 {
 }
 default_imp_for_authorize_session_token!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1880,14 +1843,12 @@ impl<const T: u8>
 }
 
 default_imp_for_calculate_tax!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -1923,7 +1884,6 @@ impl<const T: u8>
 }
 
 default_imp_for_session_update!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -1965,7 +1925,6 @@ impl<const T: u8>
 }
 
 default_imp_for_post_session_tokens!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -2011,13 +1970,11 @@ impl<const T: u8>
 
 default_imp_for_uas_pre_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -2054,13 +2011,11 @@ impl<const T: u8>
 
 default_imp_for_uas_post_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -2086,13 +2041,11 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 
 default_imp_for_uas_authentication_confirmation!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -2142,13 +2095,11 @@ impl<const T: u8>
 
 default_imp_for_uas_authentication!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -2268,6 +2219,7 @@ fn handle_post_capture_response(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -2283,8 +2235,10 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
     };
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -2294,16 +2248,14 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
@@ -2313,9 +2265,36 @@ default_imp_for_revenue_recovery_record_back!(
     connector::Wise
 );
 
-macro_rules! default_imp_for_additional_revenue_recovery_call {
+macro_rules! default_imp_for_revenue_recovery {
     ($($path:ident::$connector:ident),*) => {
         $(  impl api::RevenueRecovery for $path::$connector {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
+
+default_imp_for_revenue_recovery! {
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+macro_rules! default_imp_for_additional_revenue_recovery_call {
+    ($($path:ident::$connector:ident),*) => {
+        $(
             impl api::AdditionalRevenueRecovery for $path::$connector {}
             impl
             services::ConnectorIntegration<
@@ -2328,9 +2307,10 @@ macro_rules! default_imp_for_additional_revenue_recovery_call {
     };
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 impl<const T: u8> api::AdditionalRevenueRecovery for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -2341,15 +2321,14 @@ impl<const T: u8>
 {
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_additional_revenue_recovery_call!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,

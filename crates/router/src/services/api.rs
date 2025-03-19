@@ -170,6 +170,8 @@ where
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             } else {
                 None
@@ -359,6 +361,8 @@ where
                                     status_code: 504,
                                     attempt_status: None,
                                     connector_transaction_id: None,
+                                    issuer_error_code: None,
+                                    issuer_error_message: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);

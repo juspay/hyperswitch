@@ -13,7 +13,7 @@ pub async fn retrieve_forex(
 ) -> CustomResult<ApplicationResponse<currency::FxExchangeRatesCacheEntry>, ApiErrorResponse> {
     let forex_api = state.conf.forex_api.get_inner();
     Ok(ApplicationResponse::Json(
-        get_forex_rates(&state, forex_api.call_delay)
+        get_forex_rates(&state, forex_api.data_expiration_delay_in_seconds)
             .await
             .change_context(ApiErrorResponse::GenericNotFoundError {
                 message: "Unable to fetch forex rates".to_string(),
