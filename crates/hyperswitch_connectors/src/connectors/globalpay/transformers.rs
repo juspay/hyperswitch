@@ -268,7 +268,7 @@ fn get_payment_response(
     status: common_enums::AttemptStatus,
     response: GlobalpayPaymentsResponse,
     redirection_data: Option<RedirectForm>,
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let mandate_reference = response.payment_method.as_ref().and_then(|pm| {
         pm.card
             .as_ref()
@@ -281,13 +281,13 @@ fn get_payment_response(
             })
     });
     match status {
-        common_enums::AttemptStatus::Failure => Err(ErrorResponse {
+        common_enums::AttemptStatus::Failure => Err(Box::new(ErrorResponse {
             message: response
                 .payment_method
                 .and_then(|pm| pm.message)
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             ..Default::default()
-        }),
+        })),
         _ => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.id),
             redirection_data: Box::new(redirection_data),
@@ -327,7 +327,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
         let redirection_data = redirect_url.map(|url| RedirectForm::from((url, Method::Get)));
         Ok(Self {
             status,
-            response: get_payment_response(status, item.response, redirection_data),
+            response: get_payment_response(status, item.response, redirection_data)
+                .map_err(|err| *err),
             ..item.data
         })
     }

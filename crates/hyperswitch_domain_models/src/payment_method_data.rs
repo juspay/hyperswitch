@@ -1938,3 +1938,21 @@ impl PaymentMethodTokenSingleUse {
         }
     }
 }
+
+impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDetailsPaymentMethod {
+    fn from(item: NetworkTokenDetailsPaymentMethod) -> Self {
+        Self {
+            last4_digits: item.last4_digits,
+            issuer_country: item.issuer_country,
+            network_token_expiry_month: item.network_token_expiry_month,
+            network_token_expiry_year: item.network_token_expiry_year,
+            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
+        }
+    }
+}

@@ -1,4 +1,5 @@
 use api_models::analytics::{auth_events::AuthEventDimensions, Granularity, TimeRange};
+use common_enums::DecoupledAuthenticationType;
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
 use error_stack::ResultExt;
@@ -54,7 +55,9 @@ where
 pub struct AuthEventFilterRow {
     pub authentication_status: Option<DBEnumWrapper<AuthenticationStatus>>,
     pub trans_status: Option<DBEnumWrapper<TransactionStatus>>,
+    pub authentication_type: Option<DBEnumWrapper<DecoupledAuthenticationType>>,
     pub error_message: Option<String>,
     pub authentication_connector: Option<DBEnumWrapper<AuthenticationConnectors>>,
     pub message_version: Option<String>,
+    pub acs_reference_number: Option<String>,
 }

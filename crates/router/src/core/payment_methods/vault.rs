@@ -1252,9 +1252,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_vault<
-    D: pm_types::VaultingDataInterface + serde::Serialize,
->(
+pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
     key: String,
@@ -1286,7 +1284,7 @@ pub async fn get_fingerprint_id_from_vault<
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    pmd: &pm_types::PaymentMethodVaultingData,
+    pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
@@ -1401,6 +1399,7 @@ pub async fn add_delete_tokenized_data_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
         hyperswitch_domain_models::consts::API_VERSION,
     )
