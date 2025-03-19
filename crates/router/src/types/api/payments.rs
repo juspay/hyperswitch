@@ -1,5 +1,7 @@
 #[cfg(feature = "v1")]
-pub use api_models::payments::{PaymentListResponse, PaymentListResponseV2};
+pub use api_models::payments::{
+    PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2,
+};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
     PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
@@ -11,12 +13,12 @@ pub use api_models::{
     },
     payments::{
         AcceptanceType, Address, AddressDetails, Amount, ApplepayPaymentMethod,
-        AuthenticationForStartResponse, Card, CryptoData, CustomerAcceptance,
+        AuthenticationForStartResponse, Card, CryptoData, CustomerAcceptance, CustomerDetails,
         CustomerDetailsResponse, MandateAmountData, MandateData, MandateTransactionType,
         MandateType, MandateValidationFields, NextActionType, OnlineMandate,
         OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
-        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentMethodData,
-        PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+        PaymentListFilters, PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
+        PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
         PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse, PaymentsApproveRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
@@ -34,7 +36,7 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent,
     PaymentGetIntent, PaymentMethodToken, PaymentUpdateIntent, PostProcessing, PostSessionTokens,
-    PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+    PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,

@@ -370,20 +370,9 @@ impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
-            let threeds_server_transaction_id = authentication
-                .threeds_server_transaction_id
-                .clone()
-                .get_required_value("threeds_server_transaction_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("threeds_server_transaction_id must not be null when authentication_status is success")?;
-            let message_version = authentication
-                .message_version
-                .clone()
-                .get_required_value("message_version")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "message_version must not be null when authentication_status is success",
-                )?;
+            let threeds_server_transaction_id =
+                authentication.threeds_server_transaction_id.clone();
+            let message_version = authentication.message_version.clone();
             let cavv = authentication
                 .cavv
                 .clone()

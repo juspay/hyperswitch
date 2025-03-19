@@ -214,6 +214,8 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             ElavonPaymentsResponse::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -224,6 +226,8 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(response.ssl_txn_id.clone()),
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -428,6 +432,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             ElavonPaymentsResponse::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -438,6 +444,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -478,6 +486,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             ElavonPaymentsResponse::Success(response) => {
                 if status == enums::RefundStatus::Failure {
@@ -488,6 +498,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(RefundsResponseData {

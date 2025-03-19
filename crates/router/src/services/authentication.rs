@@ -13,9 +13,7 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-#[cfg(feature = "v2")]
-use common_utils::fp_utils;
-use common_utils::{date_time, id_type};
+use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
@@ -193,6 +191,13 @@ impl AuthenticationType {
             | Self::NoAuth => None,
         }
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ExternalServiceType {
+    Hypersense,
 }
 
 #[cfg(feature = "olap")]
@@ -1059,6 +1064,44 @@ where
     }
 }
 
+#[derive(Debug, Default)]
+pub struct V2AdminApiAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for V2AdminApiAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let header_map_struct = HeaderMapStruct::new(request_headers);
+        let auth_string = header_map_struct.get_auth_string_from_header()?;
+        let request_admin_api_key = auth_string
+            .split(',')
+            .find_map(|part| part.trim().strip_prefix("admin-api-key="))
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Unable to parse admin_api_key")
+            })?;
+        if request_admin_api_key.is_empty() {
+            return Err(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Admin Api key is empty");
+        }
+        let conf = state.conf();
+
+        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
+
+        if request_admin_api_key != admin_api_key.peek() {
+            Err(report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Admin Authentication Failure"))?;
+        }
+
+        Ok(((), AuthenticationType::AdminApiKey))
+    }
+}
 #[derive(Debug)]
 pub struct AdminApiAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
@@ -1125,7 +1168,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1189,7 +1232,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1395,7 +1438,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -1460,7 +1503,7 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        AdminApiAuth
+        V2AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
@@ -3855,5 +3898,46 @@ impl ReconToken {
             acl: optional_acl_str,
         };
         jwt::generate_jwt(&token_payload, settings).await
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ExternalToken {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub exp: u64,
+    pub external_service_type: ExternalServiceType,
+}
+
+impl ExternalToken {
+    pub async fn new_token(
+        user_id: String,
+        merchant_id: id_type::MerchantId,
+        settings: &Settings,
+        external_service_type: ExternalServiceType,
+    ) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+
+        let token_payload = Self {
+            user_id,
+            merchant_id,
+            exp,
+            external_service_type,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
+    }
+
+    pub fn check_service_type(
+        &self,
+        required_service_type: &ExternalServiceType,
+    ) -> RouterResult<()> {
+        Ok(fp_utils::when(
+            &self.external_service_type != required_service_type,
+            || {
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: required_service_type.to_string(),
+                })
+            },
+        )?)
     }
 }

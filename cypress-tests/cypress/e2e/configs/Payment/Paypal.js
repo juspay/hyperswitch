@@ -9,7 +9,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4868719460707704",
+  card_number: "5329879786234393",
   card_exp_month: "01",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
@@ -89,7 +89,7 @@ export const connectorDetails = {
           status: "failed",
           error_code: "AMOUNT_MISMATCH",
           error_message:
-            "description - Should equal item_total + tax_total + shipping + handling + insurance - shipping_discount - discount., value - 65.50, field - value;",
+            "description - Should equal item_total + tax_total + shipping + handling + insurance - shipping_discount - discount., value - 60.50, field - value;",
         },
       },
     },
@@ -376,6 +376,23 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },

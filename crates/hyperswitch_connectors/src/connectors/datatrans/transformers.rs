@@ -93,6 +93,8 @@ pub enum TransactionStatus {
     Canceled,
     Transmitted,
     Failed,
+    ChallengeOngoing,
+    ChallengeRequired,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -127,7 +129,7 @@ pub struct SyncResponse {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncCardDetails {
-    pub alias: String,
+    pub alias: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -189,12 +191,12 @@ pub enum ThreeDSecureData {
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSData {
     #[serde(rename = "threeDSTransactionId")]
-    pub three_ds_transaction_id: Secret<String>,
+    pub three_ds_transaction_id: Option<Secret<String>>,
     pub cavv: Secret<String>,
     pub eci: Option<String>,
     pub xid: Option<Secret<String>>,
     #[serde(rename = "threeDSVersion")]
-    pub three_ds_version: String,
+    pub three_ds_version: Option<String>,
     #[serde(rename = "authenticationResponse")]
     pub authentication_response: String,
 }
@@ -452,11 +454,17 @@ fn create_card_details(
 
     if let Some(auth_data) = &item.router_data.request.authentication_data {
         details.three_ds = Some(ThreeDSecureData::Authentication(ThreeDSData {
-            three_ds_transaction_id: Secret::new(auth_data.threeds_server_transaction_id.clone()),
+            three_ds_transaction_id: auth_data
+                .threeds_server_transaction_id
+                .clone()
+                .map(Secret::new),
             cavv: Secret::new(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
             xid: auth_data.ds_trans_id.clone().map(Secret::new),
-            three_ds_version: auth_data.message_version.to_string(),
+            three_ds_version: auth_data
+                .message_version
+                .clone()
+                .map(|version| version.to_string()),
             authentication_response: "Y".to_string(),
         }));
     } else if item.router_data.is_three_ds() {
@@ -493,6 +501,9 @@ impl From<SyncResponse> for enums::AttemptStatus {
             TransactionType::Payment => match item.status {
                 TransactionStatus::Authorized => Self::Authorized,
                 TransactionStatus::Settled | TransactionStatus::Transmitted => Self::Charged,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::AuthenticationPending
+                }
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
@@ -501,6 +512,9 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Settled
                 | TransactionStatus::Transmitted
                 | TransactionStatus::Authorized => Self::Charged,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::AuthenticationPending
+                }
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
@@ -515,6 +529,9 @@ impl From<SyncResponse> for enums::RefundStatus {
         match item.res_type {
             TransactionType::Credit => match item.status {
                 TransactionStatus::Settled | TransactionStatus::Transmitted => Self::Success,
+                TransactionStatus::ChallengeOngoing | TransactionStatus::ChallengeRequired => {
+                    Self::Pending
+                }
                 TransactionStatus::Initialized
                 | TransactionStatus::Authenticated
                 | TransactionStatus::Authorized
@@ -543,6 +560,8 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -612,6 +631,8 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -687,6 +708,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, DatatransRefundsResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -716,6 +739,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, DatatransSyncResponse>>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             DatatransSyncResponse::Response(response) => Ok(RefundsResponseData {
                 connector_refund_id: response.transaction_id.to_string(),
@@ -745,6 +770,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -768,11 +795,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
-                    let mandate_reference =
-                        sync_response.card.as_ref().map(|card| MandateReference {
-                            connector_mandate_id: Some(card.alias.clone()),
+                    let mandate_reference = sync_response
+                        .card
+                        .as_ref()
+                        .and_then(|card| card.alias.as_ref())
+                        .map(|alias| MandateReference {
+                            connector_mandate_id: Some(alias.clone()),
                             payment_method_id: None,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
