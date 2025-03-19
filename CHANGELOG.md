@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.19.0-hotfix1
+
+### Features
+
+- **payment-link:** Emit intent status to parent before rendering payment link UI ([#7571](https://github.com/juspay/hyperswitch/pull/7571)) ([`d6f2597`](https://github.com/juspay/hyperswitch/commit/d6f259769b759526e978501bb01bc2ff897c5c3b))
+
+**Full Changelog:** [`2025.03.19.0...2025.03.19.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.03.19.0...2025.03.19.0-hotfix1)
+
+
+- - -
+
 ## 2025.03.19.0
 
 ### Features
