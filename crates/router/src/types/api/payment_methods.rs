@@ -68,18 +68,18 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
-        utils::when(
-            !validate_payment_method_type_against_payment_method(
+        self.payment_method_subtype.map(|pm_subtype| {
+            if !validate_payment_method_type_against_payment_method(
                 self.payment_method_type,
-                self.payment_method_subtype,
-            ),
-            || {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                pm_subtype,
+            ) {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()
                 })
-                .attach_printable("Invalid payment method type"))
-            },
-        )?;
+                .attach_printable("Invalid payment method type"));
+            }
+            Ok(())
+        });
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
