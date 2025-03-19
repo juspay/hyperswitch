@@ -1021,7 +1021,7 @@ describe("Card - Refund flow - 3DS", () => {
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
       });
-      
+
       it("sync-refund-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
