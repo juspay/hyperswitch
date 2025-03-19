@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;
 use common_enums::enums;
@@ -44,7 +46,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use openssl::{
     hash::MessageDigest,
@@ -881,47 +882,44 @@ impl webhooks::IncomingWebhook for Amazonpay {
     }
 }
 
-lazy_static! {
-    static ref AMAZONPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-        ];
+static AMAZONPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
         let mut amazonpay_supported_payment_methods = SupportedPaymentMethods::new();
 
         amazonpay_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::AmazonPay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         amazonpay_supported_payment_methods
-    };
+    });
 
-    static ref AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Amazon Pay",
-        description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
-        connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
-    };
+static AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Amazon Pay",
+    description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
+    connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+};
 
-    static ref AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-}
+static AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 
 impl ConnectorSpecifications for Amazonpay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*AMAZONPAY_CONNECTOR_INFO)
+        Some(&AMAZONPAY_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*AMAZONPAY_SUPPORTED_PAYMENT_METHODS)
+        Some(&AMAZONPAY_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
