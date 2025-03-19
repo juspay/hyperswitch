@@ -129,7 +129,19 @@ impl ConnectorCommon for Redsys {
 impl ConnectorValidation for Redsys {}
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Redsys {}
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Redsys {}
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Redsys {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Redsys {
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Redsys".to_string())
+                .into(),
+        )
+    }
+}
 
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
     for Redsys

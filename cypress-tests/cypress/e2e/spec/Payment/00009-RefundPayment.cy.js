@@ -1024,7 +1024,7 @@ describe("Card - Refund flow - 3DS", () => {
     }
   );
 
-  context.only("Card - Full Refund for fully captured 3DS payment", () => {
+  context("Card - Full Refund for fully captured 3DS payment", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {

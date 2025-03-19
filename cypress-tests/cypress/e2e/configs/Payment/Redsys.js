@@ -1,7 +1,15 @@
 import { getCustomExchange } from "./Modifiers";
 
-const ThreeDSTestCardDetails = {
+const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
+  card_exp_month: "12",
+  card_exp_year: "25",
+  card_holder_name: "Joseph",
+  card_cvc: "123",
+};
+
+const threeDSFrictionlessTestCardDetails = {
+  card_number: "4548814479727229",
   card_exp_month: "12",
   card_exp_year: "25",
   card_holder_name: "Joseph",
@@ -50,7 +58,7 @@ export const connectorDetails = {
 
         payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -63,7 +71,7 @@ export const connectorDetails = {
         currency: "EUR",
         payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -77,7 +85,7 @@ export const connectorDetails = {
 
         payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         billing: Address,
@@ -90,7 +98,7 @@ export const connectorDetails = {
 
         payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         billing: Address,
@@ -103,31 +111,44 @@ export const connectorDetails = {
 
         payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         billing: Address,
         shipping: Address,
       },
     }),
-    ZeroAuthMandate: getCustomExchange({
+    ZeroAuthMandate: {
       Request: {
         currency: "EUR",
         payment_method_type: "credit",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         billing: Address,
         shipping: Address,
+        payment_type: "setup_mandate",
       },
-    }),
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Redsys is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
     "3DSManualCapture": {
       Request: {
+        currency: "EUR",
         authentication_type: "three_ds",
         payment_method_type: "credit",
+        payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -137,11 +158,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-          shipping_cost: 50,
-          amount_received: 5050,
-          amount: 5000,
-          net_amount: 5050,
+          status: "requires_customer_action",
         },
       },
     },
@@ -150,7 +167,7 @@ export const connectorDetails = {
         currency: "EUR",
         payment_method: "card",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -169,7 +186,7 @@ export const connectorDetails = {
         payment_method: "card",
         amount: 5000,
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         currency: "EUR",
         customer_acceptance: null,
@@ -179,16 +196,17 @@ export const connectorDetails = {
       },
     }),
     Capture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
-        amount_to_capture: 5000,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 5000,
-          amount_capturable: 0,
-          amount_received: 5000,
+          amount: 6000,
         },
       },
     },
@@ -200,8 +218,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 5000,
-          amount_capturable: 0,
           amount_received: 2000,
         },
       },
@@ -227,6 +243,9 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -287,7 +306,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
       },
       Response: {
@@ -302,22 +321,13 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
-        payment_method: "card",
-        amount: 5000,
-        payment_method_data: {
-          card: ThreeDSTestCardDetails,
-        },
         currency: "EUR",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        billing: Address,
+        shipping: Address,
       },
       Response: {
         status: 200,
@@ -331,7 +341,7 @@ export const connectorDetails = {
         payment_method: "card",
         amount: 5000,
         payment_method_data: {
-          card: ThreeDSTestCardDetails,
+          card: ThreeDSChallengeTestCardDetails,
         },
         currency: "EUR",
         setup_future_usage: "on_session",
@@ -351,5 +361,111 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "EUR",
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDSFrictionlessTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: threeDSFrictionlessTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+    No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+        amount: 6000,
+      },
+    }),
+    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+        amount: 6000,
+      },
+    }),
   },
 };
