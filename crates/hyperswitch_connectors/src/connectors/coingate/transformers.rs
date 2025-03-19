@@ -35,13 +35,13 @@ impl<T> From<(StringMajorUnit, T)> for CoingateRouterData<T> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CoinagteConnectorMetadataObject {
+pub struct CoingateConnectorMetadataObject {
     pub currency_id: i32,
     pub platform_id: i32,
     pub ledger_account_id: String,
 }
 
-impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinagteConnectorMetadataObject {
+impl TryFrom<&Option<pii::SecretSerdeValue>> for CoingateConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
@@ -167,18 +167,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
 #[derive(Default, Debug, Serialize)]
 pub struct CoingateRefundRequest {
     pub amount: StringMajorUnit,
-    pub address: String, //refundsdata
+    pub address: String,
     pub currency_id: i32,
     pub platform_id: i32,
     pub reason: String,
-    pub email: String,
+    pub email: pii::Email,
     pub ledger_account_id: String,
 }
 
 impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &CoingateRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let metadata: CoinagteConnectorMetadataObject =
+        let metadata: CoingateConnectorMetadataObject =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
@@ -208,7 +208,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             field_name: "address",
         })?;
 
-        let email: String = serde_json::from_value::<String>(
+        let email: pii::Email = serde_json::from_value::<pii::Email>(
             cryptocurreny_address.get("email").cloned().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "email",
