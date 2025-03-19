@@ -10,14 +10,17 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData,
-            WebhookSourceVerifyData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
+            UasFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
 };
 
-use crate::{connector_integration_interface::RouterDataConversion, errors::ConnectorError};
+use crate::{
+    connector_integration_interface::RouterDataConversion,
+    errors::{self, ConnectorError},
+};
 
 fn get_irrelevant_id_string(id_name: &str, flow_name: &str) -> String {
     format!("irrelevant {id_name} in {flow_name} flow")
@@ -710,6 +713,42 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
         router_data.merchant_id = merchant_id;
         router_data.connector_meta_data = connector_meta_data;
         router_data.address = address;
+        Ok(router_data)
+    }
+}
+
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
+    for RevenueRecoveryRecordBackData
+{
+    fn from_old_router_data(
+        old_router_data: &RouterData<T, Req, Resp>,
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let resource_common_data = Self {};
+        Ok(RouterDataV2 {
+            flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
+            resource_common_data,
+            connector_auth_type: old_router_data.connector_auth_type.clone(),
+            request: old_router_data.request.clone(),
+            response: old_router_data.response.clone(),
+        })
+    }
+
+    fn to_old_router_data(
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "recovery_record_back",
+            new_router_data.request,
+            new_router_data.response,
+        );
         Ok(router_data)
     }
 }
