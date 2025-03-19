@@ -2042,11 +2042,10 @@ pub enum CountryAlpha2 {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
 pub enum PanOrToken {
     #[default]
-    #[strum(serialize = "pan")]
     Pan,
-    #[strum(serialize = "token")]
     Token,
 }
 
@@ -2066,10 +2065,9 @@ pub enum PanOrToken {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
 pub enum CardType {
-    #[strum(serialize = "credit")]
     Credit,
-    #[strum(serialize = "debit")]
     Debit,
 }
 
