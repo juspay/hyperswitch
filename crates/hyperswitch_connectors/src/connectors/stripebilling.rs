@@ -593,7 +593,7 @@ impl
                 self.base_url(connectors),
                 invoice_id
             )),
-            common_enums::AttemptStatus::VoidInitiated => Ok(format!(
+            common_enums::AttemptStatus::Failure => Ok(format!(
                 "{}/v1/invoices/{}/void",
                 self.base_url(connectors),
                 invoice_id
