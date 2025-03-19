@@ -35,6 +35,7 @@ impl crate::events::ApiEventMetric for RoutingId {
 )]
 #[diesel(sql_type = diesel::sql_types::Text,)]
 #[schema(value_type = String)]
+/// A wrapper type for `RoutingId` that can be used for surcharge routing ids
 pub struct SurchargeRoutingId(pub RoutingId);
 
 impl Deref for SurchargeRoutingId {
@@ -67,6 +68,6 @@ where
 {
     fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         let val = RoutingId::from_sql(value)?;
-        Ok(SurchargeRoutingId(val))
+        Ok(Self(val))
     }
 }

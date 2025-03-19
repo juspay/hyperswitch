@@ -905,12 +905,7 @@ impl Routing {
             .service(
                 web::resource("/decision/surcharge/active").route(web::get().to(
                     |state, req, query_params| {
-                        routing::retrieve_linked_surcharge_config(
-                            state,
-                            req,
-                            query_params,
-                            &TransactionType::Payment,
-                        )
+                        routing::retrieve_linked_surcharge_config(state, req, query_params)
                     },
                 )),
             )
@@ -1063,11 +1058,8 @@ impl Routing {
                 )),
             )
             .service(
-                web::resource("/{algorithm_id}/surcharge/activate").route(web::post().to(
-                    |state, req, path| {
-                        routing::surcharge_link_config(state, req, path, &TransactionType::Payment)
-                    },
-                )),
+                web::resource("/{algorithm_id}/surcharge/activate")
+                    .route(web::post().to(routing::surcharge_link_config)),
             );
         route
     }

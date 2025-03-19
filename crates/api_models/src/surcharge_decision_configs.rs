@@ -1,6 +1,6 @@
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
-    events, id_type,
+    events,
     types::{MinorUnit, Percentage},
 };
 use euclid::frontend::{

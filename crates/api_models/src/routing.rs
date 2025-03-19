@@ -65,8 +65,8 @@ pub struct RoutingRetrieveQuery {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SurchargeRetrieveQuery {
-    pub limit: Option<u16>,
-    pub offset: Option<u8>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

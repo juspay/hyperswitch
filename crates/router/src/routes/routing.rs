@@ -13,11 +13,7 @@ use router_env::{
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
-    services::{
-        api as oss_api,
-        authentication::{self as auth, AuthenticationData},
-        authorization::permissions::Permission,
-    },
+    services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -694,11 +690,11 @@ pub async fn retrieve_surcharge_decision_manager_config(
     .await
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn retrieve_linked_surcharge_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<routing_types::SurchargeRetrieveLinkQuery>,
-    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerRetrieveConfig;
     let query = query.into_inner();
@@ -708,7 +704,7 @@ pub async fn retrieve_linked_surcharge_config(
             state,
             &req,
             query.clone(),
-            |state, auth: AuthenticationData, query, _| {
+            |state, auth: auth::AuthenticationData, query, _| {
                 surcharge_decision_config::retrieve_surcharge_config(
                     state,
                     auth.merchant_account,
@@ -739,7 +735,7 @@ pub async fn retrieve_linked_surcharge_config(
             state,
             &req,
             query.clone(),
-            |state, auth: AuthenticationData, query, _| {
+            |state, auth: auth::AuthenticationData, query, _| {
                 surcharge_decision_config::retrieve_surcharge_config(
                     state,
                     auth.merchant_account,
@@ -765,6 +761,7 @@ pub async fn retrieve_linked_surcharge_config(
     }
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn list_surcharge_decision_manager_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -779,9 +776,9 @@ pub async fn list_surcharge_decision_manager_configs(
         |state, auth: auth::AuthenticationData, request, _| {
             surcharge_decision_config::list_surcharge_decision_configs(
                 state,
-                auth.profile_id.unwrap(),
-                request.limit.unwrap_or(10) as i64,
-                request.offset.unwrap_or(0) as i64,
+                auth.profile_id,
+                request.limit.unwrap_or_default(),
+                request.offset.unwrap_or_default(),
             )
         },
         #[cfg(not(feature = "release"))]
@@ -792,6 +789,10 @@ pub async fn list_surcharge_decision_manager_configs(
             },
             req.headers(),
         ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileSurchargeDecisionManagerWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -846,7 +847,6 @@ pub async fn surcharge_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::RoutingId>,
-    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerUpsertConfig;
     Box::pin(oss_api::server_wrap(
@@ -854,7 +854,7 @@ pub async fn surcharge_link_config(
         state,
         &req,
         path.into_inner(),
-        |state, auth: AuthenticationData, algorithm_id, _| {
+        |state, auth: auth::AuthenticationData, algorithm_id, _| {
             surcharge_decision_config::link_surcharge_decision_config(
                 state,
                 auth.merchant_account,
