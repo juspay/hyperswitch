@@ -103,6 +103,8 @@ impl ConnectorCommon for Nmi {
             code: response.response_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

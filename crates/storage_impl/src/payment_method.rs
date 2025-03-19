@@ -119,6 +119,17 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
+    #[instrument(skip_all)]
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.router_store
+            .get_payment_method_count_by_merchant_id_status(merchant_id, status)
+            .await
+    }
+
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     #[instrument(skip_all)]
     async fn insert_payment_method(
@@ -497,6 +508,21 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        PaymentMethod::get_count_by_merchant_id_status(&conn, merchant_id, status)
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+    }
+
+    #[instrument(skip_all)]
     async fn insert_payment_method(
         &self,
         state: &KeyManagerState,
@@ -806,6 +832,19 @@ impl PaymentMethodInterface for MockDb {
                     && pm.merchant_id == *merchant_id
                     && pm.status == status
             })
+            .count();
+        i64::try_from(count).change_context(errors::StorageError::MockDbError)
+    }
+
+    async fn get_payment_method_count_by_merchant_id_status(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let count = payment_methods
+            .iter()
+            .filter(|pm| pm.merchant_id == *merchant_id && pm.status == status)
             .count();
         i64::try_from(count).change_context(errors::StorageError::MockDbError)
     }
