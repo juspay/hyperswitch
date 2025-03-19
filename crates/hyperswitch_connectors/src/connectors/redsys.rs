@@ -683,8 +683,7 @@ static REDSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     redsys_supported_payment_methods
 });
 
-static REDSYS_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Redsys",
     description: "Redsys is a Spanish payment gateway offering secure and innovative payment solutions for merchants and banks",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
