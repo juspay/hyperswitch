@@ -379,7 +379,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StripebillingRecordBackResponse {
-    pub id: common_utils::id_type::PaymentReferenceId,
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -404,7 +404,12 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RevenueRecoveryRecordBackResponse {
-                merchant_reference_id: item.response.id,
+                merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(
+                    item.response.id.as_str(),
+                )
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "invoice_id in the response",
+                })?,
             }),
             ..item.data
         })

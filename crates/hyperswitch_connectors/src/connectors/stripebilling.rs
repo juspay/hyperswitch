@@ -75,6 +75,8 @@ impl api::Refund for Stripebilling {}
 impl api::RefundExecute for Stripebilling {}
 impl api::RefundSync for Stripebilling {}
 impl api::PaymentToken for Stripebilling {}
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl api::revenue_recovery::RevenueRecoveryRecordBack for Stripebilling {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Stripebilling
@@ -589,7 +591,7 @@ impl
             .to_string();
         match req.request.attempt_status {
             common_enums::AttemptStatus::Charged => Ok(format!(
-                "{}/v1/invoices/{}/pay",
+                "{}/v1/invoices/{}/pay?paid_out_of_band=true",
                 self.base_url(connectors),
                 invoice_id
             )),
@@ -629,7 +631,9 @@ impl
     ) -> CustomResult<RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
         let response = res
             .response
-            .parse_struct("stripebilling StripebillingRecordBackResponse")
+            .parse_struct::<stripebilling::StripebillingRecordBackResponse>(
+                "StripebillingRecordBackResponse",
+            )
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

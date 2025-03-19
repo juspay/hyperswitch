@@ -3745,7 +3745,6 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Shift4,
     connectors::Stax,
     connectors::Square,
-    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Trustpay,
