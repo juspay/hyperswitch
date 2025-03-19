@@ -231,6 +231,11 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let acs_reference_number: Option<String> =
+            row.try_get("acs_reference_number").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let count: Option<i64> = row.try_get("count").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -249,6 +254,7 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
             error_message,
             authentication_connector,
             message_version,
+            acs_reference_number,
             count,
             start_bucket,
             end_bucket,
@@ -288,6 +294,11 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let acs_reference_number: Option<String> =
+            row.try_get("acs_reference_number").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             authentication_status,
             trans_status,
@@ -295,6 +306,7 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
             error_message,
             authentication_connector,
             message_version,
+            acs_reference_number,
         })
     }
 }

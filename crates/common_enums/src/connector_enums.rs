@@ -81,7 +81,7 @@ pub enum RoutableConnectors {
     Fiservemea,
     Fiuu,
     Forte,
-    // Getnet,
+    Getnet,
     Globalpay,
     Globepay,
     Gocardless,
@@ -117,7 +117,7 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Razorpay,
-    // Recurly,
+    Recurly,
     Redsys,
     Riskified,
     Shift4,
@@ -224,7 +224,7 @@ pub enum Connector {
     Fiservemea,
     Fiuu,
     Forte,
-    // Getnet,
+    Getnet,
     Globalpay,
     Globepay,
     Gocardless,
@@ -263,7 +263,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
-    //Recurly,
+    Recurly,
     Redsys,
     Shift4,
     Square,
@@ -382,7 +382,7 @@ impl Connector {
             | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
-            // | Self::Getnet
+            | Self::Getnet
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -415,7 +415,7 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
-            // | Self::Recurly
+            | Self::Recurly
             | Self::Redsys
             | Self::Shift4
             | Self::Square
@@ -521,6 +521,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
             RoutableConnectors::Forte => Self::Forte,
+            RoutableConnectors::Getnet => Self::Getnet,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -552,7 +553,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Prophetpay => Self::Prophetpay,
             RoutableConnectors::Rapyd => Self::Rapyd,
             RoutableConnectors::Razorpay => Self::Razorpay,
-            // RoutableConnectors::Recurly => Self::Recurly,
+            RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Redsys => Self::Redsys,
             RoutableConnectors::Riskified => Self::Riskified,
             RoutableConnectors::Shift4 => Self::Shift4,

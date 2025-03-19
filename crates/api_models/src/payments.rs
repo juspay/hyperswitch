@@ -5070,6 +5070,12 @@ pub struct PaymentsResponse {
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// Error code received from the issuer in case of failed payments
+    pub issuer_error_code: Option<String>,
+
+    /// Error message received from the issuer in case of failed payments
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -7974,6 +7980,7 @@ pub struct PaymentLinkDetails {
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7991,6 +7998,7 @@ pub struct SecurePaymentLinkDetails {
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, serde::Serialize)]

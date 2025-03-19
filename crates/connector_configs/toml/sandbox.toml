@@ -1617,6 +1617,30 @@ key2 = "Location ID"
 [forte.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[getnet]
+[[getnet.credit]]
+  payment_method_type = "Mastercard"
+[[getnet.credit]]
+  payment_method_type = "Visa"
+[[getnet.credit]]
+  payment_method_type = "Interac"
+[[getnet.credit]]
+  payment_method_type = "AmericanExpress"
+[[getnet.credit]]
+  payment_method_type = "JCB"
+[[getnet.credit]]
+  payment_method_type = "DinersClub"
+[[getnet.credit]]
+  payment_method_type = "Discover"
+[[getnet.credit]]
+  payment_method_type = "CartesBancaires"
+[[getnet.credit]]
+  payment_method_type = "UnionPay"
+[[getnet.credit]]
+  payment_method_type = "Rupay"
+[[getnet.credit]]
+  payment_method_type = "Maestro"
+
 [globalpay]
 [[globalpay.credit]]
 payment_method_type = "Mastercard"
