@@ -25,7 +25,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use unicode_normalization::UnicodeNormalization;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -181,7 +180,7 @@ impl EmvThreedsData {
         let state = connector_utils::normalize_string(state.expose())
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let addr_state_value = if state.len() > 3 {
-            let addr_state = match state.nfkd().collect::<String>().as_str() {
+            let addr_state = match state.as_str() {
                 "acoruna" | "lacoruna" | "esc" => Ok("C"),
                 "alacant" | "esa" | "alicante" => Ok("A"),
                 "albacete" | "esab" => Ok("AB"),
@@ -780,7 +779,6 @@ fn des_encrypt(
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to trim encrypted data to the expected length")?;
-    let encoded2 = BASE64_ENGINE.encode(encrypted_trimed);
     Ok(encrypted_trimed.to_vec())
 }
 

@@ -4011,7 +4011,6 @@ dependencies = [
  "encoding_rs",
  "error-stack",
  "hex",
- "hmac",
  "http 0.2.12",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
@@ -4021,7 +4020,6 @@ dependencies = [
  "masking",
  "mime",
  "once_cell",
- "openssl",
  "qrcode",
  "quick-xml",
  "rand",
@@ -4036,7 +4034,6 @@ dependencies = [
  "serde_urlencoded",
  "serde_with",
  "sha1",
- "sha2",
  "strum 0.26.3",
  "time",
  "unicode-normalization",
@@ -5401,15 +5398,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
-name = "openssl-src"
-version = "300.4.2+3.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168ce4e058f975fe43e89d9ccf78ca668601887ae736090aacc23ae353c298e2"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "openssl-sys"
 version = "0.9.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5417,7 +5405,6 @@ checksum = "8b22d5b84be05a8d6947c7cb71f7c849aa0f112acd4bf51c2a7c1c988ac0a9dc"
 dependencies = [
  "cc",
  "libc",
- "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
