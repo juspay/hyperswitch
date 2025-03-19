@@ -1,7 +1,6 @@
 //! Utilities for cryptographic algorithms
 use std::ops::Deref;
 
-use common_enums::CryptoPadding;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
@@ -421,7 +420,7 @@ impl VerifySignature for Sha256 {
 #[derive(Debug)]
 #[cfg(feature = "triple_des")]
 pub struct TripleDesEde3CBC {
-    padding: CryptoPadding,
+    padding: common_enums::CryptoPadding,
     iv: Vec<u8>,
 }
 
@@ -432,11 +431,11 @@ impl TripleDesEde3CBC {
     pub const TRIPLE_DES_IV_LENGTH: usize = 8;
 
     /// Constructor function to be used by the encryptor and decryptor to generate the data type
-    pub fn new(padding: Option<CryptoPadding>, iv: Vec<u8>) -> Result<Self, errors::CryptoError> {
+    pub fn new(padding: Option<common_enums::CryptoPadding>, iv: Vec<u8>) -> Result<Self, errors::CryptoError> {
         if iv.len() != Self::TRIPLE_DES_IV_LENGTH {
             Err(errors::CryptoError::InvalidIvLength)?
         };
-        let padding = padding.unwrap_or(CryptoPadding::PKCS7);
+        let padding = padding.unwrap_or(common_enums::CryptoPadding::PKCS7);
         Ok(Self { iv, padding })
     }
 }
