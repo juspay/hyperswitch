@@ -22,6 +22,7 @@ v1 = []
 v2 = []
 customer_v2 = []
 payment_methods_v2 = []
+triple_des = ["dep:openssl"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
@@ -59,7 +60,7 @@ tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
-
+openssl = {version = "0.10.70", optional = true}
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
@@ -68,7 +69,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
-openssl = {version = "0.10.70", optional = true}
+
 
 [dev-dependencies]
 fake = "2.9.2"

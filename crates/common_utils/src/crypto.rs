@@ -5,7 +5,6 @@ use common_enums::CryptoPadding;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
-use openssl::symm::Cipher;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
@@ -420,11 +419,13 @@ impl VerifySignature for Sha256 {
 
 /// TripleDesEde3 hash function
 #[derive(Debug)]
+#[cfg(feature = "triple_des")]
 pub struct TripleDesEde3CBC {
     padding: CryptoPadding,
     iv: Vec<u8>,
 }
 
+#[cfg(feature = "triple_des")]
 impl TripleDesEde3CBC {
     const TRIPLE_DES_KEY_LENGTH: usize = 24;
     /// Initialization Vector (IV) length for TripleDesEde3
@@ -440,6 +441,7 @@ impl TripleDesEde3CBC {
     }
 }
 
+#[cfg(feature = "triple_des")]
 impl EncodeMessage for TripleDesEde3CBC {
     fn encode_message(
         &self,
@@ -457,7 +459,7 @@ impl EncodeMessage for TripleDesEde3CBC {
                 buffer.extend(vec![0u8; pad_len]);
             }
         };
-        let cipher = Cipher::des_ede3_cbc();
+        let cipher = openssl::symm::Cipher::des_ede3_cbc();
         openssl::symm::encrypt(cipher, secret, Some(&self.iv), &buffer)
             .change_context(errors::CryptoError::EncodingFailed)
     }
