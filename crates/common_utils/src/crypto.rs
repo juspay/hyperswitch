@@ -418,13 +418,13 @@ impl VerifySignature for Sha256 {
 
 /// TripleDesEde3 hash function
 #[derive(Debug)]
-#[cfg(feature = "triple_des")]
+#[cfg(feature = "crypto_openssl")]
 pub struct TripleDesEde3CBC {
     padding: common_enums::CryptoPadding,
     iv: Vec<u8>,
 }
 
-#[cfg(feature = "triple_des")]
+#[cfg(feature = "crypto_openssl")]
 impl TripleDesEde3CBC {
     const TRIPLE_DES_KEY_LENGTH: usize = 24;
     /// Initialization Vector (IV) length for TripleDesEde3
@@ -443,7 +443,7 @@ impl TripleDesEde3CBC {
     }
 }
 
-#[cfg(feature = "triple_des")]
+#[cfg(feature = "crypto_openssl")]
 impl EncodeMessage for TripleDesEde3CBC {
     fn encode_message(
         &self,

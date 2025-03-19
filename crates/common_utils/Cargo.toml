@@ -22,7 +22,7 @@ v1 = []
 v2 = []
 customer_v2 = []
 payment_methods_v2 = []
-triple_des = ["dep:openssl"]
+crypto_openssl = ["dep:openssl"]
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
