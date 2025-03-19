@@ -243,7 +243,6 @@ pub async fn profiles_list(
 ) -> HttpResponse {
     let flow = Flow::ProfileList;
     let merchant_id = path.into_inner();
-
     Box::pin(api::server_wrap(
         flow,
         state,

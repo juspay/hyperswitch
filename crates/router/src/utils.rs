@@ -40,7 +40,6 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -1202,20 +1201,21 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
-                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                            cloned_state,
-                            merchant_context.clone(),
-                            business_profile,
-                            event_type,
-                            diesel_models::enums::EventClass::Payments,
-                            payment_id.get_string_repr().to_owned(),
-                            diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
-                                payments_response_json,
-                            )),
-                            primary_object_created_at,
-                        ))
+                        Box::pin(
+                            webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                                cloned_state,
+                                &business_profile,
+                                payment_id.get_string_repr(),
+                                event_type,
+                                diesel_models::enums::EventClass::Payments,
+                                diesel_models::enums::EventObjectType::PaymentDetails,
+                                primary_object_created_at,
+                            ),
+                        )
                         .await
+                        .map_err(|e| {
+                            e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        })?;
                     }
                     .in_current_span(),
                 );
@@ -1277,18 +1277,20 @@ pub async fn trigger_refund_outgoing_webhook(
         if let Some(outgoing_event_type) = event_type {
             tokio::spawn(
                 async move {
-                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                        cloned_state,
-                        cloned_merchant_context,
-                        business_profile,
-                        outgoing_event_type,
-                        diesel_models::enums::EventClass::Refunds,
-                        refund_id.to_string(),
-                        diesel_models::enums::EventObjectType::RefundDetails,
-                        webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
-                        primary_object_created_at,
-                    ))
+                    Box::pin(
+                        webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                            cloned_state,
+                            &business_profile,
+                            &refund_id,
+                            outgoing_event_type,
+                            diesel_models::enums::EventClass::Refunds,
+                            diesel_models::enums::EventObjectType::RefundDetails,
+                            primary_object_created_at,
+                        ),
+                    )
                     .await
+                    .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
+        
                 }
                 .in_current_span(),
             );

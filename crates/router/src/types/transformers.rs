@@ -1989,6 +1989,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
             created: item.created_at,
+            webhook_endpoint_id: item.webhook_endpoint_id,
         })
     }
 }
@@ -2131,13 +2132,16 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
         Self {
-            webhook_version: item.webhook_version,
-            webhook_username: item.webhook_username,
-            webhook_password: item.webhook_password,
             webhook_url: item.webhook_url,
-            payment_created_enabled: item.payment_created_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
+            webhook_endpoint_id: Some(
+                item.webhook_endpoint_id.unwrap_or_else(|| {
+                    common_utils::generate_webhook_endpoint_id_of_default_length()
+                }),
+            ),
+            events: item.events,
+            status: item
+                .status
+                .or(Some(common_enums::OutgoingWebhookEndpointStatus::Active)),
         }
     }
 }
@@ -2147,14 +2151,37 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
 {
     fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
         Self {
-            webhook_version: item.webhook_version,
-            webhook_username: item.webhook_username,
-            webhook_password: item.webhook_password,
             webhook_url: item.webhook_url,
-            payment_created_enabled: item.payment_created_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
+            webhook_endpoint_id: Some(
+                item.webhook_endpoint_id.unwrap_or_else(|| {
+                    common_utils::generate_webhook_endpoint_id_of_default_length()
+                }),
+            ),
+            events: item.events,
+            status: item
+                .status
+                .or(Some(common_enums::OutgoingWebhookEndpointStatus::Active)),
         }
+    }
+}
+
+impl ForeignFrom<Vec<Option<api_models::admin::WebhookDetails>>>
+    for Vec<Option<diesel_models::business_profile::WebhookDetails>>
+{
+    fn foreign_from(item: Vec<Option<api_models::admin::WebhookDetails>>) -> Self {
+        item.into_iter()
+            .map(|webhook_detail| webhook_detail.map(ForeignFrom::foreign_from))
+            .collect()
+    }
+}
+
+impl ForeignFrom<Vec<Option<diesel_models::business_profile::WebhookDetails>>>
+    for Vec<Option<api_models::admin::WebhookDetails>>
+{
+    fn foreign_from(item: Vec<Option<diesel_models::business_profile::WebhookDetails>>) -> Self {
+        item.into_iter()
+            .map(|webhook_detail| webhook_detail.map(ForeignFrom::foreign_from))
+            .collect()
     }
 }
 

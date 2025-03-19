@@ -29,7 +29,7 @@ pub struct Profile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -85,7 +85,7 @@ pub struct ProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -135,7 +135,7 @@ pub struct ProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -318,7 +318,7 @@ pub struct Profile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -394,7 +394,7 @@ pub struct ProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -452,7 +452,7 @@ pub struct ProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -695,13 +695,10 @@ impl Default for CardTestingGuardConfig {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct WebhookDetails {
-    pub webhook_version: Option<String>,
-    pub webhook_username: Option<String>,
-    pub webhook_password: Option<Secret<String>>,
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
     pub webhook_url: Option<Secret<String>>,
-    pub payment_created_enabled: Option<bool>,
-    pub payment_succeeded_enabled: Option<bool>,
-    pub payment_failed_enabled: Option<bool>,
+    pub events: Vec<common_enums::EventType>,
+    pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);

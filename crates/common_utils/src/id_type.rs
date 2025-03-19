@@ -15,6 +15,7 @@ mod refunds;
 mod relay;
 mod routing;
 mod tenant;
+mod webhook_endpoint;
 
 use std::{borrow::Cow, fmt::Debug};
 
@@ -49,6 +50,7 @@ pub use self::{
     relay::RelayId,
     routing::RoutingId,
     tenant::TenantId,
+    webhook_endpoint::WebhookEndpointId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
 
