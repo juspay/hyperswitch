@@ -41,6 +41,7 @@ const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
 const GOOGLEPAY_API_VERSION: u8 = 2;
 
 use crate::{
+    constants,
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
@@ -464,6 +465,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     BankRedirectData::BancontactCard { .. }
                     | BankRedirectData::Bizum {}
                     | BankRedirectData::Blik { .. }
+                    | BankRedirectData::Eft { .. }
                     | BankRedirectData::Eps { .. }
                     | BankRedirectData::Giropay { .. }
                     | BankRedirectData::Ideal { .. }
@@ -826,6 +828,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -896,6 +900,8 @@ impl<F>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(data.txn_id),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -942,6 +948,8 @@ impl<F>
                                 status_code: item.http_code,
                                 attempt_status: None,
                                 connector_transaction_id: recurring_response.tran_id.clone(),
+                                issuer_error_code: None,
+                                issuer_error_message: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1075,6 +1083,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1099,6 +1109,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.refund_id.to_string()),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         }),
                         ..item.data
                     })
@@ -1238,6 +1250,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: response.error_desc,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     None
@@ -1303,6 +1317,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: response.error_desc.clone(),
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     None
@@ -1472,6 +1488,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 ),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             None
@@ -1585,6 +1603,8 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                 ),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             None
@@ -1680,6 +1700,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1725,16 +1747,21 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub fn get_qr_metadata(
     response: &DuitNowQrCodeResponse,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let image_data = QrImage::new_from_data(response.txn_data.request_data.qr_data.peek().clone())
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data = QrImage::new_colored_from_data(
+        response.txn_data.request_data.qr_data.peek().clone(),
+        constants::DUIT_NOW_BRAND_COLOR,
+    )
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let display_to_timestamp = None;
 
-    if let Some(image_data_url) = image_data_url {
-        let qr_code_info = payments::QrCodeInformation::QrDataUrl {
-            image_data_url,
+    if let Some(color_image_data_url) = image_data_url {
+        let qr_code_info = payments::QrCodeInformation::QrColorDataUrl {
+            color_image_data_url,
             display_to_timestamp,
+            display_text: Some(constants::DUIT_NOW_BRAND_TEXT.to_string()),
+            border_color: Some(constants::DUIT_NOW_BRAND_COLOR.to_string()),
         };
 
         Some(qr_code_info.encode_to_value())

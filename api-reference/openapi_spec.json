@@ -6605,7 +6605,8 @@
           "netcetera",
           "gpayments",
           "ctp_mastercard",
-          "unified_authentication_service"
+          "unified_authentication_service",
+          "juspaythreedsserver"
         ]
       },
       "AuthenticationStatus": {
@@ -7733,6 +7734,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft"
+            ],
+            "properties": {
+              "eft": {
+                "type": "object",
+                "required": [
+                  "provider"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "description": "The preferred eft provider",
+                    "example": "ozow"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -8510,6 +8532,23 @@
           }
         }
       },
+      "BraintreeData": {
+        "type": "object",
+        "required": [
+          "merchant_account_id",
+          "merchant_config_currency"
+        ],
+        "properties": {
+          "merchant_account_id": {
+            "type": "string",
+            "description": "Information about the merchant_account_id that merchant wants to specify at connector level."
+          },
+          "merchant_config_currency": {
+            "type": "string",
+            "description": "Information about the merchant_config_currency that merchant wants to specify at connector level."
+          }
+        }
+      },
       "BrowserInformation": {
         "type": "object",
         "description": "Browser information to be used for 3DS 2.0",
@@ -9098,6 +9137,15 @@
         },
         "additionalProperties": false
       },
+      "CardDiscovery": {
+        "type": "string",
+        "description": "Indicates the method by which a card is discovered during a payment",
+        "enum": [
+          "manual",
+          "saved_card",
+          "click_to_pay"
+        ]
+      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
@@ -9114,6 +9162,90 @@
           "RuPay",
           "Maestro"
         ]
+      },
+      "CardNetworkTokenizeRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TokenizeDataRequest"
+          },
+          {
+            "type": "object",
+            "required": [
+              "merchant_id",
+              "customer"
+            ],
+            "properties": {
+              "merchant_id": {
+                "type": "string",
+                "description": "Merchant ID associated with the tokenization request",
+                "example": "merchant_1671528864"
+              },
+              "customer": {
+                "$ref": "#/components/schemas/CustomerDetails"
+              },
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              },
+              "metadata": {
+                "type": "object",
+                "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+                "nullable": true
+              },
+              "payment_method_issuer": {
+                "type": "string",
+                "description": "The name of the bank/ provider issuing the payment method to the end user",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "CardNetworkTokenizeResponse": {
+        "type": "object",
+        "required": [
+          "customer",
+          "card_tokenized"
+        ],
+        "properties": {
+          "payment_method_response": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerDetails"
+          },
+          "card_tokenized": {
+            "type": "boolean",
+            "description": "Card network tokenization status"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message",
+            "nullable": true
+          },
+          "tokenization_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TokenizeDataRequest"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "CardNetworkTypes": {
         "type": "object",
@@ -9320,6 +9452,56 @@
           }
         }
       },
+      "CardTestingGuardConfig": {
+        "type": "object",
+        "required": [
+          "card_ip_blocking_status",
+          "card_ip_blocking_threshold",
+          "guest_user_card_blocking_status",
+          "guest_user_card_blocking_threshold",
+          "customer_id_blocking_status",
+          "customer_id_blocking_threshold",
+          "card_testing_guard_expiry"
+        ],
+        "properties": {
+          "card_ip_blocking_status": {
+            "$ref": "#/components/schemas/CardTestingGuardStatus"
+          },
+          "card_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Card IP Blocking for profile"
+          },
+          "guest_user_card_blocking_status": {
+            "$ref": "#/components/schemas/CardTestingGuardStatus"
+          },
+          "guest_user_card_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest User Card Blocking for profile"
+          },
+          "customer_id_blocking_status": {
+            "$ref": "#/components/schemas/CardTestingGuardStatus"
+          },
+          "customer_id_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Customer Id Blocking for profile"
+          },
+          "card_testing_guard_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          }
+        }
+      },
+      "CardTestingGuardStatus": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ]
+      },
       "CardToken": {
         "type": "object",
         "required": [
@@ -9364,6 +9546,13 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "CardType": {
+        "type": "string",
+        "enum": [
+          "credit",
+          "debit"
         ]
       },
       "CashappQr": {
@@ -9522,8 +9711,10 @@
           "boku",
           "braintree",
           "cashtocode",
+          "chargebee",
           "checkout",
           "coinbase",
+          "coingate",
           "cryptopay",
           "ctp_mastercard",
           "cybersource",
@@ -9537,23 +9728,28 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
           "itaubank",
           "jpmorgan",
+          "juspaythreedsserver",
           "klarna",
           "mifinity",
           "mollie",
+          "moneris",
           "multisafepay",
           "netcetera",
           "nexinets",
           "nexixpay",
           "nmi",
+          "nomupay",
           "noon",
           "novalnet",
           "nuvei",
@@ -9562,6 +9758,7 @@
           "payme",
           "payone",
           "paypal",
+          "paystack",
           "payu",
           "placetopay",
           "powertranz",
@@ -9610,6 +9807,17 @@
             "properties": {
               "adyen_split_payment": {
                 "$ref": "#/components/schemas/AdyenSplitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "xendit_split_payment"
+            ],
+            "properties": {
+              "xendit_split_payment": {
+                "$ref": "#/components/schemas/XenditChargeResponseData"
               }
             }
           }
@@ -9681,6 +9889,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NoonData"
+              }
+            ],
+            "nullable": true
+          },
+          "braintree": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BraintreeData"
               }
             ],
             "nullable": true
@@ -9757,7 +9973,8 @@
           "payout_processor",
           "payment_method_auth",
           "authentication_processor",
-          "tax_processor"
+          "tax_processor",
+          "billing_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -11759,6 +11976,12 @@
           {
             "type": "string",
             "enum": [
+              "user_card_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -12754,7 +12977,8 @@
           "message",
           "status",
           "decision",
-          "step_up_possible"
+          "step_up_possible",
+          "clear_pan_possible"
         ],
         "properties": {
           "connector": {
@@ -12809,6 +13033,10 @@
               }
             ],
             "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
           }
         }
       },
@@ -12893,7 +13121,8 @@
           "message",
           "status",
           "decision",
-          "step_up_possible"
+          "step_up_possible",
+          "clear_pan_possible"
         ],
         "properties": {
           "connector": {
@@ -12950,6 +13179,10 @@
               }
             ],
             "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
           }
         }
       },
@@ -13053,6 +13286,11 @@
                 "$ref": "#/components/schemas/ErrorCategory"
               }
             ],
+            "nullable": true
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible",
             "nullable": true
           }
         }
@@ -13691,6 +13929,14 @@
               }
             ],
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13921,6 +14167,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.MerchantProductType"
               }
             ],
             "nullable": true
@@ -15215,6 +15469,14 @@
                 "type": "string",
                 "description": "The url for Qr code given by the connector"
               },
+              "display_text": {
+                "type": "string",
+                "nullable": true
+              },
+              "border_color": {
+                "type": "string",
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -16342,7 +16604,8 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default"
+          "show_card_form_by_default",
+          "enable_button_only_on_form_ready"
         ],
         "properties": {
           "theme": {
@@ -16419,6 +16682,57 @@
             "type": "string",
             "description": "Text for payment link's handle confirm button",
             "nullable": true
+          },
+          "custom_message_for_card_terms": {
+            "type": "string",
+            "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "payment_button_colour": {
+            "type": "string",
+            "description": "Custom background colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "skip_status_screen": {
+            "type": "boolean",
+            "description": "Skip the status screen after payment completion",
+            "nullable": true
+          },
+          "payment_button_text_colour": {
+            "type": "string",
+            "description": "Custom text colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "background_colour": {
+            "type": "string",
+            "description": "Custom background colour for the payment link",
+            "nullable": true
+          },
+          "sdk_ui_rules": {
+            "type": "object",
+            "description": "SDK configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "payment_link_ui_rules": {
+            "type": "object",
+            "description": "Payment link configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission"
           }
         }
       },
@@ -16508,6 +16822,58 @@
           "payment_button_text": {
             "type": "string",
             "description": "Text for payment link's handle confirm button",
+            "nullable": true
+          },
+          "custom_message_for_card_terms": {
+            "type": "string",
+            "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "payment_button_colour": {
+            "type": "string",
+            "description": "Custom background colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "skip_status_screen": {
+            "type": "boolean",
+            "description": "Skip the status screen after payment completion",
+            "nullable": true
+          },
+          "payment_button_text_colour": {
+            "type": "string",
+            "description": "Custom text colour for payment link's handle confirm button",
+            "nullable": true
+          },
+          "background_colour": {
+            "type": "string",
+            "description": "Custom background colour for the payment link",
+            "nullable": true
+          },
+          "sdk_ui_rules": {
+            "type": "object",
+            "description": "SDK configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "payment_link_ui_rules": {
+            "type": "object",
+            "description": "Payment link configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
           }
         }
@@ -17618,6 +17984,7 @@
           "debit",
           "duit_now",
           "efecty",
+          "eft",
           "eps",
           "fps",
           "evoucher",
@@ -18261,6 +18628,12 @@
             ],
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -18652,6 +19025,12 @@
                 "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "merchant_order_reference_id": {
@@ -19201,6 +19580,17 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
             "nullable": true
           },
+          "extended_authorization_applied": {
+            "type": "boolean",
+            "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "capture_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time after which this payment cannot be captured",
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -19219,6 +19609,24 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "card_discovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           }
         }
@@ -19871,6 +20279,12 @@
             ],
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -20444,6 +20858,17 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.",
             "nullable": true
           },
+          "extended_authorization_applied": {
+            "type": "boolean",
+            "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "capture_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time after which this payment cannot be captured",
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -20462,6 +20887,24 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "card_discovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           }
         }
@@ -20927,6 +21370,12 @@
             ],
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "merchant_order_reference_id": {
             "type": "string",
             "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
@@ -21285,6 +21734,7 @@
           "adyenplatform",
           "cybersource",
           "ebanx",
+          "nomupay",
           "payone",
           "paypal",
           "stripe",
@@ -22932,6 +23382,11 @@
             "nullable": true,
             "minimum": 0
           },
+          "always_request_extended_authorization": {
+            "type": "boolean",
+            "description": "Bool indicating if extended authentication must be requested for all payments",
+            "nullable": true
+          },
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not."
@@ -22939,6 +23394,24 @@
           "authentication_product_ids": {
             "type": "object",
             "description": "Product authentication ids",
+            "nullable": true
+          },
+          "card_testing_guard_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not.",
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
             "nullable": true
           }
         },
@@ -22973,7 +23446,9 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "is_clear_pan_retries_enabled",
+          "force_3ds_challenge"
         ],
         "properties": {
           "merchant_id": {
@@ -23171,6 +23646,11 @@
             "description": "Maximum number of auto retries allowed for a payment",
             "nullable": true
           },
+          "always_request_extended_authorization": {
+            "type": "boolean",
+            "description": "Bool indicating if extended authentication must be requested for all payments",
+            "nullable": true
+          },
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not.",
@@ -23181,6 +23661,22 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "card_testing_guard_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not."
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced"
           }
         }
       },
@@ -23689,6 +24185,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed refunds",
+            "nullable": true
           }
         }
       },
@@ -23737,7 +24243,7 @@
             ],
             "properties": {
               "refund": {
-                "$ref": "#/components/schemas/RelayRefundRequest"
+                "$ref": "#/components/schemas/RelayRefundRequestData"
               }
             }
           }
@@ -23760,7 +24266,7 @@
           }
         }
       },
-      "RelayRefundRequest": {
+      "RelayRefundRequestData": {
         "type": "object",
         "required": [
           "amount",
@@ -24325,8 +24831,10 @@
           "boku",
           "braintree",
           "cashtocode",
+          "chargebee",
           "checkout",
           "coinbase",
+          "coingate",
           "cryptopay",
           "cybersource",
           "datatrans",
@@ -24339,9 +24847,11 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",
@@ -24350,10 +24860,12 @@
           "klarna",
           "mifinity",
           "mollie",
+          "moneris",
           "multisafepay",
           "nexinets",
           "nexixpay",
           "nmi",
+          "nomupay",
           "noon",
           "novalnet",
           "nuvei",
@@ -24362,6 +24874,7 @@
           "payme",
           "payone",
           "paypal",
+          "paystack",
           "payu",
           "placetopay",
           "powertranz",
@@ -24744,7 +25257,9 @@
           "merchant",
           "amount",
           "protocol",
-          "allowed_brands"
+          "allowed_brands",
+          "billing_address_required",
+          "shipping_address_required"
         ],
         "properties": {
           "version": {
@@ -24774,6 +25289,14 @@
               "type": "string"
             },
             "description": "List of supported card brands"
+          },
+          "billing_address_required": {
+            "type": "boolean",
+            "description": "Is billing address required to be collected from wallet"
+          },
+          "shipping_address_required": {
+            "type": "boolean",
+            "description": "Is shipping address required to be collected from wallet"
           }
         }
       },
@@ -25377,6 +25900,17 @@
                 "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "xendit_split_payment"
+            ],
+            "properties": {
+              "xendit_split_payment": {
+                "$ref": "#/components/schemas/XenditSplitRequest"
+              }
+            }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
@@ -25402,6 +25936,17 @@
             "properties": {
               "adyen_split_refund": {
                 "$ref": "#/components/schemas/AdyenSplitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "xendit_split_refund"
+            ],
+            "properties": {
+              "xendit_split_refund": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
               }
             }
           }
@@ -25946,6 +26491,113 @@
           }
         }
       },
+      "TokenizeCardRequest": {
+        "type": "object",
+        "required": [
+          "raw_card_number",
+          "card_expiry_month",
+          "card_expiry_year"
+        ],
+        "properties": {
+          "raw_card_number": {
+            "type": "string",
+            "description": "Card Number",
+            "example": "4111111145551142"
+          },
+          "card_expiry_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenizeDataRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/TokenizeCardRequest"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "existing_payment_method"
+            ],
+            "properties": {
+              "existing_payment_method": {
+                "$ref": "#/components/schemas/TokenizePaymentMethodRequest"
+              }
+            }
+          }
+        ]
+      },
+      "TokenizePaymentMethodRequest": {
+        "type": "object",
+        "properties": {
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
+            "nullable": true
+          }
+        }
+      },
       "TouchNGoRedirection": {
         "type": "object"
       },
@@ -25994,6 +26646,13 @@
         "enum": [
           "payment",
           "payout"
+        ]
+      },
+      "TriggeredBy": {
+        "type": "string",
+        "enum": [
+          "internal",
+          "external"
         ]
       },
       "UIWidgetFormLayout": {
@@ -26946,6 +27605,180 @@
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditChargeResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "multiple_splits"
+            ],
+            "properties": {
+              "multiple_splits": {
+                "$ref": "#/components/schemas/XenditMultipleSplitResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "single_split"
+            ],
+            "properties": {
+              "single_split": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
+          }
+        ],
+        "description": "Charge Information"
+      },
+      "XenditMultipleSplitRequest": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected via xendit",
+        "required": [
+          "name",
+          "description",
+          "routes"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description to identify fee rule"
+          },
+          "for_user_id": {
+            "type": "string",
+            "description": "The sub-account user-id that you want to make this transaction for.",
+            "nullable": true
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/XenditSplitRoute"
+            },
+            "description": "Array of objects that define how the platform wants to route the fees and to which accounts."
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditMultipleSplitResponse": {
+        "type": "object",
+        "description": "Fee information charged on the payment being collected via xendit",
+        "required": [
+          "split_rule_id",
+          "name",
+          "description",
+          "routes"
+        ],
+        "properties": {
+          "split_rule_id": {
+            "type": "string",
+            "description": "Identifier for split rule created for the payment"
+          },
+          "for_user_id": {
+            "type": "string",
+            "description": "The sub-account user-id that you want to make this transaction for.",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description to identify fee rule"
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/XenditSplitRoute"
+            },
+            "description": "Array of objects that define how the platform wants to route the fees and to which accounts."
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditSplitRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "multiple_splits"
+            ],
+            "properties": {
+              "multiple_splits": {
+                "$ref": "#/components/schemas/XenditMultipleSplitRequest"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "single_split"
+            ],
+            "properties": {
+              "single_split": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
+          }
+        ],
+        "description": "Xendit Charge Request"
+      },
+      "XenditSplitRoute": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected via xendit",
+        "required": [
+          "currency",
+          "destination_account_id",
+          "reference_id"
+        ],
+        "properties": {
+          "flat_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "percent_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount of payments to be split, using a percent rate as unit",
+            "nullable": true
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "destination_account_id": {
+            "type": "string",
+            "description": "ID of the destination account where the amount will be routed to"
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "Reference ID which acts as an identifier of the route itself"
+          }
+        },
+        "additionalProperties": false
+      },
+      "XenditSplitSubMerchantData": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected for sub-merchant via xendit",
+        "required": [
+          "for_user_id"
+        ],
+        "properties": {
+          "for_user_id": {
+            "type": "string",
+            "description": "The sub-account user-id that you want to make this transaction for."
           }
         },
         "additionalProperties": false

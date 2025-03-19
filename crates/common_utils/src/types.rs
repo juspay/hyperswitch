@@ -6,6 +6,9 @@ pub mod authentication;
 /// Enum for Theme Lineage
 pub mod theme;
 
+/// types that are wrappers around primitive types
+pub mod primitive_wrappers;
+
 use std::{
     borrow::Cow,
     fmt::Display,
@@ -26,6 +29,10 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+pub use primitive_wrappers::bool_wrappers::{
+    AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
+    RequestExtendedAuthorizationBool,
+};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -199,6 +206,11 @@ impl SemanticVersion {
     /// returns major version number
     pub fn get_major(&self) -> u64 {
         self.0.major
+    }
+
+    /// returns minor version number
+    pub fn get_minor(&self) -> u64 {
+        self.0.minor
     }
     /// Constructs new SemanticVersion instance
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {

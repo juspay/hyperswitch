@@ -280,6 +280,23 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     ZeroAuthPaymentIntent: {
       Request: {
         amount: 0,

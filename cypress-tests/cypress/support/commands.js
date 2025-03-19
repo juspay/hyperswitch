@@ -1275,6 +1275,7 @@ Cypress.Commands.add(
     createPaymentBody.profile_id = profile_id;
 
     globalState.set("paymentAmount", createPaymentBody.amount);
+    globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
 
     cy.request({
       method: "POST",
@@ -1558,6 +1559,7 @@ Cypress.Commands.add(
     const merchantConnectorId = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+    const setupFutureUsage = globalState.get("setupFutureUsage");
     const paymentIntentID = globalState.get("paymentID");
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
     const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
@@ -1624,6 +1626,12 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -1649,6 +1657,12 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2089,8 +2103,9 @@ Cypress.Commands.add(
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
-    for (const key in reqData) {
-      saveCardConfirmBody[key] = reqData[key];
+
+    if (reqData.billing === null) {
+      saveCardConfirmBody.billing = null;
     }
 
     cy.request({
@@ -2137,6 +2152,10 @@ Cypress.Commands.add(
               expect(response.body)
                 .to.have.property("next_action")
                 .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
@@ -2155,6 +2174,10 @@ Cypress.Commands.add(
               expect(response.body)
                 .to.have.property("next_action")
                 .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
@@ -2445,6 +2468,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+    const setupFutureUsage = globalState.get("setupFutureUsage");
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
@@ -2516,6 +2540,12 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2539,6 +2569,12 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2725,10 +2761,19 @@ Cypress.Commands.add(
             response.body.payment_method_id,
             "payment_method_id"
           ).to.include("pm_").and.to.not.be.null;
-          expect(
-            response.body.connector_transaction_id,
-            "connector_transaction_id"
-          ).to.not.be.null;
+
+          if (response.body.status === "failed") {
+            expect(
+              response.body.connector_transaction_id,
+              "connector_transaction_id"
+            ).to.be.null;
+          } else {
+            expect(
+              response.body.connector_transaction_id,
+              "connector_transaction_id"
+            ).to.not.be.null;
+          }
+
           expect(
             response.body.payment_method_status,
             "payment_method_status"
@@ -2932,13 +2977,16 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "handleRedirection",
-  (globalState, expected_redirection) => {
+  (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
     handleRedirection(
       "three_ds",
-      { redirection_url, expected_url },
+      { redirectionUrl, expectedUrl },
       connectorId,
       null
     );
@@ -2947,19 +2995,21 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleBankRedirectRedirection",
-  (globalState, payment_method_type, expected_redirection) => {
+  (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
 
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && payment_method_type == "sofort")) {
+    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
       handleRedirection(
         "bank_redirect",
-        { redirection_url, expected_url },
+        { redirectionUrl, expectedUrl },
         connectorId,
-        payment_method_type
+        paymentMethodType
       );
     }
   }
@@ -2967,20 +3017,21 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleBankTransferRedirection",
-  (globalState, payment_method_type, expected_redirection) => {
+  (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
-    const next_action_type = globalState.get("nextActionType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+    const nextActionType = globalState.get("nextActionType");
 
-    cy.log(payment_method_type);
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
     handleRedirection(
       "bank_transfer",
-      { redirection_url, expected_url },
+      { redirectionUrl, expectedUrl },
       connectorId,
-      payment_method_type,
+      paymentMethodType,
       {
-        next_action_type,
+        nextActionType,
       }
     );
   }
@@ -2988,72 +3039,111 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleUpiRedirection",
-  (globalState, payment_method_type, expected_redirection) => {
+  (globalState, paymentMethodType, expected_redirection) => {
     const connectorId = globalState.get("connectorId");
-    const expected_url = new URL(expected_redirection);
-    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expected_redirection);
+    const redirectionUrl = new URL(nextActionUrl);
 
     handleRedirection(
       "upi",
-      { redirection_url, expected_url },
+      { redirectionUrl, expectedUrl },
       connectorId,
-      payment_method_type
+      paymentMethodType
     );
   }
 );
 
-Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
+Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
   const customerId = globalState.get("customerId");
+  const url = `${baseUrl}/customers/${customerId}/payment_methods`;
+
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/customers/${customerId}/payment_methods`,
+    url: url,
     headers: {
+      "api-key": apiKey,
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
-      if (response.body.customer_payment_methods[0]?.payment_token) {
+
+      // Validate response has payment methods
+      if (response.body.customer_payment_methods[order]?.payment_token) {
         const paymentToken =
-          response.body.customer_payment_methods[0].payment_token;
+          response.body.customer_payment_methods[order].payment_token;
         const paymentMethodId =
-          response.body.customer_payment_methods[0].payment_method_id;
-        globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
-        globalState.set("paymentMethodId", paymentMethodId); // Set paymentMethodId in globalState
+          response.body.customer_payment_methods[order].payment_method_id;
+        const lastUsedAt =
+          response.body.customer_payment_methods[order].last_used_at;
+
+        globalState.set("paymentMethodId", paymentMethodId);
+        globalState.set("paymentToken", paymentToken);
+
+        // Validate last_used_at timestamp
+        expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
+          Date.now()
+        ).and.to.not.be.null;
+
+        // For order > 0, validate payment methods are ordered by last_used_at
+        if (order > 0) {
+          const prevLastUsedAt =
+            response.body.customer_payment_methods[0].last_used_at;
+          expect(
+            new Date(prevLastUsedAt).getTime(),
+            "last_used_at ordering"
+          ).to.be.greaterThan(new Date(lastUsedAt).getTime());
+        }
       } else {
-        // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
         expect(response.body)
           .to.have.property("customer_payment_methods")
           .to.be.an("array").and.empty;
       }
-      expect(globalState.get("customerId"), "customer_id").to.equal(
-        response.body.customer_payment_methods[0].customer_id
-      );
-      expect(
-        response.body.customer_payment_methods[0].payment_token,
-        "payment_token"
-      ).to.not.be.null;
-      expect(
-        response.body.customer_payment_methods[0].payment_method_id,
-        "payment_method_id"
-      ).to.not.be.null;
-      expect(
-        response.body.customer_payment_methods[0].payment_method,
-        "payment_method"
-      ).to.not.be.null;
-      expect(
-        response.body.customer_payment_methods[0].payment_method_type,
-        "payment_method_type"
-      ).to.not.be.null;
+
+      // Validate other payment method properties
+      for (const arrayCount in response.body.customer_payment_methods) {
+        const paymentMethod =
+          response.body.customer_payment_methods[arrayCount];
+
+        expect(
+          globalState.get("customerId"),
+          `${arrayCount} customer_id`
+        ).to.equal(paymentMethod.customer_id);
+
+        expect(
+          paymentMethod.payment_token,
+          `${arrayCount} payment_token`
+        ).to.include("token_").and.not.be.null;
+
+        expect(
+          paymentMethod.payment_method_id,
+          `${arrayCount} payment_method_id`
+        ).to.include("pm_").and.not.be.null;
+
+        expect(paymentMethod.payment_method, `${arrayCount} payment_method`).to
+          .not.be.null;
+
+        expect(
+          paymentMethod.payment_method_type,
+          `${arrayCount} payment_method_type`
+        ).to.not.be.null;
+
+        expect(paymentMethod.last_used_at, `${arrayCount} last_used_at`).to.not
+          .be.null;
+      }
     });
   });
 });
 
 Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
   const clientSecret = globalState.get("clientSecret");
+  const setupFutureUsage = globalState.get("setupFutureUsage");
 
   cy.request({
     method: "GET",
@@ -3078,6 +3168,18 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
           response.body.customer_payment_methods[0].payment_method_id,
           "payment_method_id"
         ).to.not.be.null;
+
+        if (setupFutureUsage === "off_session") {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.be.false;
+        } else if (setupFutureUsage === "on_session") {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.be.true;
+        }
       } else {
         // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
         expect(response.body)
@@ -3159,6 +3261,49 @@ Cypress.Commands.add(
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/create`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: createConfirmPayoutBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("payoutAmount", createConfirmPayoutBody.amount);
+          globalState.set("payoutID", response.body.payout_id);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createConfirmWithPayoutMethodIdTest",
+  (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    for (const key in reqData) {
+      createConfirmPayoutBody[key] = reqData[key];
+    }
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+    createConfirmPayoutBody.confirm = confirm;
+    createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
+    delete createConfirmPayoutBody.payout_token;
 
     cy.request({
       method: "POST",

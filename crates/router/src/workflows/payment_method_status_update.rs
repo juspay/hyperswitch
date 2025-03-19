@@ -1,4 +1,5 @@
 use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
@@ -9,7 +10,6 @@ use crate::{
     routes::SessionState,
     types::storage::{self, PaymentMethodStatusTrackingData},
 };
-
 pub struct PaymentMethodStatusUpdateWorkflow;
 
 #[async_trait::async_trait]
@@ -55,7 +55,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
                 &pm_id,
                 merchant_account.storage_scheme,
             )
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
 
         if payment_method.status != prev_pm_status {
             return db
@@ -78,7 +80,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
                 merchant_account.storage_scheme,
             )
             .await
-            .map_err(errors::ProcessTrackerError::EStorageError);
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment method");
 
         if let Ok(_pm) = res {
             db.as_scheduler()
@@ -111,6 +114,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         Ok(())
     }
 
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        todo!()
+    }
     async fn error_handler<'a>(
         &'a self,
         _state: &'a SessionState,
