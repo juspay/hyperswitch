@@ -65,6 +65,8 @@ pub struct Refund {
     pub unified_message: Option<String>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
@@ -244,6 +246,8 @@ pub enum RefundUpdate {
         processor_refund_data: Option<String>,
         unified_code: Option<String>,
         unified_message: Option<String>,
+        issuer_error_code: Option<String>,
+        issuer_error_message: Option<String>,
     },
     ManualUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
@@ -269,6 +273,8 @@ pub struct RefundUpdateInternal {
     processor_refund_data: Option<String>,
     unified_code: Option<String>,
     unified_message: Option<String>,
+    issuer_error_code: Option<String>,
+    issuer_error_message: Option<String>,
 }
 
 impl RefundUpdateInternal {
@@ -317,6 +323,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 unified_code: None,
                 unified_message: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             RefundUpdate::MetadataAndReasonUpdate {
                 metadata,
@@ -336,6 +344,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             RefundUpdate::StatusUpdate {
                 connector_refund_id,
@@ -357,6 +367,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 unified_code: None,
                 unified_message: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             RefundUpdate::ErrorUpdate {
                 refund_status,
@@ -367,6 +379,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 updated_by,
                 connector_refund_id,
                 processor_refund_data,
+                issuer_error_code,
+                issuer_error_message,
             } => Self {
                 refund_status,
                 refund_error_message,
@@ -381,6 +395,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 unified_code,
                 unified_message,
+                issuer_error_code,
+                issuer_error_message,
             },
             RefundUpdate::ManualUpdate {
                 refund_status,
@@ -401,6 +417,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
         }
     }
@@ -422,6 +440,8 @@ impl RefundUpdate {
             processor_refund_data,
             unified_code,
             unified_message,
+            issuer_error_code,
+            issuer_error_message,
         } = self.into();
         Refund {
             connector_refund_id: connector_refund_id.or(source.connector_refund_id),
@@ -437,6 +457,8 @@ impl RefundUpdate {
             processor_refund_data: processor_refund_data.or(source.processor_refund_data),
             unified_code: unified_code.or(source.unified_code),
             unified_message: unified_message.or(source.unified_message),
+            issuer_error_code: issuer_error_code.or(source.issuer_error_code),
+            issuer_error_message: issuer_error_message.or(source.issuer_error_message),
             ..source
         }
     }

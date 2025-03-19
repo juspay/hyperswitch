@@ -922,6 +922,9 @@ diesel::table! {
         processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 64]
+        issuer_error_code -> Nullable<Varchar>,
+        issuer_error_message -> Nullable<Text>,
     }
 }
 
@@ -1276,6 +1279,9 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         processor_refund_data -> Nullable<Text>,
         processor_transaction_data -> Nullable<Text>,
+        #[max_length = 64]
+        issuer_error_code -> Nullable<Varchar>,
+        issuer_error_message -> Nullable<Text>,
     }
 }
 

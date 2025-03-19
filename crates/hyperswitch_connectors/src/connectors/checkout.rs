@@ -179,6 +179,8 @@ impl ConnectorCommon for Checkout {
                 .or(response.error_type),
             attempt_status: None,
             connector_transaction_id: response.request_id,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
