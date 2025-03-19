@@ -780,7 +780,6 @@ describe("Corner cases", () => {
       cy.syncRefundCallTest(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
-///sssssssss
     it("Create a refund with  a duplicate refund ID", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"

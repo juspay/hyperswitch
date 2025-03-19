@@ -1979,12 +1979,9 @@ Cypress.Commands.add(
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.customer_id = globalState.get("customerId");
     createConfirmPaymentBody.profile_id = profile_id;
-    console.log("sssssssss I can't do it like others", reqData);
     for (const key in reqData) {
       createConfirmPaymentBody[key] = reqData[key];
     }
-
-    console.log("sssssssss where can i run away", createConfirmPaymentBody);
 
     cy.request({
       method: "POST",
@@ -2471,7 +2468,6 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const setupFutureUsage = globalState.get("setupFutureUsage");
-    console.log("sssssssss outcast", reqData);
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
