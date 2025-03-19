@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+    str::FromStr,
+};
 
 use api_models::payments;
 #[cfg(feature = "payouts")]
@@ -41,6 +45,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        RouterData as ConnectorRouterData,
     },
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
@@ -49,8 +54,8 @@ use hyperswitch_domain_models::{
         PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
-    router_response_types::CaptureSyncResponse,
-    types::OrderDetailsWithAmount,
+    router_response_types::{CaptureSyncResponse, PaymentsResponseData},
+    types::{OrderDetailsWithAmount, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
@@ -58,6 +63,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use router_env::logger;
+use serde::Deserialize;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
@@ -336,6 +342,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
@@ -1855,6 +1863,7 @@ pub trait PaymentsCaptureRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCaptureRequestData for PaymentsCaptureData {
@@ -1870,6 +1879,11 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -1924,6 +1938,7 @@ pub trait PaymentsCancelRequestData {
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -1947,6 +1962,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -1996,6 +2016,8 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -2029,6 +2051,20 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
     }
 }
 
@@ -5824,5 +5860,120 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     #[cfg(feature = "v2")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
+    }
+}
+
+pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    use serde::de::Error;
+    let output = <&str>::deserialize(v)?;
+    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
+}
+
+pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
+    data: &SetupMandateRouterData,
+) -> PaymentsAuthorizeData {
+    PaymentsAuthorizeData {
+        currency: data.request.currency,
+        payment_method_data: data.request.payment_method_data.clone(),
+        confirm: data.request.confirm,
+        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
+        mandate_id: data.request.mandate_id.clone(),
+        setup_future_usage: data.request.setup_future_usage,
+        off_session: data.request.off_session,
+        setup_mandate_details: data.request.setup_mandate_details.clone(),
+        router_return_url: data.request.router_return_url.clone(),
+        email: data.request.email.clone(),
+        customer_name: data.request.customer_name.clone(),
+        amount: 0,
+        order_tax_amount: Some(MinorUnit::zero()),
+        minor_amount: MinorUnit::new(0),
+        statement_descriptor: None,
+        capture_method: None,
+        webhook_url: None,
+        complete_authorize_url: None,
+        browser_info: data.request.browser_info.clone(),
+        order_details: None,
+        order_category: None,
+        session_token: None,
+        enrolled_for_3ds: true,
+        related_transaction_id: None,
+        payment_experience: None,
+        payment_method_type: None,
+        customer_id: None,
+        surcharge_details: None,
+        request_extended_authorization: None,
+        request_incremental_authorization: data.request.request_incremental_authorization,
+        metadata: None,
+        authentication_data: None,
+        customer_acceptance: data.request.customer_acceptance.clone(),
+        split_payments: None, // TODO: allow charges on mandates?
+        merchant_order_reference_id: None,
+        integrity_object: None,
+        additional_payment_method_data: None,
+        shipping_cost: data.request.shipping_cost,
+        merchant_account_id: None,
+        merchant_config_currency: None,
+    }
+}
+
+pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
+    item: (&ConnectorRouterData<F1, T1, PaymentsResponseData>, T2),
+) -> ConnectorRouterData<F2, T2, PaymentsResponseData> {
+    let data = item.0;
+    let request = item.1;
+    ConnectorRouterData {
+        flow: PhantomData,
+        request,
+        merchant_id: data.merchant_id.clone(),
+        connector: data.connector.clone(),
+        attempt_id: data.attempt_id.clone(),
+        tenant_id: data.tenant_id.clone(),
+        status: data.status,
+        payment_method: data.payment_method,
+        connector_auth_type: data.connector_auth_type.clone(),
+        description: data.description.clone(),
+        address: data.address.clone(),
+        auth_type: data.auth_type,
+        connector_meta_data: data.connector_meta_data.clone(),
+        connector_wallets_details: data.connector_wallets_details.clone(),
+        amount_captured: data.amount_captured,
+        minor_amount_captured: data.minor_amount_captured,
+        access_token: data.access_token.clone(),
+        response: data.response.clone(),
+        payment_id: data.payment_id.clone(),
+        session_token: data.session_token.clone(),
+        reference_id: data.reference_id.clone(),
+        customer_id: data.customer_id.clone(),
+        payment_method_token: None,
+        preprocessing_id: None,
+        connector_customer: data.connector_customer.clone(),
+        recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
+        connector_request_reference_id: data.connector_request_reference_id.clone(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: data.payout_method_data.clone(),
+        #[cfg(feature = "payouts")]
+        quote_id: data.quote_id.clone(),
+        test_mode: data.test_mode,
+        payment_method_status: None,
+        payment_method_balance: data.payment_method_balance.clone(),
+        connector_api_version: data.connector_api_version.clone(),
+        connector_http_status_code: data.connector_http_status_code,
+        external_latency: data.external_latency,
+        apple_pay_flow: data.apple_pay_flow.clone(),
+        frm_metadata: data.frm_metadata.clone(),
+        dispute_id: data.dispute_id.clone(),
+        refund_id: data.refund_id.clone(),
+        connector_response: data.connector_response.clone(),
+        integrity_check: Ok(()),
+        additional_merchant_data: data.additional_merchant_data.clone(),
+        header_payload: data.header_payload.clone(),
+        connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
+        authentication_id: data.authentication_id.clone(),
+        psd2_sca_exemption_type: data.psd2_sca_exemption_type,
     }
 }

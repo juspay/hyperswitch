@@ -178,6 +178,8 @@ impl ConnectorCommon for Noon {
                     reason: Some(noon_error_response.message),
                     attempt_status,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Err(error_message) => {
