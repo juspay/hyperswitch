@@ -36,9 +36,9 @@ impl<T> From<(StringMajorUnit, T)> for CoingateRouterData<T> {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CoinagteConnectorMetadataObject {
-    pub currency_id: i32,          //metadata
-    pub platform_id: i32,          //metadata
-    pub ledger_account_id: String, //metadata
+    pub currency_id: i32,
+    pub platform_id: i32,
+    pub ledger_account_id: String,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinagteConnectorMetadataObject {
@@ -184,10 +184,6 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
                     config: "merchant_connector_account.metadata",
                 })?;
 
-        if let Some(a) = item.router_data.request.refund_connector_metadata.clone() {
-            println!("$$$$ refund_connector_metadata: {:?}", a.expose());
-        }
-
         let cryptocurreny_address = item
             .router_data
             .request
@@ -212,6 +208,17 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             field_name: "address",
         })?;
 
+        let email: String = serde_json::from_value::<String>(
+            cryptocurreny_address.get("email").cloned().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "email",
+                }
+            })?,
+        )
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "email",
+        })?;
+
         Ok(Self {
             amount: item.amount.clone(),
             address,
@@ -222,7 +229,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
                     field_name: "refund.reason",
                 },
             )?,
-            email: "swangi.gmail.com".to_string(),
+            email,
             ledger_account_id: metadata.ledger_account_id,
         })
     }

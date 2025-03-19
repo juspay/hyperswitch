@@ -130,7 +130,6 @@ impl ConnectorCommon for Coingate {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$$$ error res {:?}", res.response);
         let response: coingate::CoingateErrorResponse = res
             .response
             .parse_struct("CoingateErrorResponse")
@@ -201,10 +200,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = coingate::CoingateRouterData::from((amount, req));
         let connector_req = coingate::CoingatePaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ auth req {:?}", printrequest);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -236,7 +231,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("$$$$$ auth res {:?}", res.response);
         let response: coingate::CoingatePaymentsResponse = res
             .response
             .parse_struct("Coingate PaymentsAuthorizeResponse")
@@ -398,11 +392,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingat
         )?;
         let connector_router_data = coingate::CoingateRouterData::from((amount, req));
         let connector_req = coingate::CoingateRefundRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -430,7 +420,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingat
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        println!("$$$$$ refund res {:?}", res.response);
         let response: coingate::CoingateRefundResponse = res
             .response
             .parse_struct("coingate RefundResponse")
@@ -502,7 +491,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Coingate 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        println!("$$$$$ refund res {:?}", res.response);
         let response: coingate::CoingateRefundResponse = res
             .response
             .parse_struct("coingate RefundResponse")
