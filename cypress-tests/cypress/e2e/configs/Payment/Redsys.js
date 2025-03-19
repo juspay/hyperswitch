@@ -61,7 +61,6 @@ export const connectorDetails = {
     No3DSManualCapture: getCustomExchange({
       Request: {
         currency: "EUR",
-
         payment_method: "card",
         payment_method_data: {
           card: ThreeDSTestCardDetails,
@@ -114,7 +113,7 @@ export const connectorDetails = {
     ZeroAuthMandate: getCustomExchange({
       Request: {
         currency: "EUR",
-        payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: ThreeDSTestCardDetails,
         },
@@ -125,7 +124,8 @@ export const connectorDetails = {
     }),
     "3DSManualCapture": {
       Request: {
-        payment_method: "card",
+        authentication_type: "three_ds",
+        payment_method_type: "credit",
         payment_method_data: {
           card: ThreeDSTestCardDetails,
         },
@@ -147,6 +147,7 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         payment_method_data: {
           card: ThreeDSTestCardDetails,
