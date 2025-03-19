@@ -16,7 +16,7 @@ describe("Card - SaveCard payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context.only(
+  context(
     "Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]",
     () => {
       let shouldContinue = true; // variable that will be used to skip tests if a previous test fails

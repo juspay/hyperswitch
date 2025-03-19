@@ -70,7 +70,6 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
 
-
 [dev-dependencies]
 fake = "2.9.2"
 proptest = "1.4.0"
