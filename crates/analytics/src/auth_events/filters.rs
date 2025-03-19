@@ -59,4 +59,5 @@ pub struct AuthEventFilterRow {
     pub error_message: Option<String>,
     pub authentication_connector: Option<DBEnumWrapper<AuthenticationConnectors>>,
     pub message_version: Option<String>,
+    pub acs_reference_number: Option<String>,
 }

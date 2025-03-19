@@ -53,6 +53,15 @@ where
                 )
                 .attach_printable("Error adding message version filter")?;
         }
+
+        if !self.acs_reference_number.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    AuthEventDimensions::AcsReferenceNumber,
+                    &self.acs_reference_number,
+                )
+                .attach_printable("Error adding acs reference number filter")?;
+        }
         Ok(())
     }
 }
