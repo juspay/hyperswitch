@@ -2,6 +2,8 @@
 use std::str::FromStr;
 
 use common_enums::enums;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use common_utils::id_type;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -404,7 +406,7 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RevenueRecoveryRecordBackResponse {
-                merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(
+                merchant_reference_id: id_type::PaymentReferenceId::from_str(
                     item.response.id.as_str(),
                 )
                 .change_context(errors::ConnectorError::MissingRequiredField {

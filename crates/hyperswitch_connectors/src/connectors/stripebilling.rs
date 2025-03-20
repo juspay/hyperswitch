@@ -591,14 +591,12 @@ impl
             .to_string();
         match req.request.attempt_status {
             common_enums::AttemptStatus::Charged => Ok(format!(
-                "{}/v1/invoices/{}/pay?paid_out_of_band=true",
+                "{}/v1/invoices/{invoice_id}/pay?paid_out_of_band=true",
                 self.base_url(connectors),
-                invoice_id
             )),
             common_enums::AttemptStatus::Failure => Ok(format!(
-                "{}/v1/invoices/{}/void",
+                "{}/v1/invoices/{invoice_id}/void",
                 self.base_url(connectors),
-                invoice_id
             )),
             _ => Err(errors::ConnectorError::FailedToObtainIntegrationUrl.into()),
         }
