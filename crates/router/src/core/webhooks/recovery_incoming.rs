@@ -72,14 +72,8 @@ pub async fn recovery_incoming_webhook_flow(
         .contains(&connector)
     {
         true => {
-            let additional_revenue_recovery_id = match object_ref_id {
-                webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
-                    webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(
-                        ref id,
-                    ),
-                ) => Ok(id.as_str()),
-                _ => Err(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed),
-            }?;
+
+            let additional_revenue_recovery_id = ObjectReferenceIdTuple(object_ref_id.clone()).get_additional_revenue_recovery_id_as_string()?;
 
             let additional_call_response =
                 AdditionalRevenueRecoveryResponse::handle_additional_recovery_details_call(
@@ -87,7 +81,7 @@ pub async fn recovery_incoming_webhook_flow(
                     &merchant_account,
                     &billing_connector_account,
                     connector_name,
-                    additional_revenue_recovery_id,
+                    &additional_revenue_recovery_id,
                 )
                 .await?
                 .inner();
@@ -97,23 +91,25 @@ pub async fn recovery_incoming_webhook_flow(
     };
 
     // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
+
     let invoice_details = recovery_details
         .as_ref()
-        .map(|data| {
-            Ok(RevenueRecoveryInvoice(
-                revenue_recovery::RevenueRecoveryInvoiceData::from(data),
-            ))
-        })
-        .unwrap_or_else(|| {
-            interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
-                connector_enum,
-                request_details,
-            )
-            .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
-            .attach_printable("Failed while getting revenue recovery invoice details")
-            .map(RevenueRecoveryInvoice)
-        })?;
-
+        .map_or_else(
+            || {
+                interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
+                    connector_enum,
+                    request_details,
+                )
+                .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
+                .attach_printable("Failed while getting revenue recovery invoice details")
+                .map(RevenueRecoveryInvoice)
+            },
+            |data| {
+                Ok(RevenueRecoveryInvoice(
+                    revenue_recovery::RevenueRecoveryInvoiceData::from(data),
+                ))
+            }
+        )?;
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
         .get_payment_intent(
@@ -141,14 +137,9 @@ pub async fn recovery_incoming_webhook_flow(
     let payment_attempt = match event_type.is_recovery_transaction_event() {
         true => {
             // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
-            let invoice_transaction_details = recovery_details
-                .as_ref()
-                .map(|data| {
-                    Ok(RevenueRecoveryAttempt(
-                        revenue_recovery::RevenueRecoveryAttemptData::from(data),
-                    ))
-                })
-                .unwrap_or_else(|| {
+
+            let invoice_transaction_details = recovery_details.as_ref().map_or_else(
+                || {
                     interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
                         connector_enum,
                         request_details,
@@ -160,8 +151,14 @@ pub async fn recovery_incoming_webhook_flow(
                         "Failed to get recovery attempt details from the billing connector",
                     )
                     .map(RevenueRecoveryAttempt)
-                })?;
-
+                },
+                |data| {
+                    Ok(RevenueRecoveryAttempt(
+                        revenue_recovery::RevenueRecoveryAttemptData::from(data),
+                    ))
+                }
+            )?;
+            
             // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
             let payment_merchant_connector_account = invoice_transaction_details
                 .find_payment_merchant_connector_account(
@@ -756,4 +753,18 @@ impl AdditionalRevenueRecoveryRouterData {
     fn inner(self) -> AdditionalRevenueRecoveryDetailsRouterData {
         self.0
     }
+}
+
+pub struct ObjectReferenceIdTuple(webhooks::ObjectReferenceId);
+
+impl ObjectReferenceIdTuple {
+    pub fn get_additional_revenue_recovery_id_as_string(self)-> Result<String,errors::RevenueRecoveryError>{
+        match self.0.clone() {
+            webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
+                webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(data)
+            ) => Ok(data),
+            _ => Err(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
+        }
+    }
+
 }
