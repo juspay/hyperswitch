@@ -6,14 +6,9 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{ PaymentsResponseData,
-        RefundsResponseData,
-    },
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData,},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
-use hyperswitch_interfaces::errors;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::RecoveryRecordBack,
@@ -21,6 +16,10 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
+use hyperswitch_interfaces::errors;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,

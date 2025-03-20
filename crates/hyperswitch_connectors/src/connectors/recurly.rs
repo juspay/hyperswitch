@@ -14,14 +14,11 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData,
-        RefundsResponseData,
-    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -34,8 +31,6 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::connectors::recurly::transformers::RecurlyRecordStatus;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -47,15 +42,14 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Mask;
-use masking::ExposeInterface;
-
+use masking::{ExposeInterface, Mask};
 use transformers as recurly;
-use crate::connectors::recurly::transformers::RecurlyWebhookBody;
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::connectors::recurly::transformers::RecurlyRecordStatus;
 use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils,
+    connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
+    types::ResponseRouterData, utils,
 };
 #[derive(Clone)]
 pub struct Recurly {
@@ -601,17 +595,17 @@ impl
             .get_string_repr()
             .to_string();
 
-        let status = RecurlyRecordStatus::try_from(req.request.attempt_status)
-        .map_err(|_| errors::ConnectorError::NotSupported {
-            message: "Invalid attempt status for Recurly".to_string(),
-            connector: "recurly",
+        let status = RecurlyRecordStatus::try_from(req.request.attempt_status).map_err(|_| {
+            errors::ConnectorError::NotSupported {
+                message: "Invalid attempt status for Recurly".to_string(),
+                connector: "recurly",
+            }
         })?;
-    
-        
+
         let status_endpoint = match status {
             RecurlyRecordStatus::Success => "mark_successful",
             RecurlyRecordStatus::Failure => "mark_failed",
-        }; 
+        };
 
         Ok(format!(
             "{}/invoices/{}/{}",
