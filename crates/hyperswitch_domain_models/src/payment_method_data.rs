@@ -1,5 +1,4 @@
 use api_models::{
-    admin::MerchantConnectorId,
     mandates,
     payment_methods::{self},
     payments::{
@@ -8,7 +7,6 @@ use api_models::{
 };
 use common_enums::enums as api_enums;
 use common_utils::{
-    ext_traits::OptionExt,
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -18,6 +16,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
+use common_utils::ext_traits::OptionExt;
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]

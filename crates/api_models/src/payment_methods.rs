@@ -455,6 +455,22 @@ impl PaymentMethodCreate {
             _ => false,
         }
     }
+    pub fn get_tokenize_connector_id(&self) -> Result<id_type::MerchantConnectorAccountId,  error_stack::Report<errors::ValidationError>> {
+        self.psp_tokenization
+            .clone()
+            .get_required_value("psp_tokenization")?
+            .connector_id
+            .get_required_value("connector_id")
+    }
+
+    // let customer_id = payment_method_create_request.customer_id.to_owned();
+    // let connector_id = payment_method_create_request
+    //     .psp_tokenization
+    //     .clone()
+    //     .get_required_value("psp_tokenization")?
+    //     .connector_id
+    //     .get_required_value("connector_id")?;
+    // let db = &state.store;
 }
 
 #[cfg(all(

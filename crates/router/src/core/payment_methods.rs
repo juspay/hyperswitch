@@ -68,6 +68,7 @@ use super::{
 use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
+    db::errors::ConnectorErrorExt,
     headers, logger,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -78,6 +79,7 @@ use crate::{
         payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
+        Tokenizable
     },
     utils::ext_traits::OptionExt,
 };
@@ -951,7 +953,7 @@ pub async fn create_payment_method_core(
         key_store,
         None,
         &customer_id,
-    )
+    ) 
     .await;
 
     let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
@@ -2680,15 +2682,12 @@ async fn add_token_call_to_store(
     payment_method: &api::PaymentMethodResponse,
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()> {
-    use crate::{db::errors::ConnectorErrorExt, types::Tokenizable};
 
     let customer_id = payment_method_create_request.customer_id.to_owned();
-    let connector_id = payment_method_create_request
-        .psp_tokenization
-        .clone()
-        .get_required_value("psp_tokenization")?
-        .connector_id
-        .get_required_value("connector_id")?;
+    let connector_id = payment_methods::PaymentMethodCreate::get_tokenize_connector_id(
+        payment_method_create_request)
+        .change_context(errors::ApiErrorResponse::MissingRequiredField{field_name: "psp_tokenization.connector_id"})
+        .attach_printable("Failed to get tokenize connector id")?;
     let db = &state.store;
     // call merchant connector account via merchant_connector_id ( connector, connector_auth_type)
     let merchant_connector_account_details = db
@@ -2787,29 +2786,29 @@ async fn add_token_call_to_store(
     ).await?;
 
     let token = payment_method_token_response
-                                    .payment_method_token_result.unwrap_or_else(|err| {
-                                    logger::error!("Failed to create token for payment method session confirm call : {:?}", err);
-                                    None
-                                });
+                                    .payment_method_token_result
+                                    .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+                                        code: err.code,
+                                        message: err.message,
+                                        connector: (merchant_connector_account_details.clone()).connector_name.to_string(),
+                                        status_code: err.status_code,
+                                        reason: err.reason,
+                                    })?;
 
     logger::info!("Tokenization response");
     logger::info!(token =? &token);
 
-    if let Some(token_str) = token {
-        let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
-            Some(token_str), 
-            connector_id.clone()
-        );
+    let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
+        token, 
+        connector_id.clone()
+    );
         
-        let key = format!(
-            "{}_{}_{}", 
-            payment_method.id.get_string_repr(),
-            connector_id.get_string_repr(),
-            common_utils::date_time::now_unix_timestamp()
-        );
+    let key = format!(
+        "single_use_token_{}", 
+        payment_method.id.get_string_repr(),
+    );
         
-        add_token_to_store(&state, key, value).await?;
-    }
+    add_token_to_store(&state, key, value).await?;
 
     Ok(())
 }
@@ -2833,3 +2832,7 @@ async fn add_token_to_store(
 
     Ok(())
 }
+
+
+
+pub struct SingleUseToken(String);
