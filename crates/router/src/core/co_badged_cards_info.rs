@@ -3,7 +3,7 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::co_badged_cards_info::{CoBadgedCardInfo, CoBadgedCardInfoResponse};
 
-use crate::{core::errors, routes, services::logger, types::domain};
+use crate::{configs::settings, core::errors, routes, services::logger, types::domain};
 
 pub struct CoBadgedCardInfoList(Vec<CoBadgedCardInfo>);
 
@@ -12,7 +12,6 @@ impl CoBadgedCardInfoList {
         let card_number = card_number.get_card_isin();
         format!("{:0>19}", card_number)
     }
-
     pub fn is_valid_length(&self) -> bool {
         if self.0.len() < 2 {
             logger::debug!("co-badged cards list length is less than 2");
@@ -142,4 +141,113 @@ pub async fn get_co_badged_cards_info(
         .attach_printable("Failed to construct co-badged card info response")?;
 
     Ok(co_badged_cards_info_response)
+}
+
+pub fn calculate_interchange_fee(
+    network: &enums::CardNetwork,
+    is_regulated: &bool,
+    regulated_name: Option<&String>,
+    amount: f64,
+    debit_routing: &settings::DebitRoutingConfig,
+) -> CustomResult<f64, errors::ApiErrorResponse> {
+    let fee_data = if *is_regulated {
+        &debit_routing.interchange_fee.regulated
+    } else {
+        debit_routing
+            .interchange_fee
+            .non_regulated
+            .0
+            .get("merchant_category_code_0001")
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "interchange fee for merchant category code",
+            })?
+            .get(network)
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "interchange fee for non regulated",
+            })
+            .attach_printable(
+                "Failed to fetch interchange fee for non regulated banks in debit routing",
+            )?
+    };
+
+    let percentage = fee_data.percentage;
+
+    let fixed_amount = fee_data.fixed_amount;
+
+    let mut total_interchange_fee = (amount * percentage / 100.0) + fixed_amount;
+
+    if *is_regulated && regulated_name.is_some() {
+        let fraud_check_fee = debit_routing.fraud_check_fee;
+
+        total_interchange_fee += fraud_check_fee;
+    }
+
+    Ok(total_interchange_fee)
+}
+
+pub fn calculate_network_fee(
+    network: &enums::CardNetwork,
+    amount: f64,
+    debit_routing: &settings::DebitRoutingConfig,
+) -> CustomResult<f64, errors::ApiErrorResponse> {
+    let fee_data = debit_routing
+        .network_fee
+        .get(network)
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "interchange fee for non regulated",
+        })
+        .attach_printable(
+            "Failed to fetch interchange fee for non regulated banks in debit routing",
+        )?;
+    let percentage = fee_data.percentage;
+    let fixed_amount = fee_data.fixed_amount;
+    let total_network_fee = (amount * percentage / 100.0) + fixed_amount;
+    Ok(total_network_fee)
+}
+
+pub fn calculate_total_fees_per_network(
+    co_badged_cards_info_optional: Option<CoBadgedCardInfoResponse>,
+    state: routes::SessionState,
+    amount: f64,
+) -> CustomResult<Option<Vec<(enums::CardNetwork, f64)>>, errors::ApiErrorResponse> {
+    let debit_routing_config = &state.conf.debit_routing_config;
+
+    co_badged_cards_info_optional
+        .map(|co_badged_cards_info| {
+            co_badged_cards_info
+                .card_networks
+                .into_iter()
+                .map(|network| {
+                    let interchange_fee = calculate_interchange_fee(
+                        &network,
+                        &co_badged_cards_info.regulated,
+                        co_badged_cards_info.regulated_name.as_ref(),
+                        amount,
+                        debit_routing_config,
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to calculate debit routing interchange_fee")?;
+
+                    let network_fee = calculate_network_fee(&network, amount, debit_routing_config)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to calculate debit routing network_fee")?;
+
+                    let total_fee = interchange_fee + network_fee;
+                    Ok(Some((network, total_fee)))
+                })
+                .collect::<CustomResult<Option<Vec<(enums::CardNetwork, f64)>>, errors::ApiErrorResponse>>()
+        })
+        .unwrap_or_else(|| Ok(None))
+}
+
+pub fn sort_networks_by_fee(
+    network_fees: Vec<(enums::CardNetwork, f64)>,
+) -> Vec<enums::CardNetwork> {
+    let mut sorted_fees = network_fees;
+    sorted_fees.sort_by(|(_network1, fee1), (_network2, fee2)| fee1.total_cmp(fee2));
+
+    sorted_fees
+        .into_iter()
+        .map(|(network, _fee)| network)
+        .collect()
 }
