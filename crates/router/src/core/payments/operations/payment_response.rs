@@ -370,6 +370,60 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         }
     }
+
+    async fn update_saved_payment_method<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        let merchant_account = merchant_account.clone();
+
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
+            .response
+            .clone()
+            .ok()
+            .and_then(|resp| {
+                if let types::PaymentsResponseData::TransactionResponse {
+                    mandate_reference, ..
+                } = resp
+                {
+                    mandate_reference.map(|mandate_ref| {
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
+                        )
+                    })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or((None, None, None));
+
+        update_connector_mandate_details_for_the_flow(
+            connector_mandate_id,
+            mandate_metadata,
+            connector_mandate_request_reference_id,
+            payment_data,
+        )?;
+
+        update_payment_method_status_and_ntid(
+            state,
+            key_store,
+            payment_data,
+            resp.status,
+            resp.response.clone(),
+            merchant_account.storage_scheme,
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
