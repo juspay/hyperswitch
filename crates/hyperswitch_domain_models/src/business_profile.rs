@@ -927,6 +927,7 @@ pub struct Profile {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]
@@ -974,6 +975,7 @@ pub struct ProfileSetter {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1027,6 +1029,7 @@ impl From<ProfileSetter> for Profile {
             card_testing_guard_config: value.card_testing_guard_config,
             card_testing_secret_key: value.card_testing_secret_key,
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
+            active_surcharge_algorithm_id: value.active_surcharge_algorithm_id,
         }
     }
 }
@@ -1196,6 +1199,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_guard_config,
                     card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                     is_clear_pan_retries_enabled: None,
+                    active_surcharge_algorithm_id: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1243,6 +1247,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1288,6 +1293,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1333,6 +1339,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1378,6 +1385,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1423,6 +1431,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1468,6 +1477,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1513,6 +1523,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1558,6 +1569,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
+                active_surcharge_algorithm_id: None,
             },
         }
     }
@@ -1625,6 +1637,7 @@ impl super::behaviour::Conversion for Profile {
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
             force_3ds_challenge: None,
+            active_surcharge_algorithm_id: self.active_surcharge_algorithm_id,
         })
     }
 
@@ -1712,6 +1725,7 @@ impl super::behaviour::Conversion for Profile {
                     })
                     .await?,
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+                active_surcharge_algorithm_id: item.active_surcharge_algorithm_id,
             })
         }
         .await

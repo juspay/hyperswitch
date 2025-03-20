@@ -2109,6 +2109,9 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    ///active surcharge algorithm id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v1")]

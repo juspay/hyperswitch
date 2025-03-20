@@ -339,6 +339,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -462,6 +463,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]
@@ -509,6 +511,7 @@ impl ProfileUpdateInternal {
             card_testing_guard_config,
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
+            active_surcharge_algorithm_id,
         } = self;
         Profile {
             id: source.id,
@@ -586,6 +589,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
+            active_surcharge_algorithm_id: active_surcharge_algorithm_id
+                .or(source.active_surcharge_algorithm_id),
         }
     }
 }

@@ -218,6 +218,8 @@ diesel::table! {
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
         #[max_length = 64]
+        active_surcharge_algorithm_id -> Nullable<Varchar>,
+        #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -870,6 +872,8 @@ diesel::table! {
         capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 64]
+        surcharge_algorithm_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Varchar,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1312,6 +1316,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        algorithm_type -> AlgorithmType,
     }
 }
 

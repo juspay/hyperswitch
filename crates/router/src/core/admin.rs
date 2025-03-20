@@ -3957,6 +3957,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
+            active_surcharge_algorithm_id: self.active_surcharge_algorithm_id,
         }))
     }
 }

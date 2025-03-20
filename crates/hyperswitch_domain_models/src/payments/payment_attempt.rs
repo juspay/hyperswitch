@@ -443,6 +443,8 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// surcharge algorithm id
+    pub surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 impl PaymentAttempt {
@@ -572,6 +574,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             feature_metadata: None,
+            surcharge_algorithm_id: None,
         })
     }
 
@@ -659,6 +662,7 @@ impl PaymentAttempt {
             feature_metadata: None,
             id,
             card_discovery: None,
+            surcharge_algorithm_id: None,
         })
     }
 
@@ -756,6 +760,7 @@ impl PaymentAttempt {
             }),
             card_discovery: None,
             charges: None,
+            surcharge_algorithm_id: None,
         })
     }
 
@@ -2082,6 +2087,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
+            surcharge_algorithm_id,
             feature_metadata,
         } = self;
 
@@ -2165,6 +2171,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: None,
             capture_before: None,
             charges,
+            surcharge_algorithm_id,
             feature_metadata,
         })
     }
@@ -2279,6 +2286,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
                 feature_metadata: storage_model.feature_metadata.map(From::from),
+                surcharge_algorithm_id: storage_model.surcharge_algorithm_id,
             })
         }
         .await
@@ -2335,6 +2343,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            surcharge_algorithm_id,
         } = self;
 
         let card_network = payment_method_data
@@ -2415,6 +2424,7 @@ impl behaviour::Conversion for PaymentAttempt {
             capture_before: None,
             feature_metadata: feature_metadata.as_ref().map(From::from),
             connector,
+            surcharge_algorithm_id,
         })
     }
 }
