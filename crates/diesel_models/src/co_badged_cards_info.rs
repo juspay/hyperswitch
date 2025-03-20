@@ -19,7 +19,7 @@ pub struct CoBadgedCardInfo {
     pub id: common_utils::id_type::CoBadgedCardsInfoID,
     pub card_bin_min: i64,
     pub card_bin_max: i64,
-    pub issuing_bank_name: String,
+    pub issuing_bank_name: Option<String>,
     pub card_network: enums::CardNetwork,
     pub country: enums::CountryAlpha2,
     pub card_type: enums::CardType,

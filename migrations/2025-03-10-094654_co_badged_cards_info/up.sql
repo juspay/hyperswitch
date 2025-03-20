@@ -6,7 +6,7 @@ CREATE TABLE co_badged_cards_info (
     id VARCHAR(64) PRIMARY KEY,
     card_bin_min BIGINT NOT NULL,
     card_bin_max BIGINT NOT NULL,
-    issuing_bank_name TEXT NOT NULL,
+    issuing_bank_name TEXT,
     card_network VARCHAR(32) NOT NULL,
     country "CountryAlpha2" NOT NULL,
     card_type "CardType" NOT NULL,

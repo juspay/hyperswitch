@@ -127,15 +127,7 @@ pub async fn get_co_badged_cards_info(
                 .and_then(|filtered_co_badged_card_infos_list| {
                     filtered_co_badged_card_infos_list
                         .is_valid_length()
-                        .then_some(filtered_co_badged_card_infos_list)
-                })
-                .and_then(|filtered_co_badged_card_infos_list| {
-                    filtered_co_badged_card_infos_list
-                        .has_same_issuer()
-                        .and_then(|has_same_issuer| {
-                            Ok(has_same_issuer.then_some(filtered_co_badged_card_infos_list))
-                        })
-                        .transpose()
+                        .then_some(Ok(filtered_co_badged_card_infos_list))
                 })
                 .transpose()
         }
