@@ -51,6 +51,7 @@ use crate::{
     connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
     types::ResponseRouterData, utils,
 };
+
 #[derive(Clone)]
 pub struct Recurly {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
@@ -151,6 +152,7 @@ impl ConnectorCommon for Recurly {
             auth.api_key.expose().into_masked(),
         )])
     }
+    
     fn build_error_response(
         &self,
         res: Response,
