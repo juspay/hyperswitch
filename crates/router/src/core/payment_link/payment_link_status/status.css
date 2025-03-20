@@ -137,6 +137,10 @@ body > div {
   font-size: 13px;
 }
 
+.hidden {
+  display: none;
+}
+
 .ellipsis-container-2 {
   height: 2.5em;
   overflow: hidden;
