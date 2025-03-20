@@ -3740,7 +3740,6 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Placetopay,
     connectors::Rapyd,
     connectors::Razorpay,
-    // connectors::Recurly,
     connectors::Redsys,
     connectors::Shift4,
     connectors::Stax,
