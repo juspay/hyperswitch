@@ -77,7 +77,7 @@ impl<'a> KafkaRefundEvent<'a> {
 pub struct KafkaRefundEvent<'a> {
     pub id: &'a id_type::GlobalRefundId,
     pub merchant_reference_id: &'a id_type::RefundReferenceId,
-    pub payment_id: &'a id_type::PaymentId,
+    pub payment_id: &'a id_type::GlobalPaymentId,
     pub merchant_id: &'a id_type::MerchantId,
     pub connector_transaction_id: &'a String,
     pub connector: &'a String,
@@ -96,7 +96,7 @@ pub struct KafkaRefundEvent<'a> {
     #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
     pub description: Option<&'a String>,
-    pub attempt_id: &'a String,
+    pub attempt_id: &'a id_type::GlobalAttemptId,
     pub refund_reason: Option<&'a String>,
     pub refund_error_code: Option<&'a String>,
     pub profile_id: Option<&'a id_type::ProfileId>,
@@ -158,7 +158,7 @@ impl super::KafkaMessage for KafkaRefundEvent<'_> {
             "{}_{}_{}_{}",
             self.merchant_id.get_string_repr(),
             self.payment_id.get_string_repr(),
-            self.attempt_id,
+            self.attempt_id.get_string_repr(),
             self.merchant_reference_id.get_string_repr()
         )
     }
