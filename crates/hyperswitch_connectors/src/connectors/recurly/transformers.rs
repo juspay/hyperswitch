@@ -4,26 +4,27 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{
-        refunds::{Execute, RSync},
-        RecoveryRecordBack,
-    },
-    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
-    router_response_types::{
-        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{ PaymentsResponseData,
         RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData,},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::RevenueRecoveryRecordBackRouterData,
+};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
-
 //TODO: Fill the struct with respective fields
 pub struct RecurlyRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -306,14 +307,11 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyRecordbackResponse {
-    pub invoice: RecurlyRecordbackInvoice,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RecurlyRecordbackInvoice {
+    // inovice id
     pub id: common_utils::id_type::PaymentReferenceId,
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
         ResponseRouterData<
@@ -333,7 +331,7 @@ impl
             RevenueRecoveryRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let merchant_reference_id = item.response.invoice.id;
+        let merchant_reference_id = item.response.id;
         Ok(Self {
             response: Ok(RevenueRecoveryRecordBackResponse {
                 merchant_reference_id,
