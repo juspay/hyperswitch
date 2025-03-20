@@ -2834,7 +2834,7 @@
       }
     },
     "/v2/customers/{id}/saved-payment-methods": {
-      "delete": {
+      "get": {
         "tags": [
           "Payment Methods"
         ],
@@ -7666,6 +7666,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "shift4",
           "square",
           "stax",
@@ -8651,7 +8652,8 @@
           "recurring_enabled",
           "created",
           "requires_cvv",
-          "is_default"
+          "is_default",
+          "psp_tokenization_enabled"
         ],
         "properties": {
           "id": {
@@ -8730,6 +8732,10 @@
               }
             ],
             "nullable": true
+          },
+          "psp_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -11603,7 +11609,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -11745,7 +11751,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -12363,7 +12369,6 @@
         "type": "string",
         "enum": [
           "orchestration",
-          "legacy",
           "vault",
           "recon",
           "recovery",
@@ -12590,6 +12595,69 @@
           "entity": {
             "type": "string",
             "example": "12345"
+          }
+        }
+      },
+      "NetworkTokenDetailsPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "last4_digits": {
+            "type": "string",
+            "nullable": true
+          },
+          "issuer_country": {
+            "type": "string",
+            "nullable": true
+          },
+          "network_token_expiry_month": {
+            "type": "string",
+            "nullable": true
+          },
+          "network_token_expiry_year": {
+            "type": "string",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "saved_to_locker": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NetworkTokenResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/NetworkTokenDetailsPaymentMethod"
           }
         }
       },
@@ -13980,7 +14048,7 @@
       "PaymentConnectorTransmission": {
         "type": "string",
         "enum": [
-          "ConnectorCallFailed",
+          "ConnectorCallUnsuccessful",
           "ConnectorCallSucceeded"
         ]
       },
@@ -20397,6 +20465,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "riskified",
           "shift4",
           "signifyd",

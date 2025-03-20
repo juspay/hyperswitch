@@ -9765,6 +9765,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "shift4",
           "square",
           "stax",
@@ -13933,7 +13934,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -14174,7 +14175,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -15093,7 +15094,6 @@
         "type": "string",
         "enum": [
           "orchestration",
-          "legacy",
           "vault",
           "recon",
           "recovery",
@@ -24893,6 +24893,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "riskified",
           "shift4",
           "signifyd",
