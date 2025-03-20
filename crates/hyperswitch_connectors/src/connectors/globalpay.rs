@@ -561,7 +561,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
-            .parse_struct("globalpay PaymentsResponse")
+            .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
