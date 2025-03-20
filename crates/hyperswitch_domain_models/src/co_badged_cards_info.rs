@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
-    id_type::{self, GenerateId},
+    id_type,
     types::keymanager,
 };
 use masking::Secret;
@@ -14,7 +14,7 @@ pub struct CoBadgedCardInfo {
     pub id: id_type::CoBadgedCardsInfoID,
     pub card_bin_min: i64,
     pub card_bin_max: i64,
-    pub issuing_bank_name: String,
+    pub issuing_bank_name: Option<String>,
     pub card_network: enums::CardNetwork,
     pub country: enums::CountryAlpha2,
     pub card_type: enums::CardType,
@@ -53,48 +53,6 @@ pub struct UpdateCoBadgedCardInfo {
     pub domestic_only: Option<bool>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
-}
-
-impl CoBadgedCardInfo {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        card_bin_min: i64,
-        card_bin_max: i64,
-        issuing_bank_name: String,
-        card_network: enums::CardNetwork,
-        country: enums::CountryAlpha2,
-        card_type: enums::CardType,
-        regulated: bool,
-        regulated_name: Option<String>,
-        prepaid: bool,
-        reloadable: bool,
-        pan_or_token: enums::PanOrToken,
-        card_bin_length: i16,
-        card_brand_is_additional: bool,
-        domestic_only: bool,
-        last_updated_provider: Option<String>,
-    ) -> Self {
-        Self {
-            id: id_type::CoBadgedCardsInfoID::generate(),
-            card_bin_min,
-            card_bin_max,
-            issuing_bank_name,
-            card_network,
-            country,
-            card_type,
-            regulated,
-            regulated_name,
-            prepaid,
-            reloadable,
-            pan_or_token,
-            card_bin_length,
-            card_brand_is_additional,
-            domestic_only,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            last_updated_provider,
-        }
-    }
 }
 
 #[async_trait::async_trait]
