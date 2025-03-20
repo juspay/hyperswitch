@@ -958,6 +958,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         metadata: payment_data.payment_intent.metadata,
         minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+        capture_method: Some(payment_data.payment_intent.capture_method),
+        complete_authorize_url,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4001,6 +4003,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             &attempt.merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
 
         Ok(Self {
             currency: payment_data.currency,
@@ -4032,6 +4040,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
             webhook_url,
+            complete_authorize_url,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }
