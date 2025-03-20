@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.10.0-hotfix5
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] send xid as none for external 3ds payments ([#7576](https://github.com/juspay/hyperswitch/pull/7576)) ([`3efc99f`](https://github.com/juspay/hyperswitch/commit/3efc99f6ae2cf18bb7f9407ab30d684c69a61f89))
+
+**Full Changelog:** [`2025.03.10.0-hotfix4...2025.03.10.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.03.10.0-hotfix4...2025.03.10.0-hotfix5)
+
+
+- - -
+
 ## 2025.03.10.0-hotfix4
 
 ### Bug Fixes
