@@ -154,6 +154,10 @@ bg_metrics_collection_interval_in_secs = 15           # Interval for collecting 
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
 redis_lock_expiry_seconds = 180             # Seconds before the redis lock expires
 
+[webhooks]
+outgoing_enabled = true
+redis_lock_expiry_seconds = 180            # Seconds before the redis lock expires
+
 # Main SQL data store credentials
 [master_database]
 username = "db_user"      # DB Username

@@ -762,6 +762,7 @@ pub struct DrainerSettings {
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
+    pub redis_lock_expiry_seconds: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
