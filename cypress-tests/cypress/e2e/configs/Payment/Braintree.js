@@ -138,7 +138,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+          error_message:
+            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
         },
       },
     },
@@ -150,7 +151,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+          error_message:
+            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
         },
       },
     },
@@ -162,7 +164,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+          error_message:
+            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
         },
       },
     },
@@ -174,7 +177,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+          error_message:
+            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
         },
       },
     },
