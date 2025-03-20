@@ -99,6 +99,7 @@ pub struct Connectors {
     pub tsys: ConnectorParams,
     pub unified_authentication_service: ConnectorParams,
     pub volt: ConnectorParams,
+    pub wechatpay: ConnectorParams,
     pub wellsfargo: ConnectorParams,
     pub wellsfargopayout: ConnectorParams,
     pub wise: ConnectorParams,
