@@ -1,3 +1,4 @@
 pub struct GetAdditionalRevenueRecoveryDetails;
-#[derive(Clone)]
+
+#[derive(Debug, Clone)]
 pub struct RecoveryRecordBack;

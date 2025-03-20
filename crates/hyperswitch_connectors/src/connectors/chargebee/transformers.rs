@@ -2,21 +2,23 @@
 use std::str::FromStr;
 
 use common_enums::enums;
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::ByteSliceExt,
-    types::{MinorUnit, StringMinorUnit},
-};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        RecoveryRecordBack,
+    },
+    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_response_types::{
+        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
+        RefundsResponseData,
+    },
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -25,18 +27,17 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{self, PaymentsAuthorizeRequestData},
 };
 
 //TODO: Fill the struct with respective fields
 pub struct ChargebeeRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for ChargebeeRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(MinorUnit, T)> for ChargebeeRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -47,7 +48,7 @@ impl<T> From<(StringMinorUnit, T)> for ChargebeeRouterData<T> {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct ChargebeePaymentsRequest {
-    amount: StringMinorUnit,
+    amount: MinorUnit,
     card: ChargebeeCard,
 }
 
@@ -75,7 +76,7 @@ impl TryFrom<&ChargebeeRouterData<&PaymentsAuthorizeRouterData>> for ChargebeePa
                     complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.amount.clone(),
+                    amount: item.amount,
                     card,
                 })
             }
@@ -84,10 +85,25 @@ impl TryFrom<&ChargebeeRouterData<&PaymentsAuthorizeRouterData>> for ChargebeePa
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct ChargebeeAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) full_access_key_v1: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChargebeeMetadata {
+    pub(super) site: Secret<String>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for ChargebeeMetadata {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
 }
 
 impl TryFrom<&ConnectorAuthType> for ChargebeeAuthType {
@@ -95,7 +111,7 @@ impl TryFrom<&ConnectorAuthType> for ChargebeeAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+                full_access_key_v1: api_key.clone(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -158,7 +174,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargebeePaymentsResponse, T, PaymentsR
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct ChargebeeRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: MinorUnit,
 }
 
 impl<F> TryFrom<&ChargebeeRouterData<&RefundsRouterData<F>>> for ChargebeeRefundRequest {
@@ -229,13 +245,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ChargebeeErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub api_error_code: String,
     pub message: String,
-    pub reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -505,6 +518,130 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             amount: item.content.invoice.total,
             currency: item.content.invoice.currency_code,
             merchant_reference_id,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChargebeeRecordPaymentRequest {
+    #[serde(rename = "transaction[amount]")]
+    pub amount: MinorUnit,
+    #[serde(rename = "transaction[payment_method]")]
+    pub payment_method: ChargebeeRecordPaymentMethod,
+    #[serde(rename = "transaction[id_at_gateway]")]
+    pub connector_payment_id: Option<String>,
+    #[serde(rename = "transaction[status]")]
+    pub status: ChargebeeRecordStatus,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeRecordPaymentMethod {
+    Other,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeRecordStatus {
+    Success,
+    Failure,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl TryFrom<&ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>>
+    for ChargebeeRecordPaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+        Ok(Self {
+            amount: req.amount,
+            payment_method: ChargebeeRecordPaymentMethod::Other,
+            connector_payment_id: req
+                .connector_transaction_id
+                .as_ref()
+                .map(|connector_payment_id| connector_payment_id.get_id().to_string()),
+            status: ChargebeeRecordStatus::try_from(req.attempt_status)?,
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(status: enums::AttemptStatus) -> Result<Self, Self::Error> {
+        match status {
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Success),
+            enums::AttemptStatus::Failure
+            | enums::AttemptStatus::CaptureFailed
+            | enums::AttemptStatus::RouterDeclined => Ok(Self::Failure),
+            enums::AttemptStatus::AuthenticationFailed
+            | enums::AttemptStatus::Started
+            | enums::AttemptStatus::AuthenticationPending
+            | enums::AttemptStatus::AuthenticationSuccessful
+            | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::AuthorizationFailed
+            | enums::AttemptStatus::Authorizing
+            | enums::AttemptStatus::CodInitiated
+            | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidInitiated
+            | enums::AttemptStatus::CaptureInitiated
+            | enums::AttemptStatus::VoidFailed
+            | enums::AttemptStatus::AutoRefunded
+            | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::Pending
+            | enums::AttemptStatus::PaymentMethodAwaited
+            | enums::AttemptStatus::ConfirmationAwaited
+            | enums::AttemptStatus::DeviceDataCollectionPending => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Record back flow is only supported for terminal status".to_string(),
+                    connector: "chargebee",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRecordbackResponse {
+    pub invoice: ChargebeeRecordbackInvoice,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRecordbackInvoice {
+    pub id: common_utils::id_type::PaymentReferenceId,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            RecoveryRecordBack,
+            ChargebeeRecordbackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    > for RevenueRecoveryRecordBackRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            RecoveryRecordBack,
+            ChargebeeRecordbackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_reference_id = item.response.invoice.id;
+        Ok(Self {
+            response: Ok(RevenueRecoveryRecordBackResponse {
+                merchant_reference_id,
+            }),
+            ..item.data
         })
     }
 }

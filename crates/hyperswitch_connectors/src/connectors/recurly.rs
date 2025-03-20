@@ -170,6 +170,8 @@ impl ConnectorCommon for Recurly {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

@@ -23,6 +23,8 @@ pub struct AuthEventFilters {
     pub authentication_connector: Vec<AuthenticationConnectors>,
     #[serde(default)]
     pub message_version: Vec<String>,
+    #[serde(default)]
+    pub acs_reference_number: Vec<String>,
 }
 
 #[derive(
@@ -50,6 +52,7 @@ pub enum AuthEventDimensions {
     ErrorMessage,
     AuthenticationConnector,
     MessageVersion,
+    AcsReferenceNumber,
 }
 
 #[derive(
@@ -135,6 +138,7 @@ pub struct AuthEventMetricsBucketIdentifier {
     pub error_message: Option<String>,
     pub authentication_connector: Option<AuthenticationConnectors>,
     pub message_version: Option<String>,
+    pub acs_reference_number: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -151,6 +155,7 @@ impl AuthEventMetricsBucketIdentifier {
         error_message: Option<String>,
         authentication_connector: Option<AuthenticationConnectors>,
         message_version: Option<String>,
+        acs_reference_number: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -160,6 +165,7 @@ impl AuthEventMetricsBucketIdentifier {
             error_message,
             authentication_connector,
             message_version,
+            acs_reference_number,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -173,6 +179,7 @@ impl Hash for AuthEventMetricsBucketIdentifier {
         self.authentication_type.hash(state);
         self.authentication_connector.hash(state);
         self.message_version.hash(state);
+        self.acs_reference_number.hash(state);
         self.error_message.hash(state);
         self.time_bucket.hash(state);
     }
