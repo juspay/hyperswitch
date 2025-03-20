@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::Execute,
     router_request_types::{
         BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreProcessingData, ResponseId,
+        PaymentsCaptureData, PaymentsPreProcessingData, ResponseId, PaymentsSyncData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
@@ -29,9 +29,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as _,
+        self as connector_utils, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -993,7 +991,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
             }
         };
         Ok(Self {
-            status: enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Pending, ////sssssssssssss
             response,
             ..item.data
         })
@@ -1652,7 +1650,7 @@ fn construct_sync_request(
 
     let body = format!(
         r#"<soapenv:Envelope xmlns:soapenv="{}" xmlns:web="{}"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[{}]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>"#,
-        SOAP_ENV_NAMESPACE,
+        common_utils::consts::SOAP_ENV_NAMESPACE,
         XMLNS_WEB_URL,
         cdata
     );
@@ -1669,4 +1667,180 @@ pub fn build_payment_sync_request(
        let connector_transaction_id = item.request.connector_transaction_id.get_connector_transaction_id()
        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
        construct_sync_request(connector_transaction_id, transaction_type, auth)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "soapenv:envelope")]
+pub struct RedsysSyncResponse {
+    #[serde(rename = "@xmlns:soapenv")]
+    xmlns_soapenv: String,
+    #[serde(rename = "@xmlns:soapenc")]
+    xmlns_soapenc: String,
+    #[serde(rename = "@xmlns:xsd")]
+    xmlns_xsd: String,
+    #[serde(rename = "@xmlns:xsi")]
+    xmlns_xsi: String,
+    #[serde(rename = "header")]
+    header: Option<SoapHeader>,
+    #[serde(rename = "body")]
+    body: SyncResponseBody,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SoapHeader {}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct SyncResponseBody {
+    consultaoperacionesresponse: ConsultaOperacionesResponse,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct ConsultaOperacionesResponse {
+    #[serde(rename = "@xmlns:p259")]
+    xmlns_p259: String,
+    consultaoperacionesreturn: ConsultaOperacionesReturn,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct ConsultaOperacionesReturn {
+    messages: MessagesResponseData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct MessagesResponseData {
+    version: VersionResponseData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct VersionResponseData {
+    #[serde(rename = "@ds_version")]
+    ds_version: String,
+    message: MessageResponseType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MessageResponseType {
+   SyncResponse(RedsysSyncResponseData),
+   ErrorResponse(RedsysSyncErrorData),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct RedsysSyncErrorData {
+    errormsg: SyncErrorCode,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SyncErrorCode {
+    ds_errorcode: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct MessageResponseData {
+    response: RedsysSyncResponseData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RedsysSyncResponseData {
+    ds_order: String,
+    ds_transactiontype: String,
+    ds_amount:Option<String>,
+    ds_currency: Option<String>,
+    ds_securepayment: Option<String>,
+    ds_state: Option<String>,
+    ds_response: Option<DsResponse>,
+}
+impl<F>
+    TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, PaymentsResponseData>>
+    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            RedsysSyncResponse,
+            PaymentsSyncData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match item.response.body.consultaoperacionesresponse.consultaoperacionesreturn.messages.version.message {
+            MessageResponseType::ErrorResponse(error_data) => {
+                let error_code = error_data.errormsg.ds_errorcode.clone();
+                let response = Err(ErrorResponse {
+                    code: error_code.clone(),
+                    message: error_code.clone(),
+                    reason: Some(error_code),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
+                });
+                (item.data.status, response)
+            }
+            MessageResponseType::SyncResponse(sync_response) => {
+                if let Some(ds_response) = sync_response.ds_response {
+                    let status = get_redsys_attempt_status(ds_response.clone(), item.data.request.capture_method)?;
+
+                    if connector_utils::is_payment_failure(status) {
+                        let response = Err(ErrorResponse {
+                            status_code: item.http_code,
+                            code: ds_response.0.clone(),
+                            message: ds_response.0.clone(),
+                            reason: Some(ds_response.0.clone()),
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
+                        });
+                        (status, response)
+                    } else {
+
+                    let response = Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(sync_response.ds_order.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(sync_response.ds_order.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    });
+                    (status, response)
+                    }
+                } else {
+                    // When the payment is in authentication or still processing
+                    let response = Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(sync_response.ds_order.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(sync_response.ds_order.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    });
+
+                    (item.data.status, response)
+                }
+            }
+        };
+
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
 }

@@ -46,7 +46,7 @@ urlencoding = "2.1.3"
 uuid = { version = "1.8.0", features = ["v4"] }
 lazy_static = "1.4.0"
 unicode-normalization = "0.1.21"
-
+html-escape = "0.2"
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"], default-features = false }
 cards = { version = "0.1.0", path = "../cards" }

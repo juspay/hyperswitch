@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, XmlExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -624,8 +624,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Redsys {
     fn get_headers(
         &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let headers = vec![
             (headers::CONTENT_TYPE.to_string(),
@@ -640,7 +640,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
 
     fn get_url(
         &self,
-        req: &PaymentsSyncRouterData,
+        _req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         // Ok(format!("https://webhook.site/381f9fe3-bed9-4ba2-b81f-805083f919f4"))
@@ -675,24 +675,30 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
                 .build(),
         ))
     }
-    // fn handle_response(
-    //     &self,
-    //     data: &PaymentsSyncRouterData,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    //     res: Response,
-    // ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-    //     let response: cybersource::CybersourceTransactionResponse = res
-    //         .response
-    //         .parse_struct("Cybersource PaymentSyncResponse")
-    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-    //     event_builder.map(|i| i.set_response_body(&response));
-    //     router_env::logger::info!(connector_response=?response);
-    //     RouterData::try_from(ResponseRouterData {
-    //         response,
-    //         data: data.clone(),
-    //         http_code: res.status_code,
-    //     })
-    // }
+    fn handle_response(
+        &self,
+        data: &PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        let response = String::from_utf8(res.response.to_vec())
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_data = html_escape::decode_html_entities(
+            &response,
+        ).to_ascii_lowercase();
+        print!("ssssssss response_data: {}", response_data);
+        let response = response_data
+            .parse_xml::<redsys::RedsysSyncResponse>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
     fn get_error_response(
         &self,
         res: Response,
