@@ -4577,7 +4577,7 @@ where
                         > = connector_metadata.clone().and_then(|metadata| {
                             metadata
                                 .parse_value("PaymentsConnectorThreeDsInvokeData")
-                                .ok()  // "ThreeDsInvokeData was not found; proceeding with the payment flow without triggering the ThreeDS invoke action"
+                                .ok() // "ThreeDsInvokeData was not found; proceeding with the payment flow without triggering the ThreeDS invoke action"
                         });
                         three_ds_invoke_data.is_none()
                     }
