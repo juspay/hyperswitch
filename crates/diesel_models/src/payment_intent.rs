@@ -62,7 +62,7 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -149,7 +149,8 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -330,7 +331,8 @@ pub struct PaymentIntentNew {
     pub apply_mit_exemption: Option<bool>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -400,7 +402,8 @@ pub struct PaymentIntentNew {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -524,7 +527,7 @@ pub struct PaymentIntentUpdateFields {
     pub customer_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -557,7 +560,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -599,7 +602,7 @@ pub struct PaymentIntentUpdateInternal {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub updated_by: String,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -643,7 +646,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -686,7 +689,7 @@ impl PaymentIntentUpdate {
             shipping_details,
             is_payment_processor_token_flow,
             tax_details,
-            force_3ds_challenge,
+            force_3ds_challenge_overwrite,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -732,7 +735,8 @@ impl PaymentIntentUpdate {
             is_payment_processor_token_flow: is_payment_processor_token_flow
                 .or(source.is_payment_processor_token_flow),
             tax_details: tax_details.or(source.tax_details),
-            force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
+            force_3ds_challenge_overwrite: force_3ds_challenge_overwrite
+                .or(source.force_3ds_challenge_overwrite),
             ..source
         }
     }
@@ -782,7 +786,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -822,7 +826,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count: None,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 tax_details: None,
-                force_3ds_challenge: value.force_3ds_challenge,
+                force_3ds_challenge_overwrite: value.force_3ds_challenge_overwrite,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -869,7 +873,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -912,7 +916,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -956,7 +960,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1007,7 +1011,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1050,7 +1054,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1094,7 +1098,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1137,7 +1141,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1180,7 +1184,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1222,7 +1226,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1261,7 +1265,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1302,7 +1306,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1343,7 +1347,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1382,7 +1386,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1426,7 +1430,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details,
                 is_payment_processor_token_flow: None,
-                force_3ds_challenge: None,
+                force_3ds_challenge_overwrite: None,
             },
         }
     }

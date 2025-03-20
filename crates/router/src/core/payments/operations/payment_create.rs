@@ -1516,7 +1516,7 @@ impl PaymentCreate {
                 }),
                 payment_method_type: None,
             });
-        let force_3ds_challenge = request
+        let force_3ds_challenge_trigger = request
             .force_3ds_challenge
             .unwrap_or(business_profile.force_3ds_challenge);
 
@@ -1580,7 +1580,8 @@ impl PaymentCreate {
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             platform_merchant_id: platform_merchant_account
                 .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
-            force_3ds_challenge: Some(force_3ds_challenge),
+            force_3ds_challenge_overwrite: request.force_3ds_challenge,
+            force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
         })
     }
 

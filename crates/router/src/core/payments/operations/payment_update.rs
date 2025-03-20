@@ -446,9 +446,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        payment_intent.force_3ds_challenge = request
+        payment_intent.force_3ds_challenge_overwrite = request
             .force_3ds_challenge
-            .or(payment_intent.force_3ds_challenge);
+            .or(payment_intent.force_3ds_challenge_overwrite);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -936,7 +936,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_details,
                     is_payment_processor_token_flow: None,
                     tax_details: None,
-                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                    force_3ds_challenge_overwrite: payment_data
+                        .payment_intent
+                        .force_3ds_challenge_overwrite,
                 })),
                 key_store,
                 storage_scheme,
