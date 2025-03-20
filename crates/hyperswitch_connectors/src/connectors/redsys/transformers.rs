@@ -895,14 +895,11 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             }) => (connector_metadata.clone(), order_id.clone()),
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let threeds_invoke_meta_data =
-            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                    config: "metadata",
-                })?;
+        let threeds_meta_data =
+            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
-            .set_three_d_s_server_trans_i_d(threeds_invoke_meta_data.three_d_s_server_trans_i_d)
-            .set_protocol_version(threeds_invoke_meta_data.message_version)
+            .set_three_d_s_server_trans_i_d(threeds_meta_data.three_d_s_server_trans_i_d)
+            .set_protocol_version(threeds_meta_data.message_version)
             .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
             .add_browser_data(item.router_data.request.get_browser_info()?)?
             .set_three_d_s_comp_ind(ThreeDSCompInd::N)
