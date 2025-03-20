@@ -145,7 +145,7 @@ pub struct Settings<S: SecretState> {
 pub struct DebitRoutingConfig {
     pub network_fee: HashMap<enums::CardNetwork, NetworkProcessingData>,
     pub interchange_fee: NetworkInterchangeFee,
-    pub fraud_check_fee: String,
+    pub fraud_check_fee: f64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -155,14 +155,14 @@ pub struct NetworkInterchangeFee {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct NoneRegulatedNetworkProcessingData {
-    pub merchant_category_code_0001: HashMap<enums::CardNetwork, NetworkProcessingData>,
-}
+pub struct NoneRegulatedNetworkProcessingData(
+    pub HashMap<String, HashMap<enums::CardNetwork, NetworkProcessingData>>,
+);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkProcessingData {
-    pub percentage: String,
-    pub fixed_amount: String,
+    pub percentage: f64,
+    pub fixed_amount: f64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

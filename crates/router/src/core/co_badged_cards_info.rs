@@ -156,7 +156,11 @@ pub fn calculate_interchange_fee(
         debit_routing
             .interchange_fee
             .non_regulated
-            .merchant_category_code_0001
+            .0
+            .get("merchant_category_code_0001")
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "interchange fee for merchant category code",
+            })?
             .get(network)
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "interchange fee for non regulated",
@@ -166,28 +170,14 @@ pub fn calculate_interchange_fee(
             )?
     };
 
-    let percentage = fee_data
-        .percentage
-        .parse::<f64>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert percentage to f64 in interchange fee calculation")?;
+    let percentage = fee_data.percentage;
 
-    let fixed_amount = fee_data
-        .fixed_amount
-        .parse::<f64>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert fixed amount to f64 in interchange fee calculation")?;
+    let fixed_amount = fee_data.fixed_amount;
 
     let mut total_interchange_fee = (amount * percentage / 100.0) + fixed_amount;
 
     if *is_regulated && regulated_name.is_some() {
-        let fraud_check_fee = debit_routing
-            .fraud_check_fee
-            .parse::<f64>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to convert fraud check fee to f64 in interchange fee calculation",
-            )?;
+        let fraud_check_fee = debit_routing.fraud_check_fee;
 
         total_interchange_fee += fraud_check_fee;
     }
@@ -209,20 +199,8 @@ pub fn calculate_network_fee(
         .attach_printable(
             "Failed to fetch interchange fee for non regulated banks in debit routing",
         )?;
-    let percentage = fee_data
-        .percentage
-        .parse::<f64>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to convert card number to integer in co-badged cards info flow",
-        )?;
-    let fixed_amount = fee_data
-        .fixed_amount
-        .parse::<f64>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to convert card number to integer in co-badged cards info flow",
-        )?;
+    let percentage = fee_data.percentage;
+    let fixed_amount = fee_data.fixed_amount;
     let total_network_fee = (amount * percentage / 100.0) + fixed_amount;
     Ok(total_network_fee)
 }
@@ -264,8 +242,12 @@ pub fn calculate_total_fees_per_network(
 
 pub fn sort_networks_by_fee(
     network_fees: Vec<(enums::CardNetwork, f64)>,
-) -> Vec<(enums::CardNetwork, f64)> {
+) -> Vec<enums::CardNetwork> {
     let mut sorted_fees = network_fees;
     sorted_fees.sort_by(|(_network1, fee1), (_network2, fee2)| fee1.total_cmp(fee2));
+
     sorted_fees
+        .into_iter()
+        .map(|(network, _fee)| network)
+        .collect()
 }
