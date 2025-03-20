@@ -547,6 +547,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
         ))
     }
 
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
     fn handle_response(
         &self,
         data: &PaymentsSyncRouterData,
@@ -574,14 +582,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
             is_multiple_capture_sync,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
     }
 
     fn get_multiple_capture_sync_method(
