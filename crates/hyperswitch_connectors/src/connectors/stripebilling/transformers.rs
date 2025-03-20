@@ -2,6 +2,8 @@
 use std::str::FromStr;
 
 use common_enums::enums;
+#[cfg(feature = "v2")]
+use common_utils::id_type;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -332,7 +334,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: StripebillingInvoiceBody) -> Result<Self, Self::Error> {
         let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
+            id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             amount: item.data.object.amount,
@@ -369,7 +371,7 @@ pub struct StripePaymentMethodDetails {
     pub card_funding_type: StripeCardFundingTypeDetails,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripebillingPaymentMethod {
     Card,
@@ -380,18 +382,16 @@ pub struct StripeCardFundingTypeDetails {
     pub funding: StripebillingFundingTypes,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename = "snake_case")]
 pub enum StripebillingFundingTypes {
     #[serde(rename = "credit")]
     Credit,
     #[serde(rename = "debit")]
     Debit,
-    #[serde(rename = "prepaid")]
-    Prepaid,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripebillingChargeStatus {
     Succeeded,
@@ -401,7 +401,7 @@ pub enum StripebillingChargeStatus {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 // This is the default hard coded mca Id to find the stripe account associated with the stripe biliing
 // Context : Since we dont have the concept of connector_reference_id in stripebilling because payments always go through stripe.
-// While creating stripebilling we will hard code the stripe mca id to string "stripebilling" in mca featrue metadata. So we have to pass the same as account_reference_id here in response.
+// While creating stripebilling we will hard code the stripe account id to string "stripebilling" in mca featrue metadata. So we have to pass the same as account_reference_id here in response.
 const MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA: &str = "stripebilling";
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -424,9 +424,12 @@ impl
             GetAdditionalRevenueRecoveryResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.response.invoice_id)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = id_type::PaymentReferenceId::from_str(
+            &item.response.invoice_id,
+        )
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "invoice_id",
+        })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
             item.response.charge_id,
         ));
@@ -475,7 +478,7 @@ impl From<StripebillingFundingTypes> for common_enums::PaymentMethodType {
     fn from(funding: StripebillingFundingTypes) -> Self {
         match funding {
             StripebillingFundingTypes::Credit => Self::Credit,
-            StripebillingFundingTypes::Debit | StripebillingFundingTypes::Prepaid => Self::Debit,
+            StripebillingFundingTypes::Debit => Self::Debit,
         }
     }
 }

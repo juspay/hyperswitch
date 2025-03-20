@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
 use super::ConnectorCommon;
 use super::ConnectorIntegration;
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 /// trait RevenueRecovery
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub trait RevenueRecovery:
     ConnectorCommon + AdditionalRevenueRecovery + RevenueRecoveryRecordBack
 {

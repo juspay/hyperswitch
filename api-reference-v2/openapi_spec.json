@@ -2834,7 +2834,7 @@
       }
     },
     "/v2/customers/{id}/saved-payment-methods": {
-      "delete": {
+      "get": {
         "tags": [
           "Payment Methods"
         ],
@@ -7629,10 +7629,12 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
@@ -7664,10 +7666,12 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "shift4",
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "taxjar",
           "threedsecureio",
           "trustpay",
@@ -8362,10 +8366,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -8461,6 +8467,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -8649,7 +8656,8 @@
           "recurring_enabled",
           "created",
           "requires_cvv",
-          "is_default"
+          "is_default",
+          "psp_tokenization_enabled"
         ],
         "properties": {
           "id": {
@@ -8720,6 +8728,18 @@
               }
             ],
             "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -9760,6 +9780,12 @@
           {
             "type": "string",
             "enum": [
+              "user_card_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -9946,6 +9972,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
           },
           {
             "type": "string",
@@ -11583,6 +11615,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11717,6 +11757,14 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12327,6 +12375,17 @@
         },
         "additionalProperties": false
       },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
+      },
       "MerchantRecipientData": {
         "oneOf": [
           {
@@ -12546,6 +12605,69 @@
           "entity": {
             "type": "string",
             "example": "12345"
+          }
+        }
+      },
+      "NetworkTokenDetailsPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "last4_digits": {
+            "type": "string",
+            "nullable": true
+          },
+          "issuer_country": {
+            "type": "string",
+            "nullable": true
+          },
+          "network_token_expiry_month": {
+            "type": "string",
+            "nullable": true
+          },
+          "network_token_expiry_year": {
+            "type": "string",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "saved_to_locker": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NetworkTokenResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/NetworkTokenDetailsPaymentMethod"
           }
         }
       },
@@ -13936,7 +14058,7 @@
       "PaymentConnectorTransmission": {
         "type": "string",
         "enum": [
-          "ConnectorCallFailed",
+          "ConnectorCallUnsuccessful",
           "ConnectorCallSucceeded"
         ]
       },
@@ -14036,7 +14158,8 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default"
+          "show_card_form_by_default",
+          "enable_button_only_on_form_ready"
         ],
         "properties": {
           "theme": {
@@ -14160,6 +14283,10 @@
               }
             },
             "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission"
           }
         }
       },
@@ -14296,6 +14423,11 @@
                 "type": "string"
               }
             },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
           }
         }
@@ -15350,6 +15482,14 @@
             },
             "description": "The connector token details if available",
             "nullable": true
+          },
+          "network_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15883,7 +16023,8 @@
           "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
           "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_subtype",
+          "connector"
         ],
         "properties": {
           "total_retry_count": {
@@ -15914,6 +16055,9 @@
           },
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
           }
         }
       },
@@ -20297,9 +20441,11 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",
@@ -20329,12 +20475,14 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "riskified",
           "shift4",
           "signifyd",
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "trustpay",
           "tsys",
           "volt",

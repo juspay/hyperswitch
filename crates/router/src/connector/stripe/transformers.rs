@@ -3158,6 +3158,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3193,6 +3195,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3549,6 +3553,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -4169,6 +4175,8 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response_id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

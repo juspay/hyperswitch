@@ -2328,6 +2328,12 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
             feature_metadata: Some(api_models::payments::FeatureMetadata {
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
@@ -4557,8 +4563,10 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(domain::PaymentMethodData::GiftCard(_)) => {
-            if connector.connector_name == router_types::Connector::Adyen {
+        Some(domain::PaymentMethodData::GiftCard(gift_card_data)) => {
+            if connector.connector_name == router_types::Connector::Adyen
+                && matches!(gift_card_data.deref(), domain::GiftCardData::Givex(..))
+            {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 let is_error_in_response = router_data.response.is_err();

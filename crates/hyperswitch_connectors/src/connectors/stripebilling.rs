@@ -163,6 +163,8 @@ impl ConnectorCommon for Stripebilling {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -711,6 +713,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
+
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,

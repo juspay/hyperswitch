@@ -23,8 +23,9 @@ use super::{
 use crate::{
     consts::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
-        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+        DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+        DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
+        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
@@ -137,6 +138,7 @@ pub async fn form_payment_link_data(
                 payment_button_text_colour: None,
                 sdk_ui_rules: None,
                 payment_link_ui_rules: None,
+                enable_button_only_on_form_ready: DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY,
             }
         };
 
@@ -189,7 +191,7 @@ pub async fn form_payment_link_data(
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
     let payment_link_status = check_payment_link_status(session_expiry);
 
-    let is_terminal_state = check_payment_link_invalid_conditions(
+    let is_payment_link_terminal_state = check_payment_link_invalid_conditions(
         payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
@@ -199,9 +201,11 @@ pub async fn form_payment_link_data(
             storage_enums::IntentStatus::RequiresMerchantAction,
             storage_enums::IntentStatus::Succeeded,
             storage_enums::IntentStatus::PartiallyCaptured,
+            storage_enums::IntentStatus::RequiresCustomerAction,
         ],
     );
-    if is_terminal_state || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
+    if is_payment_link_terminal_state
+        || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
         let status = match payment_link_status {
             api_models::payments::PaymentLinkStatus::Active => {
@@ -209,7 +213,7 @@ pub async fn form_payment_link_data(
                 PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
             }
             api_models::payments::PaymentLinkStatus::Expired => {
-                if is_terminal_state {
+                if is_payment_link_terminal_state {
                     logger::info!("displaying status page as the requested payment link has reached terminal state with payment status as {:?}", payment_intent.status);
                     PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
                 } else {
@@ -290,6 +294,8 @@ pub async fn form_payment_link_data(
         payment_button_text_colour: payment_link_config.payment_button_text_colour.clone(),
         sdk_ui_rules: payment_link_config.sdk_ui_rules.clone(),
         payment_link_ui_rules: payment_link_config.payment_link_ui_rules.clone(),
+        status: payment_intent.status,
+        enable_button_only_on_form_ready: payment_link_config.enable_button_only_on_form_ready,
     };
 
     Ok((
@@ -348,6 +354,8 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_button_text_colour: payment_link_config.payment_button_text_colour,
                 sdk_ui_rules: payment_link_config.sdk_ui_rules,
                 payment_link_ui_rules: payment_link_config.payment_link_ui_rules,
+                enable_button_only_on_form_ready: payment_link_config
+                    .enable_button_only_on_form_ready,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -634,6 +642,7 @@ pub fn get_payment_link_config_based_on_priority(
         enabled_saved_payment_method,
         hide_card_nickname_field,
         show_card_form_by_default,
+        enable_button_only_on_form_ready,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -647,7 +656,11 @@ pub fn get_payment_link_config_based_on_priority(
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         ),
         (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
-        (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
+        (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM),
+        (
+            enable_button_only_on_form_ready,
+            DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY
+        )
     );
 
     let (
@@ -702,6 +715,7 @@ pub fn get_payment_link_config_based_on_priority(
             payment_button_text_colour,
             sdk_ui_rules,
             payment_link_ui_rules,
+            enable_button_only_on_form_ready,
         };
 
     Ok((payment_link_config, domain_name))
@@ -812,6 +826,7 @@ pub async fn get_payment_link_status(
             payment_button_text_colour: None,
             sdk_ui_rules: None,
             payment_link_ui_rules: None,
+            enable_button_only_on_form_ready: DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY,
         }
     };
 

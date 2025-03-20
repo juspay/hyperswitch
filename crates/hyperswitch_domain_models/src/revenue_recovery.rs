@@ -193,28 +193,28 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
     }
 }
 
-impl From<GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryInvoiceData {
-    fn from(data: GetAdditionalRevenueRecoveryResponseData) -> Self {
+impl From<&GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryInvoiceData {
+    fn from(data: &GetAdditionalRevenueRecoveryResponseData) -> Self {
         Self {
             amount: data.amount,
             currency: data.currency,
-            merchant_reference_id: data.merchant_reference_id,
+            merchant_reference_id: data.merchant_reference_id.clone(),
         }
     }
 }
 
-impl From<GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryAttemptData {
-    fn from(data: GetAdditionalRevenueRecoveryResponseData) -> Self {
+impl From<&GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryAttemptData {
+    fn from(data: &GetAdditionalRevenueRecoveryResponseData) -> Self {
         Self {
             amount: data.amount,
             currency: data.currency,
-            merchant_reference_id: data.merchant_reference_id,
-            connector_transaction_id: data.connector_transaction_id,
-            error_code: data.error_code,
-            error_message: data.error_message,
-            processor_payment_method_token: data.processor_payment_method_token,
-            connector_customer_id: data.connector_customer_id,
-            connector_account_reference_id: data.connector_account_reference_id,
+            merchant_reference_id: data.merchant_reference_id.clone(),
+            connector_transaction_id: data.connector_transaction_id.clone(),
+            error_code: data.error_code.clone(),
+            error_message: data.error_message.clone(),
+            processor_payment_method_token: data.processor_payment_method_token.clone(),
+            connector_customer_id: data.connector_customer_id.clone(),
+            connector_account_reference_id: data.connector_account_reference_id.clone(),
             transaction_created_at: data.transaction_created_at,
             status: data.status,
             payment_method_type: data.payment_method_type,

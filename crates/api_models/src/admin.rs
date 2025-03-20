@@ -113,7 +113,7 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -198,6 +198,7 @@ pub struct MerchantAccountCreateWithoutOrgId {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -560,7 +561,7 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -596,7 +597,7 @@ pub struct MerchantAccountResponse {
     pub recon_status: api_enums::ReconStatus,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -2839,6 +2840,8 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2924,6 +2927,8 @@ pub struct PaymentLinkConfig {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

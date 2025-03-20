@@ -269,6 +269,24 @@ pub enum AdditionalRevenueRecoveryIdType {
     AdditionalRevenueRecoveryCallId(String),
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ObjectReferenceId {
+    pub fn get_additional_revenue_recovery_id_as_string(
+        self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        match self {
+            Self::AdditionalRevenueRecoveryId(
+                AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(data),
+            ) => Ok(data),
+            _ => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is null",
+                },
+            ),
+        }
+    }
+}
+
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,

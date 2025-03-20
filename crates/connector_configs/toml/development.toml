@@ -189,6 +189,7 @@ merchant_secret="Source verification key"
   payment_method_type = "momo"
 [[adyen.wallet]]
   payment_method_type = "swish"
+  payment_experience = "display_qr_code"
 [[adyen.wallet]]
   payment_method_type = "touch_n_go"
 [[adyen.voucher]]
@@ -1666,6 +1667,30 @@ api_secret="API Secure Key"
 key2="Location ID"
 [forte.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[getnet]
+[[getnet.credit]]
+  payment_method_type = "Mastercard"
+[[getnet.credit]]
+  payment_method_type = "Visa"
+[[getnet.credit]]
+  payment_method_type = "Interac"
+[[getnet.credit]]
+  payment_method_type = "AmericanExpress"
+[[getnet.credit]]
+  payment_method_type = "JCB"
+[[getnet.credit]]
+  payment_method_type = "DinersClub"
+[[getnet.credit]]
+  payment_method_type = "Discover"
+[[getnet.credit]]
+  payment_method_type = "CartesBancaires"
+[[getnet.credit]]
+  payment_method_type = "UnionPay"
+[[getnet.credit]]
+  payment_method_type = "RuPay"
+[[getnet.credit]]
+  payment_method_type = "Maestro"
 
 [globalpay]
 [[globalpay.credit]]
@@ -3305,6 +3330,7 @@ merchant_secret="Source verification key"
   payment_method_type = "ali_pay"
 [[stripe.wallet]]
   payment_method_type = "cashapp"
+  payment_experience = "display_qr_code"
 is_verifiable = true
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"

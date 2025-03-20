@@ -1000,6 +1000,8 @@ fn get_error_response(
                     status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             })
             .unwrap_or_else(|| ErrorResponse {
@@ -1009,6 +1011,8 @@ fn get_error_response(
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
@@ -1025,6 +1029,8 @@ fn get_error_response(
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
