@@ -6057,6 +6057,7 @@ pub fn generate_12_digit_number() -> u64 {
     rng.gen_range(100_000_000_000..=999_999_999_999)
 }
 
+//// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.
 pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let lowercase_value = value.to_ascii_lowercase();
     let nfkd_value = lowercase_value.nfkd().collect::<String>();
