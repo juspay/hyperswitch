@@ -6,14 +6,6 @@ const successfulCardDetails = {
   card_cvc: "737",
 };
 
-const failedCardDetails = {
-  card_number: "5105105105105100",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "737",
-};
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -141,6 +133,42 @@ export const connectorDetails = {
     Refund: {
       Request: {
         amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+        },
+      },
+    },
+    PartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 2000,
       },
       Response: {
         status: 200,
