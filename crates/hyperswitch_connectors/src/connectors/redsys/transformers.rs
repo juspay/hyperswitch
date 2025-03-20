@@ -1,10 +1,10 @@
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, SOAP_ENV_NAMESPACE},
     crypto::{EncodeMessage, HmacSha256, SignMessage, TripleDesEde3CBC},
     ext_traits::{Encode, ValueExt},
-    types::{StringMinorUnit, SoapEnvelope}
+    types::StringMinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -1513,16 +1513,29 @@ pub struct RedsysSoapRequest {
     consulta_operaciones: ConsultaOperaciones,
 }
 
-#[derive(Debug, Serialize)]
-struct CadenaXML {
-    #[serde(rename = "$value")]
-    content: String,
+
+#[derive(Debug)]
+pub struct CData(String);
+
+impl Serialize for CData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut writer = quick_xml::Writer::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .write_event(quick_xml::events::Event::CData(quick_xml::events::BytesCData::new(self.0.as_str())))
+            .map_err(serde::ser::Error::custom)?;
+        let result = writer.into_inner().into_inner();
+        let cdata_str = String::from_utf8(result).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_str(&cdata_str)
+    }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConsultaOperaciones {
-    cadena_x_m_l: CadenaXML,
+    cadena_x_m_l: CData,
 }
 
 #[derive(Debug, Serialize)]
@@ -1598,13 +1611,12 @@ fn get_transaction_type(
     }
 }
 
-pub type RedsysSoapEnvelope = SoapEnvelope<RedsysSoapRequest, RedsysSoapHeader>;
 
 fn construct_sync_request(
     order_id: String,
     transaction_type: RedsysTransactionType,
     auth: RedsysAuthType,
-) -> Result<RedsysSoapEnvelope, error_stack::Report<errors::ConnectorError>>{
+) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>>{
     let transaction_data = RedsysSyncRequest {
         ds_merchant_code: auth.merchant_id,
         ds_terminal: auth.terminal_id,
@@ -1620,6 +1632,8 @@ fn construct_sync_request(
     let version_data = quick_xml::se::to_string(&version)
     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
+    println!("sssssssssssss version_data: {:?}", version_data);
+
     let signature = get_signature( &order_id,&version_data,auth.sha256_pwd.peek())?;
 
     let messages = Messages {
@@ -1628,25 +1642,23 @@ fn construct_sync_request(
         signature_version: SIGNATURE_VERSION.to_owned(),
     };
 
-    let cdata = format!("<![CDATA[{}]]>", quick_xml::se::to_string(&messages)
-    .change_context(errors::ConnectorError::RequestEncodingFailed)?);
+    let cdata = quick_xml::se::to_string(&messages)
+    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+    let body = format!(
+        r#"<soapenv:Envelope xmlns:soapenv="{}" xmlns:web="{}"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[{}]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>"#,
+        SOAP_ENV_NAMESPACE,
+        XMLNS_WEB_URL,
+        cdata
+    );
     
-    let request_body = RedsysSoapRequest { 
-        consulta_operaciones: ConsultaOperaciones {
-        cadena_x_m_l : CadenaXML {
-            content: cdata
-        }
-    }};
-
-    let mut envelope = SoapEnvelope::new(request_body, RedsysSoapHeader{});
-    Ok(envelope.set_soap_web(XMLNS_WEB_URL.to_owned()))
-
+    Ok(body.as_bytes().to_vec())
 }
 
 
 pub fn build_payment_sync_request(
     item: &PaymentsSyncRouterData,
-) -> Result<RedsysSoapEnvelope, Error> {
+) -> Result<Vec<u8>, Error> {
        let transaction_type = get_transaction_type(item.status, item.request.capture_method)?;
        let auth = RedsysAuthType::try_from(&item.connector_auth_type)?;
        let connector_transaction_id = item.request.connector_transaction_id.get_connector_transaction_id()
@@ -1654,3 +1666,76 @@ pub fn build_payment_sync_request(
        construct_sync_request(connector_transaction_id, transaction_type, auth)
 }
 
+fn serialize_version_data(version: &VersionData) -> Result<String, ConnectorError> {
+    let mut writer = Writer::new(Cursor::new(Vec::new()));
+
+    let mut version_start = BytesStart::new("VersionData");
+    version_start.push_attribute(("Ds_Version", version.ds_version.as_str()));
+    writer
+        .write_event(Event::Start(version_start))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::Start(BytesStart::new("Message")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::Start(BytesStart::new("Transaction")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::Start(BytesStart::new("Ds_MerchantCode")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_merchant_code)))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::End(BytesEnd::new("Ds_MerchantCode")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::Start(BytesStart::new("Ds_Terminal")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_terminal)))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::End(BytesEnd::new("Ds_Terminal")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::Start(BytesStart::new("Ds_Order")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_order)))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::End(BytesEnd::new("Ds_Order")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::Start(BytesStart::new("Ds_TransactionType")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_transaction_type)))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    writer
+        .write_event(Event::End(BytesEnd::new("Ds_TransactionType")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::End(BytesEnd::new("Transaction")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::End(BytesEnd::new("Message")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    writer
+        .write_event(Event::End(BytesEnd::new("VersionData")))
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+
+    let result = String::from_utf8(writer.into_inner().into_inner())
+        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+    Ok(result)
+}

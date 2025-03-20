@@ -643,6 +643,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        // Ok(format!("https://webhook.site/381f9fe3-bed9-4ba2-b81f-805083f919f4"))
         Ok(format!("{}/apl02/services/SerClsWSConsulta", self.base_url(connectors)))
     }
 
@@ -656,10 +657,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = redsys::build_payment_sync_request(req)?;
-        let printrequest = quick_xml::se::to_string(&connector_req)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    println!("sssss {:?}", printrequest);
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
