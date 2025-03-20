@@ -8,7 +8,7 @@ use crate::{
     consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS,
     core::errors::ApiErrorResponse,
     services::ApplicationResponse,
-    utils::currency::{self, convert_currency, get_forex_rates, ForexCacheError},
+    utils::currency::{self, convert_currency, get_forex_rates, ForexError as ForexCacheError},
     SessionState,
 };
 
@@ -56,7 +56,7 @@ pub async fn get_forex_exchange_rates(
     loop {
         logger::info!("Attempting to fetch forex rates - Attempt {attempt} of {DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS}");
 
-        match get_forex_rates(&state, forex_api.call_delay).await {
+        match get_forex_rates(&state, forex_api.data_expiration_delay_in_seconds).await {
             Ok(rates) => {
                 logger::info!("Successfully fetched forex rates");
                 return Ok((*rates.data).clone());
