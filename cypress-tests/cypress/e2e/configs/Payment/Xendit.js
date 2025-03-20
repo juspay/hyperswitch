@@ -3,8 +3,18 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "12",
   card_exp_year: "27",
   card_holder_name: "joseph Doe",
+  nick_name: "Bank1",
   card_cvc: "123",
 };
+
+const cardDetailsWithoutNickName = {
+  card_number: "4000000000001091",
+  card_exp_month: "12",
+  card_exp_year: "27",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 const billingDetails = {
   email: "mauro.morandi@nexi.it",
   phone: {
@@ -384,6 +394,23 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+    SaveCardWithoutCardNickName: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

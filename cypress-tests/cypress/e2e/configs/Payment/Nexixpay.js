@@ -3,6 +3,7 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "08",
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
+  nick_name: "Bank1",
   card_cvc: "999",
 };
 
@@ -11,7 +12,16 @@ const successfulThreeDSTestCardDetails = {
   card_exp_month: "12",
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
+  nick_name: "Bank1",
   card_cvc: "396",
+};
+
+const cardDetailsWithoutNickName = {
+  card_number: "4111111111111111",
+  card_exp_month: "08",
+  card_exp_year: "35",
+  card_holder_name: "joseph Doe",
+  card_cvc: "999",
 };
 
 const customerAcceptance = {
@@ -592,6 +602,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    SaveCardWithoutCardNickName: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        billing: billingAddress,
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
