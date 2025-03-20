@@ -4,7 +4,7 @@ use common_utils::{
     consts::BASE64_ENGINE,
     crypto::{EncodeMessage, HmacSha256, SignMessage, TripleDesEde3CBC},
     ext_traits::{Encode, ValueExt},
-    types::StringMinorUnit,
+    types::{StringMinorUnit, SoapEnvelope}
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -18,12 +18,12 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, Secret, PeekInterface};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -35,6 +35,11 @@ use crate::{
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
+
+const DS_VERSION: &str = "0.0";
+const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
+const XMLNS_WEB_URL: &str = "http://webservices.apl02.redsys.es";
+pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
 
 pub struct RedsysRouterData<T> {
     pub amount: StringMinorUnit,
@@ -753,8 +758,6 @@ fn handle_threeds_invoke_exempt<F>(
     })
 }
 
-pub const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
-
 fn des_encrypt(
     message: &str,
     key: &str,
@@ -856,7 +859,7 @@ fn get_redsys_attempt_status(
             "0900" => Ok(enums::AttemptStatus::Charged),
             "0400" => Ok(enums::AttemptStatus::Voided),
             "0950" => Ok(enums::AttemptStatus::VoidFailed),
-            "9998" | "9999" => Ok(enums::AttemptStatus::Pending),
+            "9998" | "9999" => Ok(enums::AttemptStatus::AuthenticationPending),
             "9256" | "9257" => Ok(enums::AttemptStatus::AuthenticationFailed),
             "0101" | "0102" | "0106" | "0125" | "0129" | "0172" | "0173" | "0174" | "0180"
             | "0184" | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944"
@@ -987,7 +990,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
             }
         };
         Ok(Self {
-            status,
+            status: enums::AttemptStatus::Pending,
             response,
             ..item.data
         })
@@ -1178,7 +1181,6 @@ pub struct RedsysOperationRequest {
 pub struct RedsysOperationsResponse {
     #[serde(rename = "Ds_Order")]
     ds_order: String,
-
     #[serde(rename = "Ds_Response")]
     ds_response: DsResponse,
     #[serde(rename = "Ds_AuthorisationCode")]
@@ -1500,3 +1502,155 @@ fn get_payments_response(
         Ok((response, enums::AttemptStatus::AuthenticationPending))
     }
 }
+
+
+#[derive(Debug, Serialize)]
+pub struct RedsysSoapHeader {}
+
+#[derive(Debug, Serialize)]
+pub struct RedsysSoapRequest {
+    #[serde(rename = "web:consultaOperaciones")]
+    consulta_operaciones: ConsultaOperaciones,
+}
+
+#[derive(Debug, Serialize)]
+struct CadenaXML {
+    #[serde(rename = "$value")]
+    content: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConsultaOperaciones {
+    cadena_x_m_l: CadenaXML,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Messages {
+    #[serde(rename = "Version")]
+    version: VersionData,
+    #[serde(rename = "Signature")]
+    signature: String,
+    #[serde(rename = "SignatureVersion")]
+    signature_version: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VersionData {
+    #[serde(rename = "@Ds_Version")]
+    ds_version: String,
+    #[serde(rename = "Message")]
+    message: Message,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Message {
+    #[serde(rename = "Transaction")]
+    transaction: RedsysSyncRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename = "Transaction")]
+pub struct RedsysSyncRequest {
+    #[serde(rename = "Ds_MerchantCode")]
+    ds_merchant_code: Secret<String>,
+    #[serde(rename = "Ds_Terminal")]
+    ds_terminal: Secret<String>,
+    #[serde(rename = "Ds_Order")]
+    ds_order: String,
+    #[serde(rename = "Ds_TransactionType")]
+    ds_transaction_type: RedsysTransactionType,
+}
+
+fn get_transaction_type(
+    status: enums::AttemptStatus,
+    capture_method: Option<enums::CaptureMethod>,
+) -> Result<RedsysTransactionType, errors::ConnectorError> {
+    match status {
+        enums::AttemptStatus::AuthenticationPending
+        | enums::AttemptStatus::AuthenticationSuccessful
+        | enums::AttemptStatus::Started
+        | enums::AttemptStatus::Authorizing
+        | enums::AttemptStatus::DeviceDataCollectionPending => match capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(RedsysTransactionType::Payment),
+            Some(enums::CaptureMethod::Manual) => Ok(RedsysTransactionType::Preauthorization),
+            Some(capture_method) => Err(errors::ConnectorError::NotSupported {
+                message: capture_method.to_string(),
+                connector: "redsys",
+            }),
+        },
+        enums::AttemptStatus::VoidInitiated => Ok(RedsysTransactionType::Cancellation),
+        enums::AttemptStatus::PartialChargedAndChargeable
+        | enums::AttemptStatus::CaptureInitiated => Ok(RedsysTransactionType::Confirmation),
+        enums::AttemptStatus::Authorized
+        | enums::AttemptStatus::Pending => match capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(RedsysTransactionType::Payment),
+            Some(enums::CaptureMethod::Manual) => Ok(RedsysTransactionType::Confirmation),
+            Some(capture_method) => Err(errors::ConnectorError::NotSupported {
+                message: capture_method.to_string(),
+                connector: "redsys",
+            }),
+        },
+        other_attempt_status => Err(errors::ConnectorError::NotSupported {
+            message: format!("Payment sync after terminal status: {} payment", other_attempt_status),
+            connector: "redsys",
+        }),
+    }
+}
+
+pub type RedsysSoapEnvelope = SoapEnvelope<RedsysSoapRequest, RedsysSoapHeader>;
+
+fn construct_sync_request(
+    order_id: String,
+    transaction_type: RedsysTransactionType,
+    auth: RedsysAuthType,
+) -> Result<RedsysSoapEnvelope, error_stack::Report<errors::ConnectorError>>{
+    let transaction_data = RedsysSyncRequest {
+        ds_merchant_code: auth.merchant_id,
+        ds_terminal: auth.terminal_id,
+        ds_transaction_type: transaction_type,
+        ds_order: order_id.clone()
+    };
+    let version = VersionData {
+        ds_version: DS_VERSION.to_owned(),
+        message: Message {
+            transaction: transaction_data
+        }
+    };
+    let version_data = quick_xml::se::to_string(&version)
+    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+    let signature = get_signature( &order_id,&version_data,auth.sha256_pwd.peek())?;
+
+    let messages = Messages {
+        version,
+        signature,
+        signature_version: SIGNATURE_VERSION.to_owned(),
+    };
+
+    let cdata = format!("<![CDATA[{}]]>", quick_xml::se::to_string(&messages)
+    .change_context(errors::ConnectorError::RequestEncodingFailed)?);
+    
+    let request_body = RedsysSoapRequest { 
+        consulta_operaciones: ConsultaOperaciones {
+        cadena_x_m_l : CadenaXML {
+            content: cdata
+        }
+    }};
+
+    let mut envelope = SoapEnvelope::new(request_body, RedsysSoapHeader{});
+    Ok(envelope.set_soap_web(XMLNS_WEB_URL.to_owned()))
+
+}
+
+
+pub fn build_payment_sync_request(
+    item: &PaymentsSyncRouterData,
+) -> Result<RedsysSoapEnvelope, Error> {
+       let transaction_type = get_transaction_type(item.status, item.request.capture_method)?;
+       let auth = RedsysAuthType::try_from(&item.connector_auth_type)?;
+       let connector_transaction_id = item.request.connector_transaction_id.get_connector_transaction_id()
+       .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+       construct_sync_request(connector_transaction_id, transaction_type, auth)
+}
+

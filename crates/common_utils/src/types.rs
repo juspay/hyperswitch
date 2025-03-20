@@ -1603,3 +1603,42 @@ where
         self.0.to_sql(out)
     }
 }
+
+/// Defines a SOAP envelope structure
+#[derive(Debug, Serialize)]
+#[serde(rename = "soapenv:Envelope")]
+pub struct SoapEnvelope<T, F>
+where
+    T: Sized + Serialize,
+    F: Sized + Serialize,
+{
+    #[serde(rename = "@xmlns:soapenv")]
+    soapenv: String,
+    #[serde(rename = "@xmlns:web")]
+    web: Option<String>,
+    #[serde(rename = "soapenv:Header")]
+    header: F,
+    #[serde(rename = "soapenv:Body")]
+    body: T,
+}
+
+impl<T, F> SoapEnvelope<T, F>
+where
+    T: Sized + Serialize,
+    F: Sized + Serialize,
+{
+    /// Creates a new SoapEnvelope with the provided body and header
+    pub fn new(body: T, header: F) -> Self {
+        Self {
+            soapenv: consts::SOAP_ENV_NAMESPACE.to_owned(),
+            web: None,
+            header,
+            body,
+        }
+    }
+    /// Sets the optional web namespace for the SOAP envelope
+    pub fn set_soap_web(mut self, web: String) -> Self{
+        self.web = Some(web);
+        self
+    }
+}

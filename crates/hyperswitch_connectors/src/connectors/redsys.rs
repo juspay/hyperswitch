@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        RefundExecuteRouterData,
+        RefundExecuteRouterData, PaymentsSyncRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -41,14 +41,14 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsSyncType,
         PaymentsPreProcessingType, PaymentsVoidType, RefundExecuteType, Response,
     },
     webhooks,
 };
 use transformers as redsys;
 
-use crate::{types::ResponseRouterData, utils as connector_utils};
+use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
 
 #[derive(Clone)]
 pub struct Redsys {
@@ -621,7 +621,89 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys 
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Redsys {}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Redsys {
+    fn get_headers(
+        &self,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let headers = vec![
+            (headers::CONTENT_TYPE.to_string(),
+            "application/xml".to_string().into()
+        ),
+            (
+                headers::SOAP_ACTION.to_string(),
+                redsys::REDSYS_SOAP_ACTION.to_string().into(),
+            )];
+        Ok(headers)
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/apl02/services/SerClsWSConsulta", self.base_url(connectors)))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = redsys::build_payment_sync_request(req)?;
+        let printrequest = quick_xml::se::to_string(&connector_req)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    println!("sssss {:?}", printrequest);
+        Ok(RequestContent::Xml(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(PaymentsSyncType::get_headers(self, req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        ))
+    }
+    // fn handle_response(
+    //     &self,
+    //     data: &PaymentsSyncRouterData,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    //     res: Response,
+    // ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+    //     let response: cybersource::CybersourceTransactionResponse = res
+    //         .response
+    //         .parse_struct("Cybersource PaymentSyncResponse")
+    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    //     event_builder.map(|i| i.set_response_body(&response));
+    //     router_env::logger::info!(connector_response=?response);
+    //     RouterData::try_from(ResponseRouterData {
+    //         response,
+    //         data: data.clone(),
+    //         http_code: res.status_code,
+    //     })
+    // }
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {}
 
