@@ -1,5 +1,7 @@
 use common_enums::enums;
-use common_utils::{id_type, errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
+use common_utils::{
+    errors::CustomResult, ext_traits::ByteSliceExt, id_type, types::StringMinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,

@@ -606,7 +606,7 @@ impl
         let status_endpoint = match status {
             RecurlyRecordStatus::Success => STATUS_SUCCESSFUL_ENDPOINT,
             RecurlyRecordStatus::Failure => STATUS_FAILED_ENDPOINT,
-        };        
+        };
 
         Ok(format!(
             "{}/invoices/{invoice_id}/{status_endpoint}",
