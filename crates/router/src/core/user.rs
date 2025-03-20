@@ -641,9 +641,12 @@ pub async fn invite_multiple_user(
     req_state: ReqState,
     auth_id: Option<String>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
-    if requests.len() > 10 {
-        return Err(report!(UserErrors::MaxInvitationsError))
-            .attach_printable("Number of invite requests must not exceed 10");
+    if requests.len() > consts::user::MAX_INVITE_REQUESTS {
+        return Err(report!(UserErrors::MaxInvitationsError)).attach_printable(format!(
+            "The number of invite requests is {}, and the requests must not exceed {}.",
+            requests.len(),
+            consts::user::MAX_INVITE_REQUESTS
+        ));
     }
 
     let responses = futures::future::join_all(requests.into_iter().map(|request| async {

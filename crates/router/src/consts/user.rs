@@ -38,6 +38,7 @@ pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS: i64 = 10 * 60; // 10 mins
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 
+pub const MAX_INVITE_REQUESTS: usize = 10;
 /// Email subject
 pub const EMAIL_SUBJECT_SIGNUP: &str = "Welcome to the Hyperswitch community!";
 pub const EMAIL_SUBJECT_INVITATION: &str = "You have been invited to join Hyperswitch Community!";
