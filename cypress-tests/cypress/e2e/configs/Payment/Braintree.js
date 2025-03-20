@@ -138,5 +138,17 @@ export const connectorDetails = {
         },
       },
     },
+    Refund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+        },
+      },
+    },
   },
 };
