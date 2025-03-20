@@ -152,7 +152,7 @@ impl ConnectorCommon for Recurly {
             auth.api_key.expose().into_masked(),
         )])
     }
-    
+
     fn build_error_response(
         &self,
         res: Response,
