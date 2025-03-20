@@ -980,16 +980,21 @@ pub struct CardDetailsPaymentMethod {
     pub saved_to_locker: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
+    #[schema(value_type = Option<String>)]
     pub network_token_expiry_month: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub network_token_expiry_year: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub card_holder_name: Option<masking::Secret<String>>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
+    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
@@ -2019,6 +2024,10 @@ pub struct CustomerPaymentMethod {
 
     ///The network token details for the payment method
     pub network_tokenization: Option<NetworkTokenResponse>,
+
+    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
+    /// one multi-use token with status `Active` is available for the payment method
+    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
