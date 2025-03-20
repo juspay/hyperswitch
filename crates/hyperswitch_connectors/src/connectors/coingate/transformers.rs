@@ -38,7 +38,7 @@ impl<T> From<(StringMajorUnit, T)> for CoingateRouterData<T> {
 pub struct CoingateConnectorMetadataObject {
     pub currency_id: i32,
     pub platform_id: i32,
-    pub ledger_account_id: String,
+    pub ledger_account_id: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CoingateConnectorMetadataObject {
@@ -167,12 +167,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
 #[derive(Default, Debug, Serialize)]
 pub struct CoingateRefundRequest {
     pub amount: StringMajorUnit,
-    pub address: String,
+    pub address: Secret<String>,
     pub currency_id: i32,
     pub platform_id: i32,
     pub reason: String,
     pub email: pii::Email,
-    pub ledger_account_id: String,
+    pub ledger_account_id: Secret<String>,
 }
 
 impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRequest {
@@ -184,7 +184,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
                     config: "merchant_connector_account.metadata",
                 })?;
 
-        let cryptocurreny_address = item
+        let refund_metadata = item
             .router_data
             .request
             .refund_connector_metadata
@@ -196,20 +196,19 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             .clone()
             .expose();
 
-        let address: String = serde_json::from_value::<String>(
-            cryptocurreny_address
-                .get("address")
-                .cloned()
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+        let address: Secret<String> = serde_json::from_value::<Secret<String>>(
+            refund_metadata.get("address").cloned().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "address",
-                })?,
+                }
+            })?,
         )
         .change_context(errors::ConnectorError::MissingRequiredField {
             field_name: "address",
         })?;
 
         let email: pii::Email = serde_json::from_value::<pii::Email>(
-            cryptocurreny_address.get("email").cloned().ok_or_else(|| {
+            refund_metadata.get("email").cloned().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "email",
                 }
