@@ -318,7 +318,7 @@ diesel::table! {
         id -> Varchar,
         card_bin_min -> Int8,
         card_bin_max -> Int8,
-        issuing_bank_name -> Text,
+        issuing_bank_name -> Nullable<Text>,
         #[max_length = 32]
         card_network -> Varchar,
         country -> CountryAlpha2,
