@@ -181,6 +181,30 @@ var hyper = null;
 
 const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 
+var isFramed = false;
+try {
+  isFramed = window.parent.location !== window.location;
+
+  // If parent's window object is restricted, DOMException is
+  // thrown which concludes that the webpage is iframed
+} catch (err) {
+  isFramed = true;
+}
+
+/**
+ * Trigger - on boot
+ * Use - emit latest payment status to parent window
+ */
+function emitPaymentStatus(paymentDetails) {
+  var message = {
+    payment: {
+      status: paymentDetails.status,
+    }
+  };
+
+  window.parent.postMessage(message, "*");
+}
+
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -190,12 +214,15 @@ const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
-
-
 function boot() {
 
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
+
+  // Emit latest payment status
+  if (isFramed) {
+    emitPaymentStatus(paymentDetails);
+  }
 
   if (paymentDetails.display_sdk_only) {
     hide(".checkout-page")

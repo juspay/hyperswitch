@@ -1,8 +1,8 @@
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::{BASE64_ENGINE, SOAP_ENV_NAMESPACE},
-    crypto::{EncodeMessage, HmacSha256, SignMessage, TripleDesEde3CBC},
+    consts::BASE64_ENGINE,
+    crypto::{EncodeMessage, SignMessage},
     ext_traits::{Encode, ValueExt},
     types::StringMinorUnit,
 };
@@ -763,20 +763,22 @@ fn des_encrypt(
     key: &str,
 ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
     // Connector decrypts the signature using an initialization vector (IV) set to all zeros
-    let iv_array = [0u8; TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
+    let iv_array = [0u8; common_utils::crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
     let iv = iv_array.to_vec();
     let key_bytes = BASE64_ENGINE
         .decode(key)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Base64 decoding failed")?;
-    let triple_des = TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Triple DES encryption failed")?;
+    let triple_des =
+        common_utils::crypto::TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Triple DES encryption failed")?;
     let encrypted = triple_des
         .encode_message(&key_bytes, message.as_bytes())
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
-    let expected_len = encrypted.len() - TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
+    let expected_len =
+        encrypted.len() - common_utils::crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
     let encrypted_trimmed = encrypted
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
@@ -790,8 +792,12 @@ fn get_signature(
     key: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let secret_ko = des_encrypt(order_id, key)?;
-    let result = HmacSha256::sign_message(&HmacSha256, &secret_ko, params.as_bytes())
-        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    let result = common_utils::crypto::HmacSha256::sign_message(
+        &common_utils::crypto::HmacSha256,
+        &secret_ko,
+        params.as_bytes(),
+    )
+    .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
     let encoded = BASE64_ENGINE.encode(result);
     Ok(encoded)
 }
@@ -898,14 +904,11 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             }) => (connector_metadata.clone(), order_id.clone()),
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let threeds_invoke_meta_data =
-            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                    config: "metadata",
-                })?;
+        let threeds_meta_data =
+            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
-            .set_three_d_s_server_trans_i_d(threeds_invoke_meta_data.three_d_s_server_trans_i_d)
-            .set_protocol_version(threeds_invoke_meta_data.message_version)
+            .set_three_d_s_server_trans_i_d(threeds_meta_data.three_d_s_server_trans_i_d)
+            .set_protocol_version(threeds_meta_data.message_version)
             .set_notification_u_r_l(item.router_data.request.get_complete_authorize_url()?)
             .add_browser_data(item.router_data.request.get_browser_info()?)?
             .set_three_d_s_comp_ind(ThreeDSCompInd::N)
