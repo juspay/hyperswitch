@@ -766,14 +766,16 @@ fn des_encrypt(
         .decode(key)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Base64 decoding failed")?;
-    let triple_des = common_utils::crypto::TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Triple DES encryption failed")?;
+    let triple_des =
+        common_utils::crypto::TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Triple DES encryption failed")?;
     let encrypted = triple_des
         .encode_message(&key_bytes, message.as_bytes())
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
-    let expected_len = encrypted.len() - common_utils::crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
+    let expected_len =
+        encrypted.len() - common_utils::crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
     let encrypted_trimmed = encrypted
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
@@ -787,8 +789,12 @@ fn get_signature(
     key: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let secret_ko = des_encrypt(order_id, key)?;
-    let result = common_utils::crypto::HmacSha256::sign_message(&common_utils::crypto::HmacSha256, &secret_ko, params.as_bytes())
-        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    let result = common_utils::crypto::HmacSha256::sign_message(
+        &common_utils::crypto::HmacSha256,
+        &secret_ko,
+        params.as_bytes(),
+    )
+    .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
     let encoded = BASE64_ENGINE.encode(result);
     Ok(encoded)
 }
