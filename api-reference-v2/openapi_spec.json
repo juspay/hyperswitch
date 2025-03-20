@@ -7671,6 +7671,7 @@
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "taxjar",
           "threedsecureio",
           "trustpay",
@@ -8365,10 +8366,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -8464,6 +8467,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -9968,6 +9972,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
           },
           {
             "type": "string",
@@ -20472,6 +20482,7 @@
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "trustpay",
           "tsys",
           "volt",
