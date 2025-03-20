@@ -2,7 +2,7 @@ use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
-    crypto::{EncodeMessage, HmacSha256, SignMessage, TripleDesEde3CBC},
+    crypto::{EncodeMessage, SignMessage},
     ext_traits::{Encode, ValueExt},
     types::StringMinorUnit,
 };
@@ -760,20 +760,20 @@ fn des_encrypt(
     key: &str,
 ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
     // Connector decrypts the signature using an initialization vector (IV) set to all zeros
-    let iv_array = [0u8; TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
+    let iv_array = [0u8; common_utils::crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
     let iv = iv_array.to_vec();
     let key_bytes = BASE64_ENGINE
         .decode(key)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Base64 decoding failed")?;
-    let triple_des = TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
+    let triple_des = common_utils::crypto::TripleDesEde3CBC::new(Some(enums::CryptoPadding::ZeroPadding), iv)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
     let encrypted = triple_des
         .encode_message(&key_bytes, message.as_bytes())
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Triple DES encryption failed")?;
-    let expected_len = encrypted.len() - TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
+    let expected_len = encrypted.len() - common_utils::crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
     let encrypted_trimmed = encrypted
         .get(..expected_len)
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
@@ -787,7 +787,7 @@ fn get_signature(
     key: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let secret_ko = des_encrypt(order_id, key)?;
-    let result = HmacSha256::sign_message(&HmacSha256, &secret_ko, params.as_bytes())
+    let result = common_utils::crypto::HmacSha256::sign_message(&common_utils::crypto::HmacSha256, &secret_ko, params.as_bytes())
         .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
     let encoded = BASE64_ENGINE.encode(result);
     Ok(encoded)
