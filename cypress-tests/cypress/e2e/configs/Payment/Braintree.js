@@ -42,7 +42,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -71,7 +71,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           shipping_cost: 50,
         },
       },
@@ -117,10 +117,24 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           amount: 6000,
-          amount_capturable: 6000,
-          amount_received: 0,
+          amount_capturable: 0,
+          amount_received: 6000,
+        },
+      },
+    },
+    PartialCapture: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 2000,
         },
       },
     },
