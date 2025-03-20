@@ -1549,6 +1549,7 @@ pub struct Messages {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename = "Version")]
 pub struct VersionData {
     #[serde(rename = "@Ds_Version")]
     ds_version: String,
@@ -1572,33 +1573,33 @@ pub struct RedsysSyncRequest {
     #[serde(rename = "Ds_Order")]
     ds_order: String,
     #[serde(rename = "Ds_TransactionType")]
-    ds_transaction_type: RedsysTransactionType,
+    ds_transaction_type: String,
 }
 
 fn get_transaction_type(
     status: enums::AttemptStatus,
     capture_method: Option<enums::CaptureMethod>,
-) -> Result<RedsysTransactionType, errors::ConnectorError> {
+) -> Result<String, errors::ConnectorError> {
     match status {
         enums::AttemptStatus::AuthenticationPending
         | enums::AttemptStatus::AuthenticationSuccessful
         | enums::AttemptStatus::Started
         | enums::AttemptStatus::Authorizing
         | enums::AttemptStatus::DeviceDataCollectionPending => match capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(RedsysTransactionType::Payment),
-            Some(enums::CaptureMethod::Manual) => Ok(RedsysTransactionType::Preauthorization),
+            Some(enums::CaptureMethod::Automatic) | None => Ok("0".to_string()),
+            Some(enums::CaptureMethod::Manual) => Ok("1".to_owned()),
             Some(capture_method) => Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
                 connector: "redsys",
             }),
         },
-        enums::AttemptStatus::VoidInitiated => Ok(RedsysTransactionType::Cancellation),
+        enums::AttemptStatus::VoidInitiated => Ok("9".to_owned()),
         enums::AttemptStatus::PartialChargedAndChargeable
-        | enums::AttemptStatus::CaptureInitiated => Ok(RedsysTransactionType::Confirmation),
+        | enums::AttemptStatus::CaptureInitiated => Ok("2".to_owned()),
         enums::AttemptStatus::Authorized
         | enums::AttemptStatus::Pending => match capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(RedsysTransactionType::Payment),
-            Some(enums::CaptureMethod::Manual) => Ok(RedsysTransactionType::Confirmation),
+            Some(enums::CaptureMethod::Automatic) | None => Ok("0".to_owned()),
+            Some(enums::CaptureMethod::Manual) => Ok("2".to_owned()),
             Some(capture_method) => Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
                 connector: "redsys",
@@ -1614,9 +1615,10 @@ fn get_transaction_type(
 
 fn construct_sync_request(
     order_id: String,
-    transaction_type: RedsysTransactionType,
+    transaction_type: String,
     auth: RedsysAuthType,
-) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>>{
+) -> Result<Vec<u8>, Error>{
+
     let transaction_data = RedsysSyncRequest {
         ds_merchant_code: auth.merchant_id,
         ds_terminal: auth.terminal_id,
@@ -1664,78 +1666,4 @@ pub fn build_payment_sync_request(
        let connector_transaction_id = item.request.connector_transaction_id.get_connector_transaction_id()
        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
        construct_sync_request(connector_transaction_id, transaction_type, auth)
-}
-
-fn serialize_version_data(version: &VersionData) -> Result<String, ConnectorError> {
-    let mut writer = Writer::new(Cursor::new(Vec::new()));
-
-    let mut version_start = BytesStart::new("VersionData");
-    version_start.push_attribute(("Ds_Version", version.ds_version.as_str()));
-    writer
-        .write_event(Event::Start(version_start))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::Start(BytesStart::new("Message")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::Start(BytesStart::new("Transaction")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::Start(BytesStart::new("Ds_MerchantCode")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_merchant_code)))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::End(BytesEnd::new("Ds_MerchantCode")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::Start(BytesStart::new("Ds_Terminal")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_terminal)))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::End(BytesEnd::new("Ds_Terminal")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::Start(BytesStart::new("Ds_Order")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_order)))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::End(BytesEnd::new("Ds_Order")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::Start(BytesStart::new("Ds_TransactionType")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::Text(BytesText::new(&version.message.transaction.ds_transaction_type)))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    writer
-        .write_event(Event::End(BytesEnd::new("Ds_TransactionType")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::End(BytesEnd::new("Transaction")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::End(BytesEnd::new("Message")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    writer
-        .write_event(Event::End(BytesEnd::new("VersionData")))
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-
-    let result = String::from_utf8(writer.into_inner().into_inner())
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
-    Ok(result)
 }
