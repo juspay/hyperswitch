@@ -561,7 +561,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Netcetera)))
                 }
                 enums::Connector::Nexinets => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Nexinets::new())))
                 }
                 // enums::Connector::Nexixpay => {
                 //     Ok(ConnectorEnum::Old(Box::new(&connector::Nexixpay)))
