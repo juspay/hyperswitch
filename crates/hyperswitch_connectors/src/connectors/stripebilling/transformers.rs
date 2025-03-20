@@ -369,7 +369,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: StripebillingInvoiceBody) -> Result<Self, Self::Error> {
         let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
+            id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             amount: item.data.object.amount,
