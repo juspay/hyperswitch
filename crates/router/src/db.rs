@@ -106,7 +106,7 @@ pub trait StorageInterface:
     + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
-    + merchant_account::MerchantAccountInterface
+    // + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
     + PaymentAttemptInterface
@@ -161,7 +161,14 @@ pub trait GlobalStorageInterface:
 
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
-    Send + Sync + dyn_clone::DynClone + OrganizationInterface + 'static
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface
+    + business_profile::ProfileInterface
+    + merchant_connector_account::MerchantConnectorAccountInterface
+    + 'static
 {
 }
 
