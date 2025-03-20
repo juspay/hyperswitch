@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
+use common_utils::{id_type, errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -308,7 +308,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyRecordbackResponse {
     // inovice id
-    pub id: common_utils::id_type::PaymentReferenceId,
+    pub id: id_type::PaymentReferenceId,
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

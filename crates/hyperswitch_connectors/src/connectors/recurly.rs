@@ -51,6 +51,10 @@ use crate::{
     connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
     types::ResponseRouterData, utils,
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+const STATUS_SUCCESSFUL_ENDPOINT: &str = "mark_successful";
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+const STATUS_FAILED_ENDPOINT: &str = "mark_failed";
 
 #[derive(Clone)]
 pub struct Recurly {
@@ -597,23 +601,16 @@ impl
             .get_string_repr()
             .to_string();
 
-        let status = RecurlyRecordStatus::try_from(req.request.attempt_status).map_err(|_| {
-            errors::ConnectorError::NotSupported {
-                message: "Invalid attempt status for Recurly".to_string(),
-                connector: "recurly",
-            }
-        })?;
+        let status = RecurlyRecordStatus::try_from(req.request.attempt_status)?;
 
         let status_endpoint = match status {
-            RecurlyRecordStatus::Success => "mark_successful",
-            RecurlyRecordStatus::Failure => "mark_failed",
-        };
+            RecurlyRecordStatus::Success => STATUS_SUCCESSFUL_ENDPOINT,
+            RecurlyRecordStatus::Failure => STATUS_FAILED_ENDPOINT,
+        };        
 
         Ok(format!(
-            "{}/invoices/{}/{}",
-            self.base_url(connectors),
-            invoice_id,
-            status_endpoint
+            "{}/invoices/{invoice_id}/{status_endpoint}",
+            self.base_url(connectors)
         ))
     }
 
