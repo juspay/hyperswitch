@@ -2795,18 +2795,15 @@ async fn add_token_call_to_store(
                                         reason: err.reason,
                                     })?;
 
-    logger::info!("Tokenization response");
-    logger::info!(token =? &token);
+    // logger::info!("Tokenization response");
+    // logger::info!(token =? &token);
 
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
-        token, 
+        token.clone(), 
         connector_id.clone()
     );
         
-    let key = format!(
-        "single_use_token_{}", 
-        payment_method.id.get_string_repr(),
-    );
+    let key = payment_methods::SingleUseToken::new(payment_method.id.get_string_repr());
         
     add_token_to_store(&state, key, value).await?;
 
@@ -2815,7 +2812,7 @@ async fn add_token_call_to_store(
 
 async fn add_token_to_store(
     state: &SessionState,
-    key: String,
+    key: payment_methods::SingleUseToken,
     value: payment_method_data::PaymentMethodTokenSingleUse,
 ) -> RouterResult<()> {
     let redis_connection = state
@@ -2825,14 +2822,10 @@ async fn add_token_to_store(
         .attach_printable("Failed to get redis connection")?;
 
     redis_connection
-        .serialize_and_set_key_with_expiry(&key.into(), value, 86400)
+        .serialize_and_set_key_with_expiry(&(payment_methods::SingleUseToken::get_redis_key(&key)).into(), value, 86400)
         .await
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to insert payment method token to redis");
 
     Ok(())
 }
-
-
-
-pub struct SingleUseToken(String);

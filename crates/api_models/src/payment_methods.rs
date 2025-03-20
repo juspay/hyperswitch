@@ -2868,3 +2868,18 @@ pub struct AuthenticationDetails {
     #[schema(value_type = ErrorDetails)]
     pub error: Option<payments::ErrorDetails>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SingleUseToken(String);
+
+impl SingleUseToken {
+    pub fn new(token: String) -> Self {
+        let new_token = format!("single_use_token_{}", token);
+        Self(new_token)
+    }
+
+    pub fn get_redis_key(&self) -> &str {
+        &self.0
+    }
+}
