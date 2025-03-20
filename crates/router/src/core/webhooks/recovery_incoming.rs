@@ -72,8 +72,13 @@ pub async fn recovery_incoming_webhook_flow(
         .contains(&connector)
     {
         true => {
-            let additional_revenue_recovery_id = ObjectReferenceIdTuple(object_ref_id.clone())
-                .get_additional_revenue_recovery_id_as_string()?;
+            let additional_revenue_recovery_id = object_ref_id
+                .clone()
+                .get_additional_revenue_recovery_id_as_string()
+                .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
+                .attach_printable(
+                    "Cannot get additional revenue reovery id from object reference id",
+                )?;
 
             let additional_call_response =
                 AdditionalRevenueRecoveryResponse::handle_additional_recovery_details_call(
@@ -750,20 +755,5 @@ impl AdditionalRevenueRecoveryRouterData {
 
     fn inner(self) -> AdditionalRevenueRecoveryDetailsRouterData {
         self.0
-    }
-}
-
-pub struct ObjectReferenceIdTuple(webhooks::ObjectReferenceId);
-
-impl ObjectReferenceIdTuple {
-    pub fn get_additional_revenue_recovery_id_as_string(
-        self,
-    ) -> Result<String, errors::RevenueRecoveryError> {
-        match self.0.clone() {
-            webhooks::ObjectReferenceId::AdditionalRevenueRecoveryId(
-                webhooks::AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(data),
-            ) => Ok(data),
-            _ => Err(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed),
-        }
     }
 }
