@@ -15,13 +15,14 @@ pub mod diesel_exports {
     pub use super::{
         DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
         DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
-        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus, DbCardType as CardType,
         DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDeleteStatus as DeleteStatus, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbFraudCheckStatus as FraudCheckStatus,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
+        DbMandateStatus as MandateStatus, DbPanOrToken as PanOrToken,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
+        DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
@@ -2073,20 +2074,30 @@ pub enum MandateStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
+    #[strum(serialize = "Visa")]
+    #[strum(serialize = "VISA")]
     Visa,
     #[serde(alias = "MASTERCARD")]
+    #[strum(serialize = "MASTERCARD")]
+    #[strum(serialize = "Mastercard")]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
     #[serde(alias = "AMEX")]
+    #[strum(serialize = "AMEX")]
+    #[strum(serialize = "AmericanExpress")]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
+    #[strum(serialize = "DINERS CLUB")]
+    #[strum(serialize = "DinersClub")]
     DinersClub,
     #[serde(alias = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
+    #[strum(serialize = "UNIONPAY")]
+    #[strum(serialize = "UnionPay")]
     UnionPay,
     #[serde(alias = "INTERAC")]
     Interac,
@@ -2191,6 +2202,52 @@ pub enum CountryAlpha2 {
     VE, VN, VG, VI, WF, EH, YE, ZM, ZW,
     #[default]
     US
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
+pub enum PanOrToken {
+    #[default]
+    Pan,
+    Token,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
+pub enum CardType {
+    Credit,
+    Debit,
 }
 
 #[derive(
