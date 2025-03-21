@@ -601,7 +601,7 @@ async fn insert_metadata(
             .await
         }
         types::MetaData::ReconStatus(data) => {
-            utils::insert_merchant_scoped_metadata_to_db(
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,
@@ -609,7 +609,21 @@ async fn insert_metadata(
                 metadata_key,
                 data,
             )
-            .await
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_merchant_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
+            }
+            metadata
         }
     }
 }
