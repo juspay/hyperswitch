@@ -1736,24 +1736,15 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
     fn try_from(
         item: ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let (status, response) = match (
-            item.response
-                .body
-                .consultaoperacionesresponse
-                .consultaoperacionesreturn
-                .messages
-                .version
-                .message
-                .response,
-            item.response
-                .body
-                .consultaoperacionesresponse
-                .consultaoperacionesreturn
-                .messages
-                .version
-                .message
-                .errormsg,
-        ) {
+        let message_data = item
+            .response
+            .body
+            .consultaoperacionesresponse
+            .consultaoperacionesreturn
+            .messages
+            .version
+            .message;
+        let (status, response) = match (message_data.response, message_data.errormsg) {
             (Some(response), None) => {
                 if let Some(ds_response) = response.ds_response {
                     let status = get_redsys_attempt_status(
@@ -1843,24 +1834,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
     fn try_from(
         item: RefundsResponseRouterData<RSync, RedsysSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let response = match (
-            item.response
-                .body
-                .consultaoperacionesresponse
-                .consultaoperacionesreturn
-                .messages
-                .version
-                .message
-                .response,
-            item.response
-                .body
-                .consultaoperacionesresponse
-                .consultaoperacionesreturn
-                .messages
-                .version
-                .message
-                .errormsg,
-        ) {
+        let message_data = item
+            .response
+            .body
+            .consultaoperacionesresponse
+            .consultaoperacionesreturn
+            .messages
+            .version
+            .message;
+        let response = match (message_data.response, message_data.errormsg) {
             (None, Some(errormsg)) => {
                 let error_code = errormsg.ds_errorcode.clone();
                 Err(ErrorResponse {
