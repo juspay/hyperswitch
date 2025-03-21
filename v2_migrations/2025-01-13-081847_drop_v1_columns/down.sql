@@ -131,3 +131,8 @@ ALTER TABLE refund ADD COLUMN connector_refund_data VARCHAR(512),
     ADD COLUMN connector_transaction_data VARCHAR(512);
 
 ALTER TABLE captures ADD COLUMN connector_capture_data VARCHAR(512);
+
+ALTER TABLE refund 
+    ADD COLUMN IF NOT EXISTS internal_reference_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS refund_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(64);

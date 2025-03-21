@@ -25,3 +25,6 @@ ALTER TABLE payment_attempt
     ALTER COLUMN authentication_type DROP NOT NULL,
     ALTER COLUMN payment_method_type_v2 DROP NOT NULL,
     ALTER COLUMN payment_method_subtype DROP NOT NULL;
+
+ALTER TABLE refund
+    ALTER COLUMN merchant_reference_id DROP NOT NULL;

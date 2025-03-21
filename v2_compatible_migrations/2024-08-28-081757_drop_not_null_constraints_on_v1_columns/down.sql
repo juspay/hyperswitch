@@ -37,3 +37,7 @@ ALTER TABLE payment_attempt
 ---------------------- Payment Methods ----------------------
 ALTER TABLE payment_methods 
     ADD PRIMARY KEY (payment_method_id);
+
+---------------------- Refunds ----------------------
+ALTER TABLE refund
+    ADD PRIMARY KEY (refund_id,merchant_id);

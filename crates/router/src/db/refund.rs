@@ -17,6 +17,7 @@ const MAX_LIMIT: usize = 100;
 
 #[async_trait::async_trait]
 pub trait RefundInterface {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
@@ -24,6 +25,7 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_payment_id_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
@@ -31,6 +33,7 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_refund_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -38,6 +41,7 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -53,6 +57,7 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -60,13 +65,24 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>;
 
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn find_refund_by_id(
+        &self,
+        id: &common_utils::id_type::GlobalRefundId,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<storage_types::Refund, errors::StorageError>;
+
     async fn insert_refund(
         &self,
         new: storage_types::RefundNew,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -76,7 +92,11 @@ pub trait RefundInterface {
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -84,7 +104,11 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn get_refund_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -93,7 +117,11 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>;
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -320,6 +348,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
@@ -376,6 +405,7 @@ mod storage {
             }
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn insert_refund(
             &self,
@@ -529,6 +559,20 @@ mod storage {
             }
         }
 
+        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[instrument(skip_all)]
+        async fn insert_refund(
+            &self,
+            new: storage_types::RefundNew,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            new.insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
@@ -588,6 +632,7 @@ mod storage {
             }
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn update_refund(
             &self,
@@ -652,6 +697,21 @@ mod storage {
             }
         }
 
+        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[instrument(skip_all)]
+        async fn update_refund(
+            &self,
+            this: storage_types::Refund,
+            refund: storage_types::RefundUpdate,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            this.update_with_id(&conn, refund)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
@@ -702,6 +762,7 @@ mod storage {
             }
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
@@ -760,6 +821,7 @@ mod storage {
             }
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
@@ -807,7 +869,24 @@ mod storage {
             }
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[instrument(skip_all)]
+        async fn find_refund_by_id(
+            &self,
+            id: &common_utils::id_type::GlobalRefundId,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Refund::find_by_global_id(&conn, id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
@@ -829,7 +908,11 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
@@ -843,7 +926,11 @@ mod storage {
                         .map_err(|error|report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn get_refund_status_with_count(
             &self,
@@ -858,7 +945,11 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
@@ -880,6 +971,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl RefundInterface for MockDb {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
@@ -899,6 +991,7 @@ impl RefundInterface for MockDb {
             })
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn insert_refund(
         &self,
         new: storage_types::RefundNew,
@@ -950,6 +1043,56 @@ impl RefundInterface for MockDb {
         refunds.push(refund.clone());
         Ok(refund)
     }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn insert_refund(
+        &self,
+        new: storage_types::RefundNew,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+        let mut refunds = self.refunds.lock().await;
+        let current_time = common_utils::date_time::now();
+
+        let refund = storage_types::Refund {
+            id: new.id,
+            merchant_reference_id: new.merchant_reference_id,
+            payment_id: new.payment_id,
+            merchant_id: new.merchant_id,
+            attempt_id: new.attempt_id,
+            connector_transaction_id: new.connector_transaction_id,
+            connector: new.connector,
+            connector_refund_id: new.connector_refund_id,
+            external_reference_id: new.external_reference_id,
+            refund_type: new.refund_type,
+            total_amount: new.total_amount,
+            currency: new.currency,
+            refund_amount: new.refund_amount,
+            refund_status: new.refund_status,
+            sent_to_gateway: new.sent_to_gateway,
+            refund_error_message: None,
+            refund_error_code: None,
+            metadata: new.metadata,
+            refund_arn: new.refund_arn.clone(),
+            created_at: new.created_at,
+            modified_at: current_time,
+            description: new.description,
+            refund_reason: new.refund_reason.clone(),
+            profile_id: new.profile_id,
+            updated_by: new.updated_by,
+            connector_id: new.connector_id,
+            charges: new.charges,
+            split_refunds: new.split_refunds,
+            organization_id: new.organization_id,
+            unified_code: None,
+            unified_message: None,
+            processor_refund_data: new.processor_refund_data.clone(),
+            processor_transaction_data: new.processor_transaction_data.clone(),
+        };
+        refunds.push(refund.clone());
+        Ok(refund)
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -968,6 +1111,7 @@ impl RefundInterface for MockDb {
             .collect::<Vec<_>>())
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn update_refund(
         &self,
         this: storage_types::Refund,
@@ -990,6 +1134,30 @@ impl RefundInterface for MockDb {
             })
     }
 
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn update_refund(
+        &self,
+        this: storage_types::Refund,
+        refund: storage_types::RefundUpdate,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+        self.refunds
+            .lock()
+            .await
+            .iter_mut()
+            .find(|refund| this.merchant_reference_id == refund.merchant_reference_id)
+            .map(|r| {
+                let refund_updated = RefundUpdateInternal::from(refund).create_refund(r.clone());
+                *r = refund_updated.clone();
+                refund_updated
+            })
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find refund to update".to_string())
+                    .into()
+            })
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_refund_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -1007,6 +1175,7 @@ impl RefundInterface for MockDb {
             })
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -1032,6 +1201,7 @@ impl RefundInterface for MockDb {
             })
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_payment_id_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
@@ -1047,7 +1217,28 @@ impl RefundInterface for MockDb {
             .collect::<Vec<_>>())
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn find_refund_by_id(
+        &self,
+        id: &common_utils::id_type::GlobalRefundId,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+        let refunds = self.refunds.lock().await;
+
+        refunds
+            .iter()
+            .find(|refund| refund.id == *id)
+            .cloned()
+            .ok_or_else(|| {
+                errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
+            })
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -1162,7 +1353,11 @@ impl RefundInterface for MockDb {
         Ok(filtered_refunds)
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn filter_refund_by_meta_constraints(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -1209,7 +1404,11 @@ impl RefundInterface for MockDb {
         Ok(refund_meta_data)
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn get_refund_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -1255,7 +1454,11 @@ impl RefundInterface for MockDb {
         Ok(result)
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "refunds_v2"),
+        feature = "olap"
+    ))]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,

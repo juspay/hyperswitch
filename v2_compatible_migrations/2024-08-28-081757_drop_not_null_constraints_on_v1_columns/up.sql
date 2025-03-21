@@ -37,3 +37,7 @@ ALTER TABLE payment_attempt
 ALTER TABLE payment_methods 
     DROP CONSTRAINT payment_methods_pkey,
     ALTER COLUMN payment_method_id DROP NOT NULL;
+
+ALTER TABLE refund
+    DROP CONSTRAINT refund_pkey,
+    ALTER COLUMN refund_id DROP NOT NULL;

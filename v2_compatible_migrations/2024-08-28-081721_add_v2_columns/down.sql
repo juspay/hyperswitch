@@ -53,3 +53,8 @@ ALTER TABLE payment_methods
     DROP COLUMN IF EXISTS locker_fingerprint_id,
     DROP COLUMN IF EXISTS payment_method_type_v2,
     DROP COLUMN IF EXISTS payment_method_subtype;
+
+ALTER TABLE refund
+    DROP COLUMN IF EXISTS id,
+    DROP COLUMN IF EXISTS merchant_reference_id,
+    DROP COLUMN IF EXISTS connector_id;
