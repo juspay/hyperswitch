@@ -3028,7 +3028,13 @@ where
 
     operation
         .to_domain()?
-        .populate_payment_data(state, payment_data, merchant_account)
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_account,
+            business_profile,
+            &connector,
+        )
         .await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
@@ -5578,7 +5584,6 @@ pub async fn list_payments(
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = merchant.get_id();
     let db = state.store.as_ref();
@@ -5606,7 +5611,10 @@ pub async fn list_payments(
             {
                 Ok(pa) => Some(Ok((pi, pa))),
                 Err(error) => {
-                    if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
+                    if matches!(
+                        error.current_context(),
+                        errors::StorageError::ValueNotFound(_)
+                    ) {
                         logger::warn!(
                             ?error,
                             "payment_attempts missing for payment_id : {:?}",

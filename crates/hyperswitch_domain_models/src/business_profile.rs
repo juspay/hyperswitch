@@ -1,11 +1,12 @@
 use common_enums::enums as api_enums;
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii, type_name,
-    types::{keymanager, AlwaysRequestExtendedAuthorization},
+    types::keymanager,
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
@@ -1224,8 +1225,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1271,8 +1272,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1318,8 +1319,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1365,8 +1366,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1412,8 +1413,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1459,8 +1460,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1506,8 +1507,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1553,8 +1554,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled,
-                merchant_business_country,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
             },
         }
     }

@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "v1")]
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -8,10 +10,7 @@ use common_utils::{
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v1")]
-use common_utils::{
-    crypto::OptionalEncryptableName, ext_traits::ValueExt,
-    types::AlwaysRequestExtendedAuthorization,
-};
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -1985,8 +1984,11 @@ pub struct ProfileCreate {
     pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
     pub is_debit_routing_enabled: Option<bool>,
 
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
@@ -2114,8 +2116,11 @@ pub struct ProfileCreate {
     pub is_clear_pan_retries_enabled: Option<bool>,
 
     /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
     pub is_debit_routing_enabled: Option<bool>,
 
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
@@ -2539,8 +2544,11 @@ pub struct ProfileUpdate {
     pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
     pub is_debit_routing_enabled: Option<bool>,
 
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
@@ -2662,8 +2670,11 @@ pub struct ProfileUpdate {
     pub is_clear_pan_retries_enabled: Option<bool>,
 
     /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
     pub is_debit_routing_enabled: Option<bool>,
 
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
