@@ -876,9 +876,9 @@ fn get_redsys_attempt_status(
             "0400" => Ok(enums::AttemptStatus::Voided),
             "0950" => Ok(enums::AttemptStatus::VoidFailed),
             "9998" => Ok(enums::AttemptStatus::AuthenticationPending),
-            "9256" | "9257" => Ok(enums::AttemptStatus::AuthenticationFailed),
+            "9256" | "9257" | "0184" => Ok(enums::AttemptStatus::AuthenticationFailed),
             "0101" | "0102" | "0106" | "0125" | "0129" | "0172" | "0173" | "0174" | "0180"
-            | "0184" | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944"
+            | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944"
             | "9912" | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253"
             | "9261" | "9915" | "9997" | "9999"  => Ok(enums::AttemptStatus::Failure),
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
@@ -1395,7 +1395,7 @@ impl TryFrom<DsResponse> for enums::RefundStatus {
         match ds_response.0.as_str() {
             "0900" => Ok(Self::Success),
             "9999" => Ok(Self::Pending),
-            "0950" | "0172" => Ok(Self::Failure),
+            "0950" | "0172" | "174" => Ok(Self::Failure),
             unknown_status => Err(errors::ConnectorError::ResponseHandlingFailed)
                 .attach_printable(format!("Received unknown status:{}", unknown_status))?,
         }
