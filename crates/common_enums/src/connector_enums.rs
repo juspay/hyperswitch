@@ -213,6 +213,7 @@ pub enum Connector {
     Coingate,
     Cryptopay,
     CtpMastercard,
+    CtpVisa,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -442,6 +443,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
             | Self::Datatrans => false,

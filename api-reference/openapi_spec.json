@@ -6606,7 +6606,8 @@
           "gpayments",
           "ctp_mastercard",
           "unified_authentication_service",
-          "juspaythreedsserver"
+          "juspaythreedsserver",
+          "ctp_visa"
         ]
       },
       "AuthenticationStatus": {
@@ -9717,6 +9718,7 @@
           "coingate",
           "cryptopay",
           "ctp_mastercard",
+          "ctp_visa",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -10455,11 +10457,26 @@
             "nullable": true
           },
           "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "encypted_payload": {
             "type": "string",
-            "description": "provider Eg: Visa, Mastercard",
+            "description": "Encrypted payload",
             "nullable": true
           }
         }
+      },
+      "CtpServiceProvider": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard"
+        ]
       },
       "Currency": {
         "type": "string",
