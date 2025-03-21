@@ -25,6 +25,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
     core::{
+        api_locking,
         errors::{self, CustomResult},
         metrics,
     },
@@ -33,7 +34,7 @@ use crate::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
     },
     logger,
-    routes::{app::SessionStateInfo, SessionState},
+    routes::{app::SessionStateInfo, lock_utils, SessionState},
     services,
     types::{
         api,
@@ -135,6 +136,36 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         metadata: Some(event_metadata),
     };
 
+    let lock_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: idempotent_event_id.to_string().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::Webhooks,
+            override_lock_retries: None,
+        },
+    };
+
+    lock_action
+        .clone()
+        .perform_locking_action(&state, merchant_account.get_id().to_owned())
+        .await?;
+
+    if (state
+        .store
+        .find_event_by_merchant_id_event_id(
+            key_manager_state,
+            &merchant_id,
+            &event_id,
+            merchant_key_store,
+        )
+        .await)
+        .is_ok()
+    {
+        logger::debug!(
+            "Event with idempotent ID `{idempotent_event_id}` already exists in the database"
+        );
+        return Ok(());
+    }
+
     let event_insert_result = state
         .store
         .insert_event(key_manager_state, new_event, merchant_key_store)
@@ -154,6 +185,10 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             }
         }
     }?;
+
+    lock_action
+        .free_lock_action(&state, merchant_account.get_id().to_owned())
+        .await?;
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
         &*state.store,
