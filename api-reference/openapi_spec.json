@@ -6605,7 +6605,8 @@
           "netcetera",
           "gpayments",
           "ctp_mastercard",
-          "unified_authentication_service"
+          "unified_authentication_service",
+          "juspaythreedsserver"
         ]
       },
       "AuthenticationStatus": {
@@ -7733,6 +7734,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft"
+            ],
+            "properties": {
+              "eft": {
+                "type": "object",
+                "required": [
+                  "provider"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "description": "The preferred eft provider",
+                    "example": "ozow"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -8510,6 +8532,23 @@
           }
         }
       },
+      "BraintreeData": {
+        "type": "object",
+        "required": [
+          "merchant_account_id",
+          "merchant_config_currency"
+        ],
+        "properties": {
+          "merchant_account_id": {
+            "type": "string",
+            "description": "Information about the merchant_account_id that merchant wants to specify at connector level."
+          },
+          "merchant_config_currency": {
+            "type": "string",
+            "description": "Information about the merchant_config_currency that merchant wants to specify at connector level."
+          }
+        }
+      },
       "BrowserInformation": {
         "type": "object",
         "description": "Browser information to be used for 3DS 2.0",
@@ -9124,6 +9163,90 @@
           "Maestro"
         ]
       },
+      "CardNetworkTokenizeRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TokenizeDataRequest"
+          },
+          {
+            "type": "object",
+            "required": [
+              "merchant_id",
+              "customer"
+            ],
+            "properties": {
+              "merchant_id": {
+                "type": "string",
+                "description": "Merchant ID associated with the tokenization request",
+                "example": "merchant_1671528864"
+              },
+              "customer": {
+                "$ref": "#/components/schemas/CustomerDetails"
+              },
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              },
+              "metadata": {
+                "type": "object",
+                "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+                "nullable": true
+              },
+              "payment_method_issuer": {
+                "type": "string",
+                "description": "The name of the bank/ provider issuing the payment method to the end user",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "CardNetworkTokenizeResponse": {
+        "type": "object",
+        "required": [
+          "customer",
+          "card_tokenized"
+        ],
+        "properties": {
+          "payment_method_response": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerDetails"
+          },
+          "card_tokenized": {
+            "type": "boolean",
+            "description": "Card network tokenization status"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message",
+            "nullable": true
+          },
+          "tokenization_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TokenizeDataRequest"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "CardNetworkTypes": {
         "type": "object",
         "required": [
@@ -9425,6 +9548,13 @@
           }
         ]
       },
+      "CardType": {
+        "type": "string",
+        "enum": [
+          "credit",
+          "debit"
+        ]
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -9598,15 +9728,18 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
           "itaubank",
           "jpmorgan",
+          "juspaythreedsserver",
           "klarna",
           "mifinity",
           "mollie",
@@ -9632,6 +9765,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "shift4",
           "square",
           "stax",
@@ -9756,6 +9890,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NoonData"
+              }
+            ],
+            "nullable": true
+          },
+          "braintree": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BraintreeData"
               }
             ],
             "nullable": true
@@ -11835,6 +11977,12 @@
           {
             "type": "string",
             "enum": [
+              "user_card_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -13782,6 +13930,14 @@
               }
             ],
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14012,6 +14168,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -14926,6 +15090,17 @@
         },
         "additionalProperties": false
       },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
+      },
       "MerchantRecipientData": {
         "oneOf": [
           {
@@ -15305,6 +15480,14 @@
               "qr_code_url": {
                 "type": "string",
                 "description": "The url for Qr code given by the connector"
+              },
+              "display_text": {
+                "type": "string",
+                "nullable": true
+              },
+              "border_color": {
+                "type": "string",
+                "nullable": true
               },
               "type": {
                 "type": "string",
@@ -16433,7 +16616,8 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default"
+          "show_card_form_by_default",
+          "enable_button_only_on_form_ready"
         ],
         "properties": {
           "theme": {
@@ -16535,6 +16719,32 @@
             "type": "string",
             "description": "Custom background colour for the payment link",
             "nullable": true
+          },
+          "sdk_ui_rules": {
+            "type": "object",
+            "description": "SDK configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "payment_link_ui_rules": {
+            "type": "object",
+            "description": "Payment link configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission"
           }
         }
       },
@@ -16649,6 +16859,33 @@
           "background_colour": {
             "type": "string",
             "description": "Custom background colour for the payment link",
+            "nullable": true
+          },
+          "sdk_ui_rules": {
+            "type": "object",
+            "description": "SDK configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "payment_link_ui_rules": {
+            "type": "object",
+            "description": "Payment link configuration rules",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
           }
         }
@@ -17759,6 +17996,7 @@
           "debit",
           "duit_now",
           "efecty",
+          "eft",
           "eps",
           "fps",
           "evoucher",
@@ -19392,6 +19630,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
           }
         }
       },
@@ -20659,6 +20907,16 @@
                 "$ref": "#/components/schemas/CardDiscovery"
               }
             ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           }
         }
@@ -23162,6 +23420,11 @@
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not.",
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23196,7 +23459,8 @@
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
           "is_click_to_pay_enabled",
-          "is_clear_pan_retries_enabled"
+          "is_clear_pan_retries_enabled",
+          "force_3ds_challenge"
         ],
         "properties": {
           "merchant_id": {
@@ -23421,6 +23685,10 @@
           "is_clear_pan_retries_enabled": {
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not."
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced"
           }
         }
       },
@@ -23928,6 +24196,16 @@
                 "$ref": "#/components/schemas/SplitRefund"
               }
             ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed refunds",
             "nullable": true
           }
         }
@@ -24581,9 +24859,11 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",
@@ -24613,6 +24893,7 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
           "riskified",
           "shift4",
           "signifyd",
@@ -26220,6 +26501,113 @@
             "type": "boolean",
             "description": "Status of KV for the specific merchant",
             "example": true
+          }
+        }
+      },
+      "TokenizeCardRequest": {
+        "type": "object",
+        "required": [
+          "raw_card_number",
+          "card_expiry_month",
+          "card_expiry_year"
+        ],
+        "properties": {
+          "raw_card_number": {
+            "type": "string",
+            "description": "Card Number",
+            "example": "4111111145551142"
+          },
+          "card_expiry_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card Holder Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenizeDataRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/TokenizeCardRequest"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "existing_payment_method"
+            ],
+            "properties": {
+              "existing_payment_method": {
+                "$ref": "#/components/schemas/TokenizePaymentMethodRequest"
+              }
+            }
+          }
+        ]
+      },
+      "TokenizePaymentMethodRequest": {
+        "type": "object",
+        "properties": {
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
+            "nullable": true
           }
         }
       },
