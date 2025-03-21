@@ -86,7 +86,6 @@ pub async fn signup_with_merchant_id(
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
-
         auth_id,
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
@@ -307,7 +306,6 @@ pub async fn connect_account(
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
-
             auth_id,
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
@@ -1233,7 +1231,6 @@ pub async fn resend_invite(
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
         settings: state.conf.clone(),
-
         entity: email_types::Entity {
             entity_id,
             entity_type,
