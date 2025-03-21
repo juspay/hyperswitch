@@ -944,13 +944,9 @@ fn get_pmd_based_on_payment_method_type(
             payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::Ideal {
                 billing_details: billing_details.as_ref().map(|billing_data| {
                     payments::BankRedirectBilling {
-                        billing_name: billing_data.get_optional_full_name().and_then(|name| {
-                            common_utils::types::NameType::try_from(name)
-                                .map_err(|err| {
-                                    router_env::logger::error!("Invalid Billing Name: {}", err);
-                                })
-                                .ok()
-                        }),
+                        billing_name: billing_data
+                            .get_optional_full_name()
+                            .map(common_utils::types::NameType::get_unchecked_from_secret), // this is unchecked because the input is coming from a checked type
                         email: billing_data.email.clone(),
                     }
                 }),
