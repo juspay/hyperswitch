@@ -442,6 +442,7 @@ pub async fn create_profile_from_merchant_account(
             .attach_printable("error while generating card testing secret key")?,
         is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
         force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
-        is_debit_routing_enabled: request.is_debit_routing_enabled,
+        is_debit_routing_enabled: request.is_debit_routing_enabled.unwrap_or_default(),
+        merchant_business_country: request.merchant_business_country,
     }))
 }

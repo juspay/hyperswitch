@@ -3806,7 +3806,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
             force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
-            is_debit_routing_enabled: self.is_debit_routing_enabled,
+            is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+            merchant_business_country: self.merchant_business_country,
         }))
     }
 
@@ -3962,7 +3963,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
-            is_debit_routing_enabled: self.is_debit_routing_enabled,
+            is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+            merchant_business_country: self.merchant_business_country,
         }))
     }
 }
@@ -4250,7 +4252,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
                 force_3ds_challenge: self.force_3ds_challenge, //
-                is_debit_routing_enabled: self.is_debit_routing_enabled,
+                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                merchant_business_country: self.merchant_business_country,
             },
         )))
     }
@@ -4383,7 +4386,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
-                is_debit_routing_enabled: self.is_debit_routing_enabled,
+                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                merchant_business_country: self.merchant_business_country,
             },
         )))
     }
