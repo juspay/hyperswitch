@@ -288,8 +288,37 @@ pub async fn create_profile_from_merchant_account(
 
     let current_time = common_utils::date_time::now();
 
+    // let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
     let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
+    // Directly iterate over the details and set the id if None
+    // if let Some(details) = &mut webhook_details {
+    //     for webhook_detail_option in details.iter_mut() {
+    //         // Check if the webhook_detail_option is Some
+    //         if let Some(webhook_detail) = webhook_detail_option {
+    //             // If webhook_endpoint_id is None, generate and set the ID
+    //             if webhook_detail.webhook_endpoint_id.is_none() {
+    //                 webhook_detail.webhook_endpoint_id = Some(common_utils::generate_webhook_endpoint_id_of_default_length());
+    //             }
+    //         }
+    //     }
+    // }
 
+    // let webhook_details = request.webhook_details.map(|webhook_details_vec| {
+    //     webhook_details_vec.into_iter().filter_map(|mut webhook_detail_option| {
+    //         match webhook_detail_option {
+    //             Some(mut webhook_detail) => {
+    //                 // If webhook_endpoint_id is None, generate a unique ID
+    //                 if webhook_detail.webhook_endpoint_id.is_none() {
+    //                     webhook_detail.webhook_endpoint_id = Some(generate_webhook_id()); // Generate webhook ID
+    //                 }
+
+    //                 // Perform the foreign_into conversion to the required type
+    //                 Some(webhook_detail.foreign_into()) // Convert the valid webhook_detail
+    //             }
+    //             None => None, // Skip the `None` webhook details
+    //         }
+    //     }).collect::<Vec<Option<WebhookDetails>>>() // Collect into a new Vec
+    // });
     let payment_response_hash_key = request
         .payment_response_hash_key
         .or(merchant_account.payment_response_hash_key)

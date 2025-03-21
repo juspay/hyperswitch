@@ -26,6 +26,7 @@ pub struct EventNew {
     pub response: Option<Encryption>,
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
     pub metadata: Option<EventMetadata>,
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -57,6 +58,7 @@ pub struct Event {
     pub response: Option<Encryption>,
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
     pub metadata: Option<EventMetadata>,
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]

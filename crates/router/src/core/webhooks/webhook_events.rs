@@ -197,6 +197,7 @@ pub async fn retry_delivery_attempt(
         &event_to_retry.primary_object_id,
         event_to_retry.event_type,
         delivery_attempt,
+        new_event_id.clone(),
     );
 
     let now = common_utils::date_time::now();
@@ -217,6 +218,7 @@ pub async fn retry_delivery_attempt(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
+        webhook_endpoint_id: event_to_retry.webhook_endpoint_id,
     };
 
     let event = store

@@ -71,6 +71,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             &tracking_data.primary_object_id,
             tracking_data.event_type,
             delivery_attempt,
+            event_id.clone(),
         );
 
         let initial_event = match &tracking_data.initial_attempt_id {
@@ -118,8 +119,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             response: None,
             delivery_attempt: Some(delivery_attempt),
             metadata: initial_event.metadata,
+            webhook_endpoint_id: initial_event.webhook_endpoint_id,
         };
-
+        println!("$$$ new_event in process_tracker");
         let event = db
             .insert_event(key_manager_state, new_event, &key_store)
             .await

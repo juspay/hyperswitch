@@ -80,6 +80,9 @@ pub struct EventListItemResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
+
+    #[schema(max_length = 64, example = "web_018e31720d1b7a2b82677d3032cab959")]
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 /// The response body for retrieving an event.
