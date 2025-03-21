@@ -1430,7 +1430,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                 } else {
                     Ok(RefundsResponseData {
                         connector_refund_id: response_data.ds_order,
-                        refund_status: enums::RefundStatus::try_from(response_data.ds_response)?,
+                        refund_status,
                     })
                 }
             }
