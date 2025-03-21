@@ -41,12 +41,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-
-pub(crate) const CANNOT_CONTINUE_AUTH: &str =
-    "Cannot continue with Authorization due to failed Liability Shift.";
-#[cfg(feature = "payouts")]
-pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
 
@@ -88,6 +82,12 @@ pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
     "Approval of Recon Request - Access Granted to Recon Dashboard";
 
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
+
+pub const CARD_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "CARD_IP_BLOCKING";
+
+pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLOCKING";
+
+pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -152,6 +152,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 
+/// [PaymentLink] Default bool for enabling button only when form is ready
+pub const DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY: bool = false;
+
 /// Default Merchant Logo Link
 pub const DEFAULT_MERCHANT_LOGO: &str =
     "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
@@ -215,5 +218,17 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
 
+/// Default payment method session expiry
+pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
+
 /// Authorize flow identifier used for performing GSM operations
 pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";
+
+/// Default value for the number of attempts to retry fetching forex rates
+pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;

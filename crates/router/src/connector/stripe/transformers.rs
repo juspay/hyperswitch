@@ -711,6 +711,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Dana
             | enums::PaymentMethodType::DirectCarrierBilling
             | enums::PaymentMethodType::Efecty
+            | enums::PaymentMethodType::Eft
             | enums::PaymentMethodType::Evoucher
             | enums::PaymentMethodType::GoPay
             | enums::PaymentMethodType::Gcash
@@ -1032,6 +1033,7 @@ impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodType {
             }
             domain::BankRedirectData::Bizum {}
             | domain::BankRedirectData::Interac { .. }
+            | domain::BankRedirectData::Eft { .. }
             | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | domain::BankRedirectData::OnlineBankingFinland { .. }
             | domain::BankRedirectData::OnlineBankingPoland { .. }
@@ -1600,6 +1602,7 @@ impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
                 .into())
             }
             domain::BankRedirectData::Bizum {}
+            | domain::BankRedirectData::Eft { .. }
             | domain::BankRedirectData::Interac { .. }
             | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | domain::BankRedirectData::OnlineBankingFinland { .. }
@@ -1973,9 +1976,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 };
                 (charges, None)
             }
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) | None => {
-                (None, item.connector_customer.to_owned().map(Secret::new))
-            }
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_))
+            | Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_))
+            | None => (None, item.connector_customer.to_owned().map(Secret::new)),
         };
 
         Ok(Self {
@@ -3092,11 +3095,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
                         },
                     })
                 }
-                types::SplitRefundsRequest::AdyenSplitRefund(_) => {
-                    Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "stripe_split_refund",
-                    })?
-                }
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "stripe_split_refund",
+                })?,
             },
         }
     }
@@ -3157,6 +3158,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3192,6 +3195,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3548,6 +3553,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -4168,6 +4175,8 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response_id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

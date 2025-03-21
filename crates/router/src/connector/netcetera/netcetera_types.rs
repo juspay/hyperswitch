@@ -1,21 +1,28 @@
 use std::collections::HashMap;
 
-use common_utils::pii::Email;
+use common_utils::{pii::Email, types::SemanticVersion};
+use hyperswitch_connectors::utils::AddressDetailsData;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use unidecode::unidecode;
 
-use crate::{
-    connector::utils::{AddressDetailsData, PhoneDetailsData},
-    errors,
-    types::api::MessageCategory,
-};
+use crate::{connector::utils::PhoneDetailsData, errors, types::api::MessageCategory};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum SingleOrListElement<T> {
     Single(T),
     List(Vec<T>),
+}
+
+impl<T> SingleOrListElement<T> {
+    fn get_version_checked(message_version: SemanticVersion, value: T) -> Self {
+        if message_version.get_major() >= 2 && message_version.get_minor() >= 3 {
+            Self::List(vec![value])
+        } else {
+            Self::Single(value)
+        }
+    }
 }
 
 impl<T> SingleOrListElement<T> {
@@ -124,7 +131,7 @@ pub struct ThreeDSRequestor {
     /// This field is required when deviceChannel = 01 (APP) and unless market or regional mandate restricts sending
     /// this information.
     /// Available for supporting EMV 3DS 2.3.1 and later versions.
-    pub app_ip: Option<String>,
+    pub app_ip: Option<std::net::IpAddr>,
     /// Indicate if the 3DS Requestor supports the SPC authentication.
     ///
     /// The accepted values are:
@@ -170,6 +177,44 @@ pub enum ThreeDSRequestorAuthenticationIndicator {
     CardholderVerification,
     #[serde(rename = "07")]
     BillingAgreement,
+}
+
+impl ThreeDSRequestor {
+    pub fn new(
+        app_ip: Option<std::net::IpAddr>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        force_3ds_challenge: bool,
+        message_version: SemanticVersion,
+    ) -> Self {
+        // if sca exemption is provided, we need to set the challenge indicator to NoChallengeRequestedTransactionalRiskAnalysis
+        let three_ds_requestor_challenge_ind = if force_3ds_challenge {
+            Some(SingleOrListElement::get_version_checked(
+                message_version,
+                ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate,
+            ))
+        } else if let Some(common_enums::ScaExemptionType::TransactionRiskAnalysis) =
+            psd2_sca_exemption_type
+        {
+            Some(SingleOrListElement::get_version_checked(
+                message_version,
+                ThreeDSRequestorChallengeIndicator::NoChallengeRequestedTransactionalRiskAnalysis,
+            ))
+        } else {
+            None
+        };
+
+        Self {
+            three_ds_requestor_authentication_ind: ThreeDSRequestorAuthenticationIndicator::Payment,
+            three_ds_requestor_authentication_info: None,
+            three_ds_requestor_challenge_ind,
+            three_ds_requestor_prior_authentication_info: None,
+            three_ds_requestor_dec_req_ind: None,
+            three_ds_requestor_dec_max_time: None,
+            app_ip,
+            three_ds_requestor_spc_support: None,
+            spc_incomp_ind: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -306,6 +351,39 @@ pub enum ThreeDSRequestorDecoupledRequestIndicator {
     B,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum SchemeId {
+    Visa,
+    Mastercard,
+    #[serde(rename = "JCB")]
+    Jcb,
+    #[serde(rename = "American Express")]
+    AmericanExpress,
+    Diners,
+    // For Cartes Bancaires and UnionPay, it is recommended to send the scheme ID
+    #[serde(rename = "CB")]
+    CartesBancaires,
+    UnionPay,
+}
+
+impl TryFrom<common_enums::CardNetwork> for SchemeId {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
+            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
+            _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Invalid card network".to_string(),
+            ))?,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CardholderAccount {
@@ -340,7 +418,7 @@ pub struct CardholderAccount {
     /// are provided in the 3DS Server Configuration Properties. Additionally,
     /// if the schemeId is present in the request and there are card ranges found by multiple schemes, the schemeId will be
     /// used for proper resolving of the versioning data.
-    pub scheme_id: Option<String>,
+    pub scheme_id: Option<SchemeId>,
     /// Additional information about the account optionally provided by the 3DS Requestor.
     ///
     /// This field is limited to 64 characters and it is optional to use.
@@ -1051,6 +1129,7 @@ pub struct AcquirerData {
     /// This field is required if no MerchantAcquirer is present for the acquirer BIN in the 3DS Server configuration and
     /// for requests where messageCategory = 01 (PA). For requests where messageCategory=02 (NPA), the field is required
     /// only if scheme is Mastercard, for other schemes it is optional.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_bin: Option<String>,
 
     /// Acquirer-assigned Merchant identifier.
@@ -1064,6 +1143,7 @@ pub struct AcquirerData {
     ///
     /// This field is required if merchantConfigurationId is not provided in the request and messageCategory = 01 (PA).
     /// For Mastercard, if merchantConfigurationId is not provided, the field must be present if messageCategory = 02 (NPA).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_merchant_id: Option<String>,
 
     /// Acquirer Country Code.
@@ -1075,6 +1155,7 @@ pub struct AcquirerData {
     /// The Directory Server may edit the value of this field provided by the 3DS Server.
     ///
     /// This field is required.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_country_code: Option<String>,
 }
 
@@ -1094,6 +1175,7 @@ pub struct MerchantData {
     /// If not present in the request it will be filled from the merchant configuration referenced by the merchantConfigurationId.
     ///
     /// This field is required for messageCategory=01 (PA) and optional, but strongly recommended for 02 (NPA).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mcc: Option<String>,
 
     /// Country code for the merchant. This value correlates to the Merchant Country Code as defined by each Payment System or DS.
@@ -1102,6 +1184,7 @@ pub struct MerchantData {
     /// If not present in the request it will be filled from the merchant configuration referenced by the merchantConfigurationId.
     ///
     /// This field is required for messageCategory=01 (PA) and optional, but strongly recommended for 02 (NPA).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_country_code: Option<String>,
 
     /// Merchant name assigned by the Acquirer or Payment System. This field is limited to maximum 40 characters,
@@ -1110,6 +1193,7 @@ pub struct MerchantData {
     /// If not present in the request it will be filled from the merchant configuration referenced by the merchantConfigurationId.
     ///
     /// This field is required for messageCategory=01 (PA) and optional, but strongly recommended for 02 (NPA).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_name: Option<String>,
 
     /// Fully qualified URL of the merchant that receives the CRes message or Error Message.
@@ -1119,6 +1203,7 @@ pub struct MerchantData {
     /// This field should be present if the merchant will receive the final CRes message and the device channel is BROWSER.
     /// If not present in the request it will be filled from the notificationURL configured in the XML or database configuration.
     #[serde(rename = "notificationURL")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notification_url: Option<String>,
 
     /// Each DS provides rules for the 3DS Requestor ID. The 3DS Requestor is responsible for providing the 3DS Requestor ID according to the DS rules.
@@ -1126,6 +1211,7 @@ pub struct MerchantData {
     /// This value is mandatory, therefore it should be either configured for each Merchant Acquirer, or should be
     /// passed in the transaction payload as part of the Merchant data.
     #[serde(rename = "threeDSRequestorId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_requestor_id: Option<String>,
 
     /// Each DS provides rules for the 3DS Requestor Name. The 3DS Requestor is responsible for providing the 3DS Requestor Name according to the DS rules.
@@ -1133,6 +1219,7 @@ pub struct MerchantData {
     /// This value is mandatory, therefore it should be either configured for each Merchant Acquirer, or should be
     /// passed in the transaction payload as part of the Merchant data.
     #[serde(rename = "threeDSRequestorName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_requestor_name: Option<String>,
 
     /// Set whitelisting status of the merchant.
@@ -1163,6 +1250,7 @@ pub struct MerchantData {
     ///
     /// If not present in the request it will be filled from the notificationURL configured in the XML or database
     /// configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub results_response_notification_url: Option<String>,
 }
 
@@ -1402,32 +1490,6 @@ impl From<crate::types::BrowserInformation> for Browser {
                 .accept_language
                 .map(get_list_of_accept_languages)
                 .or(Some(vec!["en".to_string()])),
-        }
-    }
-}
-
-impl From<Option<common_enums::ScaExemptionType>> for ThreeDSRequestor {
-    fn from(value: Option<common_enums::ScaExemptionType>) -> Self {
-        // if sca exemption is provided, we need to set the challenge indicator to NoChallengeRequestedTransactionalRiskAnalysis
-        let three_ds_requestor_challenge_ind =
-            if let Some(common_enums::ScaExemptionType::TransactionRiskAnalysis) = value {
-                Some(SingleOrListElement::Single(
-                ThreeDSRequestorChallengeIndicator::NoChallengeRequestedTransactionalRiskAnalysis,
-            ))
-            } else {
-                None
-            };
-
-        Self {
-            three_ds_requestor_authentication_ind: ThreeDSRequestorAuthenticationIndicator::Payment,
-            three_ds_requestor_authentication_info: None,
-            three_ds_requestor_challenge_ind,
-            three_ds_requestor_prior_authentication_info: None,
-            three_ds_requestor_dec_req_ind: None,
-            three_ds_requestor_dec_max_time: None,
-            app_ip: None,
-            three_ds_requestor_spc_support: None,
-            spc_incomp_ind: None,
         }
     }
 }

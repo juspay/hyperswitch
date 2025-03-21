@@ -71,7 +71,7 @@ describe.skip("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 7000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -131,7 +131,7 @@ describe.skip("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 7000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });

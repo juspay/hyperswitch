@@ -337,6 +337,24 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_attempt.capture_method;
+
+    let braintree_metadata = payment_intent
+        .connector_metadata
+        .clone()
+        .map(|cm| {
+            cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed parsing ConnectorMetadata")
+        })
+        .transpose()?
+        .and_then(|cm| cm.braintree);
+
+    let merchant_account_id = braintree_metadata
+        .as_ref()
+        .and_then(|braintree| braintree.merchant_account_id.clone());
+    let merchant_config_currency =
+        braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -376,6 +394,9 @@ pub async fn construct_refund_router_data<'a, F>(
             split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
+            merchant_account_id,
+            merchant_config_currency,
+            capture_method,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -531,6 +552,58 @@ pub fn get_split_refunds(
                                 split_refund_request,
                             ),
                         ))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                _ => Ok(None),
+            }
+        }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_)) => {
+            match (
+                &split_refund_input.payment_charges,
+                &split_refund_input.refund_request,
+            ) {
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                        xendit_split_payment_response,
+                    )),
+                    Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                        split_refund_request,
+                    )),
+                ) => {
+                    let user_id = super::refunds::validator::validate_xendit_charge_refund(
+                        xendit_split_payment_response,
+                        split_refund_request,
+                    )?;
+
+                    Ok(user_id.map(|for_user_id| {
+                        router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                            common_types::domain::XenditSplitSubMerchantData { for_user_id },
+                        )
+                    }))
+                }
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                        xendit_split_payment_response,
+                    )),
+                    None,
+                ) => {
+                    let option_for_user_id = match xendit_split_payment_response {
+                        common_types::payments::XenditChargeResponseData::MultipleSplits(
+                            common_types::payments::XenditMultipleSplitResponse {
+                                for_user_id, ..
+                            },
+                        ) => for_user_id.clone(),
+                        common_types::payments::XenditChargeResponseData::SingleSplit(
+                            common_types::domain::XenditSplitSubMerchantData { for_user_id },
+                        ) => Some(for_user_id.clone()),
+                    };
+
+                    if option_for_user_id.is_some() {
+                        Err(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "split_refunds.xendit_split_refund.for_user_id",
+                        })?
                     } else {
                         Ok(None)
                     }
@@ -1758,5 +1831,38 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
         )
         .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
         (None, None) | (None, Some(_)) => Ok(()),
+    }
+}
+
+pub(crate) trait ValidatePlatformMerchant {
+    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId>;
+
+    fn validate_platform_merchant(
+        &self,
+        auth_platform_merchant_id: Option<&common_utils::id_type::MerchantId>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let data_platform_merchant_id = self.get_platform_merchant_id();
+        match (data_platform_merchant_id, auth_platform_merchant_id) {
+            (Some(data_platform_merchant_id), Some(auth_platform_merchant_id)) => {
+                common_utils::fp_utils::when(
+                    data_platform_merchant_id != auth_platform_merchant_id,
+                    || {
+                        Err(report!(errors::ApiErrorResponse::PaymentNotFound)).attach_printable(format!(
+                     "Data platform merchant id: {data_platform_merchant_id:?} does not match with auth platform merchant id: {auth_platform_merchant_id:?}"))
+                    },
+                )
+            }
+            (Some(_), None) | (None, Some(_)) => {
+                Err(report!(errors::ApiErrorResponse::InvalidPlatformOperation))
+                    .attach_printable("Platform merchant id is missing in either data or auth")
+            }
+            (None, None) => Ok(()),
+        }
+    }
+}
+
+impl ValidatePlatformMerchant for storage::PaymentIntent {
+    fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        self.platform_merchant_id.as_ref()
     }
 }

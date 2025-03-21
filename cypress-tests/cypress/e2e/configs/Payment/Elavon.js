@@ -1,3 +1,5 @@
+import { customerAcceptance } from "./Commons";
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "06",
@@ -7,14 +9,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -24,14 +19,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -120,12 +108,7 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -136,12 +119,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -221,14 +199,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -263,14 +234,7 @@ export const connectorDetails = {
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -304,14 +268,7 @@ export const connectorDetails = {
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -368,14 +325,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -424,43 +374,35 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 6500,
+          amount_received: 6000,
         },
       },
     },
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 100,
+          amount_received: 2000,
         },
       },
     },
     Refund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -484,12 +426,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -499,14 +436,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {
@@ -525,14 +454,7 @@ export const connectorDetails = {
           email: "mauro.morandi@nexi.it",
         },
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -552,14 +474,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

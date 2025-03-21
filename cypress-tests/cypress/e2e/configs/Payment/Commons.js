@@ -1,6 +1,15 @@
 // This file is the default. To override, add to connector.js
 import { getCustomExchange } from "./Modifiers";
 
+export const customerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "127.0.0.1",
+    user_agent: "amet irure esse",
+  },
+};
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -25,14 +34,7 @@ const PaymentMethodCardDetails = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -42,14 +44,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -567,7 +562,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 50,
-          amount: 6500,
+          amount: 6000,
         },
       },
     }),
@@ -649,16 +644,13 @@ export const connectorDetails = {
     }),
     Capture: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
     }),
     PartialCapture: getCustomExchange({
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
     }),
     Void: getCustomExchange({
       Request: {},
@@ -704,32 +696,12 @@ export const connectorDetails = {
     }),
     Refund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "The refund amount exceeds the amount captured",
-            code: "IR_13",
-          },
-        },
+        amount: 6000,
       },
     }),
     manualPaymentRefund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -740,12 +712,7 @@ export const connectorDetails = {
     }),
     manualPaymentPartialRefund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -756,24 +723,10 @@ export const connectorDetails = {
     }),
     PartialRefund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
     }),
-    SyncRefund: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
+    SyncRefund: getCustomExchange({}),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -889,14 +842,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
@@ -906,14 +852,17 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
+        customer_acceptance: customerAcceptance,
+      },
+    }),
+    SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSManualCaptureOffSession: getCustomExchange({
@@ -923,14 +872,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardConfirmAutoCaptureOffSession: getCustomExchange({
@@ -974,14 +916,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethod: {
@@ -1005,14 +940,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
@@ -1023,14 +951,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
@@ -1042,14 +963,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
@@ -1060,14 +974,7 @@ export const connectorDetails = {
         },
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
     }),
     InvalidCardNumber: {
@@ -1200,7 +1107,7 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message:
-              "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+              "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLF`, `CLP`, `CNY`, `COP`, `CRC`, `CUC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STD`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
             code: "IR_06",
           },
         },
@@ -1336,14 +1243,7 @@ export const connectorDetails = {
     },
     CaptureGreaterAmount: {
       Request: {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          customer_acceptance: null,
-        },
+        amount_to_capture: 6000000,
       },
       Response: {
         status: 400,
@@ -1359,12 +1259,7 @@ export const connectorDetails = {
     CaptureCapturedAmount: getCustomExchange({
       Request: {
         Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          customer_acceptance: null,
+          amount_to_capture: 6000,
         },
       },
       Response: {
@@ -1400,6 +1295,21 @@ export const connectorDetails = {
         },
       },
     }),
+    RefundGreaterAmount: {
+      Request: {
+        amount: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
     MITAutoCapture: getCustomExchange({
       Request: {},
       Response: {
@@ -1416,6 +1326,17 @@ export const connectorDetails = {
               "No eligible connector was found for the current payment method configuration",
             type: "invalid_request",
           },
+        },
+      },
+    }),
+    MITWithoutBillingAddress: getCustomExchange({
+      Request: {
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),
@@ -1506,6 +1427,44 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+    DuplicatePaymentID: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "The payment with the specified payment_id already exists in our records",
+            code: "HE_01",
+          },
+        },
+      },
+    },
+    DuplicateRefundID: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Duplicate refund request. Refund already attempted with the refund ID",
+            code: "HE_01",
+          },
         },
       },
     },

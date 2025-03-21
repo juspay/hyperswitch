@@ -32,4 +32,37 @@ macro_rules! get_payment_link_config_value {
             $(get_payment_link_config_value_based_on_priority!($config, $business_config, $field, $default)),*
         )
     };
+    ($config:expr, $business_config:expr, $(($field:ident)),*) => {
+        (
+            $(
+                $config
+                    .as_ref()
+                    .and_then(|pc_config| pc_config.theme_config.$field.clone())
+                    .or_else(|| {
+                        $business_config
+                            .as_ref()
+                            .and_then(|business_config| business_config.$field.clone())
+                    })
+            ),*
+        )
+    };
+    ($config:expr, $business_config:expr, $(($field:ident $(, $transform:expr)?)),* $(,)?) => {
+        (
+            $(
+                $config
+                    .as_ref()
+                    .and_then(|pc_config| pc_config.theme_config.$field.clone())
+                    .or_else(|| {
+                        $business_config
+                            .as_ref()
+                            .and_then(|business_config| {
+                                let value = business_config.$field.clone();
+                                $(let value = value.map($transform);)?
+                                value
+                            })
+                    })
+            ),*
+        )
+    };
+
 }

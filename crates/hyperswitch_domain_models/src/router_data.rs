@@ -9,7 +9,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
-use crate::{payment_address::PaymentAddress, payment_method_data, payments};
+use crate::{
+    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
+    payments,
+};
 #[cfg(feature = "v2")]
 use crate::{
     payments::{
@@ -294,7 +297,7 @@ pub struct PazeDecryptedData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: NetworkTokenNumber,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
     pub payment_account_reference: Secret<String>,
@@ -396,6 +399,8 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -407,6 +412,8 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -420,6 +427,8 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -471,6 +480,28 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
+        let status = payment_data.payment_attempt.status.is_terminal_status();
+        let updated_feature_metadata =
+            payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(|mut feature_metadata| {
+                    if let Some(ref mut payment_revenue_recovery_metadata) =
+                        feature_metadata.payment_revenue_recovery_metadata
+                    {
+                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
+                            .response
+                            .is_ok()
+                        {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                        } else {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
+                        };
+                    }
+                    Box::new(feature_metadata)
+                });
+
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: common_enums::IntentStatus::from(
@@ -478,6 +509,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: updated_feature_metadata,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -486,6 +518,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: updated_feature_metadata,
             },
         }
     }
@@ -532,8 +565,7 @@ impl
                                         .connector_token_details
                                         .as_ref()
                                         .and_then(|token_details| {
-                                            token_details
-                                                .get_connector_mandate_request_reference_id()
+                                            token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
                         },
@@ -575,6 +607,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -772,6 +806,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -987,8 +1023,11 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
 
                 let error_details = ErrorDetails {
                     code,
@@ -1131,6 +1170,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -1139,6 +1179,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
             },
         }
     }
@@ -1185,8 +1226,7 @@ impl
                                         .connector_token_details
                                         .as_ref()
                                         .and_then(|token_details| {
-                                            token_details
-                                                .get_connector_mandate_request_reference_id()
+                                            token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
                         },
@@ -1228,6 +1268,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 

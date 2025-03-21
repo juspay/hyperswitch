@@ -129,6 +129,8 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -331,6 +333,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -463,6 +467,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -591,6 +597,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -744,6 +752,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -914,6 +924,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1164,6 +1176,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1291,6 +1305,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1451,6 +1467,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1520,15 +1538,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req.request.currency,
         )?;
         let request_body = match req.request.split_refunds.as_ref() {
-            Some(SplitRefundsRequest::AdyenSplitRefund(_)) | None => {
-                RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
-                    req,
-                    refund_amount,
-                ))?))
-            }
             Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
                 Box::new(stripe::ChargeRefundRequest::try_from(req)?),
             ),
+            _ => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
+                req,
+                refund_amount,
+            ))?)),
         };
         Ok(request_body)
     }
@@ -1622,6 +1638,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1756,6 +1774,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1910,6 +1930,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2023,6 +2045,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2154,6 +2178,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

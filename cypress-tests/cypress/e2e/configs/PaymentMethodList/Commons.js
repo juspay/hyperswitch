@@ -133,7 +133,7 @@ export const createPaymentBodyWithCurrencyCountry = (
   shippingCountry
 ) => ({
   currency: currency,
-  amount: 6500,
+  amount: 6000,
   authentication_type: "three_ds",
   description: "Joseph First Crypto",
   email: "hyperswitch_sdk_demo_id@gmail.com",
@@ -184,7 +184,7 @@ export const createPaymentBodyWithCurrencyCountry = (
 
 export const createPaymentBodyWithCurrency = (currency) => ({
   currency: currency,
-  amount: 6500,
+  amount: 6000,
   authentication_type: "three_ds",
   description: "Joseph First Crypto",
   email: "hyperswitch_sdk_demo_id@gmail.com",

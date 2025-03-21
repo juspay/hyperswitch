@@ -26,10 +26,6 @@ use diesel_models::{
     generic_link::{GenericLinkNew, PayoutLink},
     CommonMandateReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use diesel_models::{
-    PaymentsMandateReference, PaymentsMandateReferenceRecord as PaymentsMandateReferenceRecordV2,
-};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
@@ -1203,6 +1199,7 @@ pub async fn complete_create_recipient(
     Ok(())
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn create_recipient(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1262,7 +1259,7 @@ pub async fn create_recipient(
                         customers::update_connector_customer_in_customers(
                             &connector_label,
                             Some(&customer),
-                            &recipient_create_data.connector_payout_id.clone(),
+                            recipient_create_data.connector_payout_id.clone(),
                         )
                         .await
                     {
@@ -1400,6 +1397,17 @@ pub async fn create_recipient(
         }
     }
     Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn create_recipient(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
+    todo!()
 }
 
 pub async fn complete_payout_eligibility(
@@ -3084,7 +3092,9 @@ pub async fn add_external_account_addition_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 
