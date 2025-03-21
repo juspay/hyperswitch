@@ -654,7 +654,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
         _req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // Ok(format!("https://webhook.site/381f9fe3-bed9-4ba2-b81f-805083f919f4"))
         Ok(format!(
             "{}/apl02/services/SerClsWSConsulta",
             self.base_url(connectors)

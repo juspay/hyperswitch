@@ -42,6 +42,7 @@ const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
 const XMLNS_WEB_URL: &str = "http://webservices.apl02.redsys.es";
 pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
 
+// Specifies the type of transaction for XML requests
 pub mod transaction_type {
     pub const PAYMENT: &str = "0";
     pub const PREAUTHORIZATION: &str = "1";
@@ -1513,41 +1514,6 @@ fn get_payments_response(
 
         Ok((response, enums::AttemptStatus::AuthenticationPending))
     }
-}
-
-#[derive(Debug, Serialize)]
-pub struct RedsysSoapHeader {}
-
-#[derive(Debug, Serialize)]
-pub struct RedsysSoapRequest {
-    #[serde(rename = "web:consultaOperaciones")]
-    consulta_operaciones: ConsultaOperaciones,
-}
-
-#[derive(Debug)]
-pub struct CData(String);
-
-impl Serialize for CData {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut writer = quick_xml::Writer::new(std::io::Cursor::new(Vec::new()));
-        writer
-            .write_event(quick_xml::events::Event::CData(
-                quick_xml::events::BytesCData::new(self.0.as_str()),
-            ))
-            .map_err(serde::ser::Error::custom)?;
-        let result = writer.into_inner().into_inner();
-        let cdata_str = String::from_utf8(result).map_err(serde::ser::Error::custom)?;
-        serializer.serialize_str(&cdata_str)
-    }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConsultaOperaciones {
-    cadena_x_m_l: CData,
 }
 
 #[derive(Debug, Serialize)]
