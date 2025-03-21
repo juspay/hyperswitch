@@ -4,6 +4,75 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.21.0
+
+### Features
+
+- **router:** Return psp_tokenization_enabled in Customer PML ([#7519](https://github.com/juspay/hyperswitch/pull/7519)) ([`a341e82`](https://github.com/juspay/hyperswitch/commit/a341e82d4a2c7d3f3e44ce30cfe137b43b7993ee))
+
+### Bug Fixes
+
+- **analytics:** Retry implementation for forex crate call ([#7280](https://github.com/juspay/hyperswitch/pull/7280)) ([`e93fce2`](https://github.com/juspay/hyperswitch/commit/e93fce26b60b24301aa3fc3a0e87e56ec347816a))
+- **connector:**
+  - [CYBERSOURCE] send xid as none for external 3ds payments ([#7577](https://github.com/juspay/hyperswitch/pull/7577)) ([`a5be114`](https://github.com/juspay/hyperswitch/commit/a5be11498feb6553b995e35dee41d3908e18aebc))
+  - [SHIFT4, WORLDLINE] removed currencies CUC, STD, VEF from sandbox configs ([#7572](https://github.com/juspay/hyperswitch/pull/7572)) ([`97629ad`](https://github.com/juspay/hyperswitch/commit/97629ad18323976ab939f52afbe97c66f4e02949))
+
+### Refactors
+
+- **dynamic_fields:** Multiple SDK queries fixed ([#7380](https://github.com/juspay/hyperswitch/pull/7380)) ([`cbc262f`](https://github.com/juspay/hyperswitch/commit/cbc262fbdfe59a3984864be91325f3bb942736ae))
+
+### Miscellaneous Tasks
+
+- Update payment method configs for globalpay ([#7512](https://github.com/juspay/hyperswitch/pull/7512)) ([`23a2a0c`](https://github.com/juspay/hyperswitch/commit/23a2a0cf27d87fade674f342550a3ade4a2174ce))
+
+**Full Changelog:** [`2025.03.20.0...2025.03.21.0`](https://github.com/juspay/hyperswitch/compare/2025.03.20.0...2025.03.21.0)
+
+
+- - -
+
+## 2025.03.20.0
+
+### Features
+
+- **payment-link:** Emit intent status to parent before rendering payment link UI ([#7531](https://github.com/juspay/hyperswitch/pull/7531)) ([`6f35899`](https://github.com/juspay/hyperswitch/commit/6f35899b6d56c8584e297ff691d15dd3995fb43d))
+
+### Bug Fixes
+
+- **connector:** WASM fixed in Getnet ([#7564](https://github.com/juspay/hyperswitch/pull/7564)) ([`5ee2171`](https://github.com/juspay/hyperswitch/commit/5ee217175c13d24cd0365f8622209cdca5a7d2eb))
+
+### Build System / Dependencies
+
+- **deps:** Update aws dependencies ([#4194](https://github.com/juspay/hyperswitch/pull/4194)) ([`afca506`](https://github.com/juspay/hyperswitch/commit/afca506369685ab63d1b6bccd5f2e2dbae50ebf9))
+
+**Full Changelog:** [`2025.03.19.0...2025.03.20.0`](https://github.com/juspay/hyperswitch/compare/2025.03.19.0...2025.03.20.0)
+
+
+- - -
+
+## 2025.03.19.0
+
+### Features
+
+- **analytics:** Add issuer as filter for authentication analytics ([#7535](https://github.com/juspay/hyperswitch/pull/7535)) ([`a87471c`](https://github.com/juspay/hyperswitch/commit/a87471c45dee50e7b9c9674aa8c9bb668c892917))
+- **connector:**
+  - [Chargebee] Add record back support for chargebee ([#7505](https://github.com/juspay/hyperswitch/pull/7505)) ([`e77bb71`](https://github.com/juspay/hyperswitch/commit/e77bb71c6c8c13a343d877481fe2e75cdd98e18c))
+  - [Nexixpay] add setup mandate flow ([#7532](https://github.com/juspay/hyperswitch/pull/7532)) ([`f6633a7`](https://github.com/juspay/hyperswitch/commit/f6633a72d5f826804c6a24317f8e5c836b0bc95a))
+
+### Bug Fixes
+
+- **connector:**
+  - [BRAINTREE] Added fix for Braintree Creds Identifier ([#7501](https://github.com/juspay/hyperswitch/pull/7501)) ([`a161f24`](https://github.com/juspay/hyperswitch/commit/a161f24773abd38435b40b41540d1cab1a722b7c))
+  - Handle Sequential Automatic case in MIT payments ([#6833](https://github.com/juspay/hyperswitch/pull/6833)) ([`e4c7ab8`](https://github.com/juspay/hyperswitch/commit/e4c7ab8e683d969092910b3fcc046c2e65e18df9))
+
+### Refactors
+
+- **core:** Revert "filter default routing config response based on connector type" ([#7556](https://github.com/juspay/hyperswitch/pull/7556)) ([`66e507e`](https://github.com/juspay/hyperswitch/commit/66e507e017fa7416f33aeae5f1ee60fd65d1d8b0))
+
+**Full Changelog:** [`2025.03.18.0...2025.03.19.0`](https://github.com/juspay/hyperswitch/compare/2025.03.18.0...2025.03.19.0)
+
+
+- - -
+
 ## 2025.03.18.0
 
 ### Features

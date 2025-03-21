@@ -60,6 +60,8 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
+    pub request_extended_authorization:
+        Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     // New amount for amount frame work
@@ -423,6 +425,7 @@ pub struct CompleteAuthorizeData {
     pub minor_amount: MinorUnit,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
 #[derive(Debug, Clone)]
@@ -918,6 +921,8 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub complete_authorize_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
