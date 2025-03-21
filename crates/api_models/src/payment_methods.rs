@@ -2777,7 +2777,7 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
+pub struct PaymentMethodSessionDelete {
     /// The payment method id of the payment method to be updated
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: id_type::GlobalPaymentMethodId,

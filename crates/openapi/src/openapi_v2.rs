@@ -695,7 +695,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
         api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
-        api_models::payment_methods::PaymentMethodSessionDeleteSavedPaymentMethod,
+        api_models::payment_methods::PaymentMethodSessionDelete,
         common_utils::types::BrowserInformation,
         api_models::enums::TokenizationType,
         api_models::enums::NetworkTokenizationToggle,

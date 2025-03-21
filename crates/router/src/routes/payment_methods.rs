@@ -1334,9 +1334,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodSessionId>,
-    json_payload: web::Json<
-        api_models::payment_methods::PaymentMethodSessionDeleteSavedPaymentMethod,
-    >,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodSessionDelete>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodSessionDeleteSavedPaymentMethod;
     let payload = json_payload.into_inner();

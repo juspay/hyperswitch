@@ -15508,7 +15508,7 @@
           }
         }
       },
-      "PaymentMethodSessionDeleteSavedPaymentMethod": {
+      "PaymentMethodSessionDelete": {
         "type": "object",
         "required": [
           "payment_method_id"
