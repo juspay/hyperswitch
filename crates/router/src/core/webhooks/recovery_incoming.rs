@@ -67,33 +67,37 @@ pub async fn recovery_incoming_webhook_flow(
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-    let recovery_details = match connectors_with_additional_recovery_details_call
-        .connectors_with_additional_revenue_recovery_details_call
-        .contains(&connector)
-    {
-        true => {
-            let additional_revenue_recovery_id = object_ref_id
-                .clone()
-                .get_additional_revenue_recovery_id_as_string()
-                .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
-                .attach_printable(
-                    "Cannot get additional revenue reovery id from object reference id",
-                )?;
-
-            let additional_call_response =
-                AdditionalRevenueRecoveryResponse::handle_additional_recovery_details_call(
-                    &state,
-                    &merchant_account,
-                    &billing_connector_account,
-                    connector_name,
-                    &additional_revenue_recovery_id,
-                )
-                .await?
-                .inner();
-            Some(additional_call_response)
+    let recovery_details = connectors_with_additional_recovery_details_call
+    .connectors_with_additional_revenue_recovery_details_call
+    .contains(&connector)
+    .then(|| {
+        object_ref_id
+            .clone()
+            .get_additional_revenue_recovery_id_as_string()
+            .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
+            .attach_printable(
+                "Cannot get additional revenue recovery id from object reference id",
+            )
+    })
+    .transpose()?
+    .async_map(|id|{ 
+        let state_ref = &state;
+        let merchant_account_ref = &merchant_account;
+        let billing_connector_account_ref = &billing_connector_account;
+        let connector_name_ref = &connector_name;
+        async move {
+            AdditionalRevenueRecoveryResponse::handle_additional_recovery_details_call(
+                state_ref,           
+                merchant_account_ref,
+                billing_connector_account_ref,
+                connector_name_ref,
+                id.as_str(), //id is moved here, since it is an owned value.
+            ).await
+            .map(|response| response.inner())
         }
-        false => None,
-    };
+    }
+    ).await
+    .transpose()?;
 
     // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
 
@@ -138,9 +142,9 @@ pub async fn recovery_incoming_webhook_flow(
         .await?;
 
     let payment_attempt = match event_type.is_recovery_transaction_event() {
+        
         true => {
             // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
-
             let invoice_transaction_details = recovery_details.as_ref().map_or_else(
                 || {
                     interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(

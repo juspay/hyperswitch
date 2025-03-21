@@ -278,11 +278,42 @@ impl ObjectReferenceId {
             Self::AdditionalRevenueRecoveryId(
                 AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(data),
             ) => Ok(data),
-            _ => Err(
+            Self::PaymentId(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "AdditionalRevenueRecoveryId is null",
+                    field_name: "AdditionalRevenueRecoveryId is required but received PaymentId",
                 },
             ),
+            Self::RefundId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is required but received RefundId",
+                },
+            ),
+            Self::MandateId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is required but received MandateId",
+                },
+            ),
+            Self::ExternalAuthenticationID(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is required but received ExternalAuthenticationID",
+                },
+            ),
+            #[cfg(feature = "payouts")]
+            Self::PayoutId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is required but received PayoutId",
+                },
+            ),
+            Self::InvoiceId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is required but received InvoiceId",
+                },
+            ),
+            // Self::AdditionalRevenueRecoveryId(variant) => Err(
+            //     common_utils::errors::ValidationError::IncorrectValueProvided {
+            //         field_name: format!("AdditionalRevenueRecoveryId of type AdditionalRevenueRecoveryCallId is required but received {:?}", variant).as_str(),
+            //     },
+            // )
         }
     }
 }
