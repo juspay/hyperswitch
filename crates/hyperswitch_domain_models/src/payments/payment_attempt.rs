@@ -57,12 +57,13 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
+    type Error;
     #[cfg(feature = "v1")]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
@@ -71,7 +72,7 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &MerchantKeyStore,
         payment_attempt: PaymentAttempt,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn update_payment_attempt_with_attempt_id(
@@ -79,7 +80,7 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
@@ -89,7 +90,7 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -98,7 +99,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -106,7 +107,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
@@ -114,7 +115,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -122,7 +123,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
@@ -132,7 +133,7 @@ pub trait PaymentAttemptInterface {
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -141,7 +142,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
@@ -149,7 +150,7 @@ pub trait PaymentAttemptInterface {
         attempt_id: &str,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
@@ -158,7 +159,7 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
@@ -167,7 +168,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
@@ -175,7 +176,7 @@ pub trait PaymentAttemptInterface {
         preprocessing_id: &str,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_attempts_by_merchant_id_payment_id(
@@ -183,7 +184,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filters_for_payments(
@@ -191,7 +192,7 @@ pub trait PaymentAttemptInterface {
         pi: &[PaymentIntent],
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
+    ) -> error_stack::Result<PaymentListFilters, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
@@ -207,7 +208,7 @@ pub trait PaymentAttemptInterface {
         card_network: Option<Vec<storage_enums::CardNetwork>>,
         card_discovery: Option<Vec<storage_enums::CardDiscovery>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<i64, errors::StorageError>;
+    ) -> error_stack::Result<i64, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
@@ -222,7 +223,7 @@ pub trait PaymentAttemptInterface {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         card_network: Option<storage_enums::CardNetwork>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<i64, errors::StorageError>;
+    ) -> error_stack::Result<i64, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
