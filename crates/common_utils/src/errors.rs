@@ -95,6 +95,30 @@ pub enum CryptoError {
     /// The cryptographic algorithm was unable to verify the given signature
     #[error("Failed to verify signature")]
     SignatureVerificationFailed,
+    /// The cryptographic algorithm was unable to generate a elliptic curve key
+    #[error("Failed to derive Elliptic Curve key")]
+    DerivingEcKeyFailed,
+    /// The cryptographic algorithm was unable to generate ECDSA signature
+    #[error("Failed to get the ECDSA signature")]
+    EcdsaSignatureFailed,
+    /// The cryptographic algorithm was unable to derive Elliptic Curve group
+    #[error("Failed to Derive Elliptic Curve group")]
+    DerivingEcGroupFailed,
+    /// The cryptographic algorithm failed to generate a random number
+    #[error("Failed to allocate memory for big number")]
+    BigNumAllocationFailed,
+    /// The cryptographic algorithm failed to derive a shared secret key
+    #[error("Failed to derive a shared secret key")]
+    DerivingSharedSecretKeyFailed,
+    /// The cryptographic algorithm failed to derive a public key
+    #[error("Failed to Derive Public key")]
+    DerivingPublicKeyFailed,
+    /// The cryptographic algorithm failed to derive a private key
+    #[error("Failed to Derive Private key")]
+    DerivingPrivateKeyFailed,
+    /// The cryptographic algorithm failed to derive a shared secret
+    #[error("Failed to derive a shared ephemeral key")]
+    DerivingSharedSecretFailed,
 }
 
 /// Errors for Qr code handling
