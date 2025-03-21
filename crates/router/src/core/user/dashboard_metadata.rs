@@ -603,11 +603,11 @@ async fn insert_metadata(
         types::MetaData::ReconStatus(data) => {
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
-                user.user_id,
-                user.merchant_id,
-                user.org_id,
-                metadata_key,
-                data,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key.clone(),
+                data.clone(),
             )
             .await;
 
