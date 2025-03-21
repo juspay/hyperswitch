@@ -238,6 +238,8 @@ pub async fn trigger_refund_to_gateway(
                             processor_refund_data: None,
                             unified_code: None,
                             unified_message: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     }
                     errors::ConnectorError::NotSupported { message, connector } => {
@@ -252,6 +254,8 @@ pub async fn trigger_refund_to_gateway(
                             processor_refund_data: None,
                             unified_code: None,
                             unified_message: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     }
                     _ => None,
@@ -335,6 +339,8 @@ pub async fn trigger_refund_to_gateway(
                 processor_refund_data: None,
                 unified_code: Some(unified_code),
                 unified_message: Some(unified_message),
+                issuer_error_code: err.issuer_error_code,
+                issuer_error_message: err.issuer_error_message,
             }
         }
         Ok(response) => {
@@ -366,6 +372,8 @@ pub async fn trigger_refund_to_gateway(
                         processor_refund_data,
                         unified_code: None,
                         unified_message: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }
                 }
                 Ok(()) => {
@@ -680,6 +688,8 @@ pub async fn sync_refund_with_gateway(
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
+                issuer_error_code: error_message.issuer_error_code,
+                issuer_error_message: error_message.issuer_error_message,
             }
         }
         Ok(response) => match router_data_res.integrity_check.clone() {
@@ -710,6 +720,8 @@ pub async fn sync_refund_with_gateway(
                     processor_refund_data,
                     unified_code: None,
                     unified_message: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }
             }
             Ok(()) => {
@@ -1265,6 +1277,8 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             split_refunds: refund.split_refunds,
             unified_code: refund.unified_code,
             unified_message: refund.unified_message,
+            issuer_error_code: refund.issuer_error_code,
+            issuer_error_message: refund.issuer_error_message,
         }
     }
 }
@@ -1605,7 +1619,9 @@ pub async fn add_refund_sync_task(
         runner,
         tag,
         refund_workflow_tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;
@@ -1642,7 +1658,9 @@ pub async fn add_refund_execute_task(
         runner,
         tag,
         refund_workflow_tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;

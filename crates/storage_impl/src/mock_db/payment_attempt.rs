@@ -229,6 +229,8 @@ impl PaymentAttemptInterface for MockDb {
             capture_before: payment_attempt.capture_before,
             card_discovery: payment_attempt.card_discovery,
             charges: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
             request_overcapture: None,
             overcapture_status: None,
         };

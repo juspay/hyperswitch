@@ -49,6 +49,7 @@ pub struct Connectors {
     pub gocardless: ConnectorParams,
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
+    pub hipay: ConnectorParamsWithThreeUrls,
     pub iatapay: ConnectorParams,
     pub inespay: ConnectorParams,
     pub itaubank: ConnectorParams,

@@ -226,7 +226,7 @@ pub struct ProfileGeneralUpdate {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: Option<bool>,
-    pub force_3ds_challenge: bool,
+    pub force_3ds_challenge: Option<bool>,
     pub always_request_overcapture: Option<bool>,
 }
 
@@ -343,7 +343,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_guard_config,
                     card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                     is_clear_pan_retries_enabled,
-                    force_3ds_challenge: Some(force_3ds_challenge),
+                    force_3ds_challenge,
                     always_request_overcapture,
                 }
             }

@@ -39,6 +39,7 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
+    CardNetworkTokenization,
     Hypersense,
     PaymentMethodSession,
 }
@@ -117,7 +118,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
-            | Flow::PaymentMethodSave => Self::PaymentMethods,
+            | Flow::PaymentMethodSave
+            | Flow::TotalPaymentMethodCount => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
@@ -316,6 +318,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::RetrievePollStatus => Self::Poll,
 
             Flow::FeatureMatrix => Self::Documentation,
+
+            Flow::TokenizeCard
+            | Flow::TokenizeCardUsingPaymentMethodId
+            | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
 
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken

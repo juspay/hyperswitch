@@ -326,7 +326,7 @@ pub async fn payment_method_delete_api() {}
 ///
 /// List the payment methods saved for a customer
 #[utoipa::path(
-    delete,
+    get,
     path = "/v2/customers/{id}/saved-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the customer"),
@@ -443,6 +443,45 @@ pub fn payment_method_session_list_payment_methods() {}
     security(("ephemeral_key" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method() {}
+
+/// Card network tokenization - Create using raw card data
+///
+/// Create a card network token for a customer and store it as a payment method.
+/// This API expects raw card details for creating a network token with the card networks.
+#[utoipa::path(
+    post,
+    path = "/payment_methods/tokenize-card",
+    request_body = CardNetworkTokenizeRequest,
+    responses(
+        (status = 200, description = "Payment Method Created", body = CardNetworkTokenizeResponse),
+        (status = 404, description = "Customer not found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create card network token",
+    security(("admin_api_key" = []))
+)]
+pub async fn tokenize_card_api() {}
+
+/// Card network tokenization - Create using existing payment method
+///
+/// Create a card network token for a customer for an existing payment method.
+/// This API expects an existing payment method ID for a card.
+#[utoipa::path(
+    post,
+    path = "/payment_methods/{id}/tokenize-card",
+    request_body = CardNetworkTokenizeRequest,
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method Updated", body = CardNetworkTokenizeResponse),
+        (status = 404, description = "Customer not found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create card network token",
+    security(("admin_api_key" = []))
+)]
+pub async fn tokenize_card_using_pm_api() {}
 
 /// Payment Method Session - Confirm a payment method session
 ///
