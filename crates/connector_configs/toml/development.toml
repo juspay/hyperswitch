@@ -189,6 +189,7 @@ merchant_secret="Source verification key"
   payment_method_type = "momo"
 [[adyen.wallet]]
   payment_method_type = "swish"
+  payment_experience = "display_qr_code"
 [[adyen.wallet]]
   payment_method_type = "touch_n_go"
 [[adyen.voucher]]
@@ -1687,7 +1688,7 @@ merchant_secret="Source verification key"
 [[getnet.credit]]
   payment_method_type = "UnionPay"
 [[getnet.credit]]
-  payment_method_type = "Rupay"
+  payment_method_type = "RuPay"
 [[getnet.credit]]
   payment_method_type = "Maestro"
 
@@ -3329,6 +3330,7 @@ merchant_secret="Source verification key"
   payment_method_type = "ali_pay"
 [[stripe.wallet]]
   payment_method_type = "cashapp"
+  payment_experience = "display_qr_code"
 is_verifiable = true
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"
@@ -4870,3 +4872,33 @@ api_key="API Key"
 [hipay.connector_auth.BodyKey]
 api_key="API Login ID"
 key1="API password"
+
+[redsys]
+[[redsys.credit]]
+  payment_method_type = "Mastercard"
+[[redsys.credit]]
+  payment_method_type = "Visa"
+[[redsys.credit]]
+  payment_method_type = "AmericanExpress"
+[[redsys.credit]]
+  payment_method_type = "JCB"
+[[redsys.credit]]
+  payment_method_type = "DinersClub"
+[[redsys.credit]]
+  payment_method_type = "UnionPay"
+[[redsys.debit]]
+  payment_method_type = "Mastercard"
+[[redsys.debit]]
+  payment_method_type = "Visa"
+[[redsys.debit]]
+  payment_method_type = "AmericanExpress"
+[[redsys.debit]]
+  payment_method_type = "JCB"
+[[redsys.debit]]
+  payment_method_type = "DinersClub"
+[[redsys.debit]]
+  payment_method_type = "UnionPay"
+[redsys.connector_auth.SignatureKey]
+api_key="Merchant ID"
+key1="Terminal ID"
+api_secret="Secret Key"

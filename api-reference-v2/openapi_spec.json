@@ -2834,7 +2834,7 @@
       }
     },
     "/v2/customers/{id}/saved-payment-methods": {
-      "delete": {
+      "get": {
         "tags": [
           "Payment Methods"
         ],
@@ -7667,6 +7667,7 @@
           "rapyd",
           "razorpay",
           "recurly",
+          "redsys",
           "shift4",
           "square",
           "stax",
@@ -8365,10 +8366,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -8464,6 +8467,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -8652,7 +8656,8 @@
           "recurring_enabled",
           "created",
           "requires_cvv",
-          "is_default"
+          "is_default",
+          "psp_tokenization_enabled"
         ],
         "properties": {
           "id": {
@@ -8731,6 +8736,10 @@
               }
             ],
             "nullable": true
+          },
+          "psp_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -9967,6 +9976,12 @@
           {
             "type": "string",
             "enum": [
+              "user_social_security_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_blik_code"
             ]
           },
@@ -11119,6 +11134,52 @@
           }
         }
       },
+      "IframeData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_url",
+              "three_ds_method_data_submission",
+              "directory_server_id",
+              "method_key"
+            ],
+            "properties": {
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url"
+              },
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data",
+                "nullable": true
+              },
+              "directory_server_id": {
+                "type": "string",
+                "description": "ThreeDS Server ID"
+              },
+              "message_version": {
+                "type": "string",
+                "description": "ThreeDS Protocol version",
+                "nullable": true
+              },
+              "method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "method_key"
+        }
+      },
       "IncrementalAuthorizationResponse": {
         "type": "object",
         "required": [
@@ -11604,7 +11665,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -11746,7 +11807,7 @@
           "product_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.MerchantProductType"
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -12360,6 +12421,17 @@
         },
         "additionalProperties": false
       },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
+      },
       "MerchantRecipientData": {
         "oneOf": [
           {
@@ -12579,6 +12651,69 @@
           "entity": {
             "type": "string",
             "example": "12345"
+          }
+        }
+      },
+      "NetworkTokenDetailsPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "last4_digits": {
+            "type": "string",
+            "nullable": true
+          },
+          "issuer_country": {
+            "type": "string",
+            "nullable": true
+          },
+          "network_token_expiry_month": {
+            "type": "string",
+            "nullable": true
+          },
+          "network_token_expiry_year": {
+            "type": "string",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "saved_to_locker": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NetworkTokenResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/NetworkTokenDetailsPaymentMethod"
           }
         }
       },
@@ -12896,6 +13031,25 @@
                 "type": "string",
                 "enum": [
                   "collect_otp"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains data required to invoke hidden iframe",
+            "required": [
+              "iframe_data",
+              "type"
+            ],
+            "properties": {
+              "iframe_data": {
+                "$ref": "#/components/schemas/IframeData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_hidden_iframe"
                 ]
               }
             }
@@ -16033,6 +16187,14 @@
           "client_secret": {
             "type": "string",
             "description": "Client Secret"
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20399,6 +20561,7 @@
           "rapyd",
           "razorpay",
           "recurly",
+          "redsys",
           "riskified",
           "shift4",
           "signifyd",
