@@ -34,11 +34,21 @@ const successfulNoThreeDsCardDetailsRequest = {
   card_exp_month: "10",
   card_exp_year: "30",
   card_holder_name: "morino",
+  nick_name: "Bank1",
   card_cvc: "737",
 };
 
 const successfulThreeDsTestCardDetailsRequest = {
   card_number: "4000000000001091",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "morino",
+  nick_name: "Bank1",
+  card_cvc: "737",
+};
+
+const cardDetailsWithoutNickName = {
+  card_number: "4242424242424242",
   card_exp_month: "10",
   card_exp_year: "30",
   card_holder_name: "morino",
@@ -316,6 +326,23 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardWithoutCardNickName: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

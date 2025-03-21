@@ -628,4 +628,79 @@ describe("Card - SaveCard payment flow test", () => {
       });
     }
   );
+
+  context("Save card and verify card nickname ", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("customer-create-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("confirm-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-customerPM-call-test", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("confirm-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardWithoutCardNickName"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-customerPM-call-test", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
+  });
 });

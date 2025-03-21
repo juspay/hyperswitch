@@ -1456,6 +1456,9 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
+        if (reqData?.card?.nick_name) {
+          globalState.set("nickName", reqData.card.nick_name);
+        }
         expect(response.body.client_secret, "client_secret").to.include(
           "_secret_"
         ).and.to.not.be.null;
@@ -1589,6 +1592,12 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
+          if (reqData?.payment_method_data?.card?.nick_name) {
+            globalState.set(
+              "nickName",
+              reqData.payment_method_data.card.nick_name
+            );
+          }
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -2003,6 +2012,12 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
           globalState.set("paymentID", response.body.payment_id);
+          if (reqData?.payment_method_data?.card?.nick_name) {
+            globalState.set(
+              "nickName",
+              reqData.payment_method_data.card.nick_name
+            );
+          }
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -3059,6 +3074,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
   const customerId = globalState.get("customerId");
+  const nickName = globalState.get("nickName");
   const url = `${baseUrl}/customers/${customerId}/payment_methods`;
 
   cy.request({
@@ -3133,6 +3149,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           paymentMethod.payment_method_type,
           `${arrayCount} payment_method_type`
         ).to.not.be.null;
+
+        expect(
+          paymentMethod.card?.nick_name,
+          `${arrayCount} nick_name`
+        ).to.equal(nickName);
 
         expect(paymentMethod.last_used_at, `${arrayCount} last_used_at`).to.not
           .be.null;
