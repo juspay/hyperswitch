@@ -77,7 +77,7 @@ where
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => {
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
                 let token = req
                     .access_token
                     .clone()
@@ -362,7 +362,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => Ok(format!(
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment",
@@ -554,7 +554,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => Ok(format!(
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => Ok(format!(
                 "{}{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment"
             )),
@@ -579,7 +579,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = trustpay::TrustpayRouterData::try_from((amount, req))?;
         let connector_req = trustpay::TrustpayPaymentsRequest::try_from(&connector_router_data)?;
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => Ok(RequestContent::Json(Box::new(connector_req))),
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
             _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req))),
         }
     }
@@ -656,7 +658,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustpa
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => Ok(format!(
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => Ok(format!(
                 "{}{}{}{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment/",
@@ -681,7 +683,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustpa
         let connector_router_data = trustpay::TrustpayRouterData::try_from((amount, req))?;
         let connector_req = trustpay::TrustpayRefundRequest::try_from(&connector_router_data)?;
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => Ok(RequestContent::Json(Box::new(connector_req))),
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
             _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req))),
         }
     }
@@ -756,7 +760,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
             .to_owned()
             .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         match req.payment_method {
-            enums::PaymentMethod::BankRedirect => Ok(format!(
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment", id
             )),

@@ -105,6 +105,7 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     | BankTransferData::DanamonVaBankTransfer {}
                     | BankTransferData::MandiriVaBankTransfer {}
                     | BankTransferData::Pse {}
+                    | BankTransferData::InstantBankTransfer {}
                     | BankTransferData::LocalBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             "Selected payment method through itaubank".to_string(),

@@ -1833,6 +1833,7 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl PaymentMethodType {

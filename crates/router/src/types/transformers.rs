@@ -503,6 +503,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
             | api_enums::PaymentMethodType::LocalBankRedirect
+            | api_enums::PaymentMethodType::InstantBankTransfer
             | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland

@@ -1841,6 +1841,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::MandiriVa => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
+            PaymentMethodType::InstantBankTransfer => Self::BankTransfer,
             PaymentMethodType::Indomaret => Self::Voucher,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
