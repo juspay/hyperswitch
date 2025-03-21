@@ -24,6 +24,8 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use masking::PeekInterface;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::connectors::recurly::transformers::RecurlyRecoveryDetailsData;
@@ -45,13 +47,16 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::Mask;
 use transformers as recurly;
 
 use crate::{
     connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
     types::ResponseRouterData, utils,
 };
+
+const RECURY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
+
 
 #[derive(Clone)]
 pub struct Recurly {
@@ -152,11 +157,11 @@ impl ConnectorCommon for Recurly {
         Ok(vec![
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Basic {}", base64::encode(auth.api_key.peek())).into_masked(),
+                format!("Basic {}", STANDARD.encode(auth.api_key.peek())).into_masked(),
             ),
             (
                 headers::ACCEPT.to_string(),
-                "application/vnd.recurly.v2021-02-25".to_string().into_masked(),
+                RECURY_API_VERSION.to_string().into_masked(),
             ),
         ])
     }
@@ -606,10 +611,10 @@ impl
         req: &AdditionalRevenueRecoveryDetailsRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let transaction_uuid= &req.request.additional_revenue_recovery_id;
         Ok(format!(
-            "{}/transactions/uuid-{}",
+            "{}/transactions/uuid-{transaction_uuid}",
             self.base_url(connectors),
-            req.request.additional_revenue_recovery_id
         ))
     }
 
@@ -634,7 +639,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError> {
-        println!("{:?}",res.response);
+        
        let response : RecurlyRecoveryDetailsData = res
             .response
             .parse_struct::<RecurlyRecoveryDetailsData>("RecurlyRecoveryDetailsData")
@@ -686,6 +691,8 @@ impl
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message:None
         })
     }
 

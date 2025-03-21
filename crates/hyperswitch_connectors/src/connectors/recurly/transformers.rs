@@ -1,5 +1,7 @@
 use common_enums::enums;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::{FloatMajorUnit, StringMinorUnit,FloatMajorUnitForConnector}};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::{FloatMajorUnit, StringMinorUnit}};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use common_utils::types::FloatMajorUnitForConnector;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -12,8 +14,8 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use common_utils::types::MinorUnit;
 use time::PrimitiveDateTime;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::utils;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -22,7 +24,6 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
     types::AdditionalRevenueRecoveryDetailsRouterData,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
@@ -294,7 +295,6 @@ pub struct RecurlyRecoveryDetailsData {
     pub amount: FloatMajorUnit, 
     pub currency: common_enums::Currency,
     pub uuid: String,
-    pub gateway_reference: Option<String>,
     pub status_code: Option<String>,
     pub status_message: Option<String>,
     pub account: Account, 
@@ -302,7 +302,7 @@ pub struct RecurlyRecoveryDetailsData {
     pub payment_method: PaymentMethod, 
     pub payment_gateway: PaymentGateway,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub collected_at: PrimitiveDateTime,
+    pub created_at: PrimitiveDateTime,
     pub status: RecurlyChargeStatus,
 }
 
@@ -324,8 +324,7 @@ pub struct Account {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentGateway {
-    pub id: Option<String>,
-    pub name: String,
+    pub id: String,
 }
 
 
@@ -366,13 +365,13 @@ impl
                 )?,
                 currency : item.response.currency,
                 merchant_reference_id,
-                connector_account_reference_id : "recurly".to_string(),
-                connector_transaction_id,
+                connector_account_reference_id : item.response.payment_gateway.id,
+                connector_transaction_id, 
                 error_code : item.response.status_code,
                 error_message : item.response.status_message,
-                processor_payment_method_token : "recurly".to_string(),
+                processor_payment_method_token : item.response.payment_method.gateway_token,
                 connector_customer_id : item.response.account.id,
-                transaction_created_at : Some(item.response.collected_at),
+                transaction_created_at : Some(item.response.created_at),
                 payment_method_sub_type: common_enums::PaymentMethodType::from(item.response.payment_method.funding_source),
                 payment_method_type : common_enums::PaymentMethod::Card
             }),
