@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.10.0-hotfix6
+
+### Features
+
+- **core:** Add three_ds_requestor_app_url in business_profile ([#7594](https://github.com/juspay/hyperswitch/pull/7594)) ([`2cba455`](https://github.com/juspay/hyperswitch/commit/2cba455afabb16a40c349542ee51d88fc266a855))
+
+**Full Changelog:** [`2025.03.10.0-hotfix5...2025.03.10.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.03.10.0-hotfix5...2025.03.10.0-hotfix6)
+
+
+- - -
+
 ## 2025.03.10.0-hotfix5
 
 ### Bug Fixes
