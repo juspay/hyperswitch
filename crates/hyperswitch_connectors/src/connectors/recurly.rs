@@ -1,4 +1,5 @@
 pub mod transformers;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -24,11 +25,6 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine;
-use masking::PeekInterface;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::connectors::recurly::transformers::RecurlyRecoveryDetailsData;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
@@ -47,16 +43,17 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Mask;
+use masking::{Mask, PeekInterface};
 use transformers as recurly;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::connectors::recurly::transformers::RecurlyRecoveryDetailsData;
 use crate::{
     connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
     types::ResponseRouterData, utils,
 };
 
 const RECURY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
-
 
 #[derive(Clone)]
 pub struct Recurly {
@@ -101,7 +98,7 @@ impl api::RefundExecute for Recurly {}
 impl api::RefundSync for Recurly {}
 impl api::PaymentToken for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-impl api::AdditionalRevenueRecovery for Recurly{}
+impl api::AdditionalRevenueRecovery for Recurly {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Recurly
@@ -585,7 +582,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Recurly {
     }
 }
 
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
@@ -611,13 +607,12 @@ impl
         req: &AdditionalRevenueRecoveryDetailsRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let transaction_uuid= &req.request.additional_revenue_recovery_id;
+        let transaction_uuid = &req.request.additional_revenue_recovery_id;
         Ok(format!(
             "{}/transactions/uuid-{transaction_uuid}",
             self.base_url(connectors),
         ))
     }
-
 
     fn build_request(
         &self,
@@ -626,9 +621,13 @@ impl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Get)
-            .url(&types::AdditionalRevenueRecoveryCallType::get_url(self, req, connectors)?)
+            .url(&types::AdditionalRevenueRecoveryCallType::get_url(
+                self, req, connectors,
+            )?)
             .attach_default_headers()
-            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(self, req, connectors)?)
+            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -639,21 +638,19 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError> {
-        
-       let response : RecurlyRecoveryDetailsData = res
+        let response: RecurlyRecoveryDetailsData = res
             .response
             .parse_struct::<RecurlyRecoveryDetailsData>("RecurlyRecoveryDetailsData")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-       event_builder.map(|i| i.set_response_body(&response));
-       router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
-       AdditionalRevenueRecoveryDetailsRouterData::try_from(ResponseRouterData {
-           response,
-           data: data.clone(),
-           http_code: res.status_code,
-       })
-       
+        AdditionalRevenueRecoveryDetailsRouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -692,12 +689,10 @@ impl
             attempt_status: None,
             connector_transaction_id: None,
             issuer_error_code: None,
-            issuer_error_message:None
+            issuer_error_message: None,
         })
     }
-
 }
-
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Recurly {
