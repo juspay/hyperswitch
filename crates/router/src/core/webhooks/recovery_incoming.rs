@@ -26,12 +26,7 @@ use crate::{
     db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
     services::{self, connector_integration_interface},
-    types::{
-        self,
-        api::{self, ConnectorData, GetToken},
-        domain,
-        storage::passive_churn_recovery as storage_churn_recovery,
-    },
+    types::{self, api, domain, storage::passive_churn_recovery as storage_churn_recovery},
     workflows::passive_churn_recovery_workflow,
 };
 
@@ -624,10 +619,10 @@ impl AdditionalRevenueRecoveryResponse {
         connector_name: &str,
         id: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
-        let connector_data = ConnectorData::get_connector_by_name(
+        let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             connector_name,
-            GetToken::Connector,
+            api::GetToken::Connector,
             None,
         )
         .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
