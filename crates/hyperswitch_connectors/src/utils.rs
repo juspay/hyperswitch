@@ -6065,4 +6065,3 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let normalized = re.replace_all(&nfkd_value, "").to_string();
     Ok(normalized)
 }
-

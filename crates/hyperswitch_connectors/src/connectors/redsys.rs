@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        RefundExecuteRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        PaymentsSyncRouterData, RefundExecuteRouterData, RefundSyncRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -41,8 +41,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsSyncType,
-        PaymentsPreProcessingType, PaymentsVoidType, RefundExecuteType, Response, RefundSyncType,
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
+        RefundSyncType, Response,
     },
     webhooks,
 };
@@ -148,13 +149,15 @@ where
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let headers = vec![
-            (headers::CONTENT_TYPE.to_string(),
-            "application/xml".to_string().into()
-        ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/xml".to_string().into(),
+            ),
             (
                 headers::SOAP_ACTION.to_string(),
                 redsys::REDSYS_SOAP_ACTION.to_string().into(),
-            )];
+            ),
+        ];
         Ok(headers)
     }
 }
@@ -652,7 +655,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         // Ok(format!("https://webhook.site/381f9fe3-bed9-4ba2-b81f-805083f919f4"))
-        Ok(format!("{}/apl02/services/SerClsWSConsulta", self.base_url(connectors)))
+        Ok(format!(
+            "{}/apl02/services/SerClsWSConsulta",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -690,10 +696,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response = String::from_utf8(res.response.to_vec())
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let response_data = html_escape::decode_html_entities(
-            &response,
-        ).to_ascii_lowercase();
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_data = html_escape::decode_html_entities(&response).to_ascii_lowercase();
         let response = response_data
             .parse_xml::<redsys::RedsysSyncResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -715,7 +719,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
     }
 }
 
-
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
     fn get_headers(
         &self,
@@ -732,7 +735,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
         _req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/apl02/services/SerClsWSConsulta", self.base_url(connectors)))
+        Ok(format!(
+            "{}/apl02/services/SerClsWSConsulta",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -766,10 +772,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response = String::from_utf8(res.response.to_vec())
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let response_data = html_escape::decode_html_entities(
-            &response,
-        ).to_ascii_lowercase();
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_data = html_escape::decode_html_entities(&response).to_ascii_lowercase();
         let response = response_data
             .parse_xml::<redsys::RedsysSyncResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
