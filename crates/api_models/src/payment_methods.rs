@@ -2874,7 +2874,7 @@ pub struct AuthenticationDetails {
 pub struct SingleUseToken(String);
 
 impl SingleUseToken {
-    pub fn new(token: String) -> Self {
+    pub fn new(token: &str) -> Self {
         let new_token = format!("single_use_token_{}", token);
         Self(new_token)
     }

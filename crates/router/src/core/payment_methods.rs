@@ -2795,8 +2795,6 @@ async fn add_token_call_to_store(
                                         reason: err.reason,
                                     })?;
 
-    // logger::info!("Tokenization response");
-    // logger::info!(token =? &token);
 
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
         token.clone(), 
