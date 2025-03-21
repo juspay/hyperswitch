@@ -25,7 +25,6 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use hyperswitch_domain_models::{
-    errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
@@ -38,7 +37,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{self, RedisErrorExt},
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
@@ -48,6 +47,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -550,6 +550,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(

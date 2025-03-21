@@ -206,10 +206,18 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CustomerBody {
+    email: pii::Email,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegularTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     channel: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_details: Option<CustomerBody>,
 }
 
 #[derive(Debug, Serialize)]
@@ -218,6 +226,8 @@ pub struct VaultTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     vault_payment_method_after_transacting: TransactionTiming,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_details: Option<CustomerBody>,
 }
 
 #[derive(Debug, Serialize)]
@@ -257,6 +267,7 @@ impl
                 amount: item.amount.to_owned(),
                 merchant_account_id: metadata.merchant_account_id,
                 channel: CHANNEL_CODE.to_string(),
+                customer_details: None,
             }),
         );
         Ok(Self {
@@ -1745,6 +1756,11 @@ impl
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: "ALWAYS".to_string(),
                     },
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
                 }),
             )
         } else {
@@ -1757,6 +1773,11 @@ impl
                     amount: item.amount.to_owned(),
                     merchant_account_id: metadata.merchant_account_id,
                     channel: CHANNEL_CODE.to_string(),
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
                 }),
             )
         };
@@ -1844,6 +1865,11 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: "ALWAYS".to_string(),
                     },
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
                 }),
             )
         } else {
@@ -1856,6 +1882,11 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     amount: item.amount.to_owned(),
                     merchant_account_id: metadata.merchant_account_id,
                     channel: CHANNEL_CODE.to_string(),
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
                 }),
             )
         };

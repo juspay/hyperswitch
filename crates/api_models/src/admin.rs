@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "v1")]
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -8,10 +10,7 @@ use common_utils::{
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v1")]
-use common_utils::{
-    crypto::OptionalEncryptableName, ext_traits::ValueExt,
-    types::AlwaysRequestExtendedAuthorization,
-};
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};

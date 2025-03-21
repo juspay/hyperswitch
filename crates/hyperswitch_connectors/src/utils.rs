@@ -5981,6 +5981,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_method_type: None,
         customer_id: None,
         surcharge_details: None,
+        request_extended_authorization: None,
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,

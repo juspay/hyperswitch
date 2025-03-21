@@ -1,6 +1,6 @@
 use api_models::errors::types::{ApiError, ApiErrorResponse};
 use common_utils::errors::{CustomResult, ErrorSwitch, ErrorSwitchFrom};
-use hyperswitch_domain_models::errors::StorageError;
+use storage_impl::errors::StorageError;
 
 pub type SampleDataResult<T> = CustomResult<T, SampleDataError>;
 

@@ -3,7 +3,6 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     behaviour::Conversion,
-    errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -12,9 +11,11 @@ use hyperswitch_domain_models::{
 };
 
 use super::MockDb;
+use crate::errors::StorageError;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
+    type Error = StorageError;
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,

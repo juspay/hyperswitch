@@ -1202,8 +1202,9 @@ merchant_secret="Source verification key"
 [coingate]
 [[coingate.crypto]]
   payment_method_type = "crypto_currency"
-[coingate.connector_auth.HeaderKey]
+[coingate.connector_auth.BodyKey]
 api_key="API Key"
+key1 ="Merchant Token"
 
 [cryptopay]
 [[cryptopay.crypto]]

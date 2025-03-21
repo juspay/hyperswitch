@@ -665,7 +665,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .await?;
             }
         }
-        error_stack::Result::<_, errors::DataStorageError>::Ok((pi, pa))
+        error_stack::Result::<_, errors::StorageError>::Ok((pi, pa))
     };
 
     get_pi_pa()

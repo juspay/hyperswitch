@@ -13,7 +13,6 @@ use diesel_models::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
-    errors,
     merchant_key_store::MerchantKeyStore,
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
@@ -21,9 +20,10 @@ use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
-    diesel_error_to_data_error,
+    diesel_error_to_data_error, errors,
     kv_router_store::{
-        FilterResourceParams, InsertResourceParams, KVRouterStore, UpdateResourceParams,
+        FilterResourceParams, FindResourceBy, InsertResourceParams, KVRouterStore,
+        UpdateResourceParams,
     },
     redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
@@ -32,6 +32,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
@@ -50,7 +51,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             key_store,
             storage_scheme,
             PaymentMethod::find_by_payment_method_id(&conn, payment_method_id),
-            format!("payment_method_{}", payment_method_id),
+            FindResourceBy::LookupId(format!("payment_method_{}", payment_method_id)),
         )
         .await
     }
@@ -70,7 +71,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             key_store,
             storage_scheme,
             PaymentMethod::find_by_id(&conn, payment_method_id),
-            format!("payment_method_{}", payment_method_id.get_string_repr()),
+            FindResourceBy::LookupId(format!(
+                "payment_method_{}",
+                payment_method_id.get_string_repr()
+            )),
         )
         .await
     }
@@ -93,7 +97,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             key_store,
             storage_scheme,
             PaymentMethod::find_by_locker_id(&conn, locker_id),
-            format!("payment_method_locker_{}", locker_id),
+            FindResourceBy::LookupId(format!("payment_method_locker_{}", locker_id)),
         )
         .await
     }
@@ -423,6 +427,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
+    type Error = errors::StorageError;
     #[instrument(skip_all)]
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -751,6 +756,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for MockDb {
+    type Error = errors::StorageError;
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")

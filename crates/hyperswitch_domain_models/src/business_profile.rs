@@ -1,11 +1,12 @@
 use common_enums::enums as api_enums;
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii, type_name,
-    types::{keymanager, AlwaysRequestExtendedAuthorization},
+    types::keymanager,
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,

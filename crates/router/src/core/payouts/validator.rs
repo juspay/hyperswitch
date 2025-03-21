@@ -6,7 +6,6 @@ use common_utils::errors::CustomResult;
 use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
-pub use hyperswitch_domain_models::errors::StorageError;
 use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
@@ -24,6 +23,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    errors::StorageError,
     routes::SessionState,
     types::{api::payouts, domain, storage},
     utils,

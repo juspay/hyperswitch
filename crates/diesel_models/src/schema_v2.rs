@@ -218,6 +218,7 @@ diesel::table! {
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
         is_debit_routing_enabled -> Bool,
+        merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,

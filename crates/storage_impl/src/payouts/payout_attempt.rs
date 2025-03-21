@@ -13,21 +13,18 @@ use diesel_models::{
     ReverseLookupNew,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    errors,
-    payouts::{
-        payout_attempt::{
-            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
-            PayoutListFilters,
-        },
-        payouts::Payouts,
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::{
+        PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
+        PayoutListFilters,
     },
+    payouts::Payouts,
 };
 use redis_interface::HsetnxReply;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    diesel_error_to_data_error,
+    diesel_error_to_data_error, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
@@ -38,6 +35,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
+    type Error = errors::StorageError;
     #[instrument(skip_all)]
     async fn insert_payout_attempt(
         &self,
@@ -384,6 +382,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
+    type Error = errors::StorageError;
     #[instrument(skip_all)]
     async fn insert_payout_attempt(
         &self,
