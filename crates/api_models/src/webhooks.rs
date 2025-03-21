@@ -253,12 +253,38 @@ pub enum ObjectReferenceId {
     PayoutId(PayoutIdType),
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    AdditionalRevenueRecoveryId(AdditionalRevenueRecoveryIdType),
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 #[derive(Clone)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Clone)]
+pub enum AdditionalRevenueRecoveryIdType {
+    AdditionalRevenueRecoveryCallId(String),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ObjectReferenceId {
+    pub fn get_additional_revenue_recovery_id_as_string(
+        self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        match self {
+            Self::AdditionalRevenueRecoveryId(
+                AdditionalRevenueRecoveryIdType::AdditionalRevenueRecoveryCallId(data),
+            ) => Ok(data),
+            _ => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId is null",
+                },
+            ),
+        }
+    }
 }
 
 pub struct IncomingWebhookDetails {
