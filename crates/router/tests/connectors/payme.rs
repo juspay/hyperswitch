@@ -54,8 +54,12 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     line3: None,
                     zip: None,
                     state: None,
-                    first_name: common_utils::types::NameType::try_from("John".to_string()).ok(),
-                    last_name: common_utils::types::NameType::try_from("Doe".to_string()).ok(),
+                    first_name: Some(common_utils::types::NameType::get_unchecked(
+                        "John".to_string(),
+                    )),
+                    last_name: Some(common_utils::types::NameType::get_unchecked(
+                        "Doe".to_string(),
+                    )),
                 }),
                 phone: None,
                 email: None,

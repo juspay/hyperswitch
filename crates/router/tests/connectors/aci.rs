@@ -91,8 +91,12 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             None,
             Some(Address {
                 address: Some(AddressDetails {
-                    first_name: common_utils::types::NameType::try_from("John".to_string()).ok(),
-                    last_name: common_utils::types::NameType::try_from("Doe".to_string()).ok(),
+                    first_name: Some(common_utils::types::NameType::get_unchecked(
+                        "John".to_string(),
+                    )),
+                    last_name: Some(common_utils::types::NameType::get_unchecked(
+                        "Doe".to_string(),
+                    )),
                     ..Default::default()
                 }),
                 phone: Some(PhoneDetails {

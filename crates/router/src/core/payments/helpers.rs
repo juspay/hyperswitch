@@ -1892,7 +1892,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
 
             if let Some(name) = name_on_card.clone() {
-                if !name.peek().is_empty() {
+                if !name.is_empty() {
                     is_card_updated = true;
                     updated_card.nick_name = name_on_card;
                 }
@@ -2284,7 +2284,7 @@ pub async fn fetch_card_details_from_locker(
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
     let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.peek().is_empty() {
+        if name.is_empty() {
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
                 .or(Some(name))

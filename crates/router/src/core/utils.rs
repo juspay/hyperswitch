@@ -97,12 +97,12 @@ pub async fn construct_payout_router_data<'a, F>(
             .first_name
             .clone()
             .map(Encryptable::into_inner)
-            .map(|name| NameType::get_unchecked(name.expose()));
+            .map(NameType::get_unchecked_from_secret); // this is unchecked because this value is fetched from db
         let last_name = a
             .last_name
             .clone()
             .map(Encryptable::into_inner)
-            .map(|name| NameType::get_unchecked(name.expose()));
+            .map(NameType::get_unchecked_from_secret); // this is unchecked because this value is fetched from db
         let address_details = api_models::payments::AddressDetails {
             city: a.city.to_owned(),
             country: a.country.to_owned(),

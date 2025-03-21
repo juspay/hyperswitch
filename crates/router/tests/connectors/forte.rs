@@ -57,8 +57,12 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             None,
             Some(Address {
                 address: Some(AddressDetails {
-                    first_name: common_utils::types::NameType::try_from("first".to_string()).ok(),
-                    last_name: common_utils::types::NameType::try_from("last".to_string()).ok(),
+                    first_name: Some(common_utils::types::NameType::get_unchecked(
+                        "first".to_string(),
+                    )),
+                    last_name: Some(common_utils::types::NameType::get_unchecked(
+                        "last".to_string(),
+                    )),
                     line1: Some(Secret::new("line1".to_string())),
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),

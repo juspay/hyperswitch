@@ -767,12 +767,12 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 .first_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             let last_name = address
                 .last_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             Some(hyperswitch_domain_models::address::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -823,12 +823,12 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 .first_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             let last_name = address
                 .last_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,

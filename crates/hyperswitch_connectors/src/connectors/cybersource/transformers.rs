@@ -1507,7 +1507,6 @@ impl
         let (first_name, last_name) = match paze_data.billing_address.name {
             Some(name) => {
                 let (first_name, last_name) = name
-                    .peek()
                     .split_once(' ')
                     .map(|(first, last)| (first.to_string(), last.to_string()))
                     .ok_or(errors::ConnectorError::MissingRequiredField {

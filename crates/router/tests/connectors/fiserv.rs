@@ -52,11 +52,12 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: common_utils::types::NameType::try_from("nick_name".to_string()).ok(),
-            card_holder_name: common_utils::types::NameType::try_from(
+            nick_name: Some(common_utils::types::NameType::get_unchecked(
+                "nick_name".to_string(),
+            )),
+            card_holder_name: Some(common_utils::types::NameType::get_unchecked(
                 "card holder name".to_string(),
-            )
-            .ok(),
+            )),
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         ..utils::PaymentAuthorizeType::default().0

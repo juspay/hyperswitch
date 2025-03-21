@@ -23,7 +23,7 @@ use common_utils::{
     },
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret, WithType};
+use masking::{Secret, WithType};
 use router_derive::Setter;
 use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
 use strum::Display;
@@ -1999,29 +1999,20 @@ impl GetAddressFromPaymentMethodData for Card {
                 // John Wheat Dough
                 // first_name -> John
                 // last_name -> Wheat Dough
-                card_holder_name.peek().split_whitespace()
+                card_holder_name.split_whitespace()
             })
             .map(|mut card_holder_name_iter| {
                 let first_name = card_holder_name_iter
                     .next()
                     .map(ToOwned::to_owned)
-                    .and_then(|name| {
-                        common_utils::types::NameType::try_from(name)
-                            .map_err(|err| {
-                                router_env::logger::error!("Invalid First Name: {}", err);
-                            })
-                            .ok()
-                    });
+                    .map(common_utils::types::NameType::get_unchecked); // it is unchecked because the string is coming from a checked type
 
                 let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
                 let last_name = if last_name.is_empty_after_trim() {
                     None
                 } else {
-                    common_utils::types::NameType::try_from(last_name)
-                        .map_err(|err| {
-                            router_env::logger::error!("Invalid Last Name: {}", err);
-                        })
-                        .ok()
+                    Some(common_utils::types::NameType::get_unchecked(last_name))
+                    // it is unchecked because the string is coming from a checked type
                 };
 
                 AddressDetails {
@@ -2369,13 +2360,8 @@ mod payment_method_data_serde {
                                     if card.card_holder_name.is_none() {
                                         card.card_holder_name = billing_address_details
                                             .get_optional_full_name()
-                                            .map(|name| {
-                                                common_utils::types::NameType::try_from(name)
-                                                    .map_err(|err| {
-                                                        de::Error::custom(err.to_string())
-                                                    })
-                                            })
-                                            .transpose()?;
+                                            .map(common_utils::types::NameType::get_unchecked_from_secret)
+                                        // it is unchecked because the string is coming from a checked type
                                     }
                                     Some(PaymentMethodData::Card(card.clone()))
                                 }
@@ -4274,8 +4260,8 @@ impl AddressDetails {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
                 "{} {}",
-                first_name.peek(),
-                last_name.peek()
+                String::from(first_name),
+                String::from(last_name)
             ))),
             (Some(name), None) | (None, Some(name)) => Some(Secret::from(name.to_owned())),
             _ => None,
@@ -8341,7 +8327,7 @@ mod billing_from_payment_method_data {
                 .address
                 .unwrap()
                 .first_name
-                .map(|name| name.peek().to_string()),
+                .map(String::from),
             Some(TEST_FIRST_NAME_SINGLE.into())
         );
     }
@@ -8368,16 +8354,12 @@ mod billing_from_payment_method_data {
         let billing_address = billing_details.address.unwrap();
 
         assert_eq!(
-            billing_address
-                .first_name
-                .map(|name| name.peek().to_string()),
+            billing_address.first_name.map(String::from),
             Some(TEST_FIRST_NAME.into())
         );
 
         assert_eq!(
-            billing_address
-                .last_name
-                .map(|name| name.peek().to_string()),
+            billing_address.last_name.map(String::from),
             Some(TEST_LAST_NAME.into())
         );
     }

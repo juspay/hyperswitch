@@ -1088,11 +1088,11 @@ crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
 #[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u16>(String);
+pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u16>(String);
 
 /// Error generated from violation of constraints for MerchantReferenceId
 #[derive(Debug, Error, PartialEq, Eq)]
-pub enum LengthStringError {
+pub(crate) enum LengthStringError {
     #[error("the maximum allowed length for this field is {0}")]
     /// Maximum length of string violated
     MaxLengthViolated(u16),
@@ -1128,31 +1128,6 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_
     pub(crate) fn new_unchecked(input_string: String) -> Self {
         Self(input_string)
     }
-
-    /// Trim the name
-    pub fn trim(&self) -> Self {
-        Self(self.0.trim().to_string())
-    }
-
-    /// Check if the string is empty
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Split the string by whitespace
-    pub fn split_whitespace(&self) -> SplitWhitespace<'_> {
-        self.0.split_whitespace()
-    }
-
-    /// Split once at the first occurrence of the given character
-    pub fn split_once(&self, delimiter: char) -> Option<(&str, &str)> {
-        self.0.split_once(delimiter)
-    }
-
-    /// Split once at the last occurrence of the given character
-    pub fn rsplit_once(&self, delimiter: char) -> Option<(&str, &str)> {
-        self.0.rsplit_once(delimiter)
-    }
 }
 
 impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Display
@@ -1180,6 +1155,13 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     {
         let deserialized_string = String::deserialize(deserializer)?;
         Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deref for LengthString<MAX_LENGTH, MIN_LENGTH> {
+    type Target = String;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -1438,12 +1420,71 @@ impl TryFrom<masking::Secret<String>> for NameType {
     }
 }
 
+impl TryFrom<Option<masking::Secret<String>>> for NameType {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(card_holder_name: Option<masking::Secret<String>>) -> Result<Self, Self::Error> {
+        match card_holder_name {
+            Some(card_holder_name) => Self::try_from(card_holder_name),
+            None => Err(report!(ValidationError::MissingRequiredField {
+                field_name: "card holder name ".to_string()
+            })),
+        }
+    }
+}
+
 impl NameType {
     /// This function is used to create NameType from a string without any validation
     pub fn get_unchecked(card_holder_name: String) -> Self {
         Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
             card_holder_name,
         )))
+    }
+
+    /// This function is used to create NameType from a secret of string without any validation
+    pub fn get_unchecked_from_secret(card_holder_name: masking::Secret<String>) -> Self {
+        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
+            card_holder_name.expose(),
+        )))
+    }
+
+    /// Trim the name
+    pub fn trim(&self) -> Self {
+        let value = self.0.peek().trim().to_string();
+        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
+            value,
+        )))
+    }
+
+    /// Check if the string is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.peek().is_empty()
+    }
+
+    /// Split the string by whitespace
+    pub fn split_whitespace(&self) -> SplitWhitespace<'_> {
+        self.0.peek().split_whitespace()
+    }
+
+    /// Split once at the first occurrence of the given character
+    pub fn split_once(&self, delimiter: char) -> Option<(&str, &str)> {
+        self.0.peek().split_once(delimiter)
+    }
+
+    /// Split once at the last occurrence of the given character
+    pub fn rsplit_once(&self, delimiter: char) -> Option<(&str, &str)> {
+        self.0.peek().rsplit_once(delimiter)
+    }
+}
+
+impl From<NameType> for String {
+    fn from(card_holder_name: NameType) -> Self {
+        (*(card_holder_name.0.peek())).to_string()
+    }
+}
+
+impl From<&NameType> for String {
+    fn from(card_holder_name: &NameType) -> Self {
+        (*(card_holder_name.0.peek())).to_string()
     }
 }
 
@@ -1457,13 +1498,13 @@ impl FromStr for NameType {
 
 impl From<NameType> for masking::Secret<String> {
     fn from(card_holder_name: NameType) -> Self {
-        Self::new(card_holder_name.peek().to_string())
+        Self::new(card_holder_name.0.peek().to_string())
     }
 }
 
 impl From<&NameType> for masking::Secret<String> {
     fn from(card_holder_name: &NameType) -> Self {
-        Self::new(card_holder_name.peek().to_string())
+        Self::new(card_holder_name.0.peek().to_string())
     }
 }
 
@@ -1498,16 +1539,9 @@ impl<'de> Deserialize<'de> for NameType {
     }
 }
 
-impl Deref for NameType {
-    type Target = masking::Secret<LengthString<256, 0>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 impl ConfigExt for NameType {
     fn is_empty_after_trim(&self) -> bool {
-        self.peek().trim().is_empty()
+        self.trim().is_empty()
     }
 }
 
@@ -1524,14 +1558,14 @@ mod name_type_test {
         // will panic on unwrap
         let invalid_card_holder_name = NameType::try_from("$@k!l M*$t@k".to_string());
 
-        assert_eq!(*card_holder_name.peek().to_string(), valid_name);
+        assert_eq!(String::from(card_holder_name.clone()), valid_name);
         assert!(invalid_card_holder_name.is_err());
 
         let serialized = serde_json::to_string(&card_holder_name).unwrap();
         assert_eq!(&serialized, "\"Sakil Mostak\"");
 
         let derialized = serde_json::from_str::<NameType>(&serialized).unwrap();
-        assert_eq!(derialized.peek().to_string(), valid_name);
+        assert_eq!(String::from(derialized), valid_name);
 
         let invalid_deserialization = serde_json::from_str::<NameType>("$@k!l M*$t@k");
         assert!(invalid_deserialization.is_err());

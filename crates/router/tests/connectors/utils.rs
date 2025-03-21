@@ -79,9 +79,12 @@ impl PaymentInfo {
                 None,
                 Some(hyperswitch_domain_models::address::Address {
                     address: Some(hyperswitch_domain_models::address::AddressDetails {
-                        first_name: common_utils::types::NameType::try_from("John".to_string())
-                            .ok(),
-                        last_name: common_utils::types::NameType::try_from("Doe".to_string()).ok(),
+                        first_name: Some(common_utils::types::NameType::get_unchecked(
+                            "John".to_string(),
+                        )),
+                        last_name: Some(common_utils::types::NameType::get_unchecked(
+                            "Doe".to_string(),
+                        )),
                         ..Default::default()
                     }),
                     phone: None,

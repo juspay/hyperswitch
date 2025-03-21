@@ -2325,21 +2325,15 @@ pub fn validate_payment_method_update(
             })
         || card_updation_obj
             .card_holder_name
-            .map(|name| name.peek().to_string())
+            .map(String::from)
             .is_some_and(|new_card_holder_name| {
-                existing_card_data
-                    .card_holder_name
-                    .map(|name| name.peek().to_string())
-                    != Some(new_card_holder_name)
+                existing_card_data.card_holder_name.map(String::from) != Some(new_card_holder_name)
             })
         || card_updation_obj
             .nick_name
-            .map(|nick_name| nick_name.peek().to_string())
+            .map(String::from)
             .is_some_and(|new_nick_name| {
-                existing_card_data
-                    .nick_name
-                    .map(|nick_name| nick_name.peek().to_string())
-                    != Some(new_nick_name)
+                existing_card_data.nick_name.map(String::from) != Some(new_nick_name)
             })
 }
 
@@ -2999,12 +2993,8 @@ pub async fn mock_call_to_locker_hs(
                 .card
                 .name_on_card
                 .to_owned()
-                .map(|name| name.peek().to_string()),
-            nickname: store_card_req
-                .card
-                .nick_name
-                .to_owned()
-                .map(|nick_name| nick_name.peek().to_string()),
+                .map(String::from),
+            nickname: store_card_req.card.nick_name.to_owned().map(String::from),
             ..locker_mock_up
         },
         payment_methods::StoreLockerReq::LockerGeneric(store_generic_req) => {
@@ -3057,20 +3047,14 @@ pub async fn mock_get_card<'a>(
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
         name_on_card: locker_mock_up
             .name_on_card
-            .map(|card| {
-                common_utils::types::NameType::try_from(card)
-                    .change_context(errors::VaultError::ResponseDeserializationFailed)
-                    .attach_printable("Invalid card holder name format from the mock locker")
-            })
-            .transpose()?,
+            .map(common_utils::types::NameType::try_from)
+            .transpose()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?,
         nickname: locker_mock_up
             .nickname
-            .map(|card| {
-                common_utils::types::NameType::try_from(card)
-                    .change_context(errors::VaultError::ResponseDeserializationFailed)
-                    .attach_printable("Invalid nick name format from the mock locker")
-            })
-            .transpose()?,
+            .map(common_utils::types::NameType::try_from)
+            .transpose()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
     };
