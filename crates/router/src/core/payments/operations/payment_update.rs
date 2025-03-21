@@ -81,6 +81,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
@@ -419,7 +421,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = mandate_data.map(Into::into);
+        let setup_mandate = mandate_data;
         let mandate_details_present =
             payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
         helpers::validate_mandate_data_and_future_usage(
@@ -493,6 +495,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -643,6 +647,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -656,6 +661,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             customer,
             storage_scheme,
             business_profile,
+            should_retry_with_pan,
         ))
         .await
     }

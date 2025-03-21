@@ -1,8 +1,10 @@
 pub mod address;
 pub mod api;
 pub mod behaviour;
+pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod card_testing_guard_data;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -11,6 +13,7 @@ pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod network_tokenization;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payment_methods;
@@ -19,6 +22,8 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod relay;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod revenue_recovery;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;
@@ -26,6 +31,8 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
@@ -40,10 +47,17 @@ use api_models::payments::{
     RecurringPaymentIntervalUnit as ApiRecurringPaymentIntervalUnit,
     RedirectResponse as ApiRedirectResponse,
 };
+#[cfg(feature = "v2")]
+use api_models::payments::{
+    BillingConnectorPaymentDetails as ApiBillingConnectorPaymentDetails,
+    PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
+};
 use diesel_models::types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
     OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
 };
+#[cfg(feature = "v2")]
+use diesel_models::types::{BillingConnectorPaymentDetails, PaymentRevenueRecoveryMetadata};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
@@ -78,6 +92,7 @@ pub trait ApiModelToDieselModelConvertor<F> {
     fn convert_back(self) -> F;
 }
 
+#[cfg(feature = "v1")]
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         let ApiFeatureMetadata {
@@ -85,6 +100,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
         } = from;
+
         Self {
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
             search_tags,
@@ -99,11 +115,52 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
         } = self;
+
         ApiFeatureMetadata {
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
+                .map(|value| value.convert_back()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
+    fn convert_from(from: ApiFeatureMetadata) -> Self {
+        let ApiFeatureMetadata {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
+            payment_revenue_recovery_metadata,
+        } = from;
+
+        Self {
+            redirect_response: redirect_response.map(RedirectResponse::convert_from),
+            search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(ApplePayRecurringDetails::convert_from),
+            payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
+                .map(PaymentRevenueRecoveryMetadata::convert_from),
+        }
+    }
+
+    fn convert_back(self) -> ApiFeatureMetadata {
+        let Self {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
+            payment_revenue_recovery_metadata,
+        } = self;
+
+        ApiFeatureMetadata {
+            redirect_response: redirect_response
+                .map(|redirect_response| redirect_response.convert_back()),
+            search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(|value| value.convert_back()),
+            payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(|value| value.convert_back()),
         }
     }
@@ -200,6 +257,58 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
             regular_billing: self.regular_billing.convert_back(),
             billing_agreement: self.billing_agreement,
             management_url: self.management_url,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentRevenueRecoveryMetadata {
+    fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
+        Self {
+            total_retry_count: from.total_retry_count,
+            payment_connector_transmission: from.payment_connector_transmission,
+            billing_connector_id: from.billing_connector_id,
+            active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
+            billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
+                from.billing_connector_payment_details,
+            ),
+            payment_method_type: from.payment_method_type,
+            payment_method_subtype: from.payment_method_subtype,
+            connector: from.connector,
+        }
+    }
+
+    fn convert_back(self) -> ApiRevenueRecoveryMetadata {
+        ApiRevenueRecoveryMetadata {
+            total_retry_count: self.total_retry_count,
+            payment_connector_transmission: self.payment_connector_transmission,
+            billing_connector_id: self.billing_connector_id,
+            active_attempt_payment_connector_id: self.active_attempt_payment_connector_id,
+            billing_connector_payment_details: self
+                .billing_connector_payment_details
+                .convert_back(),
+            payment_method_type: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
+            connector: self.connector,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
+    for BillingConnectorPaymentDetails
+{
+    fn convert_from(from: ApiBillingConnectorPaymentDetails) -> Self {
+        Self {
+            payment_processor_token: from.payment_processor_token,
+            connector_customer_id: from.connector_customer_id,
+        }
+    }
+
+    fn convert_back(self) -> ApiBillingConnectorPaymentDetails {
+        ApiBillingConnectorPaymentDetails {
+            payment_processor_token: self.payment_processor_token,
+            connector_customer_id: self.connector_customer_id,
         }
     }
 }
@@ -303,6 +412,14 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                 )
             }),
             payment_button_text: item.payment_button_text,
+            custom_message_for_card_terms: item.custom_message_for_card_terms,
+            payment_button_colour: item.payment_button_colour,
+            skip_status_screen: item.skip_status_screen,
+            background_colour: item.background_colour,
+            payment_button_text_colour: item.payment_button_text_colour,
+            sdk_ui_rules: item.sdk_ui_rules,
+            payment_link_ui_rules: item.payment_link_ui_rules,
+            enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -319,6 +436,14 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             background_image,
             details_layout,
             payment_button_text,
+            custom_message_for_card_terms,
+            payment_button_colour,
+            skip_status_screen,
+            background_colour,
+            payment_button_text_colour,
+            sdk_ui_rules,
+            payment_link_ui_rules,
+            enable_button_only_on_form_ready,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -339,6 +464,14 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             background_image: background_image
                 .map(|background_image| background_image.convert_back()),
             payment_button_text,
+            custom_message_for_card_terms,
+            payment_button_colour,
+            skip_status_screen,
+            background_colour,
+            payment_button_text_colour,
+            sdk_ui_rules,
+            payment_link_ui_rules,
+            enable_button_only_on_form_ready,
         }
     }
 }
@@ -440,6 +573,54 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payments::AmountDetails> for api_models::payments::AmountDetailsSetter {
+    fn from(amount_details: payments::AmountDetails) -> Self {
+        Self {
+            order_amount: amount_details.order_amount.into(),
+            currency: amount_details.currency,
+            shipping_cost: amount_details.shipping_cost,
+            order_tax_amount: amount_details
+                .tax_details
+                .and_then(|tax_detail| tax_detail.get_default_tax_amount()),
+            skip_external_tax_calculation: amount_details.skip_external_tax_calculation,
+            skip_surcharge_calculation: amount_details.skip_surcharge_calculation,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&api_models::payments::PaymentAttemptAmountDetails>
+    for payments::payment_attempt::AttemptAmountDetailsSetter
+{
+    fn from(amount: &api_models::payments::PaymentAttemptAmountDetails) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&api_models::payments::RecordAttemptErrorDetails>
+    for payments::payment_attempt::ErrorDetails
+{
+    fn from(error: &api_models::payments::RecordAttemptErrorDetails) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: Some(error.message.clone()),
+            unified_code: None,
+            unified_message: None,
         }
     }
 }

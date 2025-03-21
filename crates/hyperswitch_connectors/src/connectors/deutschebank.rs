@@ -174,6 +174,8 @@ impl ConnectorCommon for Deutschebank {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -304,6 +306,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 reason: Some(response.message),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             deutschebank::DeutschebankError::AccessTokenErrorResponse(response) => {
                 Ok(ErrorResponse {
@@ -313,6 +317,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                     reason: Some(response.description),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
         }
@@ -1023,6 +1029,25 @@ lazy_static! {
         deutschebank_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
             PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,

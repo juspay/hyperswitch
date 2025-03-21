@@ -2,12 +2,20 @@
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
-    router_flow_types::{AccessTokenAuth, Authorize, Capture, PSync, PreProcessing, Session, Void},
-    router_request_types::{
-        AccessTokenRequestData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+    router_flow_types::{
+        Accept, AccessTokenAuth, Authorize, Capture, Defend, Evidence, PSync, PreProcessing,
+        Session, Upload, Void,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_request_types::{
+        AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SubmitEvidenceRequestData,
+        UploadFileRequestData,
+    },
+    router_response_types::{
+        AcceptDisputeResponse, DefendDisputeResponse, PaymentsResponseData, RefundsResponseData,
+        SubmitEvidenceResponse, UploadFileResponse,
+    },
 };
 
 pub(crate) type PaymentsSyncResponseRouterData<R> =
@@ -27,6 +35,15 @@ pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
     ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
+
+pub(crate) type AcceptDisputeRouterData =
+    RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
+pub(crate) type SubmitEvidenceRouterData =
+    RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
+pub(crate) type UploadFileRouterData =
+    RouterData<Upload, UploadFileRequestData, UploadFileResponse>;
+pub(crate) type DefendDisputeRouterData =
+    RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
 #[cfg(feature = "payouts")]
 pub type PayoutsResponseRouterData<F, R> =
