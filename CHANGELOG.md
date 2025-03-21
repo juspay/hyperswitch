@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix5
+
+### Miscellaneous Tasks
+
+- **docker:** Prefix Hyperswitch Docker image URIs with `docker.juspay.io` ([#7592](https://github.com/juspay/hyperswitch/pull/7592)) ([`f2361da`](https://github.com/juspay/hyperswitch/commit/f2361da564840bf2cf25be2e0597883c7f74aa3d))
+
+- - -
+
 ## 2025.02.10.0-hotfix4
 
 ### Bug Fixes
