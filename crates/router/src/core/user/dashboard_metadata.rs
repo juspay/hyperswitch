@@ -606,7 +606,7 @@ async fn insert_metadata(
                 user.user_id.clone(),
                 user.merchant_id.clone(),
                 user.org_id.clone(),
-                metadata_key.clone(),
+                metadata_key,
                 data.clone(),
             )
             .await;
