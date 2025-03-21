@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -85,6 +85,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             ],
             "cancel",
         )?;
+
+        if payment_intent.status == enums::IntentStatus::PartiallyCapturedAndCapturable {
+            logger::debug!("Merchant cancelled a partially captured and capturable payment");
+        }
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
