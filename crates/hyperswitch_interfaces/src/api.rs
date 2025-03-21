@@ -154,15 +154,13 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         &self,
         data: &RouterData<T, Req, Resp>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
+        _res: types::Response,
     ) -> CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
     where
         T: Clone,
         Req: Clone,
         Resp: Clone,
     {
-        let sssssssss = String::from_utf8(res.response.to_vec()).ok();
-        router_env::logger::debug!("sssssssssss: {:?}", sssssssss);
         event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
         Ok(data.clone())
     }

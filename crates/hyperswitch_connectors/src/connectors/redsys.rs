@@ -78,11 +78,6 @@ impl api::PaymentToken for Redsys {}
 impl api::PaymentsPreProcessing for Redsys {}
 impl api::PaymentsCompleteAuthorize for Redsys {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Redsys where
-    Self: ConnectorIntegration<Flow, Request, Response>
-{
-}
-
 impl ConnectorCommon for Redsys {
     fn id(&self) -> &'static str {
         "redsys"
@@ -645,8 +640,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Redsys 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Redsys {
     fn get_headers(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
@@ -699,7 +694,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Red
         let response_data = html_escape::decode_html_entities(
             &response,
         ).to_ascii_lowercase();
-        print!("ssssssss response_data: {}", response_data);
         let response = response_data
             .parse_xml::<redsys::RedsysSyncResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -727,7 +721,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -735,7 +729,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
     }
     fn get_url(
         &self,
-        req: &RefundSyncRouterData,
+        _req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/apl02/services/SerClsWSConsulta", self.base_url(connectors)))
@@ -776,11 +770,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Redsys {
         let response_data = html_escape::decode_html_entities(
             &response,
         ).to_ascii_lowercase();
-        print!("ssssssss response_data: {}", response_data);
         let response = response_data
             .parse_xml::<redsys::RedsysSyncResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
