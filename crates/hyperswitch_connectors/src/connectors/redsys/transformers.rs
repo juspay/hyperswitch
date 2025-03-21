@@ -878,9 +878,9 @@ fn get_redsys_attempt_status(
             "9998" => Ok(enums::AttemptStatus::AuthenticationPending),
             "9256" | "9257" | "0184" => Ok(enums::AttemptStatus::AuthenticationFailed),
             "0101" | "0102" | "0106" | "0125" | "0129" | "0172" | "0173" | "0174" | "0180"
-            | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944"
-            | "9912" | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253"
-            | "9261" | "9915" | "9997" | "9999"  => Ok(enums::AttemptStatus::Failure),
+            | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944" | "9912"
+            | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253" | "9261"
+            | "9915" | "9997" | "9999" => Ok(enums::AttemptStatus::Failure),
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
                 .attach_printable(format!("Received Unknown Status:{}", error))?,
         }
