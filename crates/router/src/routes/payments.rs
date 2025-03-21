@@ -88,9 +88,15 @@ pub async fn payments_create(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            }),
             _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: true,
+                }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
                 },
@@ -744,7 +750,10 @@ pub async fn payments_capture(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: true,
+        }),
         locking_action,
     ))
     .await
@@ -1248,7 +1257,10 @@ pub async fn payments_cancel(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: true,
+        }),
         locking_action,
     ))
     .await
@@ -1272,7 +1284,10 @@ pub async fn payments_list(
             payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
             },
@@ -1336,7 +1351,10 @@ pub async fn profile_payments_list(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
             },
@@ -1586,9 +1604,15 @@ pub async fn payments_approve(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            }),
             _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: true,
+                }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
                 },
@@ -1651,9 +1675,15 @@ pub async fn payments_reject(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            }),
             _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: true,
+                }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
                 },
@@ -1831,7 +1861,10 @@ pub async fn payments_incremental_authorization(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: true,
+        }),
         locking_action,
     ))
     .await
@@ -1972,7 +2005,10 @@ pub async fn retrieve_extended_card_info(
                 payment_id,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: true,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
