@@ -844,9 +844,7 @@ where
                 (
                     Some(BillingAddress {
                         first_name: Some(first_name.clone()),
-                        last_name: Some(
-                            address.get_last_name().ok().unwrap_or(&first_name).clone(),
-                        ),
+                        last_name: Some(address.get_last_name().ok().unwrap_or(first_name)),
                         email: item.request.get_email_required()?,
                         country: item.get_billing_country()?,
                     }),
@@ -1083,7 +1081,7 @@ where
             let first_name = address.get_first_name()?.clone();
             Some(BillingAddress {
                 first_name: Some(first_name.clone()),
-                last_name: Some(address.get_last_name().ok().unwrap_or(&first_name).clone()),
+                last_name: Some(address.get_last_name().ok().unwrap_or(first_name)),
                 email: item.request.get_email_required()?,
                 country: item.get_billing_country()?,
             })

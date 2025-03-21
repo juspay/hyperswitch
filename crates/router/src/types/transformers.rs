@@ -763,6 +763,16 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
         {
             None
         } else {
+            let first_name = address
+                .first_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
+            let last_name = address
+                .last_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             Some(hyperswitch_domain_models::address::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -771,8 +781,8 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 line3: address.line3.clone().map(Encryptable::into_inner),
                 state: address.state.clone().map(Encryptable::into_inner),
                 zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
+                first_name,
+                last_name,
             })
         };
 
@@ -809,6 +819,16 @@ impl ForeignFrom<domain::Address> for api_types::Address {
         {
             None
         } else {
+            let first_name = address
+                .first_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
+            let last_name = address
+                .last_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -817,8 +837,8 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 line3: address.line3.clone().map(Encryptable::into_inner),
                 state: address.state.clone().map(Encryptable::into_inner),
                 zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
+                first_name,
+                last_name,
             })
         };
 
@@ -1783,6 +1803,16 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
 
 impl From<domain::Address> for payments::AddressDetails {
     fn from(addr: domain::Address) -> Self {
+        let first_name = addr
+            .first_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
+        let last_name = addr
+            .last_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
         Self {
             city: addr.city,
             country: addr.country,
@@ -1791,8 +1821,8 @@ impl From<domain::Address> for payments::AddressDetails {
             line3: addr.line3.map(Encryptable::into_inner),
             zip: addr.zip.map(Encryptable::into_inner),
             state: addr.state.map(Encryptable::into_inner),
-            first_name: addr.first_name.map(Encryptable::into_inner),
-            last_name: addr.last_name.map(Encryptable::into_inner),
+            first_name,
+            last_name,
         }
     }
 }

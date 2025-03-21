@@ -42,8 +42,12 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
         None,
         Some(Address {
             address: Some(AddressDetails {
-                first_name: Some(Secret::new("John".to_string())),
-                last_name: Some(Secret::new("Doe".to_string())),
+                first_name: Some(common_utils::types::NameType::get_unchecked(
+                    "John".to_string(),
+                )),
+                last_name: Some(common_utils::types::NameType::get_unchecked(
+                    "Doe".to_string(),
+                )),
                 line1: Some(Secret::new("Kraanspoor".to_string())),
                 line2: Some(Secret::new("line2".to_string())),
                 line3: Some(Secret::new("line3".to_string())),
