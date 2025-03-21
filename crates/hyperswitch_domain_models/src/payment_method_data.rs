@@ -1955,3 +1955,18 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
         }
     }
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SingleUseToken(String);
+
+impl SingleUseToken {
+    pub fn new(token: &str) -> Self {
+        let new_token = format!("single_use_token_{}", token);
+        Self(new_token)
+    }
+
+    pub fn get_redis_key(&self) -> &str {
+        &self.0
+    }
+}

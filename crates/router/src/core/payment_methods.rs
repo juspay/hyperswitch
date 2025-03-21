@@ -2586,7 +2586,7 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::SingleUse,
             ..
         }) => {
-            Box::pin(add_token_call_to_store(
+            Box::pin(create_single_use_tokenization_flow(
                 state.clone(),
                 req_state.clone(),
                 merchant_account.clone(),
@@ -2672,7 +2672,7 @@ impl pm_types::SavedPMLPaymentsInfo {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[allow(clippy::too_many_arguments)]
-async fn add_token_call_to_store(
+async fn create_single_use_tokenization_flow(
     state: SessionState,
     req_state: routes::app::ReqState,
     merchant_account: domain::MerchantAccount,
@@ -2686,10 +2686,13 @@ async fn add_token_call_to_store(
     let customer_id = payment_method_create_request.customer_id.to_owned();
     let connector_id = payment_methods::PaymentMethodCreate::get_tokenize_connector_id(
         payment_method_create_request)
-        .change_context(errors::ApiErrorResponse::MissingRequiredField{field_name: "psp_tokenization.connector_id"})
+        .change_context(errors::ApiErrorResponse::MissingRequiredField{
+            field_name: "psp_tokenization.connector_id"
+        })
         .attach_printable("Failed to get tokenize connector id")?;
+    
     let db = &state.store;
-    // call merchant connector account via merchant_connector_id ( connector, connector_auth_type)
+
     let merchant_connector_account_details = db
         .find_merchant_connector_account_by_id(&(&state).into(), &connector_id, &key_store)
         .await
@@ -2706,7 +2709,9 @@ async fn add_token_call_to_store(
         payment_method_data: payment_method_data::PaymentMethodData::try_from(
             payment_method_create_request.payment_method_data.clone(),
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::MissingRequiredField{
+            field_name: "card_cvc"
+        })
         .attach_printable("Failed to convert type from ")?,
         browser_info: None,
         currency: api_models::enums::Currency::default(),
@@ -2801,16 +2806,16 @@ async fn add_token_call_to_store(
         connector_id.clone()
     );
         
-    let key = payment_methods::SingleUseToken::new(payment_method.id.get_string_repr());
+    let key = payment_method_data::SingleUseToken::new(payment_method.id.get_string_repr());
         
-    add_token_to_store(&state, key, value).await?;
+    add_single_use_token_to_store(&state, key, value).await?;
 
     Ok(())
 }
 
-async fn add_token_to_store(
+async fn add_single_use_token_to_store(
     state: &SessionState,
-    key: payment_methods::SingleUseToken,
+    key: payment_method_data::SingleUseToken,
     value: payment_method_data::PaymentMethodTokenSingleUse,
 ) -> RouterResult<()> {
     let redis_connection = state
@@ -2820,7 +2825,7 @@ async fn add_token_to_store(
         .attach_printable("Failed to get redis connection")?;
 
     redis_connection
-        .serialize_and_set_key_with_expiry(&(payment_methods::SingleUseToken::get_redis_key(&key)).into(), value, 86400)
+        .serialize_and_set_key_with_expiry(&(payment_method_data::SingleUseToken::get_redis_key(&key)).into(), value, 86400)
         .await
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to insert payment method token to redis");

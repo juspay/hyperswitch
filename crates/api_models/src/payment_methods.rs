@@ -458,19 +458,9 @@ impl PaymentMethodCreate {
     pub fn get_tokenize_connector_id(&self) -> Result<id_type::MerchantConnectorAccountId,  error_stack::Report<errors::ValidationError>> {
         self.psp_tokenization
             .clone()
-            .get_required_value("psp_tokenization")?
-            .connector_id
-            .get_required_value("connector_id")
+            .get_required_value("psp_tokenization")
+            .map(|psp| psp.connector_id)
     }
-
-    // let customer_id = payment_method_create_request.customer_id.to_owned();
-    // let connector_id = payment_method_create_request
-    //     .psp_tokenization
-    //     .clone()
-    //     .get_required_value("psp_tokenization")?
-    //     .connector_id
-    //     .get_required_value("connector_id")?;
-    // let db = &state.store;
 }
 
 #[cfg(all(
@@ -2867,19 +2857,4 @@ pub struct AuthenticationDetails {
     /// Error details of the authentication
     #[schema(value_type = ErrorDetails)]
     pub error: Option<payments::ErrorDetails>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct SingleUseToken(String);
-
-impl SingleUseToken {
-    pub fn new(token: &str) -> Self {
-        let new_token = format!("single_use_token_{}", token);
-        Self(new_token)
-    }
-
-    pub fn get_redis_key(&self) -> &str {
-        &self.0
-    }
 }
