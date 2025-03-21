@@ -118,7 +118,7 @@ pub enum RoutableConnectors {
     Rapyd,
     Razorpay,
     Recurly,
-    // Redsys,
+    Redsys,
     Riskified,
     Shift4,
     Signifyd,
@@ -264,7 +264,7 @@ pub enum Connector {
     Rapyd,
     Razorpay,
     Recurly,
-    // Redsys,
+    Redsys,
     Shift4,
     Square,
     Stax,
@@ -416,7 +416,7 @@ impl Connector {
             | Self::Prophetpay
             | Self::Rapyd
             | Self::Recurly
-			// | Self::Redsys
+            | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
@@ -554,6 +554,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Rapyd => Self::Rapyd,
             RoutableConnectors::Razorpay => Self::Razorpay,
             RoutableConnectors::Recurly => Self::Recurly,
+            RoutableConnectors::Redsys => Self::Redsys,
             RoutableConnectors::Riskified => Self::Riskified,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,

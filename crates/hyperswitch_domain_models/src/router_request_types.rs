@@ -423,6 +423,7 @@ pub struct CompleteAuthorizeData {
     pub minor_amount: MinorUnit,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
 #[derive(Debug, Clone)]
