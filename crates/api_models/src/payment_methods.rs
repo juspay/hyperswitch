@@ -1946,6 +1946,9 @@ pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
+
+    /// Whether payment method was deleted or not
+    pub deleted: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2783,6 +2786,14 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionDelete {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
     /// The payment method type
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -2858,6 +2869,6 @@ pub struct AuthenticationDetails {
     pub status: common_enums::IntentStatus,
 
     /// Error details of the authentication
-    #[schema(value_type = ErrorDetails)]
+    #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }
