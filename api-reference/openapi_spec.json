@@ -16253,6 +16253,22 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "OverCaptureStatus": {
+        "type": "string",
+        "description": "Whether overcapture is allowed by the connector",
+        "enum": [
+          "applicable",
+          "not_applicable"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -18764,6 +18780,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19168,6 +19192,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -19738,6 +19770,14 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
             "nullable": true
           }
         }
@@ -20431,6 +20471,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21025,6 +21073,14 @@
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21527,6 +21583,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -23540,6 +23604,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23804,6 +23873,13 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced"
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "default": false,
+            "example": false,
+            "nullable": true
           }
         }
       },

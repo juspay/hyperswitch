@@ -436,6 +436,17 @@ where
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
 
+    let overcapture_data = router_data
+        .connector_response
+        .as_ref()
+        .and_then(|resp| resp.overcapture_data.clone());
+    let overcapture_status = overcapture_data
+        .as_ref()
+        .map(|data| data.overcapture_status);
+    let maximum_capturable_amount = overcapture_data
+        .as_ref()
+        .map(|data| data.maximum_capturable_amount);
+
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id,
@@ -478,7 +489,7 @@ where
                 amount_capturable: if router_data.status.is_terminal_status() {
                     Some(MinorUnit::new(0))
                 } else {
-                    None
+                    maximum_capturable_amount
                 },
                 updated_by: storage_scheme.to_string(),
                 authentication_data,
@@ -488,6 +499,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
+                overcapture_status,
             };
 
             #[cfg(feature = "v1")]
@@ -680,6 +692,7 @@ pub fn make_new_payment_attempt(
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
+        request_overcapture: old_payment_attempt.request_overcapture,
     }
 }
 

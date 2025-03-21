@@ -1151,6 +1151,10 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+
+    /// Whether to request overcapture on this payment
+    #[schema(value_type = Option<OverCaptureRequest>)]
+    pub request_overcapture: Option<api_enums::OverCaptureRequest>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5076,6 +5080,10 @@ pub struct PaymentsResponse {
 
     /// Error message received from the issuer in case of failed payments
     pub issuer_error_message: Option<String>,
+
+    /// Whether the payment is overcaptureable or not
+    #[schema(value_type = Option<OverCaptureStatus>)]
+    pub overcapture_status: Option<common_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v2")]
