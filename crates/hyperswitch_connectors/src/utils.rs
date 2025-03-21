@@ -1734,12 +1734,18 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_id()
-                }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    ),
+                ) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(_),
+                )
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_),
+                ) => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -1860,12 +1866,18 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_request_reference_id()
-                }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    ),
+                ) => connector_mandate_ids.get_connector_mandate_request_reference_id(),
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(_),
+                )
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_),
+                ) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -1877,11 +1889,17 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
-                }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(
+                        network_transaction_id,
+                    ),
+                ) => Some(network_transaction_id.clone()),
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(_),
+                )
+                | Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_),
+                )
                 | None => None,
             })
     }
@@ -2182,12 +2200,18 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_request_reference_id()
-                }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    ),
+                ) => connector_mandate_ids.get_connector_mandate_request_reference_id(),
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(_),
+                )
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_),
+                ) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -2332,12 +2356,18 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_id()
-                }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    ),
+                ) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkMandateId(_),
+                )
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(
+                    hyperswitch_domain_models::payments::MandateReferenceId::NetworkTokenWithNTI(_),
+                ) => None,
             })
     }
 }
