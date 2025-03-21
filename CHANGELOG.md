@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.10.0-hotfix7
+
+### Refactors
+
+- **connector:** [BRAINTREE] Pass email in payment requests ([#7597](https://github.com/juspay/hyperswitch/pull/7597)) ([`b76ef12`](https://github.com/juspay/hyperswitch/commit/b76ef1289618a68470a6a3074cb6ce9f2155abf7))
+
+**Full Changelog:** [`2025.03.10.0-hotfix6...2025.03.10.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2025.03.10.0-hotfix6...2025.03.10.0-hotfix7)
+
+
+- - -
+
 ## 2025.03.10.0-hotfix6
 
 ### Features
