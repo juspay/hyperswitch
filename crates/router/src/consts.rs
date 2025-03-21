@@ -6,7 +6,10 @@ pub mod user_role;
 use std::collections::HashSet;
 
 use common_utils::consts;
-pub use hyperswitch_domain_models::consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH;
+pub use hyperswitch_domain_models::consts::{
+    CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
+    ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
+};
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 
 // ID generation

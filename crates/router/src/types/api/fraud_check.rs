@@ -15,7 +15,7 @@ pub use super::fraud_check_v2::{
     FraudCheckCheckoutV2, FraudCheckFulfillmentV2, FraudCheckRecordReturnV2, FraudCheckSaleV2,
     FraudCheckTransactionV2, FraudCheckV2,
 };
-use super::{ConnectorData, SessionConnectorData};
+use super::{ConnectorData, SessionConnectorDatas};
 use crate::{connector, core::errors, services::connector_integration_interface::ConnectorEnum};
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ pub struct FraudCheckConnectorData {
 pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
-    SessionMultiple(Vec<SessionConnectorData>),
+    SessionMultiple(SessionConnectorDatas),
 }
 
 impl FraudCheckConnectorData {
