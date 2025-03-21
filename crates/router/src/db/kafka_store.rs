@@ -768,8 +768,8 @@ impl EventInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        created_after: Option<PrimitiveDateTime>,
-        created_before: Option<PrimitiveDateTime>,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -825,8 +825,8 @@ impl EventInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
-        created_after: Option<PrimitiveDateTime>,
-        created_before: Option<PrimitiveDateTime>,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -859,6 +859,23 @@ impl EventInterface for KafkaStore {
                 event_id,
                 event,
                 merchant_key_store,
+            )
+            .await
+    }
+
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_constraints(
+                merchant_id,
+                profile_id,
+                created_after,
+                created_before,
             )
             .await
     }
