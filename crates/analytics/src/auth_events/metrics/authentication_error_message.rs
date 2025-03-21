@@ -12,8 +12,8 @@ use time::PrimitiveDateTime;
 use super::AuthEventMetricRow;
 use crate::{
     query::{
-        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
-        Window,
+        Aggregate, FilterTypes, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket,
+        ToSql, Window,
     },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
@@ -45,11 +45,9 @@ where
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
+
         query_builder
-            .add_select_column(Aggregate::Count {
-                field: None,
-                alias: Some("count"),
-            })
+            .add_select_column("sum(sign_flag) AS count")
             .switch()?;
 
         query_builder
@@ -94,6 +92,11 @@ where
                 .switch()?;
         }
 
+        query_builder
+            .add_order_by_clause("count", Order::Descending)
+            .attach_printable("Error adding order by clause")
+            .switch()?;
+
         if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
@@ -112,9 +115,11 @@ where
                     AuthEventMetricsBucketIdentifier::new(
                         i.authentication_status.as_ref().map(|i| i.0),
                         i.trans_status.as_ref().map(|i| i.0.clone()),
+                        i.authentication_type.as_ref().map(|i| i.0),
                         i.error_message.clone(),
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),
+                        i.acs_reference_number.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

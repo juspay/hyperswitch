@@ -147,9 +147,9 @@ pub async fn payments_create_intent(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            env::Env::Production => &auth::V2ApiKeyAuth,
             _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::V2ApiKeyAuth,
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
                 },
@@ -210,7 +210,7 @@ pub async fn payments_get_intent(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -249,9 +249,9 @@ pub async fn payments_create_and_confirm_intent(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            env::Env::Production => &auth::V2ApiKeyAuth,
             _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::V2ApiKeyAuth,
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
                 },
@@ -313,7 +313,7 @@ pub async fn payments_update_intent(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -825,7 +825,7 @@ pub async fn payments_connector_session(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id,
+        global_payment_id: global_payment_id.clone(),
         payload: json_payload.into_inner(),
     };
 
@@ -868,7 +868,9 @@ pub async fn payments_connector_session(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+            global_payment_id,
+        )),
         locking_action,
     ))
     .await
@@ -1085,6 +1087,58 @@ pub async fn payments_complete_authorize_redirect(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
+pub async fn payments_complete_authorize_redirect_with_creds_identifier(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: Option<web::Form<serde_json::Value>>,
+    path: web::Path<(
+        common_utils::id_type::PaymentId,
+        common_utils::id_type::MerchantId,
+        String,
+        String,
+    )>,
+) -> impl Responder {
+    let flow = Flow::PaymentsRedirect;
+    let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
+    let param_string = req.query_string();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let payload = payments::PaymentsRedirectResponseData {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
+        merchant_id: Some(merchant_id.clone()),
+        param: Some(param_string.to_string()),
+        json_payload: json_payload.map(|s| s.0),
+        force_sync: false,
+        connector: Some(connector),
+        creds_identifier: Some(creds_identifier),
+    };
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+
+            <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
+                &payments::PaymentRedirectCompleteAuthorize {},
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+                auth.platform_merchant_account,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
@@ -1106,6 +1160,7 @@ pub async fn payments_complete_authorize(
         )),
         shipping: payload.shipping.clone(),
         client_secret: Some(payload.client_secret.peek().clone()),
+        threeds_method_comp_ind: payload.threeds_method_comp_ind.clone(),
         ..Default::default()
     };
 
@@ -1247,7 +1302,7 @@ pub async fn payments_list(
             payments::list_payments(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth,
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
             },
@@ -2423,7 +2478,7 @@ pub async fn payment_confirm_intent(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id,
+        global_payment_id: global_payment_id.clone(),
         payload: json_payload.into_inner(),
     };
 
@@ -2468,7 +2523,9 @@ pub async fn payment_confirm_intent(
             ))
             .await
         },
-        &auth::PublishableKeyAuth,
+        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+            global_payment_id,
+        )),
         locking_action,
     ))
     .await
@@ -2540,7 +2597,7 @@ pub async fn proxy_confirm_intent(
                 header_payload.clone(),
             ))
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         locking_action,
     ))
     .await
@@ -2611,7 +2668,7 @@ pub async fn payment_status(
             .await
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth,
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
             },
@@ -2657,7 +2714,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
             ))
             .await
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -2776,7 +2833,7 @@ pub async fn payments_capture(
             .await
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth,
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
             },
@@ -2802,7 +2859,7 @@ pub async fn list_payment_methods(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id,
+        global_payment_id: global_payment_id.clone(),
         payload,
     };
 
@@ -2829,7 +2886,9 @@ pub async fn list_payment_methods(
                 &header_payload,
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+            global_payment_id,
+        )),
         api_locking::LockAction::NotApplicable,
     ))
     .await

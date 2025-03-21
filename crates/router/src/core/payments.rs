@@ -2328,6 +2328,12 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
             feature_metadata: Some(api_models::payments::FeatureMetadata {
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
@@ -2413,6 +2419,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                         api_models::payments::NextActionData::CollectOtp{ .. } => None,
+                        api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -4542,7 +4549,9 @@ where
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
-            } else if connector.connector_name == router_types::Connector::Xendit {
+            } else if connector.connector_name == router_types::Connector::Xendit
+                && is_operation_confirm(&operation)
+            {
                 match payment_data.get_payment_intent().split_payments {
                     Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                         common_types::payments::XenditSplitRequest::MultipleSplits(_),
@@ -4553,12 +4562,36 @@ where
                     }
                     _ => (router_data, should_continue_payment),
                 }
+            } else if connector.connector_name == router_types::Connector::Redsys
+                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && is_operation_confirm(&operation)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let should_continue = match router_data.response {
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        ref connector_metadata,
+                        ..
+                    }) => {
+                        let three_ds_invoke_data: Option<
+                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
+                        > = connector_metadata.clone().and_then(|metadata| {
+                            metadata
+                                .parse_value("PaymentsConnectorThreeDsInvokeData")
+                                .ok() // "ThreeDsInvokeData was not found; proceeding with the payment flow without triggering the ThreeDS invoke action"
+                        });
+                        three_ds_invoke_data.is_none()
+                    }
+                    _ => false,
+                };
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
         }
-        Some(domain::PaymentMethodData::GiftCard(_)) => {
-            if connector.connector_name == router_types::Connector::Adyen {
+        Some(domain::PaymentMethodData::GiftCard(gift_card_data)) => {
+            if connector.connector_name == router_types::Connector::Adyen
+                && matches!(gift_card_data.deref(), domain::GiftCardData::Givex(..))
+            {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 let is_error_in_response = router_data.response.is_err();
@@ -5329,6 +5362,7 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -5941,7 +5975,9 @@ pub async fn add_process_sync_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        hyperswitch_domain_models::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 

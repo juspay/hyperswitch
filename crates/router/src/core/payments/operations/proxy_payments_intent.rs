@@ -160,12 +160,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
 
         self.validate_status_for_operation(payment_intent.status)?;
 
-        let client_secret = header_payload
-            .client_secret
-            .as_ref()
-            .get_required_value("client_secret header")?;
-        payment_intent.validate_client_secret(client_secret)?;
-
         let cell_id = state.conf.cell_information.id.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
