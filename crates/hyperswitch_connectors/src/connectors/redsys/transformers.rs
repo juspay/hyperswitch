@@ -1702,6 +1702,9 @@ pub struct VersionResponseData {
     message: MessageResponseType,
 }
 
+// The response will contain either a sync transaction data or error data.
+// Since the XML parser does not support enums for this case, we use Option to handle both scenarios.
+// If both are present or both are absent, an error is thrown.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageResponseType {
     response: Option<RedsysSyncResponseData>,
