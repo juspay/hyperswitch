@@ -2983,7 +2983,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentMethodSessionDeleteSavedPaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodSessionDelete"
               },
               "examples": {
                 "Update the card holder name": {
@@ -8425,10 +8425,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -8524,6 +8526,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -10028,6 +10031,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
           },
           {
             "type": "string",
