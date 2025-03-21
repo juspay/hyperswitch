@@ -39,7 +39,6 @@ pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 
 /// Email subject
-
 pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";
 pub const EMAIL_SUBJECT_WELCOME_TO_COMMUNITY: &str =
     "Thank you for signing up on Hyperswitch Dashboard!";
