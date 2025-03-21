@@ -206,6 +206,7 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
+    AmazonPay(AmazonPayWalletData),
     AmazonPayRedirect(Box<AmazonPayRedirectData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
@@ -397,6 +398,11 @@ pub struct ApplepayPaymentMethod {
     pub display_name: String,
     pub network: String,
     pub pm_type: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Default, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmazonPayWalletData {
+    pub checkout_session_id: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -805,6 +811,9 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::AliPayHkRedirect(_) => {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
             }
+            api_models::payments::WalletData::AmazonPay(amazon_pay_data) => {
+                Self::AmazonPay(AmazonPayWalletData::from(amazon_pay_data))
+            }
             api_models::payments::WalletData::AmazonPayRedirect(_) => {
                 Self::AmazonPayRedirect(Box::new(AmazonPayRedirectData {}))
             }
@@ -919,6 +928,14 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
                 pm_type: value.payment_method.pm_type,
             },
             transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+
+impl From<api_models::payments::AmazonPayWalletData> for AmazonPayWalletData {
+    fn from(value: api_models::payments::AmazonPayWalletData) -> Self {
+        Self {
+            checkout_session_id: value.checkout_session_id,
         }
     }
 }
@@ -1602,6 +1619,7 @@ impl GetPaymentMethodType for WalletData {
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
             Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
+            Self::AmazonPay(_) => api_enums::PaymentMethodType::AmazonPay,
             Self::ApplePay(_) | Self::ApplePayRedirect(_) | Self::ApplePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::ApplePay
             }

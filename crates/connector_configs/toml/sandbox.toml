@@ -397,6 +397,11 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[amazonpay.wallet]]
+payment_method_type = "AmazonPay"
+[amazonpay.connector_auth.BodyKey]
+api_key="Public Key"
+key1="Private Key"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]
