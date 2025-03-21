@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     address::Address,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::refunds::Execute,
+    router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, ResponseId, PaymentsSyncData,
@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -38,6 +38,15 @@ const DS_VERSION: &str = "0.0";
 const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
 const XMLNS_WEB_URL: &str = "http://webservices.apl02.redsys.es";
 pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
+
+
+pub mod transaction_type {
+    pub const Payment: &str = "0";
+    pub const Preauthorization: &str = "1";
+    pub const Confirmation: &str = "2";
+    pub const Refund: &str = "3";
+    pub const Cancellation: &str = "9";
+}
 
 pub struct RedsysRouterData<T> {
     pub amount: StringMinorUnit,
@@ -1587,20 +1596,20 @@ fn get_transaction_type(
         | enums::AttemptStatus::Started
         | enums::AttemptStatus::Authorizing
         | enums::AttemptStatus::DeviceDataCollectionPending => match capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok("0".to_string()),
-            Some(enums::CaptureMethod::Manual) => Ok("1".to_owned()),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(transaction_type::Payment.to_owned()),
+            Some(enums::CaptureMethod::Manual) => Ok(transaction_type::Preauthorization.to_owned()),
             Some(capture_method) => Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
                 connector: "redsys",
             }),
         },
-        enums::AttemptStatus::VoidInitiated => Ok("9".to_owned()),
+        enums::AttemptStatus::VoidInitiated => Ok(transaction_type::Cancellation.to_owned()),
         enums::AttemptStatus::PartialChargedAndChargeable
-        | enums::AttemptStatus::CaptureInitiated => Ok("2".to_owned()),
+        | enums::AttemptStatus::CaptureInitiated => Ok(transaction_type::Confirmation.to_owned()),
         enums::AttemptStatus::Authorized
         | enums::AttemptStatus::Pending => match capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok("0".to_owned()),
-            Some(enums::CaptureMethod::Manual) => Ok("2".to_owned()),
+            Some(enums::CaptureMethod::Automatic) | None => Ok(transaction_type::Payment.to_owned()),
+            Some(enums::CaptureMethod::Manual) => Ok(transaction_type::Confirmation.to_owned()),
             Some(capture_method) => Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
                 connector: "redsys",
@@ -1695,7 +1704,6 @@ pub struct SyncResponseBody {
     consultaoperacionesresponse: ConsultaOperacionesResponse,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub struct ConsultaOperacionesResponse {
@@ -1727,18 +1735,15 @@ pub struct VersionResponseData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageResponseType {
-   SyncResponse(RedsysSyncResponseData),
-   ErrorResponse(RedsysSyncErrorData),
+    SyncResponse {
+        response: RedsysSyncResponseData,
+    },
+    ErrorResponse {
+        errormsg: SyncErrorCode,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub struct RedsysSyncErrorData {
-    errormsg: SyncErrorCode,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
 pub struct SyncErrorCode {
     ds_errorcode: String,
 }
@@ -1760,6 +1765,7 @@ pub struct RedsysSyncResponseData {
     ds_state: Option<String>,
     ds_response: Option<DsResponse>,
 }
+
 impl<F>
     TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
@@ -1775,8 +1781,8 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response.body.consultaoperacionesresponse.consultaoperacionesreturn.messages.version.message {
-            MessageResponseType::ErrorResponse(error_data) => {
-                let error_code = error_data.errormsg.ds_errorcode.clone();
+            MessageResponseType::ErrorResponse {errormsg} => {
+                let error_code = errormsg.ds_errorcode.clone();
                 let response = Err(ErrorResponse {
                     code: error_code.clone(),
                     message: error_code.clone(),
@@ -1789,12 +1795,12 @@ impl<F>
                 });
                 (item.data.status, response)
             }
-            MessageResponseType::SyncResponse(sync_response) => {
-                if let Some(ds_response) = sync_response.ds_response {
+            MessageResponseType::SyncResponse{response} => {
+                if let Some(ds_response) = response.ds_response {
                     let status = get_redsys_attempt_status(ds_response.clone(), item.data.request.capture_method)?;
 
                     if connector_utils::is_payment_failure(status) {
-                        let response = Err(ErrorResponse {
+                        let payment_response = Err(ErrorResponse {
                             status_code: item.http_code,
                             code: ds_response.0.clone(),
                             message: ds_response.0.clone(),
@@ -1804,41 +1810,111 @@ impl<F>
                             issuer_error_code: None,
                             issuer_error_message: None,
                         });
-                        (status, response)
+                        (status, payment_response)
                     } else {
 
-                    let response = Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(sync_response.ds_order.clone()),
+                    let payment_response = Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(response.ds_order.clone()),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(sync_response.ds_order.clone()),
+                        connector_response_reference_id: Some(response.ds_order.clone()),
                         incremental_authorization_allowed: None,
                         charges: None,
                     });
-                    (status, response)
+                    (status, payment_response)
                     }
                 } else {
                     // When the payment is in authentication or still processing
-                    let response = Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(sync_response.ds_order.clone()),
+                    let payment_response = Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(response.ds_order.clone()),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(sync_response.ds_order.clone()),
+                        connector_response_reference_id: Some(response.ds_order.clone()),
                         incremental_authorization_allowed: None,
                         charges: None,
                     });
 
-                    (item.data.status, response)
+                    (item.data.status, payment_response)
                 }
             }
         };
 
         Ok(Self {
             status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+pub fn build_refund_sync_request(
+    item: &PaymentsSyncRouterData,
+) -> Result<Vec<u8>, Error> {
+       let transaction_type = transaction_type::Refund.to_owned();
+       let auth = RedsysAuthType::try_from(&item.connector_auth_type)?;
+       let connector_transaction_id = item.request.connector_transaction_id.get_connector_transaction_id()
+       .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+       construct_sync_request(connector_transaction_id, transaction_type, auth)
+}
+
+
+impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>>
+    for RefundsRouterData<RSync>
+{
+    type Error = Error;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, RedsysSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response.body.consultaoperacionesresponse.consultaoperacionesreturn.messages.version.message {
+            MessageResponseType::ErrorResponse {errormsg} => {
+                let error_code = errormsg.ds_errorcode.clone();
+                 Err(ErrorResponse {
+                    code: error_code.clone(),
+                    message: error_code.clone(),
+                    reason: Some(error_code),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
+                })
+            }
+            MessageResponseType::SyncResponse{response} => {
+                if let Some(ds_response) = response.ds_response {
+                    let refund_status = enums::RefundStatus::from(ds_response);
+
+                    if connector_utils::is_payment_failure(status) {
+                        Err(ErrorResponse {
+                            status_code: item.http_code,
+                            code: ds_response.0.clone(),
+                            message: ds_response.0.clone(),
+                            reason: Some(ds_response.0.clone()),
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
+                        });
+                    } else {
+                    Ok(RefundsResponseData {
+                        connector_refund_id: response.ds_order,
+                        refund_status ,
+                    })
+                    }
+                } else {
+                    // When the refund is pending
+                    Ok(RefundsResponseData {
+                        connector_refund_id: response.ds_order,
+                        refund_status: enums::RefundStatus::Pending,
+                    })
+                }
+            }
+        };
+
+        Ok(Self {
             response,
             ..item.data
         })
