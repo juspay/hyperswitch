@@ -8370,10 +8370,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -8469,6 +8471,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -9973,6 +9976,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
           },
           {
             "type": "string",
@@ -16499,7 +16508,7 @@
           },
           "three_ds_requestor_app_url": {
             "type": "string",
-            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
             "nullable": true
           }
         }
