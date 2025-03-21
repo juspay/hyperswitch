@@ -1982,6 +1982,11 @@ pub struct ProfileCreate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    pub is_debit_routing_enabled: Option<bool>,
+
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[nutype::nutype(
@@ -2106,6 +2111,11 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    pub is_debit_routing_enabled: Option<bool>,
+
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
@@ -2526,6 +2536,11 @@ pub struct ProfileUpdate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    pub is_debit_routing_enabled: Option<bool>,
+
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v2")]
@@ -2644,6 +2659,11 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    pub is_debit_routing_enabled: Option<bool>,
+
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
