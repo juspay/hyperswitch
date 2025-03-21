@@ -191,6 +191,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             force_3ds_challenge: item.force_3ds_challenge,
+            active_surcharge_algorithm_id: item.active_surcharge_algorithm_id,
         })
     }
 }
@@ -442,5 +443,6 @@ pub async fn create_profile_from_merchant_account(
             .attach_printable("error while generating card testing secret key")?,
         is_clear_pan_retries_enabled: request.is_clear_pan_retries_enabled.unwrap_or_default(),
         force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
+        active_surcharge_algorithm_id: request.active_surcharge_algorithm_id,
     }))
 }

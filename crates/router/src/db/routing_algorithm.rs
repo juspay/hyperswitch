@@ -43,6 +43,14 @@ pub trait RoutingAlgorithmInterface {
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
 
+    async fn list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: i64,
+        offset: i64,
+        algorithm_type: common_enums::AlgorithmType,
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
+
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -137,6 +145,26 @@ impl RoutingAlgorithmInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: i64,
+        offset: i64,
+        algorithm_type: common_enums::AlgorithmType,
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
+        let conn = connection::pg_connection_write(self).await?;
+        routing_storage::RoutingAlgorithm::list_metadata_by_profile_id_algorithm_type(
+            &conn,
+            profile_id,
+            limit,
+            offset,
+            algorithm_type,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -212,6 +240,16 @@ impl RoutingAlgorithmInterface for MockDb {
         _profile_id: &common_utils::id_type::ProfileId,
         _limit: i64,
         _offset: i64,
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+        &self,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _limit: i64,
+        _offset: i64,
+        _algorithm_type: common_enums::AlgorithmType,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
         Err(errors::StorageError::MockDbError)?
     }

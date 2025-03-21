@@ -1,14 +1,26 @@
-use api_models::surcharge_decision_configs::{
-    SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse,
+use api_models::{
+    enums,
+    routing::{self, RoutingKind},
+    surcharge_decision_configs::{
+        SurchargeConfigResponse, SurchargeDecisionConfigReq, SurchargeDecisionManagerConfig,
+        SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse, SurchargeRecord,
+    },
 };
-use common_utils::ext_traits::StringExt;
+use common_enums::AlgorithmType;
+use common_utils::{
+    ext_traits::{OptionExt, StringExt, ValueExt},
+    id_type,
+    id_type::SurchargeRoutingId,
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::business_profile::ProfileUpdate;
 
+use super::{errors::StorageErrorExt, utils};
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
     services::api as service_api,
-    types::domain,
+    types::{domain, transformers::ForeignInto},
 };
 
 #[cfg(feature = "v1")]
@@ -18,7 +30,7 @@ pub async fn upsert_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
-    use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+    use common_utils::ext_traits::{Encode, ValueExt};
     use diesel_models::configs;
     use storage_impl::redis::cache;
 
@@ -37,7 +49,7 @@ pub async fn upsert_surcharge_decision_config(
     let merchant_surcharge_configs = request.merchant_surcharge_configs;
 
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -164,7 +176,7 @@ pub async fn delete_surcharge_decision_config(
     let key = merchant_account
         .get_id()
         .get_payment_method_surcharge_routing_id();
-    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|value| value.parse_value("routing algorithm"))
@@ -215,4 +227,283 @@ pub async fn retrieve_surcharge_decision_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("The Surcharge Decision Config Record was not found")?;
     Ok(service_api::ApplicationResponse::Json(record))
+}
+
+pub async fn list_surcharge_decision_configs(
+    state: SessionState,
+    profile_id: Option<id_type::ProfileId>,
+    limit: i64,
+    offset: i64,
+) -> RouterResponse<RoutingKind> {
+    let db = state.store.as_ref();
+
+    let profile_id = profile_id
+        .ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })?;
+
+    let records = db
+        .list_routing_algorithm_metadata_by_profile_id_algorithm_type(
+            &profile_id,
+            limit,
+            offset,
+            AlgorithmType::Surcharge,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let result = records
+        .into_iter()
+        .map(ForeignInto::foreign_into)
+        .collect::<Vec<_>>();
+
+    Ok(service_api::ApplicationResponse::Json(
+        RoutingKind::RoutingAlgorithm(result),
+    ))
+}
+
+pub async fn add_surcharge_decision_config(
+    state: SessionState,
+    key_store: domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<id_type::ProfileId>,
+    request: SurchargeDecisionConfigReq,
+    transaction_type: &enums::TransactionType,
+    algorithm_type: AlgorithmType,
+) -> RouterResponse<SurchargeRecord> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let name = request
+        .name
+        .get_required_value("name")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
+        .attach_printable("Name of config not given")?;
+
+    let description = request
+        .description
+        .get_required_value("description")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "description",
+        })
+        .attach_printable("Description of config not given")?;
+
+    let surcharge_algorithm_data = SurchargeDecisionManagerConfig {
+        merchant_surcharge_configs: request.merchant_surcharge_configs.clone(),
+        algorithm: request
+            .algorithm
+            .get_required_value("algorithm")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "algorithm",
+            })
+            .attach_printable("Algorithm of config not given")?,
+    };
+
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+
+    let profile_id = profile_id
+        .ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })?;
+
+    let business_profile = utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    utils::validate_profile_id_from_auth_layer(Some(profile_id.clone()), &business_profile)?;
+
+    let timestamp = common_utils::date_time::now();
+
+    let algo = diesel_models::routing_algorithm::RoutingAlgorithm {
+        algorithm_id: algorithm_id.clone(),
+        profile_id,
+        merchant_id: merchant_account.get_id().to_owned(),
+        name: name.clone(),
+        description: Some(description.clone()),
+        kind: diesel_models::enums::RoutingAlgorithmKind::Advanced,
+        algorithm_data: serde_json::json!(surcharge_algorithm_data),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: transaction_type.to_owned(),
+        algorithm_type: algorithm_type.to_owned(),
+    };
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let new_record = SurchargeRecord {
+        name,
+        algorithm_id,
+        merchant_surcharge_configs: surcharge_algorithm_data.merchant_surcharge_configs,
+        algorithm: surcharge_algorithm_data.algorithm,
+        created_at: record.created_at.assume_utc().unix_timestamp(),
+        modified_at: record.modified_at.assume_utc().unix_timestamp(),
+    };
+
+    Ok(service_api::ApplicationResponse::Json(new_record))
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn retrieve_surcharge_config(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    query: routing::SurchargeRetrieveLinkQuery,
+) -> RouterResponse<SurchargeConfigResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let profile_id = query.profile_id;
+
+    let final_response;
+    if let Some(profile_id) = profile_id.clone() {
+        let business_profile = utils::validate_and_get_business_profile(
+            db,
+            key_manager_state,
+            &key_store,
+            Some(&profile_id),
+            merchant_account.get_id(),
+        )
+        .await?
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+        if let Some(active_surcharge_algorithm_id) = business_profile.active_surcharge_algorithm_id
+        {
+            let active_algorithm_id = active_surcharge_algorithm_id.0;
+            let record = db
+                .find_routing_algorithm_by_profile_id_algorithm_id(
+                    &profile_id,
+                    &active_algorithm_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+            let record_data: SurchargeDecisionManagerConfig = record
+                .algorithm_data
+                .parse_value("SurchargeDecisionManagerConfig")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            final_response = SurchargeRecord {
+                name: record.name,
+                algorithm_id: active_algorithm_id,
+                merchant_surcharge_configs: record_data.merchant_surcharge_configs,
+                algorithm: record_data.algorithm,
+                created_at: record.created_at.assume_utc().unix_timestamp(),
+                modified_at: record.modified_at.assume_utc().unix_timestamp(),
+            }
+        } else {
+            return Err(errors::ApiErrorResponse::ResourceIdNotFound)
+                .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+                .attach_printable("Active surcharge algorithm ID not found");
+        };
+    } else {
+        return Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .attach_printable("Profile ID is missing in the query");
+    };
+
+    Ok(service_api::ApplicationResponse::Json(final_response))
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn link_surcharge_decision_config(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    auth_profile_id: Option<id_type::ProfileId>,
+    algorithm_id: id_type::RoutingId,
+) -> RouterResponse<SurchargeConfigResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let profile_id = auth_profile_id
+        .ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })?;
+
+    let business_profile = utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let surcharge_algorithm_id = SurchargeRoutingId(algorithm_id);
+    let profile_update = ProfileUpdate::ActiveSurchargeIdUpdate {
+        active_surcharge_algorithm_id: Some(surcharge_algorithm_id),
+    };
+
+    db.update_profile_by_profile_id(
+        key_manager_state,
+        &key_store,
+        business_profile,
+        profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update active surcharge algorithm ID")?;
+
+    let updated_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let response = if let Some(active_surcharge_algorithm_id) =
+        updated_profile.active_surcharge_algorithm_id
+    {
+        let active_algorithm_id = active_surcharge_algorithm_id.0;
+        let record = db
+            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &active_algorithm_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+        let record_data: SurchargeDecisionManagerConfig = record
+            .algorithm_data
+            .parse_value("SurchargeDecisionManagerConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        SurchargeRecord {
+            name: record.name,
+            algorithm_id: active_algorithm_id,
+            merchant_surcharge_configs: record_data.merchant_surcharge_configs,
+            algorithm: record_data.algorithm,
+            created_at: record.created_at.assume_utc().unix_timestamp(),
+            modified_at: record.modified_at.assume_utc().unix_timestamp(),
+        }
+    } else {
+        return Err(errors::ApiErrorResponse::ResourceIdNotFound)
+            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+            .attach_printable("Active surcharge algorithm ID not found");
+    };
+
+    Ok(service_api::ApplicationResponse::Json(response))
 }

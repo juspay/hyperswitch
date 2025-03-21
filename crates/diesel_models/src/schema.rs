@@ -221,6 +221,8 @@ diesel::table! {
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
+        #[max_length = 64]
+        active_surcharge_algorithm_id -> Nullable<Varchar>,
     }
 }
 
@@ -923,6 +925,8 @@ diesel::table! {
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
         #[max_length = 64]
+        surcharge_algorithm_id -> Nullable<Varchar>,
+        #[max_length = 64]
         issuer_error_code -> Nullable<Varchar>,
         issuer_error_message -> Nullable<Text>,
     }
@@ -1382,6 +1386,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        algorithm_type -> AlgorithmType,
     }
 }
 

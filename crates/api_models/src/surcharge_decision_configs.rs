@@ -59,12 +59,29 @@ impl events::ApiEventMetric for SurchargeDecisionManagerRecord {
         Some(events::ApiEventsType::Routing)
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SurchargeRecord {
+    pub name: String,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub merchant_surcharge_configs: MerchantSurchargeConfigs,
+    pub algorithm: Program<SurchargeDecisionConfigs>,
+    pub created_at: i64,
+    pub modified_at: i64,
+}
+
+impl events::ApiEventMetric for SurchargeRecord {
+    fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
+        Some(events::ApiEventsType::Routing)
+    }
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SurchargeDecisionConfigReq {
     pub name: Option<String>,
     pub merchant_surcharge_configs: MerchantSurchargeConfigs,
     pub algorithm: Option<Program<SurchargeDecisionConfigs>>,
+    pub description: Option<String>,
 }
 
 impl events::ApiEventMetric for SurchargeDecisionConfigReq {
@@ -73,9 +90,23 @@ impl events::ApiEventMetric for SurchargeDecisionConfigReq {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SurchargeDecisionManagerConfig {
+    pub merchant_surcharge_configs: MerchantSurchargeConfigs,
+    pub algorithm: Program<SurchargeDecisionConfigs>,
+}
+
+impl events::ApiEventMetric for SurchargeDecisionManagerConfig {
+    fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
+        Some(events::ApiEventsType::Routing)
+    }
+}
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MerchantSurchargeConfigs {
     pub show_surcharge_breakup_screen: Option<bool>,
 }
 
 pub type SurchargeDecisionManagerResponse = SurchargeDecisionManagerRecord;
+
+pub type SurchargeConfigResponse = SurchargeRecord;

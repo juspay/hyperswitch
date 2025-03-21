@@ -1983,6 +1983,9 @@ pub struct ProfileCreate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    ///active surcharge config id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[nutype::nutype(
@@ -2107,6 +2110,9 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    ///active surcharge algorithm id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -2257,6 +2263,9 @@ pub struct ProfileResponse {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: bool,
+
+    ///active surcharge config id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2527,6 +2536,9 @@ pub struct ProfileUpdate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// active surcharge config id
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 
 #[cfg(feature = "v2")]

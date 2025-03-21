@@ -117,6 +117,7 @@ impl RoutingAlgorithmUpdate {
             created_at: timestamp,
             modified_at: timestamp,
             algorithm_for: transaction_type,
+            algorithm_type: enums::AlgorithmType::Routing,
         };
         Self(algo)
     }
@@ -244,6 +245,7 @@ pub async fn create_routing_algorithm_under_profile(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
@@ -314,6 +316,7 @@ pub async fn create_routing_algorithm_under_profile(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: transaction_type.to_owned(),
+        algorithm_type: algorithm_type.to_owned(),
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1411,6 +1414,7 @@ pub async fn success_based_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        algorithm_type: dynamic_routing_algo_to_update.algorithm_type,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1556,6 +1560,7 @@ pub async fn contract_based_dynamic_routing_setup(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: common_enums::TransactionType::Payment,
+        algorithm_type: common_enums::AlgorithmType::Routing,
     };
 
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based
@@ -1738,6 +1743,7 @@ pub async fn contract_based_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        algorithm_type: dynamic_routing_algo_to_update.algorithm_type,
     };
     let record = db
         .insert_routing_algorithm(algo)

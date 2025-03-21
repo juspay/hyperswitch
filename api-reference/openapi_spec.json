@@ -23425,6 +23425,14 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "active_surcharge_algorithm_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/id_type.SurchargeRoutingId"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23689,6 +23697,14 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced"
+          },
+          "active_surcharge_algorithm_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/id_type.SurchargeRoutingId"
+              }
+            ],
+            "nullable": true
           }
         }
       },

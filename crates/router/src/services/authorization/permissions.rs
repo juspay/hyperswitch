@@ -49,7 +49,7 @@ generate_permissions! {
         },
         SurchargeDecisionManager: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Merchant, Profile]
         },
         Analytics: {
             scopes: [Read],

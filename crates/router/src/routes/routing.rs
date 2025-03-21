@@ -22,6 +22,7 @@ pub async fn routing_create_config(
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
     transaction_type: enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -37,6 +38,7 @@ pub async fn routing_create_config(
                 auth.profile_id,
                 payload,
                 transaction_type,
+                algorithm_type,
             )
         },
         #[cfg(not(feature = "release"))]
@@ -682,6 +684,196 @@ pub async fn retrieve_surcharge_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn retrieve_linked_surcharge_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::SurchargeRetrieveLinkQuery>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    let query = query.into_inner();
+    if let Some(profile_id) = query.profile_id.clone() {
+        Box::pin(oss_api::server_wrap(
+            flow,
+            state,
+            &req,
+            query.clone(),
+            |state, auth: auth::AuthenticationData, query, _| {
+                surcharge_decision_config::retrieve_surcharge_config(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    query,
+                )
+            },
+            #[cfg(not(feature = "release"))]
+            auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::JWTAuthProfileFromRoute {
+                    profile_id,
+                    required_permission: Permission::ProfileRoutingRead,
+                },
+                req.headers(),
+            ),
+            #[cfg(feature = "release")]
+            &auth::JWTAuthProfileFromRoute {
+                profile_id,
+                required_permission: Permission::ProfileRoutingRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    } else {
+        Box::pin(oss_api::server_wrap(
+            flow,
+            state,
+            &req,
+            query.clone(),
+            |state, auth: auth::AuthenticationData, query, _| {
+                surcharge_decision_config::retrieve_surcharge_config(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    query,
+                )
+            },
+            #[cfg(not(feature = "release"))]
+            auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::JWTAuth {
+                    permission: Permission::ProfileRoutingRead,
+                },
+                req.headers(),
+            ),
+            #[cfg(feature = "release")]
+            &auth::JWTAuth {
+                permission: Permission::ProfileRoutingRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn list_surcharge_decision_manager_configs(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::SurchargeRetrieveQuery>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, request, _| {
+            surcharge_decision_config::list_surcharge_decision_configs(
+                state,
+                auth.profile_id,
+                request.limit.unwrap_or_default(),
+                request.offset.unwrap_or_default(),
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantSurchargeDecisionManagerRead,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileSurchargeDecisionManagerWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn add_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::surcharge_decision_configs::SurchargeDecisionConfigReq>,
+    transaction_type: &enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            surcharge_decision_config::add_surcharge_decision_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                auth.profile_id.clone(),
+                payload,
+                transaction_type,
+                algorithm_type,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSurchargeDecisionManagerWrite,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileSurchargeDecisionManagerWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn surcharge_link_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::RoutingId>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        path.into_inner(),
+        |state, auth: auth::AuthenticationData, algorithm_id, _| {
+            surcharge_decision_config::link_surcharge_decision_config(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile_id,
+                algorithm_id,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSurchargeDecisionManagerWrite,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileSurchargeDecisionManagerWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
