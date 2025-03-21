@@ -1,6 +1,7 @@
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::ParsingError,
+    pii,
     request::Method,
     types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -35,9 +36,8 @@ use super::{
 use crate::{
     types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        construct_captures_response_hashmap, to_connector_meta_from_secret, CardData,
-        ForeignTryFrom, MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _,
-        WalletData,
+        self, construct_captures_response_hashmap, CardData, ForeignTryFrom,
+        MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _, WalletData,
     },
 };
 
@@ -66,13 +66,23 @@ pub struct GlobalPayMeta {
     account_name: Secret<String>,
 }
 
+impl TryFrom<&Option<pii::SecretSerdeValue>> for GlobalPayMeta {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPaymentsRequest {
     type Error = Error;
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata: GlobalPayMeta =
-            to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())?;
+        let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
         let (initiator, stored_credential, brand_reference) =
             get_mandate_details(item.router_data)?;
