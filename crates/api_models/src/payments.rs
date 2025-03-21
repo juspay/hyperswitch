@@ -7430,6 +7430,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
