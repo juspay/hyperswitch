@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+
+use common_enums::EventType;
 use diesel::{
     associations::HasTable, BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
 };
@@ -56,6 +59,7 @@ impl Event {
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_type: HashSet<EventType>,
     ) -> StorageResult<Vec<Self>> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
@@ -81,6 +85,10 @@ impl Event {
 
         if let Some(created_before) = created_before {
             query = query.filter(dsl::created_at.le(created_before));
+        }
+
+        if !event_type.is_empty() {
+            query = query.filter(dsl::event_type.eq_any(event_type));
         }
 
         if let Some(limit) = limit {
@@ -142,6 +150,7 @@ impl Event {
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_type: HashSet<EventType>,
     ) -> StorageResult<Vec<Self>> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
@@ -167,6 +176,10 @@ impl Event {
 
         if let Some(created_before) = created_before {
             query = query.filter(dsl::created_at.le(created_before));
+        }
+
+        if !event_type.is_empty() {
+            query = query.filter(dsl::event_type.eq_any(event_type));
         }
 
         if let Some(limit) = limit {

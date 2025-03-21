@@ -1,7 +1,10 @@
 mod accounts;
 mod payments;
 mod ui;
-use std::num::{ParseFloatError, TryFromIntError};
+use std::{
+    collections::HashSet,
+    num::{ParseFloatError, TryFromIntError},
+};
 
 pub use accounts::MerchantProductType;
 pub use payments::ProductType;
@@ -1357,6 +1360,7 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1377,10 +1381,48 @@ pub enum EventClass {
     Payouts,
 }
 
+impl EventClass {
+    pub fn event_types(self) -> HashSet<EventType> {
+        match self {
+            Self::Payments => HashSet::from([
+                EventType::PaymentSucceeded,
+                EventType::PaymentFailed,
+                EventType::PaymentProcessing,
+                EventType::PaymentCancelled,
+                EventType::PaymentAuthorized,
+                EventType::PaymentCaptured,
+                EventType::ActionRequired,
+            ]),
+            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Disputes => HashSet::from([
+                EventType::DisputeOpened,
+                EventType::DisputeExpired,
+                EventType::DisputeAccepted,
+                EventType::DisputeCancelled,
+                EventType::DisputeChallenged,
+                EventType::DisputeWon,
+                EventType::DisputeLost,
+            ]),
+            Self::Mandates => HashSet::from([EventType::MandateActive, EventType::MandateRevoked]),
+            #[cfg(feature = "payouts")]
+            Self::Payouts => HashSet::from([
+                EventType::PayoutSuccess,
+                EventType::PayoutFailed,
+                EventType::PayoutInitiated,
+                EventType::PayoutProcessing,
+                EventType::PayoutCancelled,
+                EventType::PayoutExpired,
+                EventType::PayoutReversed,
+            ]),
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1413,12 +1455,19 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    #[cfg(feature = "payouts")]
     PayoutSuccess,
+    #[cfg(feature = "payouts")]
     PayoutFailed,
+    #[cfg(feature = "payouts")]
     PayoutInitiated,
+    #[cfg(feature = "payouts")]
     PayoutProcessing,
+    #[cfg(feature = "payouts")]
     PayoutCancelled,
+    #[cfg(feature = "payouts")]
     PayoutExpired,
+    #[cfg(feature = "payouts")]
     PayoutReversed,
 }
 
