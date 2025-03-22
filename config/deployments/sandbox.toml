@@ -439,6 +439,8 @@ ach = { country = "US", currency = "USD" }
 ach = { country = "US", currency = "USD" }
 
 [pm_filters.stripe]
+affirm = { country = "US", currency = "USD" }
+afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD" }
 apple_pay.country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA"
 cashapp = { country = "US", currency = "USD" }
 eps = { country = "AT", currency = "EUR" }
