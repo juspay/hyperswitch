@@ -198,6 +198,13 @@ label="Google Pay Merchant Id"
 placeholder="Enter Google Pay Merchant Id"
 required=true
 type="Text"
+[[adyen.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [adyen.metadata.endpoint_prefix]
 name="endpoint_prefix"
@@ -368,6 +375,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[authorizedotnet.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [bitpay]
 [[bitpay.crypto]]
@@ -493,6 +507,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[bluesnap.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [bluesnap.metadata.merchant_id]
 name="merchant_id"
@@ -763,6 +784,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[bankofamerica.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -986,6 +1014,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[checkout.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 
 [coinbase]
@@ -1000,8 +1035,9 @@ merchant_secret="Source verification key"
 [coingate]
 [[coingate.crypto]]
   payment_method_type = "crypto_currency"
-[coingate.connector_auth.HeaderKey]
+[coingate.connector_auth.BodyKey]
 api_key="API Key"
+key1 ="Merchant Token"
 
 
 [cybersource]
@@ -1124,6 +1160,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[cybersource.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [cybersource.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -1343,6 +1386,30 @@ key2="Location ID"
 merchant_secret="Source verification key"
 
 
+[getnet]
+[[getnet.credit]]
+  payment_method_type = "Mastercard"
+[[getnet.credit]]
+  payment_method_type = "Visa"
+[[getnet.credit]]
+  payment_method_type = "Interac"
+[[getnet.credit]]
+  payment_method_type = "AmericanExpress"
+[[getnet.credit]]
+  payment_method_type = "JCB"
+[[getnet.credit]]
+  payment_method_type = "DinersClub"
+[[getnet.credit]]
+  payment_method_type = "Discover"
+[[getnet.credit]]
+  payment_method_type = "CartesBancaires"
+[[getnet.credit]]
+  payment_method_type = "UnionPay"
+[[getnet.credit]]
+  payment_method_type = "RuPay"
+[[getnet.credit]]
+  payment_method_type = "Maestro"
+
 [globalpay]
 [[globalpay.credit]]
   payment_method_type = "Mastercard"
@@ -1416,6 +1483,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[globalpay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [globalpay.metadata.account_name]
 name="account_name"
@@ -1907,6 +1981,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[novalnet.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [[novalnet.metadata.apple_pay]]
 name="certificate"
@@ -2067,6 +2148,14 @@ merchant_secret="Source verification key"
 [paypal.metadata.paypal_sdk]
 client_id="Client ID"
 
+[paystack]
+[[paystack.bank_redirect]]
+  payment_method_type = "eft"
+[paystack.connector_auth.HeaderKey]
+api_key="API Key"
+[paystack.connector_webhook_details]
+merchant_secret="API Key"
+
 [payu]
 [[payu.credit]]
   payment_method_type = "Mastercard"
@@ -2130,6 +2219,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[payu.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [rapyd]
 [[rapyd.credit]]
@@ -2421,7 +2517,13 @@ label="Stripe Publishable Key"
 placeholder="Enter Stripe Publishable Key"
 required=true
 type="Text"
-
+[[stripe.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 
 
@@ -2552,6 +2654,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[trustpay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [worldline]
 [[worldline.credit]]
@@ -2722,6 +2831,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[worldpay.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 
 [payme]
@@ -3330,6 +3446,13 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+[[fiuu.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [[fiuu.metadata.apple_pay]]
 name="certificate"
@@ -3491,3 +3614,74 @@ label="Enter your private key"
 placeholder="------BEGIN PRIVATE KEY-------"
 required=true
 type="Text"
+
+[hipay]
+[[hipay.credit]]
+  payment_method_type = "Mastercard"
+[[hipay.credit]]
+  payment_method_type = "Visa"
+[[hipay.credit]]
+  payment_method_type = "Interac"
+[[hipay.credit]]
+  payment_method_type = "AmericanExpress"
+[[hipay.credit]]
+  payment_method_type = "JCB"
+[[hipay.credit]]
+  payment_method_type = "DinersClub"
+[[hipay.credit]]
+  payment_method_type = "Discover"
+[[hipay.credit]]
+  payment_method_type = "CartesBancaires"
+[[hipay.credit]]
+  payment_method_type = "UnionPay"
+[[hipay.debit]]
+  payment_method_type = "Mastercard"
+[[hipay.debit]]
+  payment_method_type = "Visa"
+[[hipay.debit]]
+  payment_method_type = "Interac"
+[[hipay.debit]]
+  payment_method_type = "AmericanExpress"
+[[hipay.debit]]
+  payment_method_type = "JCB"
+[[hipay.debit]]
+  payment_method_type = "DinersClub"
+[[hipay.debit]]
+  payment_method_type = "Discover"
+[[hipay.debit]]
+  payment_method_type = "CartesBancaires"
+[[hipay.debit]]
+  payment_method_type = "UnionPay"
+[hipay.connector_auth.BodyKey]
+api_key="API Login ID"
+key1="API password"
+
+[redsys]
+[[redsys.credit]]
+payment_method_type = "Mastercard"
+[[redsys.credit]]
+payment_method_type = "Visa"
+[[redsys.credit]]
+payment_method_type = "AmericanExpress"
+[[redsys.credit]]
+payment_method_type = "JCB"
+[[redsys.credit]]
+payment_method_type = "DinersClub"
+[[redsys.credit]]
+payment_method_type = "UnionPay"
+[[redsys.debit]]
+payment_method_type = "Mastercard"
+[[redsys.debit]]
+payment_method_type = "Visa"
+[[redsys.debit]]
+payment_method_type = "AmericanExpress"
+[[redsys.debit]]
+payment_method_type = "JCB"
+[[redsys.debit]]
+payment_method_type = "DinersClub"
+[[redsys.debit]]
+payment_method_type = "UnionPay"
+[redsys.connector_auth.SignatureKey]
+api_key = "Merchant ID"
+key1 = "Terminal ID"
+api_secret = "Secret Key"

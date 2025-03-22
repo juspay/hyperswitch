@@ -9,6 +9,9 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -17,10 +20,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{
-        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
-        StringMajorUnit,
-    },
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -428,6 +428,40 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<UpdateActiveAttempt>)]
     /// Whether to set / unset the active attempt id
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentsUpdateIntentRequest {
+    pub fn update_feature_metadata_and_active_attempt_with_api(
+        feature_metadata: FeatureMetadata,
+        set_active_attempt_id: api_enums::UpdateActiveAttempt,
+    ) -> Self {
+        Self {
+            feature_metadata: Some(feature_metadata),
+            set_active_attempt_id: Some(set_active_attempt_id),
+            amount_details: None,
+            routing_algorithm_id: None,
+            capture_method: None,
+            authentication_type: None,
+            billing: None,
+            shipping: None,
+            customer_present: None,
+            description: None,
+            return_url: None,
+            setup_future_usage: None,
+            apply_mit_exemption: None,
+            statement_descriptor: None,
+            order_details: None,
+            allowed_payment_method_types: None,
+            metadata: None,
+            connector_metadata: None,
+            payment_link_config: None,
+            request_incremental_authorization: None,
+            session_expiry: None,
+            frm_metadata: None,
+            request_external_three_ds_authentication: None,
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1114,6 +1148,9 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4448,6 +4485,28 @@ pub enum NextActionData {
     CollectOtp {
         consent_data_required: MobilePaymentConsent,
     },
+    /// Contains data required to invoke hidden iframe
+    InvokeHiddenIframe {
+        iframe_data: IframeData,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "method_key")]
+pub enum IframeData {
+    #[serde(rename = "threeDSMethodData")]
+    ThreedsInvokeAndCompleteAutorize {
+        /// ThreeDS method url
+        three_ds_method_url: String,
+        /// Whether ThreeDS method data submission is required
+        three_ds_method_data_submission: bool,
+        /// ThreeDS method data
+        three_ds_method_data: Option<String>,
+        /// ThreeDS Server ID
+        directory_server_id: String,
+        /// ThreeDS Protocol version
+        message_version: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4602,6 +4661,15 @@ pub struct SepaBankTransferInstructions {
     pub iban: Secret<String>,
     #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
     pub reference: Secret<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct PaymentsConnectorThreeDsInvokeData {
+    pub directory_server_id: String,
+    pub three_ds_method_url: String,
+    pub three_ds_method_data: String,
+    pub message_version: Option<String>,
+    pub three_ds_method_data_submission: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5002,6 +5070,12 @@ pub struct PaymentsResponse {
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
     pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// Error code received from the issuer in case of failed payments
+    pub issuer_error_code: Option<String>,
+
+    /// Error message received from the issuer in case of failed payments
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -7226,6 +7300,8 @@ pub struct PaymentsCompleteAuthorizeRequest {
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: Secret<String>,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -7459,7 +7535,7 @@ pub struct PaymentsStartRequest {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
@@ -7471,6 +7547,27 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+}
+
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn get_retry_count(&self) -> Option<u16> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|metadata| metadata.total_retry_count)
+    }
+
+    pub fn set_payment_revenue_recovery_metadata_using_api(
+        self,
+        payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
+    ) -> Self {
+        Self {
+            redirect_response: self.redirect_response,
+            search_tags: self.search_tags,
+            apple_pay_recurring_details: self.apple_pay_recurring_details,
+            payment_revenue_recovery_metadata: Some(payment_revenue_recovery_metadata),
+        }
+    }
 }
 
 /// additional data that might be required by hyperswitch
@@ -7883,6 +7980,8 @@ pub struct PaymentLinkDetails {
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub status: api_enums::IntentStatus,
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -7900,6 +7999,7 @@ pub struct SecurePaymentLinkDetails {
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -8378,7 +8478,32 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Connector, example = "stripe")]
+    pub connector: common_enums::connector_enums::Connector,
 }
+#[cfg(feature = "v2")]
+impl PaymentRevenueRecoveryMetadata {
+    pub fn set_payment_transmission_field_for_api_request(
+        &mut self,
+        payment_connector_transmission: PaymentConnectorTransmission,
+    ) {
+        self.payment_connector_transmission = payment_connector_transmission;
+    }
+    pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
+        ProcessorPaymentToken {
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone(),
+            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+        }
+    }
+    pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
+        self.active_attempt_payment_connector_id.clone()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {

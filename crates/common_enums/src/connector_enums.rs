@@ -1,6 +1,9 @@
+use std::collections::HashSet;
+
 use utoipa::ToSchema;
 
 pub use super::enums::{PaymentMethod, PayoutType};
+pub use crate::PaymentMethodType;
 
 #[derive(
     Clone,
@@ -81,11 +84,11 @@ pub enum RoutableConnectors {
     Fiservemea,
     Fiuu,
     Forte,
-    // Getnet,
+    Getnet,
     Globalpay,
     Globepay,
     Gocardless,
-    // Hipay,
+    Hipay,
     Helcim,
     Iatapay,
     Inespay,
@@ -117,8 +120,8 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Razorpay,
-    // Recurly,
-    // Redsys,
+    Recurly,
+    Redsys,
     Riskified,
     Shift4,
     Signifyd,
@@ -224,12 +227,12 @@ pub enum Connector {
     Fiservemea,
     Fiuu,
     Forte,
-    // Getnet,
+    Getnet,
     Globalpay,
     Globepay,
     Gocardless,
     Gpayments,
-    // Hipay,
+    Hipay,
     Helcim,
     Inespay,
     Iatapay,
@@ -263,8 +266,8 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
-    //Recurly,
-    // Redsys,
+    Recurly,
+    Redsys,
     Shift4,
     Square,
     Stax,
@@ -382,12 +385,12 @@ impl Connector {
             | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
-            // | Self::Getnet
+            | Self::Getnet
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
             | Self::Gpayments
-            // | Self::Hipay
+            | Self::Hipay
             | Self::Helcim
             | Self::Iatapay
 			| Self::Inespay
@@ -415,8 +418,8 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
-            // | Self::Recurly
-			// | Self::Redsys
+            | Self::Recurly
+            | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
@@ -443,13 +446,23 @@ impl Connector {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
-            | Self::Stripe => false,
-            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
+            | Self::Stripe
+            | Self::Datatrans => false,
+            Self::Checkout | Self::Nmi |Self::Cybersource => true,
         }
     }
 
     pub fn is_pre_processing_required_before_authorize(self) -> bool {
         matches!(self, Self::Airwallex)
+    }
+
+    pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
+        HashSet::new()
+    }
+    pub fn get_payment_method_types_supporting_extended_authorization(
+        self,
+    ) -> HashSet<PaymentMethodType> {
+        HashSet::new()
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
@@ -520,6 +533,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
             RoutableConnectors::Forte => Self::Forte,
+            RoutableConnectors::Getnet => Self::Getnet,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -551,7 +565,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Prophetpay => Self::Prophetpay,
             RoutableConnectors::Rapyd => Self::Rapyd,
             RoutableConnectors::Razorpay => Self::Razorpay,
-            // RoutableConnectors::Recurly => Self::Recurly,
+            RoutableConnectors::Recurly => Self::Recurly,
+            RoutableConnectors::Redsys => Self::Redsys,
             RoutableConnectors::Riskified => Self::Riskified,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
@@ -572,6 +587,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Xendit => Self::Xendit,
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
+            RoutableConnectors::Hipay => Self::Hipay,
         }
     }
 }

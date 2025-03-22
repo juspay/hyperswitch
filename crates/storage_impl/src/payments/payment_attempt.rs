@@ -25,7 +25,6 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use hyperswitch_domain_models::{
-    errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
@@ -38,15 +37,17 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{self, RedisErrorExt},
+    kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
-    DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
+    DataModelExt, DatabaseStore, RouterStore,
 };
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -549,6 +550,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -646,6 +648,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1647,6 +1651,8 @@ impl DataModelExt for PaymentAttempt {
             processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            issuer_error_code: self.issuer_error_code,
+            issuer_error_message: self.issuer_error_message,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
         }
@@ -1730,6 +1736,8 @@ impl DataModelExt for PaymentAttempt {
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             charges: storage_model.charges,
+            issuer_error_code: storage_model.issuer_error_code,
+            issuer_error_message: storage_model.issuer_error_message,
         }
     }
 }

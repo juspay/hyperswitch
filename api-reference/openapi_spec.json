@@ -5395,10 +5395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EventListItemResponse"
-                  }
+                  "$ref": "#/components/schemas/TotalEventsResponse"
                 }
               }
             }
@@ -9728,10 +9725,12 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
           "gpayments",
+          "hipay",
           "helcim",
           "inespay",
           "iatapay",
@@ -9763,6 +9762,8 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
+          "redsys",
           "shift4",
           "square",
           "stax",
@@ -10490,10 +10491,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -10589,6 +10592,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -11974,6 +11978,12 @@
           {
             "type": "string",
             "enum": [
+              "user_card_network"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -12160,6 +12170,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
           },
           {
             "type": "string",
@@ -13309,6 +13325,52 @@
           }
         }
       },
+      "IframeData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_url",
+              "three_ds_method_data_submission",
+              "directory_server_id",
+              "method_key"
+            ],
+            "properties": {
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url"
+              },
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data",
+                "nullable": true
+              },
+              "directory_server_id": {
+                "type": "string",
+                "description": "ThreeDS Server ID"
+              },
+              "message_version": {
+                "type": "string",
+                "description": "ThreeDS Protocol version",
+                "nullable": true
+              },
+              "method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "method_key"
+        }
+      },
       "IncrementalAuthorizationResponse": {
         "type": "object",
         "required": [
@@ -13921,6 +13983,14 @@
               }
             ],
             "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14151,6 +14221,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantProductType"
               }
             ],
             "nullable": true
@@ -15065,6 +15143,17 @@
         },
         "additionalProperties": false
       },
+      "MerchantProductType": {
+        "type": "string",
+        "enum": [
+          "orchestration",
+          "vault",
+          "recon",
+          "recovery",
+          "cost_observability",
+          "dynamic_routing"
+        ]
+      },
       "MerchantRecipientData": {
         "oneOf": [
           {
@@ -15574,6 +15663,25 @@
                 "type": "string",
                 "enum": [
                   "collect_otp"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains data required to invoke hidden iframe",
+            "required": [
+              "iframe_data",
+              "type"
+            ],
+            "properties": {
+              "iframe_data": {
+                "$ref": "#/components/schemas/IframeData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_hidden_iframe"
                 ]
               }
             }
@@ -16580,7 +16688,8 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default"
+          "show_card_form_by_default",
+          "enable_button_only_on_form_ready"
         ],
         "properties": {
           "theme": {
@@ -16704,6 +16813,10 @@
               }
             },
             "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission"
           }
         }
       },
@@ -16840,6 +16953,11 @@
                 "type": "string"
               }
             },
+            "nullable": true
+          },
+          "enable_button_only_on_form_ready": {
+            "type": "boolean",
+            "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
           }
         }
@@ -18238,6 +18356,14 @@
           "client_secret": {
             "type": "string",
             "description": "Client Secret"
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18624,6 +18750,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
             "nullable": true
@@ -19023,6 +19157,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
             "nullable": true
@@ -19583,6 +19725,16 @@
                 "$ref": "#/components/schemas/CardDiscovery"
               }
             ],
+            "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           }
         }
@@ -20268,6 +20420,14 @@
               }
             ],
             "nullable": true
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20852,6 +21012,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
           }
         }
       },
@@ -21346,6 +21516,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
             "nullable": true
@@ -24131,6 +24309,16 @@
               }
             ],
             "nullable": true
+          },
+          "issuer_error_code": {
+            "type": "string",
+            "description": "Error code received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "issuer_error_message": {
+            "type": "string",
+            "description": "Error message received from the issuer in case of failed refunds",
+            "nullable": true
           }
         }
       },
@@ -24783,9 +24971,11 @@
           "fiservemea",
           "fiuu",
           "forte",
+          "getnet",
           "globalpay",
           "globepay",
           "gocardless",
+          "hipay",
           "helcim",
           "iatapay",
           "inespay",
@@ -24815,6 +25005,8 @@
           "prophetpay",
           "rapyd",
           "razorpay",
+          "recurly",
+          "redsys",
           "riskified",
           "shift4",
           "signifyd",
@@ -26529,6 +26721,28 @@
             "description": "The CVC number for the card",
             "example": "242",
             "nullable": true
+          }
+        }
+      },
+      "TotalEventsResponse": {
+        "type": "object",
+        "description": "The response body of list initial delivery attempts api call.",
+        "required": [
+          "events",
+          "total_count"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventListItemResponse"
+            },
+            "description": "The list of events"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Count of total events"
           }
         }
       },
