@@ -4043,29 +4043,12 @@ pub async fn retrieve_profile(
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
 
-    let mut business_profile = db
+    let business_profile = db
         .find_business_profile_by_profile_id(&(&state).into(), &key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-
-    if business_profile.card_testing_guard_config.is_none() {
-        business_profile.card_testing_guard_config = Some(CardTestingGuardConfig {
-            is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
-            card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
-            is_guest_user_card_blocking_enabled:
-                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
-            guest_user_card_blocking_threshold:
-                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
-            is_customer_id_blocking_enabled:
-                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
-            customer_id_blocking_threshold:
-                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
-            card_testing_guard_expiry:
-                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
-        })
-    };
 
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::ProfileResponse::foreign_try_from(business_profile)
