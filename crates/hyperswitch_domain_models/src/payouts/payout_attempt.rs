@@ -9,16 +9,16 @@ use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
 use super::payouts::Payouts;
-use crate::errors;
 
 #[async_trait::async_trait]
 pub trait PayoutAttemptInterface {
+    type Error;
     async fn insert_payout_attempt(
         &self,
         _payout_attempt: PayoutAttemptNew,
         _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn update_payout_attempt(
         &self,
@@ -26,28 +26,28 @@ pub trait PayoutAttemptInterface {
         _payout_attempt_update: PayoutAttemptUpdate,
         _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         _merchant_id: &id_type::MerchantId,
         _payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,
         _connector_payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn get_filters_for_payouts(
         &self,
         _payout: &[Payouts],
         _merchant_id: &id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutListFilters, errors::StorageError>;
+    ) -> error_stack::Result<PayoutListFilters, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

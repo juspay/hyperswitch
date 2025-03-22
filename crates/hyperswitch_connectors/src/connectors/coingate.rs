@@ -2,12 +2,13 @@ pub mod transformers;
 
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -37,8 +38,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
-use transformers as coingate;
+use masking::{ExposeInterface, Mask, PeekInterface};
+use transformers::{self as coingate, CoingateWebhookBody};
 
 use crate::{
     constants::headers,
@@ -305,7 +306,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Coi
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: coingate::CoingatePaymentsResponse = res
+        let response: coingate::CoingateSyncResponse = res
             .response
             .parse_struct("coingate PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -537,25 +538,94 @@ impl ConnectorValidation for Coingate {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Coingate {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let message = std::str::from_utf8(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(message.to_string().into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let notif: CoingateWebhookBody = request
+            .body
+            .parse_struct("CoingateWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.id.to_string()),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let notif: CoingateWebhookBody = request
+            .body
+            .parse_struct("CoingateWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        match notif.status {
+            transformers::CoingatePaymentStatus::Pending => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
+            }
+            transformers::CoingatePaymentStatus::Confirming
+            | transformers::CoingatePaymentStatus::New => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentActionRequired)
+            }
+            transformers::CoingatePaymentStatus::Paid => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            transformers::CoingatePaymentStatus::Invalid
+            | transformers::CoingatePaymentStatus::Expired
+            | transformers::CoingatePaymentStatus::Canceled => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+        }
     }
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_account_details: ConnectorAuthType = connector_account_details
+            .parse_value::<ConnectorAuthType>("ConnectorAuthType")
+            .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let auth_type = coingate::CoingateAuthType::try_from(&connector_account_details)?;
+        let secret_key = auth_type.merchant_token.expose();
+        let request_body: CoingateWebhookBody = request
+            .body
+            .parse_struct("CoingateWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
+        let token = request_body.token.expose();
+        Ok(secret_key == token)
+    }
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let notif: CoingateWebhookBody = request
+            .body
+            .parse_struct("CoingateWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(Box::new(notif))
     }
 }
 
