@@ -238,6 +238,24 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
         let masked_outgoing_webhook_custom_http_headers =
             outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
+        let card_testing_guard_config = item.card_testing_guard_config.or({
+            Some(CardTestingGuardConfig {
+                is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+                card_ip_blocking_threshold:
+                    common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+                is_guest_user_card_blocking_enabled:
+                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+                guest_user_card_blocking_threshold:
+                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+                is_customer_id_blocking_enabled:
+                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+                customer_id_blocking_threshold:
+                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+                card_testing_guard_expiry:
+                    common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            })
+        });
+
         Ok(Self {
             merchant_id: item.merchant_id,
             id,
@@ -278,9 +296,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
-            card_testing_guard_config: item
-                .card_testing_guard_config
-                .map(ForeignInto::foreign_into),
+            card_testing_guard_config: card_testing_guard_config.map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
         })
     }
