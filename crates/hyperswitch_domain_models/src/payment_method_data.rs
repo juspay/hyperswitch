@@ -687,6 +687,40 @@ pub enum MobilePaymentData {
     },
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn try_from(value: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
+        match value {
+            payment_methods::PaymentMethodCreateData::Card(payment_methods::CardDetail {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc,
+                card_issuer,
+                card_network,
+                card_type,
+                card_issuing_country,
+                nick_name,
+                card_holder_name,
+            }) => Ok(Self::Card(Card {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc: card_cvc.get_required_value("card_cvc")?,
+                card_issuer,
+                card_network,
+                card_type: card_type.map(|card_type| card_type.to_string()),
+                card_issuing_country: card_issuing_country.map(|country| country.to_string()),
+                bank_code: None,
+                nick_name,
+                card_holder_name,
+            })),
+        }
+    }
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -1885,6 +1919,26 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodTokenSingleUse {
+    pub token: Option<String>,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodTokenSingleUse {
+    pub fn get_single_use_token_from_payment_method_token(
+        token: Option<String>,
+        mca_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
+        Self {
+            token,
+            merchant_connector_id: mca_id,
+        }
+    }
+}
+
 impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetailsPaymentMethod) -> Self {
         Self {
@@ -1900,5 +1954,21 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SingleUseToken(String);
+
+#[cfg(feature = "v2")]
+impl SingleUseToken {
+    pub fn new(token: &str) -> Self {
+        let new_token = format!("single_use_token_{}", token);
+        Self(new_token)
+    }
+
+    pub fn get_redis_key(&self) -> &str {
+        &self.0
     }
 }

@@ -464,6 +464,7 @@ pub struct MultibancoCreditTransferSourceRequest {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
+    CardToken(StripeCardToken),
     Card(StripeCardData),
     PayLater(StripePayLaterData),
     Wallet(StripeWallet),
@@ -471,6 +472,19 @@ pub enum StripePaymentMethodData {
     BankDebit(StripeBankDebitData),
     BankTransfer(StripeBankTransferData),
 }
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeCardToken {
+    #[serde(rename = "card[number]")]
+    pub token_card_number: cards::CardNumber,
+    #[serde(rename = "card[exp_month]")]
+    pub token_card_exp_month: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    pub token_card_exp_year: Secret<String>,
+    #[serde(rename = "card[cvc]")]
+    pub token_card_cvc: Secret<String>,
+}
+
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "payment_method_data[type]")]
@@ -2091,15 +2105,27 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        let payment_data = create_stripe_payment_method(
-            &item.request.payment_method_data,
-            item.auth_type,
-            item.payment_method_token.clone(),
-            None,
-            StripeBillingAddress::default(),
-        )?;
+        // Card flow for tokenization is handled seperately because of API contact difference
+        let request_payment_data = match &item.request.payment_method_data {
+            domain::PaymentMethodData::Card(card_details) => {
+                StripePaymentMethodData::CardToken(StripeCardToken {
+                    token_card_number: card_details.card_number.clone(),
+                    token_card_exp_month: card_details.card_exp_month.clone(),
+                    token_card_exp_year: card_details.card_exp_year.clone(),
+                    token_card_cvc: card_details.card_cvc.clone(),
+                })
+            }
+            _ => create_stripe_payment_method(
+                &item.request.payment_method_data,
+                item.auth_type,
+                item.payment_method_token.clone(),
+                None,
+                StripeBillingAddress::default(),
+            )?.0
+        };
+        
         Ok(Self {
-            token_data: payment_data.0,
+            token_data: request_payment_data,
         })
     }
 }
