@@ -16,7 +16,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-use common_utils::ext_traits::OptionExt;
+
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -1926,6 +1926,7 @@ pub struct PaymentMethodTokenSingleUse {
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodTokenSingleUse {
     pub fn get_single_use_token_from_payment_method_token(
         token: Option<String>,
@@ -1960,6 +1961,7 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SingleUseToken(String);
 
+#[cfg(feature = "v2")]
 impl SingleUseToken {
     pub fn new(token: &str) -> Self {
         let new_token = format!("single_use_token_{}", token);
