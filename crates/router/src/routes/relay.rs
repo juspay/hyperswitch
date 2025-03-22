@@ -33,7 +33,10 @@ pub async fn relay(
                 req,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -69,7 +72,10 @@ pub async fn relay_retrieve(
                 req,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await

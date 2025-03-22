@@ -350,7 +350,10 @@ where
 }
 
 #[derive(Debug)]
-pub struct ApiKeyAuth;
+pub struct ApiKeyAuth {
+    pub is_connected_allowed: bool,
+    pub is_platform_allowed: bool,
+}
 
 pub struct NoAuth;
 
@@ -475,6 +478,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Need to change it here as well
+
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
         let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
             get_platform_merchant_account(state, request_headers, merchant).await?
@@ -595,12 +600,19 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // If platform is enabled but resource doesn't have the permision
+        if state.conf().platform.enabled && !self.is_platform_allowed {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("No authorized to access the resource");
+        }
+
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
-            get_platform_merchant_account(state, request_headers, merchant).await?
-        } else {
-            (merchant, None)
-        };
+        let (merchant, platform_merchant_account) =
+            if state.conf().platform.enabled && self.is_platform_allowed == true {
+                get_platform_merchant_account(state, request_headers, merchant).await?
+            } else {
+                (merchant, None)
+            };
 
         let key_store = if platform_merchant_account.is_some() {
             state
@@ -3473,7 +3485,13 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
             api::AuthFlow::Client,
         ));
     }
-    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
+    Ok((
+        Box::new(HeaderAuth(ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        })),
+        api::AuthFlow::Merchant,
+    ))
 }
 
 pub fn check_client_secret_and_get_auth<T>(
@@ -3508,7 +3526,13 @@ where
         }
         .into());
     }
-    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
+    Ok((
+        Box::new(HeaderAuth(ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        })),
+        api::AuthFlow::Merchant,
+    ))
 }
 
 pub async fn get_ephemeral_or_other_auth<T>(
@@ -3532,7 +3556,10 @@ where
         Ok((Box::new(EphemeralKeyAuth), api::AuthFlow::Client, true))
     } else if is_merchant_flow {
         Ok((
-            Box::new(HeaderAuth(ApiKeyAuth)),
+            Box::new(HeaderAuth(ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            })),
             api::AuthFlow::Merchant,
             false,
         ))
@@ -3550,7 +3577,10 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
-        Ok(Box::new(HeaderAuth(ApiKeyAuth)))
+        Ok(Box::new(HeaderAuth(ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        })))
     } else {
         Ok(Box::new(EphemeralKeyAuth))
     }

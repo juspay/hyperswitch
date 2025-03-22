@@ -95,7 +95,10 @@ pub async fn payment_intents_create(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await
@@ -480,7 +483,10 @@ pub async fn payment_intents_capture(
                 auth.platform_merchant_account,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await
@@ -591,7 +597,10 @@ pub async fn payment_intent_list(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await

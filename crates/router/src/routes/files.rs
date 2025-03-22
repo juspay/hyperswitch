@@ -49,7 +49,10 @@ pub async fn files_create(
             files_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
@@ -95,7 +98,10 @@ pub async fn files_delete(
             files_delete_core(state, auth.merchant_account, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
@@ -141,7 +147,10 @@ pub async fn files_retrieve(
             files_retrieve_core(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),

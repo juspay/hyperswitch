@@ -41,7 +41,10 @@ pub async fn routing_create_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
             },
@@ -123,7 +126,10 @@ pub async fn routing_link_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
             },
@@ -212,7 +218,10 @@ pub async fn routing_retrieve_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
             },
@@ -292,7 +301,10 @@ pub async fn list_routing_configs(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
             },
@@ -332,7 +344,10 @@ pub async fn list_routing_configs_for_profile(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
             },
@@ -416,7 +431,10 @@ pub async fn routing_unlink_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
             },
@@ -497,7 +515,10 @@ pub async fn routing_update_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
             },
@@ -603,7 +624,10 @@ pub async fn upsert_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
             },
@@ -638,7 +662,10 @@ pub async fn delete_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
             },
@@ -673,7 +700,10 @@ pub async fn retrieve_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerRead,
             },
@@ -711,7 +741,10 @@ pub async fn upsert_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
             },
@@ -785,7 +818,10 @@ pub async fn delete_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
             },
@@ -851,7 +887,10 @@ pub async fn retrieve_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerRead,
             },
@@ -895,7 +934,10 @@ pub async fn routing_retrieve_linked_config(
             },
             #[cfg(not(feature = "release"))]
             auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                }),
                 &auth::JWTAuthProfileFromRoute {
                     profile_id,
                     required_permission: Permission::ProfileRoutingRead,
@@ -928,7 +970,10 @@ pub async fn routing_retrieve_linked_config(
             },
             #[cfg(not(feature = "release"))]
             auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                }),
                 &auth::JWTAuth {
                     permission: Permission::ProfileRoutingRead,
                 },
@@ -1015,7 +1060,10 @@ pub async fn routing_retrieve_default_config_for_profiles(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
             },
@@ -1023,7 +1071,10 @@ pub async fn routing_retrieve_default_config_for_profiles(
         ),
         #[cfg(feature = "release")]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
             },
@@ -1064,7 +1115,10 @@ pub async fn routing_update_default_config_for_profile(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1113,7 +1167,10 @@ pub async fn toggle_success_based_routing(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1154,7 +1211,10 @@ pub async fn success_based_routing_update_configs(
             .await
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1201,7 +1261,10 @@ pub async fn contract_based_routing_setup_config(
             .await
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1247,7 +1310,10 @@ pub async fn contract_based_routing_update_configs(
             .await
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1291,7 +1357,10 @@ pub async fn toggle_elimination_routing(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1339,7 +1408,10 @@ pub async fn set_dynamic_routing_volume_split(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
