@@ -27,6 +27,7 @@ pub enum SetMetaDataRequest {
     #[serde(skip)]
     IsChangePasswordRequired,
     OnboardingSurvey(OnboardingSurvey),
+    ReconStatus(ReconStatus),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -104,6 +105,12 @@ pub struct ProdIntent {
     pub is_completed: bool,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ReconStatus {
+    pub is_order_data_set: bool,
+    pub is_processor_data_set: bool,
+}
+
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]
 pub enum GetMetaDataRequest {
     ProductionAgreement,
@@ -129,6 +136,7 @@ pub enum GetMetaDataRequest {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
     OnboardingSurvey,
+    ReconStatus,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -167,4 +175,5 @@ pub enum GetMetaDataResponse {
     IsMultipleConfiguration(bool),
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
+    ReconStatus(Option<ReconStatus>),
 }
