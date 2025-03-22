@@ -203,6 +203,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -310,6 +313,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -330,6 +334,7 @@ where
                 customer,
                 storage_scheme,
                 business_profile,
+                should_retry_with_pan,
             ))
             .await
         } else {

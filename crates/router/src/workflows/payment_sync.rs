@@ -31,8 +31,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
     #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a SessionState,
-        process: storage::ProcessTracker,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         todo!()
     }
@@ -154,6 +154,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             connector_transaction_id: None,
                             payment_method_data: None,
                             authentication_type: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         };
 
                     payment_data.payment_attempt = db

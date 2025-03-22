@@ -368,6 +368,8 @@ pub struct CybersourceConsumerAuthInformation {
     ///
     /// For external authentication, this field will always be "Y"
     veres_enrolled: Option<String>,
+    /// Raw electronic commerce indicator (ECI)
+    eci_raw: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1150,6 +1152,12 @@ impl
 //     })
 // }
 
+fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
+    let exposed = state.clone().expose();
+    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
+    Secret::new(truncated.to_string())
+}
+
 fn build_bill_to(
     address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
@@ -1171,11 +1179,12 @@ fn build_bill_to(
                 last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
-                administrative_area: addr
-                    .to_state_code_as_optional()
-                    .ok()
-                    .flatten()
-                    .remove_new_line(),
+                administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
+                    addr.state
+                        .remove_new_line()
+                        .as_ref()
+                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                }),
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
@@ -1219,11 +1228,21 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let card_type = match ccard
-            .card_network
-            .clone()
-            .and_then(get_cybersource_card_type)
-        {
+        let additional_card_network = item
+            .router_data
+            .request
+            .get_card_network_from_additional_payment_method_data()
+            .map_err(|err| {
+                router_env::logger::info!(
+                    "Error while getting card network from additional payment method data: {}",
+                    err
+                );
+            })
+            .ok();
+
+        let raw_card_type = ccard.card_network.clone().or(additional_card_network);
+
+        let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
             None => ccard.get_card_issuer().ok().map(String::from),
         };
@@ -1249,7 +1268,11 @@ impl
             },
         }));
 
-        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            None,
+            raw_card_type.map(|network| network.to_string()),
+        ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
             .router_data
@@ -1264,17 +1287,21 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("1".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1282,6 +1309,7 @@ impl
                     specification_version: None,
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
                 }
             });
 
@@ -1357,7 +1385,7 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1365,6 +1393,7 @@ impl
                     specification_version: None,
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
                 }
             });
 
@@ -1438,7 +1467,7 @@ impl
                     ucaf_collection_indicator: None,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1446,6 +1475,7 @@ impl
                     specification_version: None,
                     pa_specification_version: authn_data.message_version.clone(),
                     veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
                 }
             });
 
@@ -1613,6 +1643,7 @@ impl
             specification_version: three_ds_info.three_ds_data.specification_version,
             pa_specification_version: None,
             veres_enrolled: None,
+            eci_raw: None,
         });
 
         let merchant_defined_information = item
@@ -1701,6 +1732,7 @@ impl
                 specification_version: None,
                 pa_specification_version: None,
                 veres_enrolled: None,
+                eci_raw: None,
             }),
             merchant_defined_information,
         })
@@ -1837,6 +1869,7 @@ impl
                 specification_version: None,
                 pa_specification_version: None,
                 veres_enrolled: None,
+                eci_raw: None,
             }),
             merchant_defined_information,
         })
@@ -2029,6 +2062,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                                 specification_version: None,
                                                 pa_specification_version: None,
                                                 veres_enrolled: None,
+                                                eci_raw: None,
                                             },
                                         ),
                                     })
@@ -2645,10 +2679,10 @@ fn get_error_response_if_failure(
 
 fn get_payment_response(
     (info_response, status, http_code): (&CybersourcePaymentsResponse, enums::AttemptStatus, u16),
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
-        Some(error) => Err(error),
+        Some(error) => Err(Box::new(error)),
         None => {
             let incremental_authorization_allowed =
                 Some(status == enums::AttemptStatus::Authorized);
@@ -2713,7 +2747,8 @@ impl
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -2811,6 +2846,8 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3221,6 +3258,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -3258,7 +3297,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -3314,7 +3354,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             true,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -3349,7 +3390,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -3873,7 +3915,20 @@ impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
             last_name: billing_address.get_last_name()?.to_owned(),
             address1: billing_address.get_line1()?.to_owned(),
             locality: billing_address.get_city()?.to_owned(),
-            administrative_area: billing_address.get_state()?.to_owned(),
+            administrative_area: {
+                billing_address
+                    .to_state_code_as_optional()
+                    .unwrap_or_else(|_| {
+                        billing_address
+                            .state
+                            .remove_new_line()
+                            .as_ref()
+                            .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_address.state",
+                    })?
+            },
             postal_code: billing_address.get_zip()?.to_owned(),
             country: billing_address.get_country()?.to_owned(),
             phone_number: phone_address.number.clone(),
@@ -4084,6 +4139,8 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 
