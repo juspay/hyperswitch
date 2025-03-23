@@ -693,6 +693,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Getnet => Ok(Self::Getnet),
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
+            Connector::Redsys => Ok(Self::Redsys),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::Juspaythreedsserver
