@@ -37,6 +37,7 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
+    type Error;
     async fn update_payment_intent(
         &self,
         state: &KeyManagerState,
@@ -44,7 +45,7 @@ pub trait PaymentIntentInterface {
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     async fn insert_payment_intent(
         &self,
@@ -52,7 +53,7 @@ pub trait PaymentIntentInterface {
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -62,7 +63,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
@@ -71,7 +72,7 @@ pub trait PaymentIntentInterface {
         profile_id: &id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: &common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
@@ -80,7 +81,7 @@ pub trait PaymentIntentInterface {
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
@@ -90,7 +91,7 @@ pub trait PaymentIntentInterface {
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
@@ -100,7 +101,7 @@ pub trait PaymentIntentInterface {
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
@@ -108,7 +109,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
-    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
@@ -118,7 +119,7 @@ pub trait PaymentIntentInterface {
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
@@ -133,7 +134,7 @@ pub trait PaymentIntentInterface {
             PaymentIntent,
             Option<super::payment_attempt::PaymentAttempt>,
         )>,
-        errors::StorageError,
+        Self::Error,
     >;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
@@ -142,7 +143,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<Option<String>>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<Option<String>>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
@@ -150,7 +151,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<String>, Self::Error>;
 }
 
 #[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -197,7 +198,7 @@ pub struct PaymentIntentUpdateFields {
     pub active_attempt_id: Option<Option<id_type::GlobalAttemptId>>,
     // updated_by is set internally, field not present in request
     pub updated_by: String,
-    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_overwrite: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -441,6 +442,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge_overwrite: None,
+                // force_3ds_challenge_trigger: None
             },
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -484,6 +486,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge_overwrite: None,
+                // force_3ds_challenge_trigger: None
             },
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -525,6 +528,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge_overwrite: None,
+                // force_3ds_challenge_trigger: None
             },
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -566,6 +570,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge_overwrite: None,
+                // force_3ds_challenge_trigger: None
             },
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -688,6 +693,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge_overwrite: None,
+                // force_3ds_challenge_trigger: None
             },
         }
     }
@@ -1539,7 +1545,8 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             platform_merchant_id,
             split_payments,
-            force_3ds_challenge,
+            force_3ds_challenge_overwrite,
+            force_3ds_challenge_trigger,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1613,7 +1620,8 @@ impl behaviour::Conversion for PaymentIntent {
             request_extended_authorization: None,
             platform_merchant_id,
             split_payments,
-            force_3ds_challenge,
+            force_3ds_challenge_overwrite,
+            force_3ds_challenge_trigger,
         })
     }
     async fn convert_back(
@@ -1741,7 +1749,8 @@ impl behaviour::Conversion for PaymentIntent {
                 routing_algorithm_id: storage_model.routing_algorithm_id,
                 platform_merchant_id: storage_model.platform_merchant_id,
                 split_payments: storage_model.split_payments,
-                force_3ds_challenge: storage_model.force_3ds_challenge,
+                force_3ds_challenge_overwrite: storage_model.force_3ds_challenge_overwrite,
+                force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
             })
         }
         .await
@@ -1815,7 +1824,8 @@ impl behaviour::Conversion for PaymentIntent {
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
             platform_merchant_id: self.platform_merchant_id,
-            force_3ds_challenge: self.force_3ds_challenge,
+            force_3ds_challenge_overwrite: self.force_3ds_challenge_overwrite,
+            force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
         })
     }
 }

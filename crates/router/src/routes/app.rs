@@ -484,8 +484,9 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
+        let store = self.stores.get(tenant).ok_or_else(err)?.clone();
         Ok(SessionState {
-            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
+            store,
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
@@ -746,6 +747,11 @@ impl Payments {
                     web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
                         .route(web::get().to(payments::payments_redirect_response))
                         .route(web::post().to(payments::payments_redirect_response))
+                )
+                .service(
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/{creds_identifier}")
+                        .route(web::get().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
+                        .route(web::post().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
@@ -1038,6 +1044,10 @@ impl Customers {
         {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/total-payment-methods")
+                        .route(web::get().to(payment_methods::get_total_payment_method_count)),
+                )
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
@@ -2089,6 +2099,43 @@ impl Verify {
 }
 
 pub struct User;
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+
+        route = route.service(
+            web::resource("/create_merchant")
+                .route(web::post().to(user::user_merchant_account_create)),
+        );
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/switch")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(user::switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route
+    }
+}
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {

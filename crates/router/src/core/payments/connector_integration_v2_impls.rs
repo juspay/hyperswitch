@@ -698,14 +698,12 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -732,14 +730,12 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -760,14 +756,12 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 }
 
 default_imp_for_new_connector_integration_connector_access_token!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -810,14 +804,12 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 }
 
 default_imp_for_new_connector_integration_accept_dispute!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -842,14 +834,12 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
     };
 }
 default_imp_for_new_connector_integration_defend_dispute!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -858,14 +848,12 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Plaid
 );
 default_imp_for_new_connector_integration_submit_evidence!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -901,14 +889,12 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 }
 
 default_imp_for_new_connector_integration_file_upload!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1030,14 +1016,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1065,14 +1049,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1100,14 +1082,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1135,14 +1115,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1170,14 +1148,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1205,14 +1181,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1241,13 +1215,11 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1275,14 +1247,12 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1308,14 +1278,12 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 }
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1438,14 +1406,12 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1473,14 +1439,12 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1508,14 +1472,12 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1543,14 +1505,12 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1578,14 +1538,12 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1610,14 +1568,12 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 }
 
 default_imp_for_new_connector_integration_revoking_mandates!(
-    connector::Adyen,
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
@@ -1806,13 +1762,11 @@ macro_rules! default_imp_for_new_connector_integration_uas {
 
 default_imp_for_new_connector_integration_uas!(
     connector::Adyenplatform,
-    connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
     connector::Nmi,
     connector::Payone,
-    connector::Paypal,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,

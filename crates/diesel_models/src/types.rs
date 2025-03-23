@@ -43,7 +43,7 @@ impl masking::SerializableSecret for OrderDetailsWithAmount {}
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -159,6 +159,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
     pub payment_method_subtype: common_enums::enums::PaymentMethodType,
+    /// The name of the payment connector through which the payment attempt was made.
+    pub connector: common_enums::connector_enums::Connector,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

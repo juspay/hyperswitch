@@ -522,14 +522,14 @@ pub fn mk_add_card_response_hs(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_pm_vaulting_req_from_update_request(
-    pm_create: pm_types::PaymentMethodVaultingData,
+    pm_create: domain::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
-) -> pm_types::PaymentMethodVaultingData {
+) -> domain::PaymentMethodVaultingData {
     match (pm_create, pm_update) {
         (
-            pm_types::PaymentMethodVaultingData::Card(card_create),
+            domain::PaymentMethodVaultingData::Card(card_create),
             api::PaymentMethodUpdateData::Card(update_card),
-        ) => pm_types::PaymentMethodVaultingData::Card(api::CardDetail {
+        ) => domain::PaymentMethodVaultingData::Card(api::CardDetail {
             card_number: card_create.card_number,
             card_exp_month: card_create.card_exp_month,
             card_exp_year: card_create.card_exp_year,
@@ -571,6 +571,20 @@ pub fn generate_payment_method_response(
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
         });
+    let network_token_pmd = payment_method
+        .network_token_payment_method_data
+        .clone()
+        .map(|data| data.into_inner())
+        .and_then(|data| match data {
+            domain::PaymentMethodsData::NetworkToken(token) => {
+                Some(api::NetworkTokenDetailsPaymentMethod::from(token))
+            }
+            _ => None,
+        });
+
+    let network_token = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
+        payment_method_data: pmd,
+    });
 
     let resp = api::PaymentMethodResponse {
         merchant_id: payment_method.merchant_id.to_owned(),
@@ -583,6 +597,7 @@ pub fn generate_payment_method_response(
         last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
         connector_tokens,
+        network_token,
     };
 
     Ok(resp)
@@ -839,15 +854,6 @@ pub fn get_card_detail(
     Ok(card_detail)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<api::PaymentMethodCreateData> for pm_types::PaymentMethodVaultingData {
-    fn from(item: api::PaymentMethodCreateData) -> Self {
-        match item {
-            api::PaymentMethodCreateData::Card(card) => Self::Card(card),
-        }
-    }
-}
-
 //------------------------------------------------TokenizeService------------------------------------------------
 pub fn mk_crud_locker_request(
     locker: &settings::Locker,
@@ -961,8 +967,32 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
             .map(|billing| billing.into_inner())
             .map(From::from);
 
+        let network_token_pmd = item
+            .network_token_payment_method_data
+            .clone()
+            .map(|data| data.into_inner())
+            .and_then(|data| match data {
+                domain::PaymentMethodsData::NetworkToken(token) => {
+                    Some(api::NetworkTokenDetailsPaymentMethod::from(token))
+                }
+                _ => None,
+            });
+
+        let network_token_resp = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
+            payment_method_data: pmd,
+        });
+
         // TODO: check how we can get this field
         let recurring_enabled = true;
+
+        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
+            details.payments.map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
+                })
+            })
+        });
 
         Ok(Self {
             id: item.id,
@@ -977,6 +1007,8 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
+            network_tokenization: network_token_resp,
+            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
         })
     }
 }
@@ -1033,7 +1065,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
         } = item;
 
         Self {
-            connector_token: token,
+            connector_token: token.expose().clone(),
             // TODO: check why do we need this field
             payment_method_subtype: None,
             original_payment_authorized_amount,
@@ -1075,7 +1107,7 @@ impl
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
-            token: connector_token,
+            token: Secret::new(connector_token),
             // Token that is derived from payments mandate reference will always be multi use token
             token_type: common_enums::TokenizationType::MultiUse,
         }

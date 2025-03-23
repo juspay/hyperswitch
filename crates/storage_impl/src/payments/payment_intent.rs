@@ -2,8 +2,6 @@
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-#[cfg(feature = "olap")]
-use common_utils::errors::ReportSwitchExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::keymanager::KeyManagerState,
@@ -34,7 +32,6 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{
     behaviour::Conversion,
-    errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -50,14 +47,16 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{RedisErrorExt, StorageError},
+    kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
-    DatabaseStore, KVRouterStore,
+    DatabaseStore,
 };
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
+    type Error = StorageError;
     #[cfg(feature = "v1")]
     async fn insert_payment_intent(
         &self,
@@ -527,6 +526,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
+    type Error = StorageError;
     #[instrument(skip_all)]
     async fn insert_payment_intent(
         &self,
@@ -729,10 +729,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        use common_utils::errors::ReportSwitchExt;
         use futures::{future::try_join_all, FutureExt};
 
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
@@ -875,7 +874,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         let mut query = <DieselPaymentIntent as HasTable>::table()
@@ -925,7 +924,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
         use crate::DataModelExt;
 
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -1139,7 +1138,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
         use crate::DataModelExt;
 
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -1342,7 +1341,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
@@ -1429,7 +1428,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)

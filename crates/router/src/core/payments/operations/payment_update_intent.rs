@@ -229,11 +229,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         };
 
         let active_attempt_id = set_active_attempt_id
-            .and_then(|active_attempt_req| match active_attempt_req {
+            .map(|active_attempt_req| match active_attempt_req {
                 UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
                 UpdateActiveAttempt::Unset => None,
             })
-            .or(payment_intent.active_attempt_id);
+            .unwrap_or(payment_intent.active_attempt_id);
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,
@@ -365,7 +365,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 updated_by: intent.updated_by,
                 tax_details: intent.amount_details.tax_details,
                 active_attempt_id: Some(intent.active_attempt_id),
-                force_3ds_challenge: intent.force_3ds_challenge,
+                force_3ds_challenge_overwrite: intent.force_3ds_challenge_overwrite,
             }));
 
         let new_payment_intent = db

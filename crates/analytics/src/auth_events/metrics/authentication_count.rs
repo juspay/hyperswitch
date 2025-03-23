@@ -96,9 +96,11 @@ where
                     AuthEventMetricsBucketIdentifier::new(
                         i.authentication_status.as_ref().map(|i| i.0),
                         i.trans_status.as_ref().map(|i| i.0.clone()),
+                        i.authentication_type.as_ref().map(|i| i.0),
                         i.error_message.clone(),
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),
+                        i.acs_reference_number.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

@@ -1262,13 +1262,18 @@ pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
     connector_name: impl std::fmt::Display,
+    creds_identifier: Option<&str>,
 ) -> String {
+    let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
+        format!("/{}", creds_identifier)
+    });
     format!(
-        "{}/payments/{}/{}/redirect/complete/{}",
+        "{}/payments/{}/{}/redirect/complete/{}{}",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
-        connector_name
+        connector_name,
+        creds_identifier
     )
 }
 
@@ -3125,7 +3130,7 @@ pub(super) async fn filter_by_constraints(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
-) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
+) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
         .filter_payment_intent_by_constraints(
@@ -3846,7 +3851,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
-            force_3ds_challenge: None,
+            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3919,7 +3925,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
-            force_3ds_challenge: None,
+            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3990,7 +3997,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
-            force_3ds_challenge: None,
+            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
