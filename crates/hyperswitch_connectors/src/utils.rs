@@ -5497,7 +5497,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer
                 }
-                payment_method_data::BankTransferData::InstantBankTransfer { .. } => {
+                payment_method_data::BankTransferData::InstantBankTransfer {} => {
                     Self::InstantBankTransfer
                 }
             },

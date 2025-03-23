@@ -201,7 +201,7 @@ pub enum OpenBankingType {
 pub enum BankTransferType {
     Multibanco,
     Ach,
-    Sepa,
+    SepaBankTransfer,
     Bacs,
     BcaBankTransfer,
     BniVa,

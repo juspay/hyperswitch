@@ -440,6 +440,10 @@ duit_now = { country = "MY", currency = "MYR" }
 apple_pay = { country = "MY", currency = "MYR" }
 google_pay = { country = "MY", currency = "MYR" }
 
+[pm_filters.trustpay]
+instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
+
 [pm_filters.dlocal]
 credit = {country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW"}
 debit = {country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW"}

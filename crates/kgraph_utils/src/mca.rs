@@ -122,6 +122,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::InstantBankTransfer => {
             Ok(dirval!(BankTransferType = InstantBankTransfer))
         }
+        api_enums::PaymentMethodType::SepaBankTransfer => {
+            Ok(dirval!(BankTransferType = SepaBankTransfer))
+        }
         api_enums::PaymentMethodType::PermataBankTransfer => {
             Ok(dirval!(BankTransferType = PermataBankTransfer))
         }

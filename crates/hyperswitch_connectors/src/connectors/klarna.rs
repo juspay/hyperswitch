@@ -625,6 +625,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::SepaBankTransfer
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
                         | common_enums::PaymentMethodType::TouchNGo
@@ -744,6 +745,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::SepaBankTransfer
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
                         | common_enums::PaymentMethodType::TouchNGo

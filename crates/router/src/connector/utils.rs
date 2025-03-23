@@ -3004,7 +3004,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer
                     }
-                    domain::payments::BankTransferData::InstantBankTransfer { .. } => {
+                    domain::payments::BankTransferData::InstantBankTransfer {} => {
                         Self::InstantBankTransfer
                     }
                 }

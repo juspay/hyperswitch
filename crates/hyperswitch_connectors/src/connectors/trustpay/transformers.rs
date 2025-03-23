@@ -281,7 +281,7 @@ impl TryFrom<&BankTransferData> for TrustpayBankTransferPaymentMethod {
     fn try_from(value: &BankTransferData) -> Result<Self, Self::Error> {
         match value {
             BankTransferData::SepaBankTransfer { .. } => Ok(Self::SepaCreditTransfer),
-            BankTransferData::InstantBankTransfer { .. } => Ok(Self::InstantBankTransfer),
+            BankTransferData::InstantBankTransfer {} => Ok(Self::InstantBankTransfer),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("trustpay"),
             )

@@ -111,7 +111,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::Pix => Self::Pix,
             enums::BankTransferType::Pse => Self::Pse,
             enums::BankTransferType::Ach => Self::Ach,
-            enums::BankTransferType::Sepa => Self::Sepa,
+            enums::BankTransferType::SepaBankTransfer => Self::Sepa,
             enums::BankTransferType::Bacs => Self::Bacs,
             enums::BankTransferType::BcaBankTransfer => Self::BcaBankTransfer,
             enums::BankTransferType::BniVa => Self::BniVa,

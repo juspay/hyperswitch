@@ -1422,7 +1422,7 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
-            api_models::payments::BankTransferData::InstantBankTransfer { .. } => {
+            api_models::payments::BankTransferData::InstantBankTransfer {} => {
                 Self::InstantBankTransfer {}
             }
         }
@@ -1707,7 +1707,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
-            Self::InstantBankTransfer { .. } => api_enums::PaymentMethodType::InstantBankTransfer,
+            Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
         }
     }
 }
