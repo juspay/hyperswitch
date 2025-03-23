@@ -828,10 +828,13 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     {
         let router_data = get_default_router_data(
             new_router_data.tenant_id.clone(),
-            "getadditionalrecoverydetails",
+            "getadditionalreenuerecoverydetails",
             new_router_data.request,
             new_router_data.response,
         );
-        Ok(router_data)
+        Ok(RouterData{
+            connector_auth_type : new_router_data.connector_auth_type.clone(),
+            ..router_data
+        })
     }
 }
