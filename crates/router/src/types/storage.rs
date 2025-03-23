@@ -29,7 +29,7 @@ pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
 #[cfg(feature = "v2")]
-pub mod passive_churn_recovery;
+pub mod revenue_recovery;
 pub mod payment_attempt;
 pub mod payment_link;
 pub mod payment_method;

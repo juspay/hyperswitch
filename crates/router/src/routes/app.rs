@@ -78,6 +78,7 @@ use crate::routes::cards_info::{
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 pub use crate::{
@@ -2488,5 +2489,21 @@ impl FeatureMatrix {
         web::scope("/feature_matrix")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
+    }
+}
+
+#[cfg(all(feature = "olap"))]
+pub struct ProcessTracker;
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl ProcessTracker {
+    pub fn server(state: AppState) -> Scope {
+        use super::process_tracker::revenue_recovery;
+        web::scope("/v2/process_tracker/revenue_recovery_workflow")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("/{revenue_recovery_workflow_id}")
+                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+            )
     }
 }
