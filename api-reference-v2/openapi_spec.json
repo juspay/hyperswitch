@@ -6154,17 +6154,7 @@
             ],
             "properties": {
               "instant_bank_transfer": {
-                "type": "object",
-                "properties": {
-                  "billing_details": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/DokuBillingDetails"
-                      }
-                    ],
-                    "nullable": true
-                  }
-                }
+                "type": "object"
               }
             }
           }
@@ -15918,6 +15908,7 @@
           "red_pagos",
           "samsung_pay",
           "sepa",
+          "sepa_bank_transfer",
           "sofort",
           "swish",
           "touch_n_go",
