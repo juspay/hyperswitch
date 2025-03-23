@@ -25,7 +25,7 @@ use std::str::FromStr;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
-use api_models::{enums::Currency, payment_methods};
+use api_models::{payment_methods};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -66,6 +66,7 @@ use super::{
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
+    consts,
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
@@ -84,7 +85,6 @@ use crate::{
     utils::ext_traits::OptionExt,
 };
 use crate::{
-    consts,
     core::{
         errors::{self, RouterResult},
         payments::helpers as payment_helpers,
@@ -100,9 +100,7 @@ use crate::{
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
 
-const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
-const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_core(
@@ -2737,8 +2735,8 @@ async fn create_single_use_tokenization_flow(
             connector: merchant_connector_account_details
                 .connector_name
                 .to_string(),
-            payment_id: IRRELEVANT_PAYMENT_INTENT_ID.to_string(), //Static
-            attempt_id: IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(), //Static
+            payment_id: consts::IRRELEVANT_PAYMENT_INTENT_ID.to_string(), //Static
+            attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(), //Static
             tenant_id: state.tenant.tenant_id.clone(),
             status: common_enums::enums::AttemptStatus::default(),
             payment_method: common_enums::enums::PaymentMethod::Card,
@@ -2813,6 +2811,7 @@ async fn create_single_use_tokenization_flow(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 async fn add_single_use_token_to_store(
     state: &SessionState,
     key: payment_method_data::SingleUseToken,
@@ -2825,7 +2824,7 @@ async fn add_single_use_token_to_store(
         .attach_printable("Failed to get redis connection")?;
 
     redis_connection
-        .serialize_and_set_key_with_expiry(&(payment_method_data::SingleUseToken::get_redis_key(&key)).into(), value, 86400)
+        .serialize_and_set_key_with_expiry(&payment_method_data::SingleUseToken::get_redis_key(&key).into(), value, 86400)
         .await
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to insert payment method token to redis");

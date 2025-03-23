@@ -1344,7 +1344,7 @@ pub fn update_connector_mandate_details_status(
     }))
 }
 
-
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn add_token_for_payment_method(
     router_data: &mut types::RouterData<api::PaymentMethodToken, types::PaymentMethodTokenizationData, types::PaymentsResponseData>,
     payment_method_data_request: types::PaymentMethodTokenizationData,

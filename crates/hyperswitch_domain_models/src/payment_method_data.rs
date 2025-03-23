@@ -12,6 +12,7 @@ use common_utils::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
     pii::{self, Email},
+    ext_traits::OptionExt,
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};

@@ -229,3 +229,9 @@ pub(crate) const PROTOCOL: &str = "ECv2";
 
 /// Sender ID for Google Pay Decryption
 pub(crate) const SENDER_ID: &[u8] = b"Google";
+
+/// Default payment intent id
+pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
+
+/// Default payment attempt id
+pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
