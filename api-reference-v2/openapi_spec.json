@@ -15994,45 +15994,6 @@
               }
             ],
             "nullable": true
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The iso timestamp when the session will expire\nTrying to retrieve the session or any operations on the session after this time will result in an error",
-            "example": "2023-01-18T11:04:09.922Z"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "Client Secret"
-          }
-        }
-      },
-      "PaymentMethodsSessionUpdateRequest": {
-        "type": "object",
-        "properties": {
-          "billing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
-          "network_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkTokenization"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -19454,7 +19415,8 @@
         "type": "object",
         "description": "The Payment Service Provider Configuration for payment methods that are created using the payment method session",
         "required": [
-          "tokenization_type"
+          "tokenization_type",
+          "connector_id"
         ],
         "properties": {
           "tokenization_type": {
@@ -19462,8 +19424,7 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization",
-            "nullable": true
+            "description": "The merchant connector id to be used for tokenization"
           }
         }
       },
