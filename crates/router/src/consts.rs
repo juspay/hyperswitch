@@ -230,6 +230,9 @@ pub(crate) const PROTOCOL: &str = "ECv2";
 /// Sender ID for Google Pay Decryption
 pub(crate) const SENDER_ID: &[u8] = b"Google";
 
+/// Default value for the number of attempts to retry fetching forex rates
+pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
+
 /// Default payment intent id
 pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
