@@ -2,6 +2,8 @@ mod requests;
 mod response;
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
 use common_enums::{enums, PaymentAction};
 use common_utils::{
@@ -47,7 +49,6 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsVoidType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::Mask;
 use requests::{
     WorldpayCompleteAuthorizationRequest, WorldpayPartialRequest, WorldpayPaymentsRequest,
@@ -1244,8 +1245,8 @@ impl ConnectorRedirectResponse for Worldpay {
     }
 }
 
-lazy_static! {
-    static ref WORLDPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static WORLDPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -1325,19 +1326,20 @@ lazy_static! {
         );
 
         worldpay_supported_payment_methods
-    };
-    static ref WORLDPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Worldpay",
-        description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
-        vec![enums::EventClass::Payments];
-}
+    });
+
+static WORLDPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Worldpay",
+    description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
+    LazyLock::new(|| vec![enums::EventClass::Payments]);
 
 impl ConnectorSpecifications for Worldpay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*WORLDPAY_CONNECTOR_INFO)
+        Some(&WORLDPAY_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

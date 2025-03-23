@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::time::SystemTime;
+use std::{sync::LazyLock, time::SystemTime};
 
 use actix_web::http::header::Date;
 use base64::Engine;
@@ -48,7 +48,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
@@ -1000,8 +999,8 @@ impl webhooks::IncomingWebhook for Deutschebank {
     }
 }
 
-lazy_static! {
-    static ref DEUTSCHEBANK_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static DEUTSCHEBANK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -1018,18 +1017,18 @@ lazy_static! {
         deutschebank_supported_payment_methods.add(
             enums::PaymentMethod::BankDebit,
             enums::PaymentMethodType::Sepa,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         deutschebank_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1042,13 +1041,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         deutschebank_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1061,26 +1060,25 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         deutschebank_supported_payment_methods
-    };
+    });
 
-    static ref DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Deutsche Bank",
-        description:
-            "Deutsche Bank is a German multinational investment bank and financial services company ",
-        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    };
+static DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Deutsche Bank",
+    description:
+        "Deutsche Bank is a German multinational investment bank and financial services company ",
+    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+};
 
-    static ref DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
-}
+static DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Deutschebank {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*DEUTSCHEBANK_CONNECTOR_INFO)
+        Some(&DEUTSCHEBANK_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

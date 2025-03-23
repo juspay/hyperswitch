@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, AttemptStatus};
 use common_utils::{
@@ -42,7 +44,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as multisafepay;
 
@@ -556,8 +557,8 @@ impl IncomingWebhook for Multisafepay {
     }
 }
 
-lazy_static! {
-    static ref MULTISAFEPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static MULTISAFEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
@@ -667,19 +668,20 @@ lazy_static! {
         );
 
         multisafepay_supported_payment_methods
-    };
-    static ref MULTISAFEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Multisafepay",
-        description:
-            "MultiSafePay is a payment gateway and PSP enabling secure online transactions",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-}
+    });
+
+static MULTISAFEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Multisafepay",
+    description: "MultiSafePay is a payment gateway and PSP enabling secure online transactions",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
+    LazyLock::new(Vec::new);
 
 impl ConnectorSpecifications for Multisafepay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*MULTISAFEPAY_CONNECTOR_INFO)
+        Some(&MULTISAFEPAY_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
