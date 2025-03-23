@@ -193,7 +193,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
-        payment_attempt.browser_info = browser_info;
+        payment_attempt.browser_info = browser_info.or(payment_attempt.browser_info);
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
         payment_attempt.payment_experience = request
@@ -364,6 +364,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             service_details: None,
             card_testing_guard_data: None,
             vault_operation: None,
+            threeds_method_comp_ind: request.threeds_method_comp_ind.clone(),
         };
 
         let customer_details = Some(CustomerDetails {

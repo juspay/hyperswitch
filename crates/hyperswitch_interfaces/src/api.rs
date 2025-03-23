@@ -570,7 +570,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                             .supported_capture_methods
                             .contains(&capture_method)
                     })
-                    .unwrap_or_else(|| is_default_capture_method)
+                    .unwrap_or(true)
             }
             None => is_default_capture_method,
         };

@@ -1540,6 +1540,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Redsys => {
+                redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())

@@ -14,7 +14,7 @@ use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
+use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
@@ -765,28 +765,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 first_merchant_success_based_connector_label.to_string(),
             );
 
-            let dynamic_routing_stats = DynamicRoutingStatsNew {
-                payment_id: payment_attempt.payment_id.to_owned(),
-                attempt_id: payment_attempt.attempt_id.clone(),
-                merchant_id: payment_attempt.merchant_id.to_owned(),
-                profile_id: payment_attempt.profile_id.to_owned(),
-                amount: payment_attempt.get_total_amount(),
-                success_based_routing_connector: first_merchant_success_based_connector_label
-                    .to_string(),
-                payment_connector: payment_connector.to_string(),
-                payment_method_type: payment_attempt.payment_method_type,
-                currency: payment_attempt.currency,
-                payment_method: payment_attempt.payment_method,
-                capture_method: payment_attempt.capture_method,
-                authentication_type: payment_attempt.authentication_type,
-                payment_status: payment_attempt.status,
-                conclusive_classification: outcome,
-                created_at: common_utils::date_time::now(),
-                global_success_based_connector: Some(
-                    first_global_success_based_connector.label.to_string(),
-                ),
-            };
-
             core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
                 1,
                 router_env::metric_attributes!(
@@ -859,12 +837,74 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             );
             logger::debug!("successfully pushed success_based_routing metrics");
 
-            state
+            let duplicate_stats = state
                 .store
-                .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+                .find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(
+                    payment_attempt.attempt_id.clone(),
+                    &payment_attempt.merchant_id.to_owned(),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to push dynamic routing stats to db")?;
+                .attach_printable("Failed to fetch dynamic_routing_stats entry")?;
+
+            if duplicate_stats.is_some() {
+                let dynamic_routing_update = DynamicRoutingStatsUpdate {
+                    amount: payment_attempt.get_total_amount(),
+                    success_based_routing_connector: first_merchant_success_based_connector_label
+                        .to_string(),
+                    payment_connector: payment_connector.to_string(),
+                    payment_method_type: payment_attempt.payment_method_type,
+                    currency: payment_attempt.currency,
+                    payment_method: payment_attempt.payment_method,
+                    capture_method: payment_attempt.capture_method,
+                    authentication_type: payment_attempt.authentication_type,
+                    payment_status: payment_attempt.status,
+                    conclusive_classification: outcome,
+                    global_success_based_connector: Some(
+                        first_global_success_based_connector.label.to_string(),
+                    ),
+                };
+
+                state
+                    .store
+                    .update_dynamic_routing_stats(
+                        payment_attempt.attempt_id.clone(),
+                        &payment_attempt.merchant_id.to_owned(),
+                        dynamic_routing_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update dynamic routing stats to db")?;
+            } else {
+                let dynamic_routing_stats = DynamicRoutingStatsNew {
+                    payment_id: payment_attempt.payment_id.to_owned(),
+                    attempt_id: payment_attempt.attempt_id.clone(),
+                    merchant_id: payment_attempt.merchant_id.to_owned(),
+                    profile_id: payment_attempt.profile_id.to_owned(),
+                    amount: payment_attempt.get_total_amount(),
+                    success_based_routing_connector: first_merchant_success_based_connector_label
+                        .to_string(),
+                    payment_connector: payment_connector.to_string(),
+                    payment_method_type: payment_attempt.payment_method_type,
+                    currency: payment_attempt.currency,
+                    payment_method: payment_attempt.payment_method,
+                    capture_method: payment_attempt.capture_method,
+                    authentication_type: payment_attempt.authentication_type,
+                    payment_status: payment_attempt.status,
+                    conclusive_classification: outcome,
+                    created_at: common_utils::date_time::now(),
+                    global_success_based_connector: Some(
+                        first_global_success_based_connector.label.to_string(),
+                    ),
+                };
+
+                state
+                    .store
+                    .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to push dynamic routing stats to db")?;
+            };
 
             client
                 .update_success_rate(

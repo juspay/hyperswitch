@@ -45,6 +45,7 @@ use crate::{FeatureMetadata, OrderDetailsWithAmount};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
+    type Error;
     async fn update_payment_intent(
         &self,
         state: &KeyManagerState,
@@ -52,7 +53,7 @@ pub trait PaymentIntentInterface {
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     async fn insert_payment_intent(
         &self,
@@ -60,7 +61,7 @@ pub trait PaymentIntentInterface {
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -70,7 +71,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
@@ -79,7 +80,7 @@ pub trait PaymentIntentInterface {
         profile_id: &id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: &common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
@@ -88,7 +89,7 @@ pub trait PaymentIntentInterface {
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
@@ -98,7 +99,7 @@ pub trait PaymentIntentInterface {
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
@@ -108,7 +109,7 @@ pub trait PaymentIntentInterface {
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
@@ -116,7 +117,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
-    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
@@ -126,7 +127,7 @@ pub trait PaymentIntentInterface {
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
@@ -141,7 +142,7 @@ pub trait PaymentIntentInterface {
             PaymentIntent,
             Option<super::payment_attempt::PaymentAttempt>,
         )>,
-        errors::StorageError,
+        Self::Error,
     >;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
@@ -150,7 +151,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<Option<String>>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<Option<String>>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
@@ -158,7 +159,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<String>, Self::Error>;
 }
 
 #[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
