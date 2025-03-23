@@ -9,6 +9,9 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -17,10 +20,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{
-        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
-        StringMajorUnit,
-    },
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -1148,6 +1148,9 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4487,6 +4490,28 @@ pub enum NextActionData {
     CollectOtp {
         consent_data_required: MobilePaymentConsent,
     },
+    /// Contains data required to invoke hidden iframe
+    InvokeHiddenIframe {
+        iframe_data: IframeData,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "method_key")]
+pub enum IframeData {
+    #[serde(rename = "threeDSMethodData")]
+    ThreedsInvokeAndCompleteAutorize {
+        /// ThreeDS method url
+        three_ds_method_url: String,
+        /// Whether ThreeDS method data submission is required
+        three_ds_method_data_submission: bool,
+        /// ThreeDS method data
+        three_ds_method_data: Option<String>,
+        /// ThreeDS Server ID
+        directory_server_id: String,
+        /// ThreeDS Protocol version
+        message_version: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4641,6 +4666,15 @@ pub struct SepaBankTransferInstructions {
     pub iban: Secret<String>,
     #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
     pub reference: Secret<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct PaymentsConnectorThreeDsInvokeData {
+    pub directory_server_id: String,
+    pub three_ds_method_url: String,
+    pub three_ds_method_data: String,
+    pub message_version: Option<String>,
+    pub three_ds_method_data_submission: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -7271,6 +7305,8 @@ pub struct PaymentsCompleteAuthorizeRequest {
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: Secret<String>,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -7949,6 +7985,7 @@ pub struct PaymentLinkDetails {
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub status: api_enums::IntentStatus,
     pub enable_button_only_on_form_ready: bool,
 }
 

@@ -291,6 +291,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         complete_authorize_url,
         customer_id: None,
         surcharge_details: None,
+        request_extended_authorization: None,
         request_incremental_authorization: matches!(
             payment_data
                 .payment_intent
@@ -2272,6 +2273,8 @@ where
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_invoke_hidden_frame = next_action_invoke_hidden_frame(&payment_attempt)?;
+
         if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
             || bank_transfer_next_steps.is_some()
             || next_action_voucher.is_some()
@@ -2364,7 +2367,14 @@ where
                                 }
                             },
                             None => None
-                        });
+                        })
+                        .or(match next_action_invoke_hidden_frame{
+                            Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
+                                threeds_invoke_data,
+                            )?),
+                            None => None
+
+        });
         };
 
         // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
@@ -2704,6 +2714,35 @@ pub fn wait_screen_next_steps_check(
     let display_info_with_timer_instructions =
         display_info_with_timer_steps.transpose().ok().flatten();
     Ok(display_info_with_timer_instructions)
+}
+
+pub fn next_action_invoke_hidden_frame(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::PaymentsConnectorThreeDsInvokeData>> {
+    let connector_three_ds_invoke_data: Option<
+        Result<api_models::payments::PaymentsConnectorThreeDsInvokeData, _>,
+    > = payment_attempt
+        .connector_metadata
+        .clone()
+        .map(|metadata| metadata.parse_value("PaymentsConnectorThreeDsInvokeData"));
+
+    let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
+    Ok(three_ds_invoke_data)
+}
+
+pub fn construct_connector_invoke_hidden_frame(
+    connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
+) -> RouterResult<api_models::payments::NextActionData> {
+    let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {
+        three_ds_method_data_submission: connector_three_ds_invoke_data
+            .three_ds_method_data_submission,
+        three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
+        three_ds_method_url: connector_three_ds_invoke_data.three_ds_method_url,
+        directory_server_id: connector_three_ds_invoke_data.directory_server_id,
+        message_version: connector_three_ds_invoke_data.message_version,
+    };
+
+    Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
 }
 
 #[cfg(feature = "v1")]
@@ -3233,6 +3272,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(AuthenticationData::foreign_try_from)
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
+            request_extended_authorization: attempt.request_extended_authorization,
             split_payments,
             merchant_order_reference_id,
             integrity_object: None,
@@ -4178,6 +4218,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             customer_acceptance: payment_data.customer_acceptance,
             merchant_account_id,
             merchant_config_currency,
+            threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
         })
     }
 }
@@ -4261,7 +4302,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                 field_name: "browser_info",
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
-
         Ok(Self {
             payment_method_data,
             email: payment_data.email,

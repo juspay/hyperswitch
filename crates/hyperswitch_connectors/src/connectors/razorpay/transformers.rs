@@ -18,11 +18,13 @@ use hyperswitch_interfaces::{
     errors,
 };
 use masking::Secret;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::generate_12_digit_number,
+};
 
 pub struct RazorpayRouterData<T> {
     pub amount: FloatMajorUnit,
@@ -364,11 +366,6 @@ pub struct RazorpayCard {
     expiry_year: Secret<String>,
     cvc: Secret<String>,
     complete: bool,
-}
-
-fn generate_12_digit_number() -> u64 {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(100_000_000_000..=999_999_999_999)
 }
 
 impl
