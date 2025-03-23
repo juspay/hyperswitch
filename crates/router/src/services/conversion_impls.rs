@@ -832,8 +832,8 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
             new_router_data.request,
             new_router_data.response,
         );
-        Ok(RouterData{
-            connector_auth_type : new_router_data.connector_auth_type.clone(),
+        Ok(RouterData {
+            connector_auth_type: new_router_data.connector_auth_type.clone(),
             ..router_data
         })
     }

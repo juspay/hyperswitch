@@ -8,12 +8,16 @@ use common_utils::{
 use diesel_models::{process_tracker as storage, schema::process_tracker::retry_count};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    errors::api_error_response, revenue_recovery, router_data_v2::flow_common_types::GetAdditionalRevenueRecoveryFlowCommonData, router_flow_types::GetAdditionalRevenueRecoveryDetails, router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData, router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData, types::AdditionalRevenueRecoveryDetailsRouterData
+    errors::api_error_response, revenue_recovery,
+    router_data_v2::flow_common_types::GetAdditionalRevenueRecoveryFlowCommonData,
+    router_flow_types::GetAdditionalRevenueRecoveryDetails,
+    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
+    types::AdditionalRevenueRecoveryDetailsRouterData,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
 use serde_with::rust::unwrap_or_skip;
-use crate::services::connector_integration_interface::RouterDataConversion;
 
 use crate::{
     core::{
@@ -22,7 +26,10 @@ use crate::{
     },
     db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
-    services::{self, connector_integration_interface},
+    services::{
+        self, connector_integration_interface,
+        connector_integration_interface::RouterDataConversion,
+    },
     types::{self, api, domain, storage::passive_churn_recovery as storage_churn_recovery},
     workflows::passive_churn_recovery_workflow,
 };
@@ -200,7 +207,7 @@ pub async fn recovery_incoming_webhook_flow(
     };
 
     // let payment_attempt = event_type.is_recovery_transaction_event().then(
-    //     || { 
+    //     || {
     //         recovery_details.as_ref().map_or_else(
     //                     || {
     //                         interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
@@ -748,27 +755,26 @@ impl AdditionalRevenueRecoveryRouterData {
         .parse_value("ConnectorAuthType")
         .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)?;
 
-        let router_data = types::RouterDataV2{
+        let router_data = types::RouterDataV2 {
             flow: PhantomData::<GetAdditionalRevenueRecoveryDetails>,
-            tenant_id : state.tenant.tenant_id.clone(),
+            tenant_id: state.tenant.tenant_id.clone(),
             resource_common_data: GetAdditionalRevenueRecoveryFlowCommonData,
             connector_auth_type: auth_type,
-            request : GetAdditionalRevenueRecoveryRequestData {
+            request: GetAdditionalRevenueRecoveryRequestData {
                 additional_revenue_recovery_id: additional_revenue_recovery_id.to_string(),
             },
-            response: Err(types::ErrorResponse::default())
+            response: Err(types::ErrorResponse::default()),
         };
 
-        let old_router_data = GetAdditionalRevenueRecoveryFlowCommonData::to_old_router_data(router_data)
-                        .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
-                        .attach_printable("Cannot construct router data for making the additional call")?;
+        let old_router_data =
+            GetAdditionalRevenueRecoveryFlowCommonData::to_old_router_data(router_data)
+                .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
+                .attach_printable("Cannot construct router data for making the additional call")?;
 
         Ok(Self(old_router_data))
-        
     }
 
     fn inner(self) -> AdditionalRevenueRecoveryDetailsRouterData {
         self.0
     }
-    
 }
