@@ -16,9 +16,7 @@ pub mod transformers;
 pub mod types;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
-use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
-};
+use std::{collections::HashSet, fmt::Debug, marker::PhantomData, time::Instant, vec::IntoIter};
 
 #[cfg(feature = "v2")]
 pub mod payment_methods;
@@ -4478,26 +4476,7 @@ where
     }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            domain::BankTransferData::AchBankTransfer { .. }
-            | domain::BankTransferData::MultibancoBankTransfer { .. }
-                if connector.connector_name == router_types::Connector::Stripe =>
-            {
-                if payment_data
-                    .get_payment_attempt()
-                    .preprocessing_step_id
-                    .is_none()
-                {
-                    (
-                        router_data.preprocessing_steps(state, connector).await?,
-                        false,
-                    )
-                } else {
-                    (router_data, should_continue_payment)
-                }
-            }
-            _ => (router_data, should_continue_payment),
-        },
+        Some(domain::PaymentMethodData::BankTransfer(_)) => (router_data, should_continue_payment),
         Some(domain::PaymentMethodData::Wallet(_)) => {
             if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
