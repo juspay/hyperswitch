@@ -7740,6 +7740,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,
             acs_signed_content: authentication_response.acs_signed_content,
             three_ds_requestor_url: authentication_details.three_ds_requestor_url,
+            three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url,
         },
     ))
 }
