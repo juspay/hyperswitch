@@ -2492,7 +2492,7 @@ impl FeatureMatrix {
     }
 }
 
-#[cfg(all(feature = "olap"))]
+#[cfg(feature = "olap")]
 pub struct ProcessTracker;
 
 #[cfg(all(feature = "olap", feature = "v2"))]
