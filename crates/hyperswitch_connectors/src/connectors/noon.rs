@@ -19,15 +19,16 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        CompleteAuthorize,
     },
     router_request_types::{
-        AccessTokenRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData},
     types::{
-        MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCompleteAuthorizeRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -40,7 +41,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        MandateRevokeType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType,
+        MandateRevokeType, PaymentsAuthorizeType, PaymentsCaptureType,PaymentsCompleteAuthorizeType, PaymentsSyncType,
         PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
     },
     webhooks,
@@ -52,7 +53,7 @@ use transformers as noon;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self as connector_utils, PaymentMethodDataType},
+    utils::{self as connector_utils, PaymentMethodDataType, PaymentsCompleteAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -126,6 +127,7 @@ fn get_auth_header(
                 business_identifier, application_identifier, api_key
             ))
         });
+    println!("$$$$$ encoded{}", encoded_api_key.peek());
     let key_mode = test_mode.map_or(connectors.noon.key_mode.clone(), |is_test_mode| {
         if is_test_mode {
             "Test".to_string()
@@ -158,6 +160,7 @@ impl ConnectorCommon for Noon {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("$$$$$ error res {:?}", res.response);
         let response: Result<noon::NoonErrorResponse, Report<common_utils::errors::ParsingError>> =
             res.response.parse_struct("NoonErrorResponse");
 
@@ -299,6 +302,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = noon::NoonRouterData::from((amount, req, mandate_amount));
         let connector_req = noon::NoonPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+        common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    println!("$$$$$ auth req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -326,19 +333,32 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: noon::NoonPaymentsResponse = res
+        println!("$$$$$ auth res {:?}", res.response);
+        let response: noon::NoonAuthPaymentResponse = res
             .response
             .parse_struct("Noon PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        match response {
+            noon::NoonAuthPaymentResponse::NoonPaypalResponse(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            noon::NoonAuthPaymentResponse::NoonPaymentsResponse(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(
@@ -348,6 +368,105 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+impl api::PaymentCompleteAuthorize for Noon {}
+
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Noon
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let mandate_details =
+            connector_utils::get_mandate_details(req.request.setup_mandate_details.clone())?;
+        let mandate_amount = mandate_details
+            .map(|mandate| {
+                connector_utils::convert_amount(
+                    self.amount_converter,
+                    mandate.amount,
+                    mandate.currency,
+                )
+            })
+            .transpose()?;
+        let connector_router_data = noon::NoonRouterData::from((amount, req, mandate_amount));
+        let connector_req =
+            noon::NoonPaymentsCompleteAuthorizeRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+ fn handle_response(
+         &self,
+         data: &RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+         event_builder: Option<&mut ConnectorEvent>,
+         res: Response,
+     ) -> CustomResult<RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>, errors::ConnectorError>
+     where
+         CompleteAuthorize: Clone,
+         CompleteAuthorizeData: Clone,
+         PaymentsResponseData: Clone, {
+            let response: noon::NoonPaypalResponse = res
+                .response
+                .parse_struct("Noon NoonPaypalResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+
+ }
+
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Noon {
@@ -396,6 +515,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Noo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        println!("$$$$$ psync res {:?}", res.response);
         let response: noon::NoonPaymentsResponse = res
             .response
             .parse_struct("noon PaymentsSyncResponse")
