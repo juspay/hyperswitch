@@ -321,9 +321,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow => Ok(Box::new(
                     workflows::payment_method_status_update::PaymentMethodStatusUpdateWorkflow,
                 )),
-                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => Ok(Box::new(
-                    workflows::revenue_recovery::ExecutePcrWorkflow,
-                )),
+                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
+                    Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))
+                }
             }
         };
 

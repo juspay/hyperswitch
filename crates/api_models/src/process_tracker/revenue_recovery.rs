@@ -1,7 +1,8 @@
-use crate::enums;
 use common_utils::id_type;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::enums;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevenueRecoveryResponse {
     pub id: String,

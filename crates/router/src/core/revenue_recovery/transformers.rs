@@ -1,8 +1,6 @@
 use common_enums::AttemptStatus;
 
-use crate::{
-    core::revenue_recovery::types::PcrAttemptStatus, types::transformers::ForeignFrom,
-};
+use crate::{core::revenue_recovery::types::PcrAttemptStatus, types::transformers::ForeignFrom};
 
 impl ForeignFrom<AttemptStatus> for PcrAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
