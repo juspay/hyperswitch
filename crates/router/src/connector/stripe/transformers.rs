@@ -2602,15 +2602,18 @@ where
             .latest_charge
             .as_ref()
             .and_then(extract_overcapture_response_from_latest_charge);
-        let connector_response =
-            if overcapture_data.is_some() || additional_payment_method_data.is_some() {
-                Some(types::ConnectorResponseData {
+        let connector_response = if let Some((overcapture_data, additional_payment_method_data)) =
+            overcapture_data.zip(additional_payment_method_data)
+        {
+            Some(
+                types::ConnectorResponseData::with_additional_payment_method_and_overcapture_data(
                     additional_payment_method_data,
                     overcapture_data,
-                })
-            } else {
-                None
-            };
+                ),
+            )
+        } else {
+            None
+        };
 
         Ok(Self {
             status,
@@ -2783,15 +2786,18 @@ where
             .latest_charge
             .as_ref()
             .and_then(extract_overcapture_response_from_latest_charge);
-        let connector_response =
-            if overcapture_data.is_some() || additional_payment_method_data.is_some() {
-                Some(types::ConnectorResponseData {
+        let connector_response = if let Some((overcapture_data, additional_payment_method_data)) =
+            overcapture_data.zip(additional_payment_method_data)
+        {
+            Some(
+                types::ConnectorResponseData::with_additional_payment_method_and_overcapture_data(
                     additional_payment_method_data,
                     overcapture_data,
-                })
-            } else {
-                None
-            };
+                ),
+            )
+        } else {
+            None
+        };
 
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::foreign_try_from((
@@ -4235,10 +4241,10 @@ fn extract_overcapture_response_from_latest_charge(
     };
     overcapture_status
         .zip(maximum_overcapture_amount)
-        .map(|overcapture_data| types::OverCaptureData {
-            overcapture_status: overcapture_data.0,
-            maximum_capturable_amount: overcapture_data.1,
-        })
+        .map(|overcapture_data| types::OverCaptureData::new(
+            overcapture_data.0,
+            overcapture_data.1,
+        ))
 }
 
 impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {

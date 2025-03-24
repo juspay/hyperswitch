@@ -439,13 +439,11 @@ where
     let overcapture_data = router_data
         .connector_response
         .as_ref()
-        .and_then(|resp| resp.overcapture_data.clone());
+        .and_then(|resp| resp.get_overcapture_data().clone());
     let overcapture_status = overcapture_data
-        .as_ref()
-        .map(|data| data.overcapture_status);
+        .map(|data| data.get_overcapture_status());
     let maximum_capturable_amount = overcapture_data
-        .as_ref()
-        .map(|data| data.maximum_capturable_amount);
+        .map(|data| data.get_maximum_capturable_amount());
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {

@@ -363,7 +363,7 @@ pub struct PaymentMethodBalance {
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
-    pub overcapture_data: Option<OverCaptureData>,
+    overcapture_data: Option<OverCaptureData>,
 }
 
 impl ConnectorResponseData {
@@ -381,12 +381,45 @@ impl ConnectorResponseData {
     ) -> Option<&ExtendedAuthorizationResponseData> {
         self.extended_authorization_response_data.as_ref()
     }
+
+    pub fn with_additional_payment_method_and_overcapture_data(
+        additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
+        overcapture_data: OverCaptureData,
+    ) -> Self {
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
+            overcapture_data: Some(overcapture_data),
+        }
+    }
+
+    pub fn get_overcapture_data(
+        &self,
+    ) -> Option<&OverCaptureData> {
+        self.overcapture_data.as_ref()
+    }
+
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OverCaptureData {
-    pub overcapture_status: common_enums::OverCaptureStatus,
-    pub maximum_capturable_amount: MinorUnit,
+    overcapture_status: common_enums::OverCaptureStatus,
+    maximum_capturable_amount: MinorUnit,
+}
+
+impl OverCaptureData {
+    pub fn new(overcapture_status: common_enums::OverCaptureStatus, maximum_capturable_amount: MinorUnit) -> Self {
+        Self {
+            overcapture_status,
+            maximum_capturable_amount,
+        }
+    } 
+    pub fn get_overcapture_status(&self) -> common_enums::OverCaptureStatus {
+        self.overcapture_status
+    }
+    pub fn get_maximum_capturable_amount(&self) -> MinorUnit {
+        self.maximum_capturable_amount
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
