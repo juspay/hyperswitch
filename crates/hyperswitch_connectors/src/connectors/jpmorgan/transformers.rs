@@ -429,15 +429,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
         let status = attempt_status_from_transaction_state(transaction_state);
 
         let mandate_id = item
-        .response
-        .payment_method_type
-        .card
-        .as_ref()
-        .and_then(|card| card.network_response.as_ref())
-        .and_then(|network| network.network_transaction_id.as_ref())
-        .map(|secret| secret.peek().to_string());
+            .response
+            .payment_method_type
+            .card
+            .as_ref()
+            .and_then(|card| card.network_response.as_ref())
+            .and_then(|network| network.network_transaction_id.as_ref())
+            .map(|secret| secret.peek().to_string());
 
-    println!("Mandate ID: {:?}", mandate_id);
+        println!("Mandate ID: {:?}", mandate_id);
 
         Ok(Self {
             status,
