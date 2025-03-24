@@ -6,7 +6,7 @@ use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
     encryption::Encryption,
-    errors::{CustomResult, ValidationError},
+    errors::{CustomResult, ParsingError, ValidationError},
     id_type,
     pii::{self, Email},
     type_name,
@@ -410,7 +410,7 @@ pub struct PaymentIntentUpdateInternal {
 // This conversion is used in the `update_payment_intent` function
 #[cfg(feature = "v2")]
 impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
-    type Error = error_stack::Report<errors::StorageError>;
+    type Error = error_stack::Report<ParsingError>;
     fn try_from(payment_intent_update: PaymentIntentUpdate) -> Result<Self, Self::Error> {
         match payment_intent_update {
             PaymentIntentUpdate::ConfirmIntent {
@@ -590,7 +590,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 prerouting_algorithm: Some(
                     prerouting_algorithm
                         .encode_to_value()
-                        .change_context(errors::StorageError::SerializationFailed)
                         .attach_printable("Failed to Serialize prerouting_algorithm")?,
                 ),
                 amount: None,
