@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::StringExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::co_badged_cards_info::{CoBadgedCardInfo, CoBadgedCardInfoResponse};
 
@@ -176,11 +176,26 @@ pub fn calculate_interchange_fee(
 
     let mut total_interchange_fee = (amount * percentage / 100.0) + fixed_amount;
 
-    if *is_regulated && regulated_name.is_some() {
-        let fraud_check_fee = debit_routing.fraud_check_fee;
+    if *is_regulated {
+        if let Some(regulated_name_string) = regulated_name {
+            let regulated_name_enum: enums::RegulatedName = regulated_name_string
+                .clone()
+                .parse_enum("RegulatedName")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse regulated name")?;
+            match regulated_name_enum {
+                enums::RegulatedName::NonExemptWithFraud => {
+                    logger::debug!("Regulated bank with non exemption for fraud");
+                }
+                enums::RegulatedName::ExemptFraud => {
+                    logger::debug!("Regulated bank with exemption for fraud");
+                    let fraud_check_fee = debit_routing.fraud_check_fee;
 
-        total_interchange_fee += fraud_check_fee;
-    }
+                    total_interchange_fee += fraud_check_fee
+                }
+            };
+        }
+    };
 
     Ok(total_interchange_fee)
 }
