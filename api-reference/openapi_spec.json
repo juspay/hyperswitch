@@ -5387,6 +5387,16 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "is_delivered",
+            "in": "query",
+            "description": "Only include Events which are ultimately delivered to the merchant.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
           }
         ],
         "responses": {
