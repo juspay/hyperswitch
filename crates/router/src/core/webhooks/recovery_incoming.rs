@@ -142,65 +142,61 @@ pub async fn recovery_incoming_webhook_flow(
         .await?;
 
     let payment_attempt = if event_type.is_recovery_transaction_event() {
-            // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
-            let invoice_transaction_details = recovery_details.as_ref().map_or_else(
-                || {
-                    interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
-                        connector_enum,
-                        request_details,
-                    )
-                    .change_context(
-                        errors::RevenueRecoveryError::TransactionWebhookProcessingFailed,
-                    )
-                    .attach_printable(
-                        "Failed to get recovery attempt details from the billing connector",
-                    )
-                    .map(RevenueRecoveryAttempt)
-                },
-                |data| {
-                    Ok(RevenueRecoveryAttempt(
-                        revenue_recovery::RevenueRecoveryAttemptData::from(data),
-                    ))
-                },
-            )?;
-
-            // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
-            let payment_merchant_connector_account = invoice_transaction_details
-                .find_payment_merchant_connector_account(
-                    &state,
-                    &key_store,
-                    &billing_connector_account,
+        // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
+        let invoice_transaction_details = recovery_details.as_ref().map_or_else(
+            || {
+                interface_webhooks::IncomingWebhook::get_revenue_recovery_attempt_details(
+                    connector_enum,
+                    request_details,
                 )
-                .await?;
+                .change_context(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)
+                .attach_printable(
+                    "Failed to get recovery attempt details from the billing connector",
+                )
+                .map(RevenueRecoveryAttempt)
+            },
+            |data| {
+                Ok(RevenueRecoveryAttempt(
+                    revenue_recovery::RevenueRecoveryAttemptData::from(data),
+                ))
+            },
+        )?;
 
-            Some(
-                invoice_transaction_details
-                    .get_payment_attempt(
-                        &state,
-                        &req_state,
-                        &merchant_account,
-                        &business_profile,
-                        &key_store,
-                        payment_intent.payment_id.clone(),
-                    )
-                    .await
-                    .transpose()
-                    .async_unwrap_or_else(|| async {
-                        invoice_transaction_details
-                            .record_payment_attempt(
-                                &state,
-                                &req_state,
-                                &merchant_account,
-                                &business_profile,
-                                &key_store,
-                                payment_intent.payment_id.clone(),
-                                &billing_connector_account.id,
-                                payment_merchant_connector_account,
-                            )
-                            .await
-                    })
-                    .await?,
-            )
+        // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
+        let payment_merchant_connector_account = invoice_transaction_details
+            .find_payment_merchant_connector_account(&state, &key_store, &billing_connector_account)
+            .await?;
+
+        Some(
+            invoice_transaction_details
+                .get_payment_attempt(
+                    &state,
+                    &req_state,
+                    &merchant_account,
+                    &business_profile,
+                    &key_store,
+                    payment_intent.payment_id.clone(),
+                )
+                .await
+                .transpose()
+                .async_unwrap_or_else(|| async {
+                    invoice_transaction_details
+                        .record_payment_attempt(
+                            &state,
+                            &req_state,
+                            &merchant_account,
+                            &business_profile,
+                            &key_store,
+                            payment_intent.payment_id.clone(),
+                            &billing_connector_account.id,
+                            payment_merchant_connector_account,
+                        )
+                        .await
+                })
+                .await?,
+        )
+    } else {
+        None
     };
 
     let attempt_triggered_by = payment_attempt
