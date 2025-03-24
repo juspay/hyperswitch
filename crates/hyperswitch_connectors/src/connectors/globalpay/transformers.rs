@@ -471,7 +471,7 @@ fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
         ) => {
             // Return URL handling for PayPal via Globalpay:
             // - PayPal inconsistency: Return URLs work with HTTP, but cancel URLs require HTTPS
-            // - Local development: When testing locally, expose your server via HTTPS and replace 
+            // - Local development: When testing locally, expose your server via HTTPS and replace
             //   the base URL with an HTTPS URL to ensure proper cancellation flow
             // - Refer to commit 6499d429da87 for more information
             item.request.complete_authorize_url.clone()
