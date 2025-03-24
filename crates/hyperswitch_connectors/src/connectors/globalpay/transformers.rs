@@ -106,6 +106,8 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                 decoupled_challenge_return_url: None,
                 status_url: item.router_data.request.webhook_url.clone(),
                 three_ds_method_return_url: None,
+                // cancel_url: Some("https://hyperswitch.io?cancel=true".to_string()),
+                cancel_url: get_return_url(item.router_data),
             }),
             authorization_mode: None,
             cashback_amount: None,
@@ -467,7 +469,28 @@ fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
         payment_method_data::PaymentMethodData::Wallet(
             payment_method_data::WalletData::PaypalRedirect(_),
-        ) => item.request.complete_authorize_url.clone(),
+        ) => {
+            
+            // For PayPal, use a hardcoded https URL instead of complete_authorize_url
+            let original_url = item.request.complete_authorize_url.clone();
+
+            // Log the original URL for debugging
+            router_env::logger::info!(original_paypal_return_url=?original_url);
+
+            // Replace localhost:8080 with hyperswitch.io
+            original_url.map(|url| {
+                if url.starts_with("http://localhost:8080") {
+                    let replacement_url = url.replace(
+                        "http://localhost:8080",
+                        "https://globalpay-paypal-cancel.ts.net",
+                    );
+                    router_env::logger::info!(modified_paypal_return_url=?replacement_url);
+                    replacement_url
+                } else {
+                    url
+                }
+            })
+        }
         _ => item.request.router_return_url.clone(),
     }
 }
