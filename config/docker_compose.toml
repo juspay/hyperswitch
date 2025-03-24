@@ -842,11 +842,11 @@ timeout = 10 # Timeout for SMTP connection in seconds
 connection = "plaintext" #currently plaintext and starttls are supported
 
 [theme.email_config]
-entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
-entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
-foreground_color = "#000000"                     # Foreground color of email text
-primary_color = "#006DF9"                        # Primary color of email body
-background_color = "#FFFFFF"                     # Background color of email body
+entity_name = "Hyperswitch"  # Display name in emails
+entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png"  # Logo URL for emails
+foreground_color = "#111326"  # Text color
+primary_color = "#006DF9"  # Primary color
+background_color = "#FFFFFF"  # Email background color
 
 [platform]
 enabled = true

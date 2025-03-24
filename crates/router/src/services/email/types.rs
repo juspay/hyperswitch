@@ -556,7 +556,6 @@ pub struct BizEmailProd {
     pub business_location: String,
     pub business_website: String,
     pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
 }
@@ -573,7 +572,6 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            subject: consts::user::EMAIL_SUBJECT_NEW_PROD_INTENT,
             user_name: data.poc_name.unwrap_or_default().into(),
             poc_email: data.poc_email.unwrap_or_default(),
             legal_business_name: data.legal_business_name.unwrap_or_default(),
@@ -600,7 +598,7 @@ impl EmailData for BizEmailProd {
         });
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: format!("New Prod Intent"),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -669,7 +667,6 @@ impl EmailData for ApiKeyExpiryReminder {
 
 pub struct WelcomeToCommunity {
     pub recipient_email: domain::UserEmail,
-    pub subject: &'static str,
 }
 
 #[async_trait::async_trait]
@@ -678,7 +675,7 @@ impl EmailData for WelcomeToCommunity {
         let body = html::get_html_body(EmailBody::WelcomeToCommunity);
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: format!("Thank you for signing up on Hyperswitch Dashboard!"),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })

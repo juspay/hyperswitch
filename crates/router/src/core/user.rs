@@ -382,7 +382,6 @@ pub async fn connect_account(
         if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
             let welcome_to_community_email = email_types::WelcomeToCommunity {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-                subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
             };
 
             let welcome_email_result = state
