@@ -2,6 +2,8 @@
 use std::str::FromStr;
 
 use common_enums::enums;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use common_utils::id_type;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -13,6 +15,13 @@ use hyperswitch_domain_models::{
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::RecoveryRecordBack,
+    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    types::RevenueRecoveryRecordBackRouterData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -360,12 +369,51 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: StripebillingInvoiceBody) -> Result<Self, Self::Error> {
         let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
+            id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             amount: item.data.object.amount,
             currency: item.data.object.currency,
             merchant_reference_id,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct StripebillingRecordBackResponse {
+    pub id: String,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl
+    TryFrom<
+        ResponseRouterData<
+            RecoveryRecordBack,
+            StripebillingRecordBackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    > for RevenueRecoveryRecordBackRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            RecoveryRecordBack,
+            StripebillingRecordBackResponse,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RevenueRecoveryRecordBackResponse {
+                merchant_reference_id: id_type::PaymentReferenceId::from_str(
+                    item.response.id.as_str(),
+                )
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "invoice_id in the response",
+                })?,
+            }),
+            ..item.data
         })
     }
 }
