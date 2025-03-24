@@ -4241,10 +4241,7 @@ fn extract_overcapture_response_from_latest_charge(
     };
     overcapture_status
         .zip(maximum_overcapture_amount)
-        .map(|overcapture_data| types::OverCaptureData::new(
-            overcapture_data.0,
-            overcapture_data.1,
-        ))
+        .map(|overcapture_data| types::OverCaptureData::new(overcapture_data.0, overcapture_data.1))
 }
 
 impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {

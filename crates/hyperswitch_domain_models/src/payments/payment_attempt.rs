@@ -786,7 +786,6 @@ impl PaymentAttempt {
             .attach_printable("Merchant connector id is None")?;
         Ok(merchant_connector_id)
     }
-
 }
 
 #[cfg(feature = "v1")]

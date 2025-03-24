@@ -393,12 +393,9 @@ impl ConnectorResponseData {
         }
     }
 
-    pub fn get_overcapture_data(
-        &self,
-    ) -> Option<&OverCaptureData> {
+    pub fn get_overcapture_data(&self) -> Option<&OverCaptureData> {
         self.overcapture_data.as_ref()
     }
-
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -408,12 +405,15 @@ pub struct OverCaptureData {
 }
 
 impl OverCaptureData {
-    pub fn new(overcapture_status: common_enums::OverCaptureStatus, maximum_capturable_amount: MinorUnit) -> Self {
+    pub fn new(
+        overcapture_status: common_enums::OverCaptureStatus,
+        maximum_capturable_amount: MinorUnit,
+    ) -> Self {
         Self {
             overcapture_status,
             maximum_capturable_amount,
         }
-    } 
+    }
     pub fn get_overcapture_status(&self) -> common_enums::OverCaptureStatus {
         self.overcapture_status
     }
