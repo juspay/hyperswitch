@@ -1957,13 +1957,13 @@ impl TryFrom<(&VoucherData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMetho
             VoucherData::SevenEleven(_) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::Lawson(_) 
-            |VoucherData::MiniStop(_)
-            |VoucherData::FamilyMart(_)
-            |VoucherData::Seicomart(_) 
-            |VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
+            VoucherData::Lawson(_)
+            | VoucherData::MiniStop(_)
+            | VoucherData::FamilyMart(_)
+            | VoucherData::Seicomart(_)
+            | VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(
+                Box::new(JCSVoucherData::try_from(item)?),
+            )),
             VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
