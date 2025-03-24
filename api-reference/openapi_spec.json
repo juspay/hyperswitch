@@ -10438,6 +10438,9 @@
       },
       "CtpServiceDetails": {
         "type": "object",
+        "required": [
+          "provider"
+        ],
         "properties": {
           "merchant_transaction_id": {
             "type": "string",
@@ -10455,12 +10458,7 @@
             "nullable": true
           },
           "provider": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CtpServiceProvider"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CtpServiceProvider"
           },
           "encypted_payload": {
             "type": "string",

@@ -1162,7 +1162,7 @@ pub struct CtpServiceDetails {
     /// session transaction flow id
     pub x_src_flow_id: Option<String>,
     /// provider Eg: Visa, Mastercard
-    #[schema(value_type = Option<CtpServiceProvider>)]
+    #[schema(value_type = CtpServiceProvider)]
     pub provider: api_enums::CtpServiceProvider,
     /// Encrypted payload
     pub encypted_payload: Option<String>,
