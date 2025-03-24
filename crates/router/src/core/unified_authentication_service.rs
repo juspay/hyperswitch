@@ -72,8 +72,8 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
             authentication_reasons: None,
-            consent_received: false,
-            is_authenticated: false,
+            consent_received: false, // This is not relevant in this flow so keeping it as false
+            is_authenticated: false, // This is not relevant in this flow so keeping it as false
             locale: None,
             supported_card_brands: None,
             encypted_payload: payment_data

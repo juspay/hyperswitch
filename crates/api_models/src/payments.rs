@@ -1165,6 +1165,12 @@ pub struct CtpServiceDetails {
     pub encypted_payload: Option<String>,
 }
 
+impl CtpServiceDetails {
+    pub fn is_network_confirmation_call_required(&self) -> bool {
+        self.provider == api_enums::CtpServiceProvider::Mastercard
+    }
+}
+
 #[cfg(feature = "v1")]
 /// Checks if the inner values of two options are equal
 /// Returns true if values are not equal, returns false in other cases

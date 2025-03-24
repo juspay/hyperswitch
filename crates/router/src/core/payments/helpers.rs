@@ -6818,11 +6818,9 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
         None => {
             if *do_authorisation_confirmation {
                 payment_data.service_details.as_ref().and_then(|details| {
-                    if details.provider == api_enums::CtpServiceProvider::Mastercard {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-                    } else {
-                        None
-                    }
+                    (*details)
+                        .is_network_confirmation_call_required()
+                        .then(|| UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
                 })
             } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
