@@ -254,13 +254,10 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
 
     let psync_task = PSYNC_WORKFLOW;
-    tracking_data
+
+    let process_tracker_id_for_psync = tracking_data
         .payment_attempt_id
         .get_psync_revenue_recovery_id(task, runner);
-    let process_tracker_id_for_psync = format!(
-        "{runner}_{psync_task}_{}",
-        tracking_data.payment_attempt_id.get_string_repr()
-    );
 
     let process_tracker_for_psync = db
         .find_process_by_id(&process_tracker_id_for_psync)
