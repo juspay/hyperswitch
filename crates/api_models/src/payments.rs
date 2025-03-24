@@ -18,8 +18,8 @@ use common_utils::{
     id_type,
     pii::{self, Email},
     types::{
-        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
-        StringMajorUnit,
+        AmountConvertor, ExtendedAuthorizationAppliedBool, MinorUnit,
+        RequestExtendedAuthorizationBool, StringMajorUnit,
     },
 };
 use error_stack::ResultExt;
@@ -7291,6 +7291,84 @@ pub struct AmazonPayShippingMethod {
     pub shipping_method_name: String,
     /// Code of the shipping method
     pub shipping_method_code: String,
+}
+
+impl AmazonPayDeliveryOptions {
+    pub fn parse_delivery_options_request(
+        delivery_options_request: &[serde_json::Value],
+    ) -> Result<Vec<Self>, common_utils::errors::ParsingError> {
+        delivery_options_request
+            .iter()
+            .map(|option| {
+                serde_json::from_value(option.clone()).map_err(|_| {
+                    common_utils::errors::ParsingError::StructParseFailure(
+                        "AmazonPayDeliveryOptions",
+                    )
+                })
+            })
+            .collect()
+    }
+
+    pub fn validate_is_default_count(delivery_options: Vec<Self>) -> Result<(), ValidationError> {
+        let is_default_count = i32::try_from(
+            delivery_options
+                .iter()
+                .filter(|delivery_option| delivery_option.is_default)
+                .count(),
+        )
+        .map_err(|_| ValidationError::InvalidValue {
+            message: "Invalid value provided: is_default".to_string(),
+        })?;
+
+        if is_default_count == 0 {
+            return Err(ValidationError::InvalidValue {
+                message: "Expected one default Amazon Pay Delivery Options, encountered none."
+                    .to_string(),
+            });
+        }
+
+        if is_default_count > 1 {
+            return Err(ValidationError::InvalidValue {
+                message:
+                    "Expected one default Amazon Pay Delivery Options, encountered more than one."
+                        .to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn validate_currency(
+        currency_code: common_enums::Currency,
+        amazonpay_supported_currencies: &Option<&HashSet<common_enums::Currency>>,
+    ) -> Result<(), ValidationError> {
+        if amazonpay_supported_currencies
+            .map(|supported_currency| !supported_currency.contains(&currency_code))
+            .unwrap_or(true)
+        {
+            return Err(ValidationError::InvalidValue {
+                message: format!("{:?} is not a supported currency.", currency_code),
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn insert_display_amount(
+        delivery_options: &mut Vec<Self>,
+        currency_code: common_enums::Currency,
+    ) -> Result<(), error_stack::Report<common_utils::errors::ParsingError>> {
+        let required_amount_type = common_utils::types::StringMajorUnitForCore;
+        for option in delivery_options {
+            let display_amount = required_amount_type
+                .convert(option.price.amount, currency_code)
+                .change_context(common_utils::errors::ParsingError::I64ToStringConversionFailure)?;
+
+            option.price.display_amount = display_amount;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]

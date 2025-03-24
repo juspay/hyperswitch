@@ -397,11 +397,25 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[amazonpay]
 [[amazonpay.wallet]]
 payment_method_type = "AmazonPay"
 [amazonpay.connector_auth.BodyKey]
 api_key="Public Key"
 key1="Private Key"
+
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="merchant_id"
+label="Merchant ID"
+placeholder="Enter Merchant ID"
+required=true
+type="Text"
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="store_id"
+label="Store ID"
+placeholder="Enter Store ID"
+required=true
+type="Text"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]

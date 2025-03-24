@@ -1256,96 +1256,9 @@ fn create_paypal_sdk_session_token(
     })
 }
 
-pub trait AmazonPayDeliveryOptionsTrait {
-    type Error;
-
-    fn parse_delivery_options_request(
-        delivery_options_request: &[serde_json::Value],
-    ) -> Result<Vec<payment_types::AmazonPayDeliveryOptions>, Self::Error>;
-
-    fn validate_is_default_count(
-        delivery_options: Vec<payment_types::AmazonPayDeliveryOptions>,
-    ) -> Result<(), Self::Error>;
-
-    fn validate_currency(
-        delivery_options: Vec<payment_types::AmazonPayDeliveryOptions>,
-    ) -> Result<(), Self::Error>;
-
-    fn insert_display_amount(
-        delivery_options: &mut Vec<payment_types::AmazonPayDeliveryOptions>,
-        router_data: &types::PaymentsSessionRouterData,
-    ) -> Result<(), Report<Self::Error>>;
-}
-
-impl AmazonPayDeliveryOptionsTrait for payment_types::AmazonPayDeliveryOptions {
-    type Error = errors::ApiErrorResponse;
-
-    fn parse_delivery_options_request(
-        delivery_options_request: &[serde_json::Value],
-    ) -> Result<Vec<Self>, Self::Error> {
-        delivery_options_request
-            .iter()
-            .map(|option| {
-                serde_json::from_value(option.clone()).map_err(|_| {
-                    errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "delivery_options".to_string(),
-                        expected_format: "Valid AmazonPayDeliveryOptions JSON".to_string(),
-                    }
-                })
-            })
-            .collect()
-    }
-
-    fn validate_is_default_count(delivery_options: Vec<Self>) -> Result<(), Self::Error> {
-        let is_default_count = i32::try_from(
-            delivery_options.iter().filter(|opt| opt.is_default).count(),
-        )
-        .map_err(|_| errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "is_default",
-        })?;
-
-        if is_default_count != 1 {
-            return Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "is_default",
-            });
-        }
-
-        Ok(())
-    }
-
-    fn validate_currency(delivery_options: Vec<Self>) -> Result<(), Self::Error> {
-        for option in &delivery_options {
-            if option.price.currency_code != common_enums::Currency::USD {
-                return Err(errors::ApiErrorResponse::CurrencyNotSupported {
-                    message: "USD is the only supported currency.".to_string(),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    fn insert_display_amount(
-        delivery_options: &mut Vec<payment_types::AmazonPayDeliveryOptions>,
-        router_data: &types::PaymentsSessionRouterData,
-    ) -> Result<(), Report<Self::Error>> {
-        let required_amount_type = StringMajorUnitForConnector;
-        for option in delivery_options {
-            let display_amount = required_amount_type
-                .convert(option.price.amount, router_data.request.currency)
-                .change_context(errors::ApiErrorResponse::AmountConversionFailed {
-                    amount_type: "StringMajorUnit",
-                })?;
-
-            option.price.display_amount = display_amount;
-        }
-
-        Ok(())
-    }
-}
-
 fn create_amazon_pay_session_token(
     router_data: &types::PaymentsSessionRouterData,
+    state: &routes::SessionState,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let amazon_pay_session_token_data = router_data
         .connector_wallets_details
@@ -1359,16 +1272,32 @@ fn create_amazon_pay_session_token(
     let amazon_pay_metadata = amazon_pay_session_token_data.data;
     let merchant_id = amazon_pay_metadata.merchant_id;
     let store_id = amazon_pay_metadata.store_id;
+    let amazonpay_supported_currencies =
+        &state
+            .conf
+            .pm_filters
+            .0
+            .get("amazonpay")
+            .and_then(|payment_method_filters| {
+                payment_method_filters
+                    .0
+                    .iter()
+                    .find_map(|(key, currency_country_filter)| match key {
+                        settings::PaymentMethodFilterKey::PaymentMethodType(
+                            enums::PaymentMethodType::AmazonPay,
+                        ) => currency_country_filter.currency.as_ref(),
+                        _ => None,
+                    })
+            });
     // currently supports only the US region hence USD is the only supported currency
-    let ledger_currency = match router_data.request.currency {
-        common_enums::Currency::USD => router_data.request.currency,
-        _ => {
-            return Err(errors::ApiErrorResponse::CurrencyNotSupported {
-                message: "USD is the only supported currency.".to_string(),
-            }
-            .into())
-        }
-    };
+    payment_types::AmazonPayDeliveryOptions::validate_currency(
+        router_data.request.currency,
+        amazonpay_supported_currencies,
+    )
+    .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
+        message: "USD is the only supported currency.".to_string(),
+    })?;
+    let ledger_currency = router_data.request.currency;
     // currently supports only the 'automatic' capture_method
     let payment_intent = payment_types::AmazonPayPaymentIntent::AuthorizeWithCapture;
     let required_amount_type = StringMajorUnitForConnector;
@@ -1410,15 +1339,37 @@ fn create_amazon_pay_session_token(
             field_name: "delivery_options",
         })?;
 
-    let mut delivery_options = <payment_types::AmazonPayDeliveryOptions as AmazonPayDeliveryOptionsTrait>::parse_delivery_options_request(delivery_options_request)?;
+    let mut delivery_options =
+        payment_types::AmazonPayDeliveryOptions::parse_delivery_options_request(
+            delivery_options_request,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "delivery_options".to_string(),
+            expected_format: "Valid AmazonPayDeliveryOptions JSON".to_string(),
+        })?;
 
-    <payment_types::AmazonPayDeliveryOptions as AmazonPayDeliveryOptionsTrait>::validate_is_default_count(delivery_options.clone())?;
+    payment_types::AmazonPayDeliveryOptions::validate_is_default_count(delivery_options.clone())
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "is_default",
+        })?;
 
-    <payment_types::AmazonPayDeliveryOptions as AmazonPayDeliveryOptionsTrait>::validate_currency(
-        delivery_options.clone(),
-    )?;
+    for option in &delivery_options {
+        payment_types::AmazonPayDeliveryOptions::validate_currency(
+            option.price.currency_code,
+            amazonpay_supported_currencies,
+        )
+        .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
+            message: "USD is the only supported currency.".to_string(),
+        })?;
+    }
 
-    let _ = <payment_types::AmazonPayDeliveryOptions as AmazonPayDeliveryOptionsTrait>::insert_display_amount(&mut delivery_options, router_data);
+    payment_types::AmazonPayDeliveryOptions::insert_display_amount(
+        &mut delivery_options,
+        router_data.request.currency,
+    )
+    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+        amount_type: "StringMajorUnit",
+    })?;
 
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
@@ -1493,7 +1444,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
 
                 Ok(resp)
             }
-            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self),
+            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self, state),
         }
     }
 }

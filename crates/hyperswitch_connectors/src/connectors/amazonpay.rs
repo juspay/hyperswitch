@@ -213,15 +213,9 @@ where
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let http_method = self.get_http_method();
 
-        let mut canonical_uri = "/sandbox/v2".to_string(); // TODO: change to "/live/v2" for production
-
-        let trimmed_url: String = self
-            .get_url(req, connectors)?
-            .chars()
-            .skip(connectors.amazonpay.base_url.as_str().len())
-            .collect();
-
-        canonical_uri.push_str(&trimmed_url);
+        let canonical_uri: String =
+            self.get_url(req, connectors)?
+                .replacen("https://pay-api.amazon.com", "", 1);
 
         let mut header = vec![
             (
