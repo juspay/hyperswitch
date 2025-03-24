@@ -66,7 +66,6 @@ use super::{
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    consts,
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
@@ -90,7 +89,7 @@ use super:: {
     payments::tokenization,
 };
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v2", feature = "v2"))]
 use crate::{
     consts,
     core::{
