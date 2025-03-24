@@ -18,6 +18,7 @@ use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -26,18 +27,21 @@ pub trait RefundDbExt: Sized {
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -48,6 +52,7 @@ pub trait RefundDbExt: Sized {
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -159,6 +164,7 @@ impl RefundDbExt for Refund {
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -214,6 +220,7 @@ impl RefundDbExt for Refund {
         Ok(meta)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -302,6 +309,7 @@ impl RefundDbExt for Refund {
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

@@ -42,7 +42,7 @@ impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
 }
 
 impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
-    for error_stack::Result<T, hyperswitch_domain_models::errors::StorageError>
+    for error_stack::Result<T, errors::StorageError>
 {
     #[track_caller]
     fn to_not_found_response(
@@ -51,10 +51,8 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                hyperswitch_domain_models::errors::StorageError::ValueNotFound(_) => {
-                    not_found_response
-                }
-                hyperswitch_domain_models::errors::StorageError::CustomerRedacted => {
+                errors::StorageError::ValueNotFound(_) => not_found_response,
+                errors::StorageError::CustomerRedacted => {
                     errors::ApiErrorResponse::CustomerRedacted
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
@@ -70,48 +68,10 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                hyperswitch_domain_models::errors::StorageError::DuplicateValue { .. } => {
-                    duplicate_response
-                }
+                errors::StorageError::DuplicateValue { .. } => duplicate_response,
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(new_err)
-        })
-    }
-}
-
-impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
-    for error_stack::Result<T, errors::StorageError>
-{
-    #[track_caller]
-    fn to_not_found_response(
-        self,
-        not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
-        self.map_err(|err| {
-            if err.current_context().is_db_not_found() {
-                return err.change_context(not_found_response);
-            };
-            match err.current_context() {
-                errors::StorageError::CustomerRedacted => {
-                    err.change_context(errors::ApiErrorResponse::CustomerRedacted)
-                }
-                _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
-            }
-        })
-    }
-
-    #[track_caller]
-    fn to_duplicate_response(
-        self,
-        duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
-        self.map_err(|err| {
-            if err.current_context().is_db_unique_violation() {
-                err.change_context(duplicate_response)
-            } else {
-                err.change_context(errors::ApiErrorResponse::InternalServerError)
-            }
         })
     }
 }
