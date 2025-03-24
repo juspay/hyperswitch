@@ -223,6 +223,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         router_base_url,
         attempt,
         connector_id,
+        None,
     ));
 
     let webhook_url = Some(helpers::create_webhook_url(
@@ -284,12 +285,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         session_token: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
-        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+        payment_method_type: payment_data.payment_attempt.payment_method_subtype,
         router_return_url: Some(router_return_url),
         webhook_url,
         complete_authorize_url,
         customer_id: None,
         surcharge_details: None,
+        request_extended_authorization: None,
         request_incremental_authorization: matches!(
             payment_data
                 .payment_intent
@@ -606,7 +608,7 @@ pub async fn construct_router_data_for_psync<'a>(
         capture_method: Some(payment_intent.capture_method),
         connector_meta: attempt.connector_metadata.clone().expose_option(),
         sync_type: types::SyncRequestType::SinglePaymentSync,
-        payment_method_type: Some(attempt.payment_method_subtype),
+        payment_method_type: attempt.payment_method_subtype,
         currency: payment_intent.amount_details.currency,
         // TODO: Get the charges object from feature metadata
         split_payments: None,
@@ -901,6 +903,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         router_base_url,
         attempt,
         connector_id,
+        None,
     ));
 
     let webhook_url = Some(helpers::create_webhook_url(
@@ -959,7 +962,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         email,
         customer_name: None,
         return_url: Some(router_return_url),
-        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+        payment_method_type: payment_data.payment_attempt.payment_method_subtype,
         request_incremental_authorization: matches!(
             payment_data
                 .payment_intent
@@ -969,6 +972,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         metadata: payment_data.payment_intent.metadata,
         minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+        capture_method: Some(payment_data.payment_intent.capture_method),
+        complete_authorize_url,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1675,7 +1680,7 @@ where
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
-            payment_method_subtype: Some(payment_attempt.payment_method_subtype),
+            payment_method_subtype: payment_attempt.payment_method_subtype,
             next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
@@ -1779,7 +1784,7 @@ where
             payment_method_subtype: self
                 .payment_attempt
                 .as_ref()
-                .map(|attempt| attempt.payment_method_subtype),
+                .and_then(|attempt| attempt.payment_method_subtype),
             connector_transaction_id: self
                 .payment_attempt
                 .as_ref()
@@ -2281,6 +2286,8 @@ where
         let next_action_containing_wait_screen =
             wait_screen_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_invoke_hidden_frame = next_action_invoke_hidden_frame(&payment_attempt)?;
+
         if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
             || bank_transfer_next_steps.is_some()
             || next_action_voucher.is_some()
@@ -2373,7 +2380,14 @@ where
                                 }
                             },
                             None => None
-                        });
+                        })
+                        .or(match next_action_invoke_hidden_frame{
+                            Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
+                                threeds_invoke_data,
+                            )?),
+                            None => None
+
+        });
         };
 
         // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
@@ -2715,6 +2729,35 @@ pub fn wait_screen_next_steps_check(
     Ok(display_info_with_timer_instructions)
 }
 
+pub fn next_action_invoke_hidden_frame(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::PaymentsConnectorThreeDsInvokeData>> {
+    let connector_three_ds_invoke_data: Option<
+        Result<api_models::payments::PaymentsConnectorThreeDsInvokeData, _>,
+    > = payment_attempt
+        .connector_metadata
+        .clone()
+        .map(|metadata| metadata.parse_value("PaymentsConnectorThreeDsInvokeData"));
+
+    let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
+    Ok(three_ds_invoke_data)
+}
+
+pub fn construct_connector_invoke_hidden_frame(
+    connector_three_ds_invoke_data: api_models::payments::PaymentsConnectorThreeDsInvokeData,
+) -> RouterResult<api_models::payments::NextActionData> {
+    let iframe_data = api_models::payments::IframeData::ThreedsInvokeAndCompleteAutorize {
+        three_ds_method_data_submission: connector_three_ds_invoke_data
+            .three_ds_method_data_submission,
+        three_ds_method_data: Some(connector_three_ds_invoke_data.three_ds_method_data),
+        three_ds_method_url: connector_three_ds_invoke_data.three_ds_method_url,
+        directory_server_id: connector_three_ds_invoke_data.directory_server_id,
+        message_version: connector_three_ds_invoke_data.message_version,
+    };
+
+    Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
+}
+
 #[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
@@ -2868,7 +2911,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             )),
             created: pi.created_at,
             payment_method_type: pa.as_ref().and_then(|p| p.payment_method_type.into()),
-            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype.into()),
+            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype),
             connector: pa.as_ref().and_then(|p| p.connector.clone()),
             merchant_connector_id: pa.as_ref().and_then(|p| p.merchant_connector_id.clone()),
             customer: None,
@@ -3133,7 +3176,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
+
         let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
             .merchant_connector_id
@@ -3240,6 +3285,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(AuthenticationData::foreign_try_from)
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
+            request_extended_authorization: attempt.request_extended_authorization,
             split_payments,
             merchant_order_reference_id,
             integrity_object: None,
@@ -4036,6 +4082,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             &attempt.merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
 
         Ok(Self {
             currency: payment_data.currency,
@@ -4067,6 +4119,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
             webhook_url,
+            complete_authorize_url,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }
@@ -4159,6 +4213,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
         let braintree_metadata = payment_data
             .payment_intent
@@ -4202,6 +4257,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             customer_acceptance: payment_data.customer_acceptance,
             merchant_account_id,
             merchant_config_currency,
+            threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
         })
     }
 }
@@ -4273,6 +4329,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             router_base_url,
             attempt,
             connector_name,
+            payment_data.creds_identifier.as_deref(),
         ));
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
@@ -4284,7 +4341,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                 field_name: "browser_info",
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
-
         Ok(Self {
             payment_method_data,
             email: payment_data.email,

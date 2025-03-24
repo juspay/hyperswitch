@@ -72,10 +72,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
-use transformers::{
-    self as adyen, convert_payment_authorize_router_response,
-    convert_setup_mandate_router_data_to_authorize_router_data,
-};
+use transformers as adyen;
 
 #[cfg(feature = "payouts")]
 use crate::utils::PayoutsData as UtilsPayoutData;
@@ -86,7 +83,11 @@ use crate::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
         SubmitEvidenceRouterData,
     },
-    utils::{self as connector_utils, is_mandate_supported, ForeignTryFrom, PaymentMethodDataType},
+    utils::{
+        self as connector_utils, convert_payment_authorize_router_response,
+        convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
+        ForeignTryFrom, PaymentMethodDataType,
+    },
 };
 const ADYEN_API_VERSION: &str = "v68";
 

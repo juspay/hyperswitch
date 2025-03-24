@@ -1563,6 +1563,7 @@ pub enum RSyncStatus {
     RefundPendingSettlement,
     Declined,
     GeneralError,
+    Voided,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1616,7 +1617,9 @@ impl From<RSyncStatus> for enums::RefundStatus {
         match transaction_status {
             RSyncStatus::RefundSettledSuccessfully => Self::Success,
             RSyncStatus::RefundPendingSettlement => Self::Pending,
-            RSyncStatus::Declined | RSyncStatus::GeneralError => Self::Failure,
+            RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
+                Self::Failure
+            }
         }
     }
 }
