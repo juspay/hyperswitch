@@ -691,15 +691,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "econtext_seven_eleven")]
     SevenEleven(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
-    Lawson(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    MiniStop(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    FamilyMart(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    Seicomart(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    PayEasy(Box<JCSVoucherData>),
+    JapaneseConvenienceStores (Box<JCSVoucherData>),
     Pix,
     #[serde(rename = "networkToken")]
     NetworkToken(Box<AdyenNetworkTokenData>),
@@ -1965,19 +1957,19 @@ impl TryFrom<(&VoucherData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMetho
             VoucherData::SevenEleven(_) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::Lawson(_) => Ok(AdyenPaymentMethod::Lawson(Box::new(
+            VoucherData::Lawson(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::MiniStop(_) => Ok(AdyenPaymentMethod::MiniStop(Box::new(
+            VoucherData::MiniStop(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::FamilyMart(_) => Ok(AdyenPaymentMethod::FamilyMart(Box::new(
+            VoucherData::FamilyMart(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::Seicomart(_) => Ok(AdyenPaymentMethod::Seicomart(Box::new(
+            VoucherData::Seicomart(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+            VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
             VoucherData::Efecty
