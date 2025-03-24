@@ -388,6 +388,7 @@ pub async fn construct_refund_router_data<'a, F>(
             minor_payment_amount: payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
+            refund_connector_metadata: refund.metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_types::primitive_wrappers;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -361,6 +362,7 @@ pub struct PaymentMethodBalance {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+    extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
     pub overcapture_data: Option<OverCaptureData>,
 }
 
@@ -370,8 +372,14 @@ impl ConnectorResponseData {
     ) -> Self {
         Self {
             additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
             overcapture_data: None,
         }
+    }
+    pub fn get_extended_authorization_response_data(
+        &self,
+    ) -> Option<&ExtendedAuthorizationResponseData> {
+        self.extended_authorization_response_data.as_ref()
     }
 }
 
@@ -392,6 +400,13 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExtendedAuthorizationResponseData {
+    pub extended_authentication_applied:
+        Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
