@@ -7727,6 +7727,7 @@
           "rapyd",
           "razorpay",
           "recurly",
+          "redsys",
           "shift4",
           "square",
           "stax",
@@ -8911,6 +8912,11 @@
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
+          },
+          "connector_customer_ids": {
+            "type": "object",
+            "description": "Connector specific customer reference ids",
+            "nullable": true
           },
           "name": {
             "type": "string",
@@ -11193,6 +11199,52 @@
           }
         }
       },
+      "IframeData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_url",
+              "three_ds_method_data_submission",
+              "directory_server_id",
+              "method_key"
+            ],
+            "properties": {
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url"
+              },
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data",
+                "nullable": true
+              },
+              "directory_server_id": {
+                "type": "string",
+                "description": "ThreeDS Server ID"
+              },
+              "message_version": {
+                "type": "string",
+                "description": "ThreeDS Protocol version",
+                "nullable": true
+              },
+              "method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "method_key"
+        }
+      },
       "IncrementalAuthorizationResponse": {
         "type": "object",
         "required": [
@@ -13044,6 +13096,25 @@
                 "type": "string",
                 "enum": [
                   "collect_otp"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains data required to invoke hidden iframe",
+            "required": [
+              "iframe_data",
+              "type"
+            ],
+            "properties": {
+              "iframe_data": {
+                "$ref": "#/components/schemas/IframeData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_hidden_iframe"
                 ]
               }
             }
@@ -16195,6 +16266,14 @@
           "client_secret": {
             "type": "string",
             "description": "Client Secret"
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20553,6 +20632,7 @@
           "rapyd",
           "razorpay",
           "recurly",
+          "redsys",
           "riskified",
           "shift4",
           "signifyd",

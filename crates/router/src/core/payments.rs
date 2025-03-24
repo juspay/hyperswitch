@@ -2419,6 +2419,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                         api_models::payments::NextActionData::CollectOtp{ .. } => None,
+                        api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -3027,7 +3028,13 @@ where
 
     operation
         .to_domain()?
-        .populate_payment_data(state, payment_data, merchant_account)
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_account,
+            business_profile,
+            &connector,
+        )
         .await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
@@ -4548,7 +4555,9 @@ where
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
-            } else if connector.connector_name == router_types::Connector::Xendit {
+            } else if connector.connector_name == router_types::Connector::Xendit
+                && is_operation_confirm(&operation)
+            {
                 match payment_data.get_payment_intent().split_payments {
                     Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                         common_types::payments::XenditSplitRequest::MultipleSplits(_),
@@ -4559,6 +4568,28 @@ where
                     }
                     _ => (router_data, should_continue_payment),
                 }
+            } else if connector.connector_name == router_types::Connector::Redsys
+                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && is_operation_confirm(&operation)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let should_continue = match router_data.response {
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        ref connector_metadata,
+                        ..
+                    }) => {
+                        let three_ds_invoke_data: Option<
+                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
+                        > = connector_metadata.clone().and_then(|metadata| {
+                            metadata
+                                .parse_value("PaymentsConnectorThreeDsInvokeData")
+                                .ok() // "ThreeDsInvokeData was not found; proceeding with the payment flow without triggering the ThreeDS invoke action"
+                        });
+                        three_ds_invoke_data.is_none()
+                    }
+                    _ => false,
+                };
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -5337,6 +5368,7 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -5552,7 +5584,6 @@ pub async fn list_payments(
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = merchant.get_id();
     let db = state.store.as_ref();
@@ -5580,7 +5611,10 @@ pub async fn list_payments(
             {
                 Ok(pa) => Some(Ok((pi, pa))),
                 Err(error) => {
-                    if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
+                    if matches!(
+                        error.current_context(),
+                        errors::StorageError::ValueNotFound(_)
+                    ) {
                         logger::warn!(
                             ?error,
                             "payment_attempts missing for payment_id : {:?}",
