@@ -878,6 +878,8 @@ pub struct DataResponse {
 pub struct RefundInputData {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<String>,
 }
 #[derive(Serialize, Debug, Clone)]
 struct IdFilter {
@@ -931,6 +933,7 @@ impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundR
                 refund: RefundInputData {
                     amount: item.amount,
                     merchant_account_id: metadata.merchant_account_id,
+                    order_id: item.router_data.refund_id.clone(),
                 },
             },
         };
