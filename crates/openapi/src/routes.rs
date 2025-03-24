@@ -19,3 +19,4 @@ pub mod refunds;
 pub mod relay;
 pub mod routing;
 pub mod webhook_events;
+pub mod revenue_recovery;

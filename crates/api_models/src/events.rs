@@ -11,6 +11,7 @@ pub mod payouts;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refund;
+#[cfg(feature = "v2")]
 pub mod revenue_recovery;
 pub mod routing;
 pub mod user;

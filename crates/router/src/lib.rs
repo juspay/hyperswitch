@@ -185,8 +185,7 @@ pub fn mk_app(
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
-            .service(routes::Routing::server(state.clone()))
-            .service(routes::ProcessTracker::server(state.clone()));
+            .service(routes::Routing::server(state.clone()));
 
         #[cfg(feature = "v1")]
         {
@@ -202,6 +201,11 @@ pub fn mk_app(
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
                 .service(routes::FeatureMatrix::server(state.clone()));
+        }
+
+        #[cfg(feature = "v2")]
+        {
+            server_app = server_app.service(routes::ProcessTracker::server(state.clone()));
         }
     }
 

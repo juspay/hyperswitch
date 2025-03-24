@@ -1,9 +1,6 @@
 pub mod transformers;
 pub mod types;
-use api_models::{
-    payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest},
-    process_tracker::revenue_recovery,
-};
+use api_models::{payments::PaymentsRetrieveRequest, process_tracker::revenue_recovery};
 use common_utils::{
     self,
     ext_traits::{OptionExt, ValueExt},
@@ -14,7 +11,6 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
-    behaviour::ReverseConversion,
     payments::{PaymentIntent, PaymentStatusData},
     ApiModelToDieselModelConvertor,
 };
@@ -31,7 +27,6 @@ use crate::{
     routes::{metrics, SessionState},
     types::{
         api,
-        domain::MerchantKeyStore,
         storage::{self, revenue_recovery as pcr},
         transformers::ForeignInto,
     },
@@ -239,7 +234,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
     let db = &*state.store;
     let task = EXECUTE_WORKFLOW;
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-    let process_tracker_id = format!("{runner}_{task}_{}", id.get_string_repr());
+    let process_tracker_id = id.get_execute_revenue_recovery_id(task, runner);
 
     let process_tracker = db
         .find_process_by_id(&process_tracker_id)
@@ -259,7 +254,9 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
 
     let psync_task = PSYNC_WORKFLOW;
-
+    tracking_data
+        .payment_attempt_id
+        .get_psync_revenue_recovery_id(task, runner);
     let process_tracker_id_for_psync = format!(
         "{runner}_{psync_task}_{}",
         tracking_data.payment_attempt_id.get_string_repr()

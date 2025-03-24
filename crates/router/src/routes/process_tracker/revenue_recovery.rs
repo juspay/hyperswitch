@@ -5,10 +5,7 @@ use crate::{
 };
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::process_tracker::revenue_recovery as revenue_recovery_api;
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::Flow;
 
 pub async fn revenue_recovery_pt_retrieve_api(
     state: web::Data<AppState>,
@@ -33,7 +30,7 @@ pub async fn revenue_recovery_pt_retrieve_api(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantProcessTrackerRead,
+            permission: Permission::MerchantRevenueRecoveryRead,
         },
         api_locking::LockAction::NotApplicable,
     ))

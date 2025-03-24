@@ -6979,7 +6979,7 @@ pub enum Resource {
     ReconReports,
     RunRecon,
     ReconConfig,
-    ProcessTracker,
+    RevenueRecovery,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -7829,6 +7829,7 @@ pub enum TriggeredBy {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -7846,6 +7847,30 @@ pub enum ProcessTrackerStatus {
     Finish,
     // Review the task
     Review,
+}
+
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProcessTrackerRunner {
+    PaymentsSyncWorkflow,
+    RefundWorkflowRouter,
+    DeleteTokenizeDataWorkflow,
+    ApiKeyExpiryWorkflow,
+    OutgoingWebhookRetryWorkflow,
+    AttachPayoutAccountWorkflow,
+    PaymentMethodStatusUpdateWorkflow,
+    PassiveRecoveryWorkflow,
 }
 
 #[derive(Debug)]
