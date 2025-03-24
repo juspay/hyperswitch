@@ -62,8 +62,8 @@ use time::Duration;
 use super::{
     errors::{RouterResponse, StorageErrorExt},
     pm_auth,
-    payments::tokenization,
 };
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     consts,
@@ -84,7 +84,15 @@ use crate::{
     },
     utils::ext_traits::OptionExt,
 };
+
+#[cfg(feature = "v2")]
+use super:: {
+    payments::tokenization,
+};
+
+#[cfg(feature = "v1")]
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments::helpers as payment_helpers,
@@ -2800,9 +2808,9 @@ async fn create_single_use_tokenization_flow(
 
 
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
-        token.clone(), 
-        connector_id.clone()
-    );
+                                                       token.clone(),
+                                                connector_id.clone()
+                                            );
         
     let key = payment_method_data::SingleUseToken::new(payment_method.id.get_string_repr());
         
