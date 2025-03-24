@@ -65,6 +65,12 @@ pub trait RoutingAlgorithmInterface {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
+
+    async fn find_surcharge_algorithm_by_profile_id_algorithm_id(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        algorithm_id: &common_utils::id_type::SurchargeRoutingId,
+    ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 }
 
 #[async_trait::async_trait]
@@ -200,6 +206,21 @@ impl RoutingAlgorithmInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
+
+    async fn find_surcharge_algorithm_by_profile_id_algorithm_id(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        algorithm_id: &common_utils::id_type::SurchargeRoutingId,
+    ) -> StorageResult<routing_storage::RoutingAlgorithm> {
+        let conn = connection::pg_connection_write(self).await?;
+        routing_storage::RoutingAlgorithm::find_by_algorithm_id_profile_id(
+            &conn,
+            algorithm_id,
+            profile_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -270,6 +291,14 @@ impl RoutingAlgorithmInterface for MockDb {
         _limit: i64,
         _offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_surcharge_algorithm_by_profile_id_algorithm_id(
+        &self,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _algorithm_id: &common_utils::id_type::SurchargeRoutingId,
+    ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         Err(errors::StorageError::MockDbError)?
     }
 }

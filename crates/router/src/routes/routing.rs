@@ -9,6 +9,7 @@ use router_env::{
     tracing::{self, instrument},
     Flow,
 };
+
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
@@ -721,7 +722,7 @@ pub async fn retrieve_linked_surcharge_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id,
+            profile_id: query.profile_id,
             required_permission: Permission::ProfileRoutingRead,
         },
         api_locking::LockAction::NotApplicable,
@@ -755,7 +756,7 @@ pub async fn list_surcharge_decision_manager_configs(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::MerchantSurchargeDecisionManagerRead,
+                permission: Permission::ProfileSurchargeDecisionManagerRead,
             },
             req.headers(),
         ),

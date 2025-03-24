@@ -3105,6 +3105,16 @@ impl RoutingAlgorithmInterface for KafkaStore {
             )
             .await
     }
+
+    async fn find_surcharge_algorithm_by_profile_id_algorithm_id(
+        &self,
+        profile_id: &id_type::ProfileId,
+        algorithm_id: &id_type::SurchargeRoutingId,
+    ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
+        self.diesel_store
+            .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
