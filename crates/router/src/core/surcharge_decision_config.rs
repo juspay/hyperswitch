@@ -3,7 +3,8 @@ use api_models::{
     routing::{self, RoutingKind},
     surcharge_decision_configs::{
         SurchargeConfigResponse, SurchargeDecisionConfigReq, SurchargeDecisionManagerConfig,
-        SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse, SurchargeRecord, SurchargeDecisionManagerReq,
+        SurchargeDecisionManagerRecord, SurchargeDecisionManagerReq,
+        SurchargeDecisionManagerResponse, SurchargeRecord,
     },
 };
 use common_enums::AlgorithmType;
@@ -236,11 +237,11 @@ pub async fn list_surcharge_decision_configs(
     offset: i64,
     algorithm_type: AlgorithmType,
 ) -> RouterResponse<RoutingKind> {
-    let profile_id = profile_id
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+    let profile_id = profile_id.get_required_value("profile_id").change_context(
+        errors::ApiErrorResponse::MissingRequiredField {
             field_name: "profile_id",
-        })?;
+        },
+    )?;
 
     let db = state.store.as_ref();
 
@@ -414,7 +415,7 @@ pub async fn link_surcharge_decision_config(
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "profile_id",
         })?;
-        
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -432,24 +433,25 @@ pub async fn link_surcharge_decision_config(
     })?;
 
     let record = db
-            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     let surcharge_algorithm_id = SurchargeRoutingId(algorithm_id);
     let profile_update = ProfileUpdate::ActiveSurchargeIdUpdate {
         active_surcharge_algorithm_id: Some(surcharge_algorithm_id),
     };
 
-    let updated_profile = db.update_profile_by_profile_id(
-        key_manager_state,
-        &key_store,
-        business_profile,
-        profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update active surcharge algorithm ID")?;
+    let updated_profile = db
+        .update_profile_by_profile_id(
+            key_manager_state,
+            &key_store,
+            business_profile,
+            profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update active surcharge algorithm ID")?;
 
     let response = if let Some(active_surcharge_algorithm_id) =
         updated_profile.active_surcharge_algorithm_id
