@@ -191,6 +191,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             force_3ds_challenge: item.force_3ds_challenge,
+            is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
+            merchant_business_country: item.merchant_business_country,
         })
     }
 }
@@ -266,6 +268,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .card_testing_guard_config
                 .map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+            is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
+            merchant_business_country: item.merchant_business_country,
         })
     }
 }

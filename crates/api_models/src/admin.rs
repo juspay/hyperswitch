@@ -2272,6 +2272,14 @@ pub struct ProfileResponse {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: bool,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v2")]
@@ -2402,6 +2410,14 @@ pub struct ProfileResponse {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: bool,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
