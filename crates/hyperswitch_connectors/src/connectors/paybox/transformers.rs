@@ -1198,7 +1198,9 @@ impl
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let transaction_type = match item.router_data.request.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => {
                 Ok(MANDATE_AUTH_AND_CAPTURE_ONLY.to_string())
             }
             Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),

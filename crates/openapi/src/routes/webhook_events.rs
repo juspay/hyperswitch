@@ -47,7 +47,7 @@
         ),
     ),
     responses(
-        (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
+        (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
     ),
     tag = "Event",
     operation_id = "List all Events associated with a Merchant Account or Profile",
