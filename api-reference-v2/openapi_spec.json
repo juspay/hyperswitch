@@ -2983,7 +2983,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentMethodSessionDelete"
+                "$ref": "#/components/schemas/PaymentMethodSessionDeleteSavedPaymentMethod"
               },
               "examples": {
                 "Update the card holder name": {

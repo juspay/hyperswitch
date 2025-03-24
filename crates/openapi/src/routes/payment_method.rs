@@ -455,7 +455,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
     request_body(
-        content = PaymentMethodSessionDelete,
+        content = PaymentMethodSessionDeleteSavedPaymentMethod,
             examples(( "Update the card holder name" = (
                 value =json!( {
                     "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3",
