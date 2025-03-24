@@ -1689,6 +1689,18 @@ pub async fn vault_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get fingerprint_id from vault")?;
 
+
+    let seconday_payment_method_data = match pmd {
+        domain::PaymentMethodVaultingData::Card(card) => card.card_number.get_card_no(),
+        domain::PaymentMethodVaultingData::NetworkToken(network_token) => None,
+    };
+
+    // get fingerprint_id for secondary id/ card number
+    let fingerprint_id_from_vault_for_seconday_id = vault::get_fingerprint_id_from_vault( state, &seconday_payment_method_data.clone(), customer_id.get_string_repr().to_owned() )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get fingerprint_id from vault")?;
+
     // throw back error if payment method is duplicated
     when(
         db.find_payment_method_by_fingerprint_id(
