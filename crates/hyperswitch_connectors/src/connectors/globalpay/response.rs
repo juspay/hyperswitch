@@ -364,19 +364,6 @@ pub enum Brand {
     Visa,
 }
 
-/// If enabled, this field indicates whether the payment method has been seen before or is
-/// new.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FingerprintPresenceIndicator {
-    ///  Indicates that the payment method was seen on the platform before by this
-    /// merchant.
-    Exists,
-    /// Indicates that the payment method was not seen on the platform before by this
-    /// merchant.
-    New,
-}
-
 /// Indicates where a transaction is in its lifecycle.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
