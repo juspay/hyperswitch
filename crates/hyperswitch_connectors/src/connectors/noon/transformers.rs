@@ -12,10 +12,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, RefundsRouterData,PaymentsCompleteAuthorizeRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
     },
 };
-
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -478,7 +477,7 @@ pub struct NoonData {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NoonQueryData{
+pub struct NoonQueryData {
     status: String,
     #[serde(rename = "PayerID")]
     payer_id: Option<Secret<String>>,
@@ -488,7 +487,7 @@ pub struct NoonQueryData{
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaypalQueryData{
+pub struct PaypalQueryData {
     status: String,
     #[serde(rename = "PayerID")]
     payer_id: Option<Secret<String>>,
@@ -509,44 +508,47 @@ impl TryFrom<&NoonRouterData<&PaymentsCompleteAuthorizeRouterData>>
         item: &NoonRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let params = item
-        .router_data
-        .request
-        .redirect_response
-        .as_ref()
-        .and_then(|redirect_response| redirect_response.params.as_ref())
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .router_data
+            .request
+            .redirect_response
+            .as_ref()
+            .and_then(|redirect_response| redirect_response.params.as_ref())
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let query_params: PaypalQueryData = serde_urlencoded::from_str(params.peek())
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .attach_printable("Failed to parse connector response")?;
 
-            let payer_id = query_params.payer_id;
-            let token = query_params.token;
-            let payment_id = query_params.token;
-            let status = query_params.status;
-            let payment_method_type = NoonPaymentMethodType::Paypal;
+        let payer_id = query_params.payer_id;
+        let token = query_params.token;
+        let payment_id = query_params.token;
+        let status = query_params.status;
+        let payment_method_type = NoonPaymentMethodType::Paypal;
 
-            let order = NoonCompleteOrder {
-                id: item.router_data.request.connector_transaction_id.parse().unwrap(),
-            };
-            Ok(Self {
-                api_operation: NoonApiOperations::ProcessAuthentication,
-                order,
-                payment_data: NoonCompletePaymentData {
-                    payment_method_type,
-                    data: NoonData {
-                        method: Method::Get,
-                        query_data: NoonQueryData {
-                            status,
-                            payer_id,
-                            payment_id,
-                            token,
-                        },
+        let order = NoonCompleteOrder {
+            id: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .parse()
+                .unwrap(),
+        };
+        Ok(Self {
+            api_operation: NoonApiOperations::ProcessAuthentication,
+            order,
+            payment_data: NoonCompletePaymentData {
+                payment_method_type,
+                data: NoonData {
+                    method: Method::Get,
+                    query_data: NoonQueryData {
+                        status,
+                        payer_id,
+                        payment_id,
+                        token,
                     },
                 },
-            })
-
-
+            },
+        })
     }
 }
 
@@ -616,14 +618,13 @@ fn get_payment_status(data: (NoonPaymentStatus, AttemptStatus)) -> AttemptStatus
         NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => {
             AttemptStatus::AuthenticationFailed
         }
-        NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked | NoonPaymentStatus::PaymentInfoAdded => {
-            AttemptStatus::AuthenticationPending
-        }
+        NoonPaymentStatus::ThreeDsEnrollInitiated
+        | NoonPaymentStatus::ThreeDsEnrollChecked
+        | NoonPaymentStatus::PaymentInfoAdded => AttemptStatus::AuthenticationPending,
         NoonPaymentStatus::ThreeDsResultVerified => AttemptStatus::AuthenticationSuccessful,
         NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => AttemptStatus::Failure,
         NoonPaymentStatus::Pending | NoonPaymentStatus::MarkedForReview => AttemptStatus::Pending,
-        NoonPaymentStatus::Initiated
-        | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
+        NoonPaymentStatus::Initiated | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
         NoonPaymentStatus::Locked => current_status,
     }
 }
@@ -695,7 +696,6 @@ pub struct PaypalData {
     url: url::Url,
 }
 
-
 impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -714,10 +714,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
         //             method: Method::Post,
         //             form_fields: std::collections::HashMap::new(),
         //         });
-        let redirection_data =
-            item.response
-                .result
-                .payment_data.map(|redirection_data| redirection_data.data.url);
+        let redirection_data = item
+            .response
+            .result
+            .payment_data
+            .map(|redirection_data| redirection_data.data.url);
         println!("$$$$ Redirection Data: {:?}", redirection_data);
         let mandate_reference =
             item.response
@@ -748,7 +749,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(order.id.to_string()),
                         redirection_data: Box::new(Some(RedirectForm::from((
-                            redirection_data.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                            redirection_data
+                                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                             Method::Get,
                         )))),
                         mandate_reference: Box::new(mandate_reference),

@@ -22,14 +22,16 @@ use hyperswitch_domain_models::{
         CompleteAuthorize,
     },
     router_request_types::{
-        AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData},
     types::{
-        MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -41,8 +43,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        MandateRevokeType, PaymentsAuthorizeType, PaymentsCaptureType,PaymentsCompleteAuthorizeType, PaymentsSyncType,
-        PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
+        MandateRevokeType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
+        RefundSyncType, Response,
     },
     webhooks,
 };
@@ -303,9 +306,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = noon::NoonRouterData::from((amount, req, mandate_amount));
         let connector_req = noon::NoonPaymentsRequest::try_from(&connector_router_data)?;
         let printrequest =
-        common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    println!("$$$$$ auth req {:?}", printrequest);
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ auth req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -372,9 +375,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
 impl api::PaymentCompleteAuthorize for Noon {}
 
-impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
-    for Noon
-{
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData> for Noon {
     fn get_headers(
         &self,
         req: &PaymentsCompleteAuthorizeRouterData,
@@ -444,29 +445,31 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         ))
     }
 
- fn handle_response(
-         &self,
-         data: &RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
-         event_builder: Option<&mut ConnectorEvent>,
-         res: Response,
-     ) -> CustomResult<RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>, errors::ConnectorError>
-     where
-         CompleteAuthorize: Clone,
-         CompleteAuthorizeData: Clone,
-         PaymentsResponseData: Clone, {
-            let response: noon::NoonPaypalResponse = res
-                .response
-                .parse_struct("Noon NoonPaypalResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    fn handle_response(
+        &self,
+        data: &RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        CompleteAuthorize: Clone,
+        CompleteAuthorizeData: Clone,
+        PaymentsResponseData: Clone,
+    {
+        let response: noon::NoonPaypalResponse = res
+            .response
+            .parse_struct("Noon NoonPaypalResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-            RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-
- }
-
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Noon {
