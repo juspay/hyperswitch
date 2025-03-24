@@ -5,20 +5,21 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        get_unimplemented_payment_method_error_message, CardData, RouterData as OtherRouterData,
+        get_unimplemented_payment_method_error_message, CardData, PaymentsAuthorizeRequestData,
+        RouterData as OtherRouterData,
     },
 };
 pub struct JpmorganRouterData<T> {
@@ -76,7 +77,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessTo
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganPaymentsRequest {
     capture_method: CapMethod,
@@ -84,19 +85,44 @@ pub struct JpmorganPaymentsRequest {
     currency: common_enums::Currency,
     merchant: JpmorganMerchant,
     payment_method_type: JpmorganPaymentMethodType,
+    initiator_type: Option<JpmorganInitiatorType>,
+    account_on_file: Option<AccountOnFile>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganInitiatorType {
+    Merchant,
+    Cardholder,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AccountOnFile {
+    NotStored,
+    Stored,
+    ToBeStored,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCard {
-    account_number: Secret<String>,
+    account_number: cards::CardNumber,
     expiry: Expiry,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum JpmorganCardData {
+    Card(JpmorganCard),
+    OriginalNetworkTransactionId(String),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganPaymentMethodType {
-    card: JpmorganCard,
+    card: JpmorganCardData,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -163,14 +189,25 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                     year: req_card.get_expiry_year_4_digit(),
                 };
 
-                let account_number = Secret::new(req_card.card_number.to_string());
 
-                let card = JpmorganCard {
-                    account_number,
+                let card = JpmorganCardData::Card(JpmorganCard {
+                    account_number: req_card.card_number.clone(),
                     expiry,
-                };
+                });
 
                 let payment_method_type = JpmorganPaymentMethodType { card };
+
+                let (initiator_type, account_on_file) = match item
+                    .router_data
+                    .request
+                    .is_customer_initiated_mandate_payment()
+                {
+                    true => (
+                        Some(JpmorganInitiatorType::Cardholder),
+                        Some(AccountOnFile::ToBeStored),
+                    ),
+                    false => (None, None),
+                };
 
                 Ok(Self {
                     capture_method: capture_method?,
@@ -178,6 +215,55 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                     amount: item.amount,
                     merchant,
                     payment_method_type,
+                    initiator_type,
+                    account_on_file,
+                })
+            }
+            PaymentMethodData::MandatePayment => {
+                let capture_method =
+                    map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
+
+                let merchant_software = JpmorganMerchantSoftware {
+                    company_name: String::from("JPMC").into(),
+                    product_name: String::from("Hyperswitch").into(),
+                };
+
+                let merchant = JpmorganMerchant { merchant_software };
+
+
+                let jp_morgan_pm_data = JpmorganCardData::OriginalNetworkTransactionId(
+                    item
+                        .router_data
+                        .request
+                        .connector_mandate_id()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                        })?
+                        .into(),
+                );
+
+                let payment_method_type = JpmorganPaymentMethodType { card: jp_morgan_pm_data };
+
+                let (initiator_type, account_on_file) = match item
+                    .router_data
+                    .request
+                    .is_customer_initiated_mandate_payment()
+                {
+                    true => (
+                        Some(JpmorganInitiatorType::Cardholder),
+                        Some(AccountOnFile::ToBeStored),
+                    ),
+                    false => (None, None),
+                };
+
+                Ok(Self {
+                    capture_method: capture_method?,
+                    currency: item.router_data.request.currency,
+                    amount: item.amount,
+                    merchant,
+                    payment_method_type,
+                    initiator_type,
+                    account_on_file,
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
@@ -188,7 +274,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
+            // | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
@@ -283,7 +369,6 @@ pub struct PaymentMethodType {
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    expiry: Option<ExpiryResponse>,
     card_type: Option<Secret<String>>,
     card_type_name: Option<Secret<String>>,
     masked_account_number: Option<Secret<String>>,
@@ -297,13 +382,7 @@ pub struct NetworkResponse {
     address_verification_result: Option<Secret<String>>,
     address_verification_result_code: Option<Secret<String>>,
     card_verification_result_code: Option<Secret<String>>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExpiryResponse {
-    month: Option<Secret<i32>>,
-    year: Option<Secret<i32>>,
+    network_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -349,6 +428,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
         };
         let status = attempt_status_from_transaction_state(transaction_state);
 
+        let mandate_id = item
+        .response
+        .payment_method_type
+        .card
+        .as_ref()
+        .and_then(|card| card.network_response.as_ref())
+        .and_then(|network| network.network_transaction_id.as_ref())
+        .map(|secret| secret.peek().to_string());
+
+    println!("Mandate ID: {:?}", mandate_id);
+
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -356,7 +446,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
                     item.response.transaction_id.clone(),
                 ),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: mandate_id,
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
