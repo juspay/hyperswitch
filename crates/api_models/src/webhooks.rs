@@ -309,11 +309,11 @@ impl ObjectReferenceId {
                     field_name: "AdditionalRevenueRecoveryId is required but received InvoiceId",
                 },
             ),
-            // Self::AdditionalRevenueRecoveryId(variant) => Err(
-            //     common_utils::errors::ValidationError::IncorrectValueProvided {
-            //         field_name: format!("AdditionalRevenueRecoveryId of type AdditionalRevenueRecoveryCallId is required but received {:?}", variant).as_str(),
-            //     },
-            // )
+            Self::AdditionalRevenueRecoveryId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "AdditionalRevenueRecoveryId of type AdditionalRevenueRecoveryCallId is required but received other variant",
+                },
+            )
         }
     }
 }
