@@ -15314,18 +15314,13 @@
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
-          "id",
-          "deleted"
+          "id"
         ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "Whether payment method was deleted or not"
           }
         }
       },

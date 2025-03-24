@@ -2094,10 +2094,7 @@ pub async fn delete_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
-    let response = api::PaymentMethodDeleteResponse {
-        id: pm_id,
-        deleted: true,
-    };
+    let response = api::PaymentMethodDeleteResponse { id: pm_id };
 
     Ok(response)
 }

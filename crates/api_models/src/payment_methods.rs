@@ -1946,9 +1946,6 @@ pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
-
-    /// Whether payment method was deleted or not
-    pub deleted: bool,
 }
 
 #[cfg(feature = "v1")]
