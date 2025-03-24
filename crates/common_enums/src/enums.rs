@@ -1,14 +1,15 @@
+mod accounts;
 mod payments;
 mod ui;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use accounts::MerchantProductType;
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::RoutableConnectors;
-
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -428,6 +429,9 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Represents billing processors that handle subscription management, invoicing,
+    /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
+    BillingProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -497,10 +501,12 @@ pub enum Currency {
     CAD,
     CDF,
     CHF,
+    CLF,
     CLP,
     CNY,
     COP,
     CRC,
+    CUC,
     CUP,
     CVE,
     CZK,
@@ -596,6 +602,7 @@ pub enum Currency {
     SOS,
     SRD,
     SSP,
+    STD,
     STN,
     SVC,
     SYP,
@@ -707,9 +714,11 @@ impl Currency {
             Self::CAD => "124",
             Self::CDF => "976",
             Self::CHF => "756",
+            Self::CLF => "990",
             Self::CLP => "152",
             Self::COP => "170",
             Self::CRC => "188",
+            Self::CUC => "931",
             Self::CUP => "192",
             Self::CVE => "132",
             Self::CZK => "203",
@@ -806,6 +815,7 @@ impl Currency {
             Self::SOS => "706",
             Self::SRD => "968",
             Self::SSP => "728",
+            Self::STD => "678",
             Self::STN => "930",
             Self::SVC => "222",
             Self::SYP => "760",
@@ -885,9 +895,11 @@ impl Currency {
             | Self::CAD
             | Self::CDF
             | Self::CHF
+            | Self::CLF
             | Self::CNY
             | Self::COP
             | Self::CRC
+            | Self::CUC
             | Self::CUP
             | Self::CVE
             | Self::CZK
@@ -974,6 +986,7 @@ impl Currency {
             | Self::SOS
             | Self::SRD
             | Self::SSP
+            | Self::STD
             | Self::STN
             | Self::SVC
             | Self::SYP
@@ -1033,10 +1046,12 @@ impl Currency {
             | Self::CAD
             | Self::CDF
             | Self::CHF
+            | Self::CLF
             | Self::CLP
             | Self::CNY
             | Self::COP
             | Self::CRC
+            | Self::CUC
             | Self::CUP
             | Self::CVE
             | Self::CZK
@@ -1127,6 +1142,7 @@ impl Currency {
             | Self::SOS
             | Self::SRD
             | Self::SSP
+            | Self::STD
             | Self::STN
             | Self::SVC
             | Self::SYP
@@ -1159,11 +1175,178 @@ impl Currency {
         }
     }
 
+    pub fn is_four_decimal_currency(self) -> bool {
+        match self {
+            Self::CLF => true,
+            Self::AED
+            | Self::AFN
+            | Self::ALL
+            | Self::AMD
+            | Self::AOA
+            | Self::ANG
+            | Self::ARS
+            | Self::AUD
+            | Self::AWG
+            | Self::AZN
+            | Self::BAM
+            | Self::BBD
+            | Self::BDT
+            | Self::BGN
+            | Self::BHD
+            | Self::BIF
+            | Self::BMD
+            | Self::BND
+            | Self::BOB
+            | Self::BRL
+            | Self::BSD
+            | Self::BTN
+            | Self::BWP
+            | Self::BYN
+            | Self::BZD
+            | Self::CAD
+            | Self::CDF
+            | Self::CHF
+            | Self::CLP
+            | Self::CNY
+            | Self::COP
+            | Self::CRC
+            | Self::CUC
+            | Self::CUP
+            | Self::CVE
+            | Self::CZK
+            | Self::DJF
+            | Self::DKK
+            | Self::DOP
+            | Self::DZD
+            | Self::EGP
+            | Self::ERN
+            | Self::ETB
+            | Self::EUR
+            | Self::FJD
+            | Self::FKP
+            | Self::GBP
+            | Self::GEL
+            | Self::GHS
+            | Self::GIP
+            | Self::GMD
+            | Self::GNF
+            | Self::GTQ
+            | Self::GYD
+            | Self::HKD
+            | Self::HNL
+            | Self::HRK
+            | Self::HTG
+            | Self::HUF
+            | Self::IDR
+            | Self::ILS
+            | Self::INR
+            | Self::IQD
+            | Self::IRR
+            | Self::ISK
+            | Self::JMD
+            | Self::JOD
+            | Self::JPY
+            | Self::KES
+            | Self::KGS
+            | Self::KHR
+            | Self::KMF
+            | Self::KPW
+            | Self::KRW
+            | Self::KWD
+            | Self::KYD
+            | Self::KZT
+            | Self::LAK
+            | Self::LBP
+            | Self::LKR
+            | Self::LRD
+            | Self::LSL
+            | Self::LYD
+            | Self::MAD
+            | Self::MDL
+            | Self::MGA
+            | Self::MKD
+            | Self::MMK
+            | Self::MNT
+            | Self::MOP
+            | Self::MRU
+            | Self::MUR
+            | Self::MVR
+            | Self::MWK
+            | Self::MXN
+            | Self::MYR
+            | Self::MZN
+            | Self::NAD
+            | Self::NGN
+            | Self::NIO
+            | Self::NOK
+            | Self::NPR
+            | Self::NZD
+            | Self::OMR
+            | Self::PAB
+            | Self::PEN
+            | Self::PGK
+            | Self::PHP
+            | Self::PKR
+            | Self::PLN
+            | Self::PYG
+            | Self::QAR
+            | Self::RON
+            | Self::RSD
+            | Self::RUB
+            | Self::RWF
+            | Self::SAR
+            | Self::SBD
+            | Self::SCR
+            | Self::SDG
+            | Self::SEK
+            | Self::SGD
+            | Self::SHP
+            | Self::SLE
+            | Self::SLL
+            | Self::SOS
+            | Self::SRD
+            | Self::SSP
+            | Self::STD
+            | Self::STN
+            | Self::SVC
+            | Self::SYP
+            | Self::SZL
+            | Self::THB
+            | Self::TJS
+            | Self::TMT
+            | Self::TND
+            | Self::TOP
+            | Self::TRY
+            | Self::TTD
+            | Self::TWD
+            | Self::TZS
+            | Self::UAH
+            | Self::UGX
+            | Self::USD
+            | Self::UYU
+            | Self::UZS
+            | Self::VES
+            | Self::VND
+            | Self::VUV
+            | Self::WST
+            | Self::XAF
+            | Self::XCD
+            | Self::XPF
+            | Self::XOF
+            | Self::YER
+            | Self::ZAR
+            | Self::ZMW
+            | Self::ZWL => false,
+        }
+    }
+
     pub fn number_of_digits_after_decimal_point(self) -> u8 {
         if self.is_zero_decimal_currency() {
             0
         } else if self.is_three_decimal_currency() {
             3
+        } else if self.is_four_decimal_currency() {
+            4
         } else {
             2
         }
@@ -1583,6 +1766,7 @@ pub enum PaymentMethodType {
     Debit,
     DuitNow,
     Efecty,
+    Eft,
     Eps,
     Fps,
     Evoucher,
@@ -2033,7 +2217,7 @@ pub enum RequestIncrementalAuthorization {
     Default,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, strum::Display,)]
 #[rustfmt::skip]
 pub enum CountryAlpha3 {
     AFG, ALA, ALB, DZA, ASM, AND, AGO, AIA, ATA, ATG, ARG, ARM, ABW, AUS, AUT,
@@ -6497,6 +6681,7 @@ pub enum AuthenticationConnectors {
     Gpayments,
     CtpMastercard,
     UnifiedAuthenticationService,
+    Juspaythreedsserver,
 }
 
 impl AuthenticationConnectors {
@@ -6505,7 +6690,8 @@ impl AuthenticationConnectors {
             Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
-            | Self::UnifiedAuthenticationService => false,
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver => false,
             Self::Gpayments => true,
         }
     }
@@ -6679,6 +6865,7 @@ impl From<RoleScope> for EntityType {
     serde::Serialize,
     serde::Deserialize,
     Eq,
+    Hash,
     PartialEq,
     ToSchema,
     strum::Display,
@@ -7379,6 +7566,19 @@ pub enum ConnectorMandateStatus {
     Inactive,
 }
 
+/// Connector Mandate Status
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorTokenStatus {
+    /// Indicates that the connector mandate is active and can be used for payments.
+    Active,
+    /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
+    Inactive,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -7587,7 +7787,7 @@ pub enum AdyenSplitType {
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
     /// Failed to call the payment connector
-    ConnectorCallFailed,
+    ConnectorCallUnsuccessful,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
 }
@@ -7615,4 +7815,10 @@ pub enum TriggeredBy {
     Internal,
     /// Denotes payment attempt is been created by external system.
     External,
+}
+
+#[derive(Debug)]
+pub enum CryptoPadding {
+    PKCS7,
+    ZeroPadding,
 }

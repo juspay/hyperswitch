@@ -74,6 +74,7 @@ Corse-du-Sud = "Corse-du-Sud" # Is a state in France
 Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
 
+
 [default.extend-words]
 aci = "aci" # Name of a connector
 afe = "afe" # Commit id

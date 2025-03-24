@@ -3,9 +3,18 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 use super::generics;
 use crate::{
     errors,
-    refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
-    schema::refund::dsl,
+    refund::{RefundUpdate, RefundUpdateInternal},
     PgPooledConn, StorageResult,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+use crate::{
+    refund::{Refund, RefundNew},
+    schema::refund::dsl,
+};
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+use crate::{
+    refund::{Refund, RefundNew},
+    schema_v2::refund::dsl,
 };
 
 impl RefundNew {
@@ -14,6 +23,7 @@ impl RefundNew {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 impl Refund {
     pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -123,6 +133,40 @@ impl Refund {
             None,
             None,
             None,
+        )
+        .await
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+impl Refund {
+    pub async fn update_with_id(
+        self,
+        conn: &PgPooledConn,
+        refund: RefundUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            self.id.to_owned(),
+            RefundUpdateInternal::from(refund),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    pub async fn find_by_global_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalRefundId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id.to_owned()),
         )
         .await
     }

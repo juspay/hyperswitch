@@ -224,6 +224,8 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transactionid),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 enums::AttemptStatus::Failure,
             ),
@@ -401,6 +403,8 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -783,19 +787,43 @@ pub struct NmiCancelRequest {
     pub transaction_type: TransactionType,
     pub security_key: Secret<String>,
     pub transactionid: String,
-    pub void_reason: Option<String>,
+    pub void_reason: NmiVoidReason,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum NmiVoidReason {
+    Fraud,
+    UserCancel,
+    IccRejected,
+    IccCardRemoved,
+    IccNoConfirmation,
+    PosTimeout,
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
-        Ok(Self {
-            transaction_type: TransactionType::Void,
-            security_key: auth.api_key,
-            transactionid: item.request.connector_transaction_id.clone(),
-            void_reason: item.request.cancellation_reason.clone(),
-        })
+        match &item.request.cancellation_reason {
+            Some(cancellation_reason) => {
+                let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{}\"", cancellation_reason))
+                    .map_err(|_| errors::ConnectorError::NotSupported {
+                        message: format!("Json deserialise error: unknown variant `{}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason", cancellation_reason), 
+                        connector: "nmi" 
+                    })?;
+                Ok(Self {
+                    transaction_type: TransactionType::Void,
+                    security_key: auth.api_key,
+                    transactionid: item.request.connector_transaction_id.clone(),
+                    void_reason,
+                })
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "cancellation_reason",
+            }
+            .into()),
+        }
     }
 }
 
@@ -881,6 +909,8 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }

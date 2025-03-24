@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+    str::FromStr,
+};
 
 use api_models::payments;
 #[cfg(feature = "payouts")]
@@ -36,29 +40,34 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
+    mandates,
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        RouterData as ConnectorRouterData,
     },
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
-        RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
-    router_response_types::CaptureSyncResponse,
-    types::OrderDetailsWithAmount,
+    router_response_types::{CaptureSyncResponse, PaymentsResponseData},
+    types::{OrderDetailsWithAmount, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
-use image::Luma;
+use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::Serializer;
+use serde::Deserialize;
 use serde_json::Value;
 use time::PrimitiveDateTime;
+use unicode_normalization::UnicodeNormalization;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
@@ -288,10 +297,15 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
-    (0..length).map(|_| rand::Rng::gen(&mut rng)).collect()
+    (0..length).map(|_| Rng::gen(&mut rng)).collect()
 }
 
 pub(crate) fn missing_field_err(
@@ -330,6 +344,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
@@ -341,16 +357,6 @@ pub(crate) fn construct_not_implemented_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
         .into()
-}
-
-pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let float_value = value.parse::<f64>().map_err(|_| {
-        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
-    })?;
-    serializer.serialize_f64(float_value)
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
@@ -1025,6 +1031,7 @@ pub enum CardIssuer {
 
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
@@ -1050,6 +1057,22 @@ impl CardData for Card {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -1141,6 +1164,22 @@ impl CardData for CardDetailsForNetworkTransactionId {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -1278,8 +1317,12 @@ pub trait AddressDetailsData {
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_line3(&self) -> Option<Secret<String>>;
     fn get_optional_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
+    fn get_optional_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_state(&self) -> Option<Secret<String>>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1501,6 +1544,19 @@ impl AddressDetailsData for AddressDetails {
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
         self.last_name.clone()
     }
+
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
+    }
+    fn get_optional_line3(&self) -> Option<Secret<String>> {
+        self.line3.clone()
+    }
+    fn get_optional_zip(&self) -> Option<Secret<String>> {
+        self.zip.clone()
+    }
+    fn get_optional_state(&self) -> Option<Secret<String>> {
+        self.state.clone()
+    }
 }
 
 pub trait AdditionalCardInfo {
@@ -1625,6 +1681,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1829,12 +1888,29 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
     }
+    fn get_card_network_from_additional_payment_method_data(
+        &self,
+    ) -> Result<enums::CardNetwork, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_network
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_network",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_network"],
+            }
+            .into()),
+        }
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCaptureRequestData for PaymentsCaptureData {
@@ -1850,6 +1926,11 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -1882,12 +1963,29 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
     }
 }
 
+pub trait PaymentsPostSessionTokensRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostSessionTokensRequestData for PaymentsPostSessionTokensData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -1911,6 +2009,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -1960,6 +2063,8 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -1994,6 +2099,20 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
             .clone()
             .and_then(|browser_info| browser_info.language)
     }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -2016,6 +2135,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2073,6 +2194,16 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error> {
+        self.threeds_method_comp_ind
+            .clone()
+            .ok_or_else(missing_field_err("threeds_method_comp_ind"))
     }
 }
 pub trait AddressData {
@@ -2328,6 +2459,24 @@ impl CryptoData for payment_method_data::CryptoData {
             .clone()
             .ok_or_else(missing_field_err("crypto_data.pay_currency"))
     }
+}
+
+#[macro_export]
+macro_rules! capture_method_not_supported {
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
+    };
 }
 
 #[macro_export]
@@ -4991,12 +5140,12 @@ impl QrImage {
             .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
 
         let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
-        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
+        let qrcode_dynamic_image = DynamicImage::ImageLuma8(qrcode_image_buffer);
 
         let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
 
         // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, ImageFormat::Png);
 
         let image_data_source = format!(
             "{},{}",
@@ -5006,6 +5155,58 @@ impl QrImage {
         Ok(Self {
             data: image_data_source,
         })
+    }
+
+    pub fn new_colored_from_data(
+        data: String,
+        hex_color: &str,
+    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
+        let qr_code = qrcode::QrCode::new(data.as_bytes())
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
+        let (width, height) = qrcode_image_buffer.dimensions();
+        let mut colored_image = ImageBuffer::new(width, height);
+        let rgb = Self::parse_hex_color(hex_color)?;
+
+        for (x, y, pixel) in qrcode_image_buffer.enumerate_pixels() {
+            let luminance = pixel.0[0];
+            let color = if luminance == 0 {
+                Rgba([rgb.0, rgb.1, rgb.2, 255])
+            } else {
+                Rgba([255, 255, 255, 255])
+            };
+            colored_image.put_pixel(x, y, color);
+        }
+
+        let qrcode_dynamic_image = DynamicImage::ImageRgba8(colored_image);
+        let mut image_bytes = std::io::Cursor::new(Vec::new());
+        qrcode_dynamic_image
+            .write_to(&mut image_bytes, ImageFormat::Png)
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        let image_data_source = format!(
+            "{},{}",
+            QR_IMAGE_DATA_SOURCE_STRING,
+            BASE64_ENGINE.encode(image_bytes.get_ref())
+        );
+
+        Ok(Self {
+            data: image_data_source,
+        })
+    }
+
+    pub fn parse_hex_color(hex: &str) -> Result<(u8, u8, u8), common_utils::errors::QrCodeError> {
+        let hex = hex.trim_start_matches('#');
+        if hex.len() == 6 {
+            let r = u8::from_str_radix(&hex[0..2], 16).ok();
+            let g = u8::from_str_radix(&hex[2..4], 16).ok();
+            let b = u8::from_str_radix(&hex[4..6], 16).ok();
+            if let (Some(r), Some(g), Some(b)) = (r, g, b) {
+                return Ok((r, g, b));
+            }
+        }
+        Err(common_utils::errors::QrCodeError::InvalidHexColor)
     }
 }
 
@@ -5041,6 +5242,62 @@ pub fn is_mandate_supported(
             .into()),
         }
     }
+}
+
+pub fn get_mandate_details(
+    setup_mandate_details: Option<mandates::MandateData>,
+) -> Result<Option<mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
+    setup_mandate_details
+        .map(|mandate_data| match &mandate_data.mandate_type {
+            Some(mandates::MandateDataType::SingleUse(mandate))
+            | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate.clone()),
+            Some(mandates::MandateDataType::MultiUse(None)) => {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                }
+                .into())
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "setup_future_usage.mandate_data.mandate_type",
+            }
+            .into()),
+        })
+        .transpose()
+}
+
+pub fn collect_values_by_removing_signature(value: &Value, signature: &String) -> Vec<String> {
+    match value {
+        Value::Null => vec!["null".to_owned()],
+        Value::Bool(b) => vec![b.to_string()],
+        Value::Number(n) => match n.as_f64() {
+            Some(f) => vec![format!("{f:.2}")],
+            None => vec![n.to_string()],
+        },
+        Value::String(s) => {
+            if signature == s {
+                vec![]
+            } else {
+                vec![s.clone()]
+            }
+        }
+        Value::Array(arr) => arr
+            .iter()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+        Value::Object(obj) => obj
+            .values()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+    }
+}
+
+pub fn collect_and_sort_values_by_removing_signature(
+    value: &Value,
+    signature: &String,
+) -> Vec<String> {
+    let mut values = collect_values_by_removing_signature(value, signature);
+    values.sort();
+    values
 }
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
@@ -5090,6 +5347,7 @@ pub enum PaymentMethodDataType {
     BancontactCard,
     Bizum,
     Blik,
+    Eft,
     Eps,
     Giropay,
     Ideal,
@@ -5221,6 +5479,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
+                payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
                 payment_method_data::BankRedirectData::Giropay { .. } => Self::Giropay,
                 payment_method_data::BankRedirectData::Ideal { .. } => Self::Ideal,
@@ -5501,6 +5760,22 @@ impl CardData for api_models::payouts::CardPayout {
                 .to_string(),
         ))
     }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .expiry_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
+    }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
     }
@@ -5661,4 +5936,135 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }
+}
+
+pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    use serde::de::Error;
+    let output = <&str>::deserialize(v)?;
+    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
+}
+
+pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
+    data: &SetupMandateRouterData,
+) -> PaymentsAuthorizeData {
+    PaymentsAuthorizeData {
+        currency: data.request.currency,
+        payment_method_data: data.request.payment_method_data.clone(),
+        confirm: data.request.confirm,
+        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
+        mandate_id: data.request.mandate_id.clone(),
+        setup_future_usage: data.request.setup_future_usage,
+        off_session: data.request.off_session,
+        setup_mandate_details: data.request.setup_mandate_details.clone(),
+        router_return_url: data.request.router_return_url.clone(),
+        email: data.request.email.clone(),
+        customer_name: data.request.customer_name.clone(),
+        amount: 0,
+        order_tax_amount: Some(MinorUnit::zero()),
+        minor_amount: MinorUnit::new(0),
+        statement_descriptor: None,
+        capture_method: None,
+        webhook_url: None,
+        complete_authorize_url: None,
+        browser_info: data.request.browser_info.clone(),
+        order_details: None,
+        order_category: None,
+        session_token: None,
+        enrolled_for_3ds: true,
+        related_transaction_id: None,
+        payment_experience: None,
+        payment_method_type: None,
+        customer_id: None,
+        surcharge_details: None,
+        request_extended_authorization: None,
+        request_incremental_authorization: data.request.request_incremental_authorization,
+        metadata: None,
+        authentication_data: None,
+        customer_acceptance: data.request.customer_acceptance.clone(),
+        split_payments: None, // TODO: allow charges on mandates?
+        merchant_order_reference_id: None,
+        integrity_object: None,
+        additional_payment_method_data: None,
+        shipping_cost: data.request.shipping_cost,
+        merchant_account_id: None,
+        merchant_config_currency: None,
+    }
+}
+
+pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
+    item: (&ConnectorRouterData<F1, T1, PaymentsResponseData>, T2),
+) -> ConnectorRouterData<F2, T2, PaymentsResponseData> {
+    let data = item.0;
+    let request = item.1;
+    ConnectorRouterData {
+        flow: PhantomData,
+        request,
+        merchant_id: data.merchant_id.clone(),
+        connector: data.connector.clone(),
+        attempt_id: data.attempt_id.clone(),
+        tenant_id: data.tenant_id.clone(),
+        status: data.status,
+        payment_method: data.payment_method,
+        connector_auth_type: data.connector_auth_type.clone(),
+        description: data.description.clone(),
+        address: data.address.clone(),
+        auth_type: data.auth_type,
+        connector_meta_data: data.connector_meta_data.clone(),
+        connector_wallets_details: data.connector_wallets_details.clone(),
+        amount_captured: data.amount_captured,
+        minor_amount_captured: data.minor_amount_captured,
+        access_token: data.access_token.clone(),
+        response: data.response.clone(),
+        payment_id: data.payment_id.clone(),
+        session_token: data.session_token.clone(),
+        reference_id: data.reference_id.clone(),
+        customer_id: data.customer_id.clone(),
+        payment_method_token: None,
+        preprocessing_id: None,
+        connector_customer: data.connector_customer.clone(),
+        recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
+        connector_request_reference_id: data.connector_request_reference_id.clone(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: data.payout_method_data.clone(),
+        #[cfg(feature = "payouts")]
+        quote_id: data.quote_id.clone(),
+        test_mode: data.test_mode,
+        payment_method_status: None,
+        payment_method_balance: data.payment_method_balance.clone(),
+        connector_api_version: data.connector_api_version.clone(),
+        connector_http_status_code: data.connector_http_status_code,
+        external_latency: data.external_latency,
+        apple_pay_flow: data.apple_pay_flow.clone(),
+        frm_metadata: data.frm_metadata.clone(),
+        dispute_id: data.dispute_id.clone(),
+        refund_id: data.refund_id.clone(),
+        connector_response: data.connector_response.clone(),
+        integrity_check: Ok(()),
+        additional_merchant_data: data.additional_merchant_data.clone(),
+        header_payload: data.header_payload.clone(),
+        connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
+        authentication_id: data.authentication_id.clone(),
+        psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+    }
+}
+
+pub fn generate_12_digit_number() -> u64 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(100_000_000_000..=999_999_999_999)
+}
+
+/// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.
+pub fn normalize_string(value: String) -> Result<String, regex::Error> {
+    let nfkd_value = value.nfkd().collect::<String>();
+    let lowercase_value = nfkd_value.to_lowercase();
+    static REGEX: std::sync::LazyLock<Result<Regex, regex::Error>> =
+        std::sync::LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
+    let regex = REGEX.as_ref().map_err(|e| e.clone())?;
+    let normalized = regex.replace_all(&lowercase_value, "").to_string();
+    Ok(normalized)
 }

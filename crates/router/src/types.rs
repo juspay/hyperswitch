@@ -57,6 +57,9 @@ pub use hyperswitch_domain_models::{
         WebhookSourceVerifyData,
     },
     router_request_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -76,6 +79,9 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        },
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -898,6 +904,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
             metadata: None,
+            request_extended_authorization: None,
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
@@ -905,6 +912,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: data.request.shipping_cost,
+            merchant_account_id: None,
+            merchant_config_currency: None,
         }
     }
 }

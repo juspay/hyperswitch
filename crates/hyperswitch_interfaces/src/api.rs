@@ -16,6 +16,8 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
+pub mod revenue_recovery;
+pub mod revenue_recovery_v2;
 
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
@@ -95,6 +97,11 @@ pub trait ConnectorIntegration<T, Req, Resp>:
 
     /// fn get_content_type
     fn get_content_type(&self) -> &'static str {
+        mime::APPLICATION_JSON.essence_str()
+    }
+
+    /// fn get_content_type
+    fn get_accept_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
 
@@ -196,6 +203,8 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 
@@ -284,6 +293,8 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -498,7 +509,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                             .supported_capture_methods
                             .contains(&capture_method)
                     })
-                    .unwrap_or_else(|| is_default_capture_method)
+                    .unwrap_or(true)
             }
             None => is_default_capture_method,
         };

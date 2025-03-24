@@ -239,6 +239,8 @@ impl ConnectorCommon for Cybersource {
                     reason,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -251,6 +253,8 @@ impl ConnectorCommon for Cybersource {
                     reason: Some(response.response.rmsg),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -275,6 +279,8 @@ impl ConnectorCommon for Cybersource {
                     reason: Some(error_response),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Err(error_msg) => {
@@ -506,6 +512,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -586,6 +594,8 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
                     status_code: res.status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -823,6 +833,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1058,6 +1070,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1172,6 +1186,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Cyber
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1294,6 +1310,8 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1415,6 +1433,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

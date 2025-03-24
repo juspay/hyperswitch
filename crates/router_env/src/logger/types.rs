@@ -533,6 +533,7 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
     /// Payments start redirection flow
@@ -543,6 +544,12 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Card tokenization flow
+    TokenizeCard,
+    /// Card tokenization using payment method flow
+    TokenizeCardUsingPaymentMethodId,
+    /// Cards batch tokenization flow
+    TokenizeCardBatch,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
     /// Generate Hypersense Token
@@ -555,8 +562,20 @@ pub enum Flow {
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
     PaymentMethodSessionRetrieve,
+    // Payment Method Session Update
+    PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Confirm a payment method session with payment method data
+    PaymentMethodSessionConfirm,
+    /// Create Cards Info flow
+    CardsInfoCreate,
+    /// Update Cards Info flow
+    CardsInfoUpdate,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
+    ///Total payment method count for merchant
+    TotalPaymentMethodCount,
 }
 
 /// Trait for providing generic behaviour to flow metric
