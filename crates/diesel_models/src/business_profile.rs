@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
-use common_utils::{encryption::Encryption, pii, types::AlwaysRequestExtendedAuthorization};
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 
@@ -590,6 +591,7 @@ impl ProfileUpdateInternal {
 pub struct AuthenticationConnectorDetails {
     pub authentication_connectors: Vec<AuthenticationConnectors>,
     pub three_ds_requestor_url: String,
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);

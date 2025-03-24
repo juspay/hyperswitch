@@ -5981,6 +5981,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_method_type: None,
         customer_id: None,
         surcharge_details: None,
+        request_extended_authorization: None,
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,
@@ -6061,7 +6062,9 @@ pub fn generate_12_digit_number() -> u64 {
 pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let nfkd_value = value.nfkd().collect::<String>();
     let lowercase_value = nfkd_value.to_lowercase();
-    let re = Regex::new(r"[^a-z0-9]")?;
-    let normalized = re.replace_all(&lowercase_value, "").to_string();
+    static REGEX: std::sync::LazyLock<Result<Regex, regex::Error>> =
+        std::sync::LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
+    let regex = REGEX.as_ref().map_err(|e| e.clone())?;
+    let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
 }

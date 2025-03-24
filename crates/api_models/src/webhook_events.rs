@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 /// The constraints to apply when filtering events.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct EventListConstraints {
     /// Filter events created after the specified time.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -80,6 +80,32 @@ pub struct EventListItemResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
+}
+
+/// The response body of list initial delivery attempts api call.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TotalEventsResponse {
+    /// The list of events
+    pub events: Vec<EventListItemResponse>,
+    /// Count of total events
+    pub total_count: i64,
+}
+
+impl TotalEventsResponse {
+    pub fn new(total_count: i64, events: Vec<EventListItemResponse>) -> Self {
+        Self {
+            events,
+            total_count,
+        }
+    }
+}
+
+impl common_utils::events::ApiEventMetric for TotalEventsResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Events {
+            merchant_id: self.events.first().map(|event| event.merchant_id.clone())?,
+        })
+    }
 }
 
 /// The response body for retrieving an event.

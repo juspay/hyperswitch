@@ -4440,6 +4440,11 @@
           "three_ds_requestor_url": {
             "type": "string",
             "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.",
+            "nullable": true
           }
         }
       },
@@ -8852,6 +8857,11 @@
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
+          },
+          "connector_customer_ids": {
+            "type": "object",
+            "description": "Connector specific customer reference ids",
+            "nullable": true
           },
           "name": {
             "type": "string",
@@ -14738,7 +14748,6 @@
         "type": "object",
         "required": [
           "payment_method_type",
-          "payment_method_subtype",
           "customer_id",
           "payment_method_data"
         ],
@@ -14747,7 +14756,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "metadata": {
             "type": "object",
@@ -16199,8 +16213,7 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "return_url": {
@@ -16216,7 +16229,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "shipping": {
             "allOf": [
@@ -16574,6 +16592,11 @@
           "three_ds_requestor_url": {
             "type": "string",
             "description": "Three DS Requestor URL"
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
           }
         }
       },
@@ -16994,8 +17017,7 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "amount_details": {
@@ -17187,7 +17209,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [

@@ -9,6 +9,9 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -17,10 +20,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{
-        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
-        StringMajorUnit,
-    },
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -5232,8 +5232,8 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
@@ -5401,8 +5401,8 @@ pub struct PaymentsRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
@@ -7506,6 +7506,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -8477,7 +8479,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub payment_method_type: common_enums::PaymentMethod,
     /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
@@ -8558,7 +8560,7 @@ pub struct PaymentsAttemptRecordRequest {
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The payment instrument data to be used for the payment attempt.
     pub payment_method_data: Option<PaymentMethodDataRequest>,

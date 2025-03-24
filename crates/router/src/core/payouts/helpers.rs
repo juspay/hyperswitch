@@ -1136,7 +1136,7 @@ pub(super) async fn filter_by_constraints(
     constraints: &api::PayoutListConstraints,
     merchant_id: &id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
-) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
     let result = db
         .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
         .await?;
