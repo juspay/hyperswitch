@@ -485,7 +485,6 @@ pub struct StripeCardToken {
     pub token_card_cvc: Secret<String>,
 }
 
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "payment_method_data[type]")]
 pub enum BankDebitData {
@@ -2115,15 +2114,18 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                     token_card_cvc: card_details.card_cvc.clone(),
                 })
             }
-            _ => create_stripe_payment_method(
-                &item.request.payment_method_data,
-                item.auth_type,
-                item.payment_method_token.clone(),
-                None,
-                StripeBillingAddress::default(),
-            )?.0
+            _ => {
+                create_stripe_payment_method(
+                    &item.request.payment_method_data,
+                    item.auth_type,
+                    item.payment_method_token.clone(),
+                    None,
+                    StripeBillingAddress::default(),
+                )?
+                .0
+            }
         };
-        
+
         Ok(Self {
             token_data: request_payment_data,
         })

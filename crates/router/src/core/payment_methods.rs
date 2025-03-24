@@ -25,7 +25,7 @@ use std::str::FromStr;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
-use api_models::{payment_methods};
+use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -59,15 +59,16 @@ use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
+#[cfg(feature = "v2")]
+use super::payments::tokenization;
 use super::{
     errors::{RouterResponse, StorageErrorExt},
     pm_auth,
 };
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    consts,
     configs::settings,
+    consts,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
     headers, logger,
@@ -80,16 +81,10 @@ use crate::{
         payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
-        Tokenizable
+        Tokenizable,
     },
     utils::ext_traits::OptionExt,
 };
-
-#[cfg(feature = "v2")]
-use super:: {
-    payments::tokenization,
-};
-
 #[cfg(feature = "v1")]
 use crate::{
     consts,
@@ -107,8 +102,6 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
-
-
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_core(
@@ -959,7 +952,7 @@ pub async fn create_payment_method_core(
         key_store,
         None,
         &customer_id,
-    ) 
+    )
     .await;
 
     let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
@@ -2688,15 +2681,15 @@ async fn create_single_use_tokenization_flow(
     payment_method: &api::PaymentMethodResponse,
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()> {
-
     let customer_id = payment_method_create_request.customer_id.to_owned();
     let connector_id = payment_methods::PaymentMethodCreate::get_tokenize_connector_id(
-        payment_method_create_request)
-        .change_context(errors::ApiErrorResponse::MissingRequiredField{
-            field_name: "psp_tokenization.connector_id"
-        })
-        .attach_printable("Failed to get tokenize connector id")?;
-    
+        payment_method_create_request,
+    )
+    .change_context(errors::ApiErrorResponse::MissingRequiredField {
+        field_name: "psp_tokenization.connector_id",
+    })
+    .attach_printable("Failed to get tokenize connector id")?;
+
     let db = &state.store;
 
     let merchant_connector_account_details = db
@@ -2715,8 +2708,8 @@ async fn create_single_use_tokenization_flow(
         payment_method_data: payment_method_data::PaymentMethodData::try_from(
             payment_method_create_request.payment_method_data.clone(),
         )
-        .change_context(errors::ApiErrorResponse::MissingRequiredField{
-            field_name: "card_cvc"
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "card_cvc",
         })
         .attach_printable("Failed to convert type from ")?,
         browser_info: None,
@@ -2793,27 +2786,29 @@ async fn create_single_use_tokenization_flow(
         payment_method_data_request.clone(),
         state.clone(),
         connector_id.clone(),
-        &merchant_connector_account_details.clone()
-    ).await?;
+        &merchant_connector_account_details.clone(),
+    )
+    .await?;
 
     let token = payment_method_token_response
-                                    .payment_method_token_result
-                                    .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
-                                        code: err.code,
-                                        message: err.message,
-                                        connector: (merchant_connector_account_details.clone()).connector_name.to_string(),
-                                        status_code: err.status_code,
-                                        reason: err.reason,
-                                    })?;
-
+        .payment_method_token_result
+        .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+            code: err.code,
+            message: err.message,
+            connector: (merchant_connector_account_details.clone())
+                .connector_name
+                .to_string(),
+            status_code: err.status_code,
+            reason: err.reason,
+        })?;
 
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
                                                        token.clone(),
                                                 connector_id.clone()
                                             );
-        
+
     let key = payment_method_data::SingleUseToken::new(payment_method.id.get_string_repr());
-        
+
     add_single_use_token_to_store(&state, key, value).await?;
 
     Ok(())
@@ -2832,7 +2827,11 @@ async fn add_single_use_token_to_store(
         .attach_printable("Failed to get redis connection")?;
 
     redis_connection
-        .serialize_and_set_key_with_expiry(&payment_method_data::SingleUseToken::get_redis_key(&key).into(), value, 86400)
+        .serialize_and_set_key_with_expiry(
+            &payment_method_data::SingleUseToken::get_redis_key(&key).into(),
+            value,
+            86400,
+        )
         .await
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to insert payment method token to redis");

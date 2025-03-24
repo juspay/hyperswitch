@@ -455,7 +455,10 @@ impl PaymentMethodCreate {
             _ => false,
         }
     }
-    pub fn get_tokenize_connector_id(&self) -> Result<id_type::MerchantConnectorAccountId,  error_stack::Report<errors::ValidationError>> {
+    pub fn get_tokenize_connector_id(
+        &self,
+    ) -> Result<id_type::MerchantConnectorAccountId, error_stack::Report<errors::ValidationError>>
+    {
         self.psp_tokenization
             .clone()
             .get_required_value("psp_tokenization")
