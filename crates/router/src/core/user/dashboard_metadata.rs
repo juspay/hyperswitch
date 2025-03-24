@@ -620,8 +620,7 @@ async fn insert_metadata(
                     metadata_key,
                     data,
                 )
-                .await
-                .change_context(UserErrors::InternalServerError);
+                .await;
             }
             metadata
         }
