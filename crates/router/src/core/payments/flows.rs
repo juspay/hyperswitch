@@ -712,10 +712,10 @@ default_imp_for_pre_processing_steps!(
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
+    connector::Stripe,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Stripe
+    connector::Wise
 );
 
 #[cfg(feature = "dummy_connector")]

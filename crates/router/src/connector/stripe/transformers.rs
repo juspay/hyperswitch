@@ -3070,16 +3070,16 @@ pub struct QrCodeResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AbaDetails {
-    pub account_number: String,
-    pub bank_name: String,
-    pub routing_number: String,
+    pub account_number: Secret<String>,
+    pub bank_name: Secret<String>,
+    pub routing_number: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SwiftDetails {
-    pub account_number: String,
-    pub bank_name: String,
-    pub swift_code: String,
+    pub account_number: Secret<String>,
+    pub bank_name: Secret<String>,
+    pub swift_code: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
