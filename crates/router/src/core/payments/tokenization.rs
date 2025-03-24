@@ -1346,56 +1346,62 @@ pub fn update_connector_mandate_details_status(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn add_token_for_payment_method(
-    router_data: &mut types::RouterData<api::PaymentMethodToken, types::PaymentMethodTokenizationData, types::PaymentsResponseData>,
+    router_data: &mut types::RouterData<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    >,
     payment_method_data_request: types::PaymentMethodTokenizationData,
     state: SessionState,
     connector_id: id_type::MerchantConnectorAccountId,
     merchant_connector_account_details: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentMethodTokenResult> {
     let connector_data = api::ConnectorData::get_connector_by_name(
-        &(state.conf.connectors), 
-        &merchant_connector_account_details.connector_name.to_string(), 
-        api::GetToken::Connector, 
-        Some(connector_id.clone())
+        &(state.conf.connectors),
+        &merchant_connector_account_details
+            .connector_name
+            .to_string(),
+        api::GetToken::Connector,
+        Some(connector_id.clone()),
     )?;
 
     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::PaymentMethodToken,
-                    types::PaymentMethodTokenizationData,
-                    types::PaymentsResponseData,
-                > = connector_data.connector.get_connector_integration();
-    
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > = connector_data.connector.get_connector_integration();
+
     let payment_method_token_response_data_type: Result<
-                    types::PaymentsResponseData,
-                    types::ErrorResponse,
-                > = Err(types::ErrorResponse::default());
-    
+        types::PaymentsResponseData,
+        types::ErrorResponse,
+    > = Err(types::ErrorResponse::default());
+
     let payment_method_token_router_data =
-                    helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
-                        router_data.clone(),
-                        payment_method_data_request.clone(),
-                        payment_method_token_response_data_type,
-                    );
+        helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
+            router_data.clone(),
+            payment_method_data_request.clone(),
+            payment_method_token_response_data_type,
+        );
 
     let connector_integration_response = services::execute_connector_processing_step(
-                    &state,
-                    connector_integration,
-                    &payment_method_token_router_data,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                )
-                .await
-                .to_payment_failed_response()?;
+        &state,
+        connector_integration,
+        &payment_method_token_router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_payment_failed_response()?;
     let payment_token_response = connector_integration_response.response.map(|res| {
-                    if let types::PaymentsResponseData::TokenizationResponse { token } = res {
-                        Some(token)
-                    } else {
-                        None
-                    }
-                });
+        if let types::PaymentsResponseData::TokenizationResponse { token } = res {
+            Some(token)
+        } else {
+            None
+        }
+    });
 
     Ok(types::PaymentMethodTokenResult {
-            payment_method_token_result: payment_token_response,
-            is_payment_method_tokenization_performed: true,
-        })
+        payment_method_token_result: payment_token_response,
+        is_payment_method_tokenization_performed: true,
+    })
 }

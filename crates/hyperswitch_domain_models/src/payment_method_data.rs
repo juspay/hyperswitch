@@ -6,6 +6,8 @@ use api_models::{
     },
 };
 use common_enums::enums as api_enums;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     id_type,
     new_type::{
@@ -16,9 +18,6 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::OptionExt;
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
