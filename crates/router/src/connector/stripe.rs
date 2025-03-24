@@ -899,7 +899,6 @@ impl
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-
         let response_integrity_object = connector_utils::get_authorise_integrity_object(
             self.amount_converter,
             response.amount,

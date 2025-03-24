@@ -16,7 +16,9 @@ pub mod transformers;
 pub mod types;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
-use std::{collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
+use std::{
+    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
+};
 
 #[cfg(feature = "v2")]
 pub mod payment_methods;
