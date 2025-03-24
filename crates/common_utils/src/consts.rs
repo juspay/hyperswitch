@@ -173,3 +173,9 @@ pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 
 /// Default Card Testing Guard Redis Expiry in seconds
 pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// Algorithm type for Routing
+pub const ROUTING: common_enums::AlgorithmType = common_enums::AlgorithmType::Routing;
+
+/// Algorithm Type for Surcharge
+pub const SURCHARGE: common_enums::AlgorithmType = common_enums::AlgorithmType::Surcharge;

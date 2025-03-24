@@ -4,7 +4,6 @@ use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
 use api_models::routing::SurchargeRetrieveQuery;
-use common_enums::AlgorithmType;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
@@ -854,7 +853,7 @@ impl Routing {
                             req,
                             payload,
                             TransactionType::Payment,
-                            AlgorithmType::Routing,
+                            common_utils::consts::ROUTING,
                         )
                     })),
             )
@@ -898,7 +897,12 @@ impl Routing {
             .service(
                 web::resource("/decision/surcharge_list").route(web::get().to(
                     |state, req, query: web::Query<SurchargeRetrieveQuery>| {
-                        routing::list_surcharge_decision_manager_configs(state, req, query)
+                        routing::list_surcharge_decision_manager_configs(
+                            state,
+                            req,
+                            query,
+                            common_utils::consts::SURCHARGE,
+                        )
                     },
                 )),
             )
@@ -917,10 +921,14 @@ impl Routing {
                             req,
                             payload,
                             &TransactionType::Payment,
-                            AlgorithmType::Surcharge,
+                            common_utils::consts::SURCHARGE,
                         )
                     },
                 )),
+            )
+            .service(
+                web::resource("/decision/surcharge/{algorithm_id}/activate")
+                    .route(web::post().to(routing::surcharge_link_config)),
             )
             .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(
@@ -962,7 +970,7 @@ impl Routing {
                                 req,
                                 payload,
                                 TransactionType::Payout,
-                                AlgorithmType::Routing,
+                                common_utils::consts::ROUTING,
                             )
                         })),
                 )
@@ -1056,10 +1064,6 @@ impl Routing {
                         routing::routing_link_config(state, req, path, &TransactionType::Payment)
                     },
                 )),
-            )
-            .service(
-                web::resource("/{algorithm_id}/surcharge/activate")
-                    .route(web::post().to(routing::surcharge_link_config)),
             );
         route
     }

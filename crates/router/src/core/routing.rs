@@ -120,7 +120,7 @@ impl RoutingAlgorithmUpdate {
             created_at: timestamp,
             modified_at: timestamp,
             algorithm_for: transaction_type,
-            algorithm_type: enums::AlgorithmType::Routing,
+            algorithm_type: common_utils::consts::ROUTING,
         };
         Self(algo)
     }
@@ -1613,7 +1613,7 @@ pub async fn contract_based_dynamic_routing_setup(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: common_enums::TransactionType::Payment,
-        algorithm_type: common_enums::AlgorithmType::Routing,
+        algorithm_type: common_utils::consts::ROUTING,
     };
 
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based

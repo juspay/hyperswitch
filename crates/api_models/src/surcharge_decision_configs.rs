@@ -66,6 +66,7 @@ pub struct SurchargeRecord {
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub merchant_surcharge_configs: MerchantSurchargeConfigs,
     pub algorithm: Program<SurchargeDecisionConfigs>,
+    pub description: Option<String>,
     pub created_at: i64,
     pub modified_at: i64,
 }
@@ -85,6 +86,21 @@ pub struct SurchargeDecisionConfigReq {
 }
 
 impl events::ApiEventMetric for SurchargeDecisionConfigReq {
+    fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
+        Some(events::ApiEventsType::Routing)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SurchargeDecisionManagerReq {
+    pub name: String,
+    pub merchant_surcharge_configs: MerchantSurchargeConfigs,
+    pub algorithm: Program<SurchargeDecisionConfigs>,
+    pub description: Option<String>,
+}
+
+impl events::ApiEventMetric for SurchargeDecisionManagerReq {
     fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
         Some(events::ApiEventsType::Routing)
     }
