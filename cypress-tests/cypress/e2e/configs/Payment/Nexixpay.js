@@ -103,6 +103,30 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
@@ -402,23 +426,49 @@ export const connectorDetails = {
         },
       },
     },
-    ZeroAuthMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    ZeroAuthPaymentIntent: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
+        amount: 0,
+        setup_future_usage: "off_session",
         currency: "EUR",
-        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
+      },
+    },
+    ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        billing: billingAddress,
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        billing: billingAddress,
+      },
+      Response: {
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {

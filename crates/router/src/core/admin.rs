@@ -1314,6 +1314,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Chargebee => {
                 chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
+                chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Checkout => {
@@ -1327,6 +1328,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Coingate => {
                 coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
+                coingate::transformers::CoingateConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Cryptopay => {
@@ -1538,6 +1542,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Recurly => {
                 recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Redsys => {
+                redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Shift4 => {

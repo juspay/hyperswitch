@@ -3130,7 +3130,7 @@ pub(super) async fn filter_by_constraints(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
-) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
+) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
         .filter_payment_intent_by_constraints(
