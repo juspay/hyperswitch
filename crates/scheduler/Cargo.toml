@@ -31,6 +31,7 @@ uuid = { version = "1.8.0", features = ["v4"] }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
+common_types = { version = "0.1.0", path = "../common_types" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 external_services = { version = "0.1.0", path = "../external_services" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

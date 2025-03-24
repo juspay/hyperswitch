@@ -495,7 +495,7 @@ pub async fn add_payment_method_status_update_task(
         tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
@@ -1550,7 +1550,7 @@ pub async fn create_payment_method_for_intent(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: common_utils::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 locker_fingerprint_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,

@@ -173,11 +173,3 @@ pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 
 /// Default Card Testing Guard Redis Expiry in seconds
 pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
-
-/// API version
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
-
-/// API version
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
