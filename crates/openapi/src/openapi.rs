@@ -206,6 +206,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::types::TimeRange,
         common_utils::link_utils::GenericLinkUiConfig,
         common_utils::link_utils::EnabledPaymentMethod,
+        common_utils::id_type::SurchargeRoutingId,
         common_utils::payout_method_utils::AdditionalPayoutMethodData,
         common_utils::payout_method_utils::CardAdditionalData,
         common_utils::payout_method_utils::BankAdditionalData,

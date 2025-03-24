@@ -23541,7 +23541,7 @@
           "active_surcharge_algorithm_id": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/id_type.SurchargeRoutingId"
+                "$ref": "#/components/schemas/SurchargeRoutingId"
               }
             ],
             "nullable": true
@@ -23813,7 +23813,7 @@
           "active_surcharge_algorithm_id": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/id_type.SurchargeRoutingId"
+                "$ref": "#/components/schemas/SurchargeRoutingId"
               }
             ],
             "nullable": true
@@ -26453,6 +26453,10 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "SurchargeRoutingId": {
+        "type": "string",
+        "description": "A wrapper type for `RoutingId` that can be used for surcharge routing ids"
       },
       "SwishQrData": {
         "type": "object"
