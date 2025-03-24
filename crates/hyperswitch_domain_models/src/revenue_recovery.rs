@@ -218,7 +218,7 @@ impl From<&GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryAttemptD
             transaction_created_at: data.transaction_created_at,
             status: data.status,
             payment_method_type: data.payment_method_type,
-            payment_method_sub_type: data.payment_method_sub_type,
+            payment_method_sub_type: Some(data.payment_method_sub_type),
         }
     }
 }

@@ -31,10 +31,16 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::{GetAdditionalRevenueRecoveryDetails,RecoveryRecordBack},
-    router_request_types::revenue_recovery::{GetAdditionalRevenueRecoveryRequestData,RevenueRecoveryRecordBackRequest},
-    router_response_types::revenue_recovery::{GetAdditionalRevenueRecoveryResponseData,RevenueRecoveryRecordBackResponse},
-    types::{AdditionalRevenueRecoveryDetailsRouterData,RevenueRecoveryRecordBackRouterData},
+    router_flow_types::revenue_recovery::{
+        GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
+    },
+    router_request_types::revenue_recovery::{
+        GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+    },
+    router_response_types::revenue_recovery::{
+        GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+    },
+    types::{AdditionalRevenueRecoveryDetailsRouterData, RevenueRecoveryRecordBackRouterData},
 };
 use hyperswitch_interfaces::{
     api::{
