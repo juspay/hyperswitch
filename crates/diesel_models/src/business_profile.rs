@@ -613,6 +613,7 @@ impl ProfileUpdateInternal {
 pub struct AuthenticationConnectorDetails {
     pub authentication_connectors: Vec<AuthenticationConnectors>,
     pub three_ds_requestor_url: String,
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
