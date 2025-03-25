@@ -14880,6 +14880,7 @@
         "type": "object",
         "required": [
           "payment_method_type",
+          "payment_method_subtype",
           "customer_id",
           "payment_method_data"
         ],
@@ -14888,12 +14889,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "metadata": {
             "type": "object",
@@ -16360,7 +16356,8 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type"
+          "payment_method_type",
+          "payment_method_subtype"
         ],
         "properties": {
           "return_url": {
@@ -16376,12 +16373,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "shipping": {
             "allOf": [
@@ -17164,7 +17156,8 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type"
+          "payment_method_type",
+          "payment_method_subtype"
         ],
         "properties": {
           "amount_details": {
@@ -17356,12 +17349,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "customer_acceptance": {
             "allOf": [
