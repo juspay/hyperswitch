@@ -4440,6 +4440,11 @@
           "three_ds_requestor_url": {
             "type": "string",
             "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.",
+            "nullable": true
           }
         }
       },
@@ -16411,6 +16416,11 @@
           "three_ds_requestor_url": {
             "type": "string",
             "description": "Three DS Requestor URL"
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.",
+            "nullable": true
           }
         }
       },
