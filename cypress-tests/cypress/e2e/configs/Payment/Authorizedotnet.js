@@ -1,38 +1,40 @@
-const successfulTestCardDetailsList = [{
-  card_number: "4622943127013705",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "838",
-},
-{
-  card_number: "4622943127013713",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "043",
-},
-{
-  card_number: "4622943127013721",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "258",
-},
-{
-  card_number: "4622943127013739",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "942",
-},
-{
-  card_number: "4622943127013747",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "370",
-}];
+const successfulTestCardDetailsList = [
+  {
+    card_number: "4622943127013705",
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    card_cvc: "838",
+  },
+  {
+    card_number: "4622943127013713",
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    card_cvc: "043",
+  },
+  {
+    card_number: "4622943127013721",
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    card_cvc: "258",
+  },
+  {
+    card_number: "4622943127013739",
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    card_cvc: "942",
+  },
+  {
+    card_number: "4622943127013747",
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    card_cvc: "370",
+  },
+];
 
 export const connectorDetails = {
   card_pm: {
