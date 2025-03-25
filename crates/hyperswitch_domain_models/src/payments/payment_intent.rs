@@ -343,7 +343,7 @@ pub enum PaymentIntentUpdate {
     RecordUpdate {
         status: common_enums::IntentStatus,
         feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
-        active_attempt_id: id_type::GlobalAttemptId,
+        active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
     },
     /// UpdateIntent
@@ -647,7 +647,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_captured: None,
-                active_attempt_id: Some(Some(active_attempt_id)),
+                active_attempt_id: Some(active_attempt_id),
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
