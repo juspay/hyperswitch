@@ -1,23 +1,43 @@
-import { generateRandomAmount } from "../../../utils/RequestBodyUtils";
-
-const successfulTestCardDetails = {
-  card_number: "4007000000027",
+const successfulTestCardDetailsList = [{
+  card_number: "4622943127013705",
   card_exp_month: "10",
   card_exp_year: "30",
   card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "737",
-};
-
-let latestPaymentIntentAmount = null;
+  card_cvc: "838",
+},
+{
+  card_number: "4622943127013713",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "Juspay Hyperswitch",
+  card_cvc: "043",
+},
+{
+  card_number: "4622943127013721",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "Juspay Hyperswitch",
+  card_cvc: "258",
+},
+{
+  card_number: "4622943127013739",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "Juspay Hyperswitch",
+  card_cvc: "942",
+},
+{
+  card_number: "4622943127013747",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "Juspay Hyperswitch",
+  card_cvc: "370",
+}];
 
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        amount: (() => {
-          latestPaymentIntentAmount = generateRandomAmount();
-          return latestPaymentIntentAmount;
-        })(),
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -32,13 +52,13 @@ export const connectorDetails = {
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
-        amount: Math.floor(10000 + Math.random() * 90000),
         shipping_cost: 50,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
+          amount: 6000,
           shipping_cost: 50,
         },
       },
@@ -47,7 +67,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardDetails,
+          card: successfulTestCardOneDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -57,18 +77,17 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
         },
       },
     },
     No3DSManualCapture: {
       Request: {
-        amount: (() => {
-          latestPaymentIntentAmount = generateRandomAmount();
-          return latestPaymentIntentAmount;
-        })(),
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -84,9 +103,8 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: latestPaymentIntentAmount,
         payment_method_data: {
-          card: successfulTestCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -101,31 +119,29 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        amount_to_capture: latestPaymentIntentAmount,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 6000,
           amount_capturable: 0,
+          amount_received: 6000,
         },
       },
     },
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
-          amount_received: 100,
+          amount_received: 2000,
         },
       },
     },
@@ -165,7 +181,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardDetails,
+          card: successfulTestCardOneDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -181,7 +197,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardDetails,
+          card: successfulTestCardOneDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -197,7 +213,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardDetails,
+          card: successfulTestCardOneDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -206,100 +222,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-        },
-      },
-    },
-    ZeroAuthMandate: {
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Authorize.net is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    ZeroAuthPaymentIntent: {
-      Request: {
-        amount: 0,
-        setup_future_usage: "off_session",
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: {
-      Request: {
-        payment_type: "setup_mandate",
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-      },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Authorize.net is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    SaveCardUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
         },
       },
     },
