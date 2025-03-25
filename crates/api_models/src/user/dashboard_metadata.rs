@@ -102,6 +102,7 @@ pub struct ProdIntent {
     pub poc_contact: Option<String>,
     pub comments: Option<String>,
     pub is_completed: bool,
+    pub product_type: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]
