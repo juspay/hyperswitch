@@ -294,6 +294,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .map(types::BrowserInformation::from);
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_intent.capture_method;
 
     let customer_id = payment_intent
         .customer_id
@@ -363,6 +364,8 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_status: refund.refund_status,
             merchant_account_id,
             merchant_config_currency,
+            refund_connector_metadata: refund.metadata.clone(),
+            capture_method: Some(capture_method),
         },
 
         response: Ok(types::RefundsResponseData {

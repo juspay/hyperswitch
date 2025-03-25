@@ -1716,7 +1716,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_id: &id_type::GlobalPaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
                 key_manager_state,
