@@ -28,12 +28,12 @@ use hyperswitch_domain_models::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+    router_flow_types::RecoveryRecordBack,
     router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
-    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
-    types::AdditionalRevenueRecoveryDetailsRouterData,router_flow_types::RecoveryRecordBack,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
+    types::AdditionalRevenueRecoveryDetailsRouterData, types::RevenueRecoveryRecordBackRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -50,7 +50,7 @@ use masking::{Mask, PeekInterface};
 use transformers as recurly;
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::connectors::recurly::transformers::{RecurlyRecordStatus,RecurlyRecoveryDetailsData};
+use crate::connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData};
 use crate::{
     connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
     types::ResponseRouterData, utils,

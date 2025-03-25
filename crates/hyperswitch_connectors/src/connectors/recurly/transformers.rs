@@ -3,11 +3,11 @@ use std::str::FromStr;
 
 use common_enums::enums;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use common_utils::types::{FloatMajorUnitForConnector,ConnectorTransactionId};
+use common_utils::types::{ConnectorTransactionId, FloatMajorUnitForConnector};
 use common_utils::{
     errors::CustomResult,
-    id_type,
     ext_traits::ByteSliceExt,
+    id_type,
     types::{FloatMajorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
@@ -22,14 +22,13 @@ use hyperswitch_domain_models::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
+    router_flow_types::RecoveryRecordBack,
     router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
-    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
-    types::AdditionalRevenueRecoveryDetailsRouterData,router_flow_types::RecoveryRecordBack,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
+    types::AdditionalRevenueRecoveryDetailsRouterData, types::RevenueRecoveryRecordBackRouterData,
 };
-
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -361,9 +360,7 @@ impl
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(&item.response.invoice.id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let connector_transaction_id = Some(ConnectorTransactionId::from(
-            item.response.uuid,
-        ));
+        let connector_transaction_id = Some(ConnectorTransactionId::from(item.response.uuid));
 
         Ok(Self {
             response: Ok(GetAdditionalRevenueRecoveryResponseData {
