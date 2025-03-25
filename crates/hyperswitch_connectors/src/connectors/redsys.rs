@@ -888,8 +888,7 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static REDSYS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static REDSYS_SUPPORTED_WEBHOOK_FLOWS : [common_enums::EventClass; 0]  = [];
 
 impl ConnectorSpecifications for Redsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -901,6 +900,6 @@ impl ConnectorSpecifications for Redsys {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
-        Some(&*REDSYS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&REDSYS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

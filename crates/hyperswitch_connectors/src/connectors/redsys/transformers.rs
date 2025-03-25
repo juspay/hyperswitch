@@ -1563,6 +1563,7 @@ fn get_transaction_type(
         | enums::AttemptStatus::AuthenticationSuccessful
         | enums::AttemptStatus::Started
         | enums::AttemptStatus::Authorizing
+        | enums::AttemptStatus::Authorized
         | enums::AttemptStatus::DeviceDataCollectionPending => match capture_method {
             Some(enums::CaptureMethod::Automatic) | None => {
                 Ok(transaction_type::PAYMENT.to_owned())
@@ -1576,7 +1577,7 @@ fn get_transaction_type(
         enums::AttemptStatus::VoidInitiated => Ok(transaction_type::CANCELLATION.to_owned()),
         enums::AttemptStatus::PartialChargedAndChargeable
         | enums::AttemptStatus::CaptureInitiated => Ok(transaction_type::CONFIRMATION.to_owned()),
-        enums::AttemptStatus::Authorized | enums::AttemptStatus::Pending => match capture_method {
+         enums::AttemptStatus::Pending => match capture_method {
             Some(enums::CaptureMethod::Automatic) | None => {
                 Ok(transaction_type::PAYMENT.to_owned())
             }
