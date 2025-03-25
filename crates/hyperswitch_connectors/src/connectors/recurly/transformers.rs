@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use common_enums::enums;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use common_utils::types::FloatMajorUnitForConnector;
+use common_utils::types::{FloatMajorUnitForConnector,ConnectorTransactionId};
 use common_utils::{
     errors::CustomResult,
     id_type,
@@ -359,9 +359,9 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.response.invoice.id)
+            id_type::PaymentReferenceId::from_str(&item.response.invoice.id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
+        let connector_transaction_id = Some(ConnectorTransactionId::from(
             item.response.uuid,
         ));
 
@@ -462,7 +462,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyRecordbackResponse {
-    // inovice id
+    // Invoice id
     pub id: id_type::PaymentReferenceId,
 }
 
