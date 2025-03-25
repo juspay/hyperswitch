@@ -1,12 +1,14 @@
 #[cfg(feature = "v2")]
 use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "v2")]
+use common_utils::errors::ParsingError;
+#[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
     encryption::Encryption,
-    errors::{CustomResult, ParsingError, ValidationError},
+    errors::{CustomResult, ValidationError},
     id_type,
     pii::{self, Email},
     type_name,
