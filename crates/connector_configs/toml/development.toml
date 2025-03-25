@@ -1208,6 +1208,24 @@ merchant_secret="Source verification key"
 [coingate.connector_auth.BodyKey]
 api_key="API Key"
 key1 ="Merchant Token"
+[coingate.metadata.currency_id]
+name="currency_id"
+label="ID of the currency in which the refund will be issued"
+placeholder="Enter ID of the currency in which the refund will be issued"
+required=true
+type="Text"
+[coingate.metadata.platform_id]
+name="platform_id"
+label="Platform ID of the currency in which the refund will be issued"
+placeholder="Enter Platform ID of the currency in which the refund will be issued"
+required=true
+type="Text"
+[coingate.metadata.ledger_account_id]
+name="ledger_account_id"
+label="ID of the trader balance associated with the currency in which the refund will be issued"
+placeholder="Enter ID of the trader balance associated with the currency in which the refund will be issued"
+required=true
+type="Text"
 
 [cryptopay]
 [[cryptopay.crypto]]
