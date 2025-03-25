@@ -713,7 +713,7 @@ pub async fn retrieve_payment_method_with_token(
 pub(crate) fn get_payment_method_create_request(
     payment_method_data: &api_models::payments::PaymentMethodData,
     payment_method_type: storage_enums::PaymentMethod,
-    payment_method_subtype: storage_enums::PaymentMethodType,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     customer_id: id_type::GlobalCustomerId,
     billing_address: Option<&api_models::payments::Address>,
     payment_method_session: Option<&domain::payment_methods::PaymentMethodSession>,
@@ -977,7 +977,7 @@ pub async fn create_payment_method_core(
                 None,
                 network_tokenization_resp,
                 Some(req.payment_method_type),
-                Some(req.payment_method_subtype),
+                req.payment_method_subtype,
             )
             .await
             .attach_printable("Unable to create Payment method data")?;

@@ -44,7 +44,7 @@ describe("[Payout] Saved Bank transfer", () => {
       it("create payment method", () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["sepa"]["SavePayoutMethod"];
+        ]["sepa_bank_transfer"]["SavePayoutMethod"];
 
         cy.createPaymentMethodTest(globalState, data);
       });
@@ -56,7 +56,7 @@ describe("[Payout] Saved Bank transfer", () => {
       it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["sepa"]["Token"];
+        ]["sepa_bank_transfer"]["Token"];
 
         cy.createConfirmWithTokenPayoutTest(
           payoutBody,
@@ -94,7 +94,7 @@ describe("[Payout] Saved Bank transfer", () => {
       it("confirm-payout-call-with-auto-fulfill-test", () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["sepa"]["Fulfill"];
+        ]["sepa_bank_transfer"]["Fulfill"];
 
         cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
 
@@ -109,7 +109,7 @@ describe("[Payout] Saved Bank transfer", () => {
       it("[Payout] [Bank transfer] [SEPA] Fulfill using payout_method_id", () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["sepa"]["Token"];
+        ]["sepa_bank_transfer"]["Token"];
 
         cy.createConfirmWithPayoutMethodIdTest(
           payoutBody,
