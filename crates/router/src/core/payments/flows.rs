@@ -398,6 +398,7 @@ default_imp_for_connector_request_id!(
     connector::Dlocal,
     connector::Ebanx,
     connector::Elavon,
+    connector::Facilitapay,
     connector::Fiserv,
     connector::Fiservemea,
     connector::Fiuu,
@@ -1230,6 +1231,7 @@ default_imp_for_fraud_check!(
     connector::Dlocal,
     connector::Ebanx,
     connector::Elavon,
+    connector::Facilitapay,
     connector::Fiserv,
     connector::Fiservemea,
     connector::Fiuu,
@@ -1710,6 +1712,7 @@ default_imp_for_connector_authentication!(
     connector::Dlocal,
     connector::Ebanx,
     connector::Elavon,
+    connector::Facilitapay,
     connector::Fiserv,
     connector::Fiservemea,
     connector::Fiuu,
@@ -2205,7 +2208,7 @@ fn handle_post_capture_response(
                 )),
                 _ => {
                     logger::error!(
-                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.", 
+                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.",
                         post_capture_router_data.response,
                         post_capture_router_data.status,
                     );
