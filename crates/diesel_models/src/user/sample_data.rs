@@ -4,10 +4,11 @@ use common_enums::{
     PaymentMethodType,
 };
 #[cfg(feature = "v1")]
-use common_utils::types::{
-    ConnectorTransactionId, ExtendedAuthorizationAppliedBool, MinorUnit,
-    RequestExtendedAuthorizationBool,
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+#[cfg(feature = "v1")]
+use common_utils::types::{ConnectorTransactionId, MinorUnit};
 #[cfg(feature = "v1")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "v1")]

@@ -152,3 +152,27 @@ pub const X_REQUEST_ID: &str = "x-request-id";
 
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
+
+/// Default status of Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_THRESHOLD: i32 = 3;
+
+/// Default status of Guest User Card Blocking
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card Blocking for Guest Users
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD: i32 = 10;
+
+/// Default status of Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
+
+/// Default Card Testing Guard Redis Expiry in seconds
+pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// SOAP 1.1 Envelope Namespace
+pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";

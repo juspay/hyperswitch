@@ -124,6 +124,8 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
         };
@@ -205,6 +207,8 @@ impl
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 }
                 ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
@@ -215,6 +219,8 @@ impl
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 }
             },
@@ -694,7 +700,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         Ok(Self {
-            acct_number: router_data.request.card_holder_account_number.clone(),
+            acct_number: router_data.request.card.card_number.clone(),
             ds: None,
         })
     }

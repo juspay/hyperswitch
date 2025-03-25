@@ -37,6 +37,7 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
+    type Error;
     async fn update_payment_intent(
         &self,
         state: &KeyManagerState,
@@ -44,7 +45,7 @@ pub trait PaymentIntentInterface {
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     async fn insert_payment_intent(
         &self,
@@ -52,7 +53,7 @@ pub trait PaymentIntentInterface {
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -62,7 +63,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
@@ -71,7 +72,7 @@ pub trait PaymentIntentInterface {
         profile_id: &id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: &common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
@@ -80,7 +81,7 @@ pub trait PaymentIntentInterface {
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
@@ -90,7 +91,7 @@ pub trait PaymentIntentInterface {
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
@@ -100,7 +101,7 @@ pub trait PaymentIntentInterface {
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
@@ -108,7 +109,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
-    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
@@ -118,7 +119,7 @@ pub trait PaymentIntentInterface {
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
@@ -133,7 +134,7 @@ pub trait PaymentIntentInterface {
             PaymentIntent,
             Option<super::payment_attempt::PaymentAttempt>,
         )>,
-        errors::StorageError,
+        Self::Error,
     >;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
@@ -142,7 +143,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<Option<String>>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<Option<String>>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
@@ -150,7 +151,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<String>, Self::Error>;
 }
 
 #[derive(Clone, Debug, PartialEq, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -194,7 +195,7 @@ pub struct PaymentIntentUpdateFields {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
-
+    pub active_attempt_id: Option<Option<id_type::GlobalAttemptId>>,
     // updated_by is set internally, field not present in request
     pub updated_by: String,
 }
@@ -318,7 +319,7 @@ pub enum PaymentIntentUpdate {
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: common_enums::IntentStatus,
-        active_attempt_id: id_type::GlobalAttemptId,
+        active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
     },
     /// PostUpdate tracker of ConfirmIntent
@@ -326,6 +327,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
         updated_by: String,
+        feature_metadata: Option<Box<diesel_models::types::FeatureMetadata>>,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
@@ -336,6 +338,12 @@ pub enum PaymentIntentUpdate {
     CaptureUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
+    RecordUpdate {
+        status: common_enums::IntentStatus,
+        feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
+        active_attempt_id: id_type::GlobalAttemptId,
         updated_by: String,
     },
     /// UpdateIntent
@@ -436,6 +444,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 amount_captured,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 active_attempt_id: None,
@@ -464,7 +473,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 allowed_payment_method_types: None,
                 metadata: None,
                 connector_metadata: None,
-                feature_metadata: None,
+                feature_metadata: feature_metadata.map(|val| *val),
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,
@@ -583,11 +592,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     session_expiry,
                     frm_metadata,
                     request_external_three_ds_authentication,
+                    active_attempt_id,
                     updated_by,
                 } = *boxed_intent;
                 Self {
                     status: None,
-                    active_attempt_id: None,
+                    active_attempt_id,
                     modified_at: common_utils::date_time::now(),
                     amount_captured: None,
                     amount,
@@ -629,6 +639,47 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     updated_by,
                 }
             }
+            PaymentIntentUpdate::RecordUpdate {
+                status,
+                feature_metadata,
+                active_attempt_id,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                amount_captured: None,
+                active_attempt_id: Some(Some(active_attempt_id)),
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: *feature_metadata,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
         }
     }
 }
