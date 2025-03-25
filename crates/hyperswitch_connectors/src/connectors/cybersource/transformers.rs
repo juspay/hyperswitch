@@ -1301,7 +1301,7 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1389,7 +1389,7 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1475,7 +1475,7 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
