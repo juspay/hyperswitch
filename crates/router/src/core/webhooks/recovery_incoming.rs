@@ -75,7 +75,7 @@ pub async fn recovery_incoming_webhook_flow(
         })
         .await?;
 
-        // It is a tuple of (RecoveryPaymentAttempt, RecoveryPaymentIntent) 
+    // It is a tuple of (RecoveryPaymentAttempt, RecoveryPaymentIntent)
     let payment_attempt_with_recovery_intent = match event_type.is_recovery_transaction_event() {
         true => {
             let invoice_transaction_details = RevenueRecoveryAttempt(
@@ -87,9 +87,13 @@ pub async fn recovery_incoming_webhook_flow(
             );
             // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
             let payment_merchant_connector_account = invoice_transaction_details
-                .find_payment_merchant_connector_account(&state, &key_store, &billing_connector_account)
+                .find_payment_merchant_connector_account(
+                    &state,
+                    &key_store,
+                    &billing_connector_account,
+                )
                 .await?;
-    
+
             // We expect the chain below to return a tuple (RecoveryPaymentAttempt, RecoveryPaymentIntent)
             // either from get_payment_attempt (if available) or from record_payment_attempt.
             let (payment_attempt, updated_payment_intent) = invoice_transaction_details
@@ -120,14 +124,17 @@ pub async fn recovery_incoming_webhook_flow(
                 })
                 .await?;
             Some((payment_attempt, updated_payment_intent))
-        }  
-          
+        }
+
         false => None,
     };
 
-    let attempt_triggered_by = payment_attempt_with_recovery_intent
-        .as_ref()
-        .and_then(|(attempt, _)| revenue_recovery::RecoveryPaymentAttempt::get_attempt_triggered_by(attempt));
+    let attempt_triggered_by =
+        payment_attempt_with_recovery_intent
+            .as_ref()
+            .and_then(|(attempt, _)| {
+                revenue_recovery::RecoveryPaymentAttempt::get_attempt_triggered_by(attempt)
+            });
 
     let action = revenue_recovery::RecoveryAction::get_action(event_type, attempt_triggered_by);
 
@@ -135,13 +142,22 @@ pub async fn recovery_incoming_webhook_flow(
 
     let intent_retry_count = payment_attempt_with_recovery_intent
         .as_ref()
-        .and_then(|(_, intent)| intent.feature_metadata.as_ref().and_then(|metadata| metadata.get_retry_count()))
+        .and_then(|(_, intent)| {
+            intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get_retry_count())
+        })
         .unwrap_or(0);
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
 
     if intent_retry_count <= mca_retry_threshold {
-        router_env::logger::error!("Payment retry count {} is less than threshold {}", intent_retry_count, mca_retry_threshold);
+        router_env::logger::error!(
+            "Payment retry count {} is less than threshold {}",
+            intent_retry_count,
+            mca_retry_threshold
+        );
         return Ok(webhooks::WebhookResponseTracker::NoEffect);
     }
 
@@ -151,7 +167,10 @@ pub async fn recovery_incoming_webhook_flow(
             Ok(RevenueRecoveryAttempt::insert_execute_pcr_task(
                 &*state.store,
                 merchant_account.get_id().to_owned(),
-                payment_attempt_with_recovery_intent.as_ref().map(|(_, intent)| intent.clone()).unwrap_or(payment_intent),
+                payment_attempt_with_recovery_intent
+                    .as_ref()
+                    .map(|(_, intent)| intent.clone())
+                    .unwrap_or(payment_intent),
                 business_profile.get_id().to_owned(),
                 payment_attempt_with_recovery_intent.map(|(attempt, _)| attempt.attempt_id.clone()),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
@@ -295,13 +314,12 @@ impl RevenueRecoveryAttempt {
         key_store: &domain::MerchantKeyStore,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<
-    Option<(
-        revenue_recovery::RecoveryPaymentAttempt,
-        revenue_recovery::RecoveryPaymentIntent,
-    )>,
-    errors::RevenueRecoveryError,
->
-    {
+        Option<(
+            revenue_recovery::RecoveryPaymentAttempt,
+            revenue_recovery::RecoveryPaymentIntent,
+        )>,
+        errors::RevenueRecoveryError,
+    > {
         let attempt_response = Box::pin(payments::payments_core::<
             hyperswitch_domain_models::router_flow_types::payments::PSync,
             api_payments::PaymentsResponse,
@@ -372,11 +390,13 @@ impl RevenueRecoveryAttempt {
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         billing_connector_account_id: &id_type::MerchantConnectorAccountId,
         payment_connector_account: Option<domain::MerchantConnectorAccount>,
-    ) -> CustomResult< (
-        revenue_recovery::RecoveryPaymentAttempt,
-        revenue_recovery::RecoveryPaymentIntent,
-    ),
-    errors::RevenueRecoveryError> {
+    ) -> CustomResult<
+        (
+            revenue_recovery::RecoveryPaymentAttempt,
+            revenue_recovery::RecoveryPaymentIntent,
+        ),
+        errors::RevenueRecoveryError,
+    > {
         let request_payload = self
             .create_payment_record_request(billing_connector_account_id, payment_connector_account);
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -394,32 +414,31 @@ impl RevenueRecoveryAttempt {
 
         let (recovery_attempt, updated_recovery_intent) = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
-            Ok((
-                revenue_recovery::RecoveryPaymentAttempt {
-                attempt_id: attempt_response.id.clone(),
-                attempt_status: attempt_response.status,
-                feature_metadata: attempt_response.payment_attempt_feature_metadata,
-                },
-                revenue_recovery::RecoveryPaymentIntent {
-                payment_id: payment_intent.payment_id.clone(),
-                status: attempt_response.status.into(), // Using status from attempt_response
-                feature_metadata: attempt_response.payment_intent_feature_metadata, // Using feature_metadata from attempt_response
-                }
-            ))
+                Ok((
+                    revenue_recovery::RecoveryPaymentAttempt {
+                        attempt_id: attempt_response.id.clone(),
+                        attempt_status: attempt_response.status,
+                        feature_metadata: attempt_response.payment_attempt_feature_metadata,
+                    },
+                    revenue_recovery::RecoveryPaymentIntent {
+                        payment_id: payment_intent.payment_id.clone(),
+                        status: attempt_response.status.into(), // Using status from attempt_response
+                        feature_metadata: attempt_response.payment_intent_feature_metadata, // Using feature_metadata from attempt_response
+                    },
+                ))
             }
             Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
-            .attach_printable("Unexpected response from record attempt core"),
+                .attach_printable("Unexpected response from record attempt core"),
             error @ Err(_) => {
-            router_env::logger::error!(?error);
-            Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
-                .attach_printable("failed to record attempt in recovery webhook flow")
+                router_env::logger::error!(?error);
+                Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+                    .attach_printable("failed to record attempt in recovery webhook flow")
             }
         }?;
-    
+
         let response = (recovery_attempt, updated_recovery_intent);
 
         Ok(response)
-    
     }
 
     pub fn create_payment_record_request(
