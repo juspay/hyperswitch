@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -475,7 +475,7 @@ pub struct NoonData {
     query_data: NoonQueryData,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonQueryData {
     status: String,
@@ -485,7 +485,7 @@ pub struct NoonQueryData {
     token: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaypalQueryData {
     status: String,
@@ -520,7 +520,7 @@ impl TryFrom<&NoonRouterData<&PaymentsCompleteAuthorizeRouterData>>
             .attach_printable("Failed to parse connector response")?;
 
         let payer_id = query_params.payer_id;
-        let token = query_params.token;
+        let token = query_params.token.clone();
         let payment_id = query_params.token;
         let status = query_params.status;
         let payment_method_type = NoonPaymentMethodType::Paypal;
@@ -530,8 +530,12 @@ impl TryFrom<&NoonRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 .router_data
                 .request
                 .connector_transaction_id
-                .parse()
-                .unwrap(),
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                })?
+                .parse::<u64>()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Self {
             api_operation: NoonApiOperations::ProcessAuthentication,
@@ -714,12 +718,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
         //             method: Method::Post,
         //             form_fields: std::collections::HashMap::new(),
         //         });
-        let redirection_data = item
+        let url = item
             .response
             .result
             .payment_data
             .map(|redirection_data| redirection_data.data.url);
-        println!("$$$$ Redirection Data: {:?}", redirection_data);
+        let redirection_data = url.map(|url| RedirectForm::from((url, Method::Get)));
         let mandate_reference =
             item.response
                 .result
@@ -748,11 +752,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
                         order.reference.or(Some(order.id.to_string()));
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(order.id.to_string()),
-                        redirection_data: Box::new(Some(RedirectForm::from((
-                            redirection_data
-                                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                            Method::Get,
-                        )))),
+                        redirection_data: Box::new(redirection_data),
                         mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
