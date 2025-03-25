@@ -218,6 +218,8 @@ diesel::table! {
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
         #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -228,8 +230,6 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Bool,
-        #[max_length = 64]
-        id -> Varchar,
     }
 }
 
@@ -240,8 +240,7 @@ diesel::table! {
     callback_mapper (id, type_) {
         #[max_length = 128]
         id -> Varchar,
-        #[sql_name = "type"]
-        #[max_length = 64]
+        #[sql_name = "type", max_length = 64]
         type_ -> Varchar,
         data -> Jsonb,
         created_at -> Timestamp,
@@ -764,9 +763,9 @@ diesel::table! {
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
         version -> ApiVersion,
-        feature_metadata -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

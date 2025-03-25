@@ -221,6 +221,8 @@ diesel::table! {
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -785,6 +787,8 @@ diesel::table! {
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
         version -> ApiVersion,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 

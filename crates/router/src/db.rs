@@ -106,7 +106,7 @@ pub trait StorageInterface:
     + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
-    // + merchant_account::MerchantAccountInterface
+    + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
     + PaymentAttemptInterface

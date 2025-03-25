@@ -65,6 +65,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[cfg(feature = "v1")]
@@ -115,6 +116,7 @@ pub struct ProfileNew {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[cfg(feature = "v1")]
@@ -280,6 +282,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
+            id: source.id,
         }
     }
 }
@@ -334,6 +337,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub id: common_utils::id_type::ProfileId,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -342,7 +346,6 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
-    pub id: common_utils::id_type::ProfileId,
 }
 
 impl Profile {
