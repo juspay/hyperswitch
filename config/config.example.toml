@@ -939,11 +939,11 @@ service = "dynamo" # Service name
 file_storage_backend = "file_system" # Theme storage backend to be used
 
 [theme.email_config]
-entity_name = "Hyperswitch"  # Display name in emails
+entity_name = "Hyperswitch"                                                      # Display name in emails
 entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png"  # Logo URL for emails
-foreground_color = "#111326"  # Text color
-primary_color = "#006DF9"  # Primary color
-background_color = "#FFFFFF"  # Email background color
+foreground_color = "#111326"                                                     # Text color
+primary_color = "#006DF9"                                                        # Primary color
+background_color = "#FFFFFF"                                                     # Email background color
 
 [additional_revenue_recovery_details_call]
 connectors_with_additional_revenue_recovery_details_call = "stripebilling" # List of connectors which has additional revenue recovery details api-call

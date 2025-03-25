@@ -598,7 +598,7 @@ impl EmailData for BizEmailProd {
         });
 
         Ok(EmailContents {
-            subject: format!("New Prod Intent"),
+            subject: "New Prod Intent".to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -675,7 +675,7 @@ impl EmailData for WelcomeToCommunity {
         let body = html::get_html_body(EmailBody::WelcomeToCommunity);
 
         Ok(EmailContents {
-            subject: format!("Thank you for signing up on Hyperswitch Dashboard!"),
+            subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
