@@ -6,6 +6,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
@@ -21,8 +23,6 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -574,11 +574,11 @@ pub fn generate_payment_method_response(
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
         });
-    
+
     if let Some(token) = single_use_token {
-            connector_tokens.append(transformers::ForeignFrom::foreign_from(token.clone()));
-        }
-    
+        connector_tokens.append(transformers::ForeignFrom::foreign_from(token.clone()));
+    }
+
     let network_token_pmd = payment_method
         .network_token_payment_method_data
         .clone()
@@ -1123,7 +1123,9 @@ impl
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignFrom<payment_method_data::PaymentMethodTokenSingleUse> for api_models::payment_methods::ConnectorTokenDetails {
+impl transformers::ForeignFrom<payment_method_data::PaymentMethodTokenSingleUse>
+    for api_models::payment_methods::ConnectorTokenDetails
+{
     fn foreign_from(token: payment_method_data::PaymentMethodTokenSingleUse) -> Self {
         Self {
             connector_id: token.merchant_connector_id,
@@ -1136,4 +1138,4 @@ impl transformers::ForeignFrom<payment_method_data::PaymentMethodTokenSingleUse>
             token: Secret::new(token.token),
         }
     }
-} 
+}

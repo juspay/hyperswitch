@@ -1355,9 +1355,7 @@ pub async fn add_token_for_payment_method(
     state: SessionState,
     merchant_connector_account_details: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentMethodTokenResult> {
-    let connector_id = merchant_connector_account_details
-                        .id
-                        .clone();
+    let connector_id = merchant_connector_account_details.id.clone();
     let connector_data = api::ConnectorData::get_connector_by_name(
         &(state.conf.connectors),
         &merchant_connector_account_details

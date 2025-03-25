@@ -34,10 +34,10 @@ use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::Encryptable,
+    errors,
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
-    errors,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -1890,11 +1890,12 @@ pub async fn retrieve_payment_method(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    
+
     let payment_method_in_cache = get_single_use_token_from_store(
         &state.clone(),
-        payment_method_data::SingleUseTokenKey::store_key(pm_id.clone().get_string_repr())
-    ).await
+        payment_method_data::SingleUseTokenKey::store_key(pm_id.clone().get_string_repr()),
+    )
+    .await
     .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
         message: "payment methods session does not exist or has expired".to_string(),
     })
@@ -2690,11 +2691,12 @@ async fn create_single_use_tokenization_flow(
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()> {
     let customer_id = payment_method_create_request.customer_id.to_owned();
-    let connector_id = payment_method_create_request.get_tokenize_connector_id()
-    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "psp_tokenization.connector_id",
-    })
-    .attach_printable("Failed to get tokenize connector id")?;
+    let connector_id = payment_method_create_request
+        .get_tokenize_connector_id()
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "psp_tokenization.connector_id",
+        })
+        .attach_printable("Failed to get tokenize connector id")?;
 
     let db = &state.store;
 
@@ -2717,7 +2719,9 @@ async fn create_single_use_tokenization_flow(
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "card_cvc",
         })
-        .attach_printable("Failed to convert type from Payment Method Create Data to Payment Method Data")?,
+        .attach_printable(
+            "Failed to convert type from Payment Method Create Data to Payment Method Data",
+        )?,
         browser_info: None,
         currency: api_models::enums::Currency::default(),
         amount: None,
@@ -2807,17 +2811,17 @@ async fn create_single_use_tokenization_flow(
             reason: err.reason,
         })?;
 
-    let token = token_response
-                            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                                message: "No token recevied from the PSP".to_string(),
-                            })?;
+    let token = token_response.ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "No token recevied from the PSP".to_string(),
+    })?;
 
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
                                                        token.clone(),
                                                 connector_id.clone()
                                             );
 
-    let key = payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
+    let key =
+        payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
 
     add_single_use_token_to_store(&state, key, value).await?;
 
@@ -2852,10 +2856,7 @@ async fn add_single_use_token_to_store(
 async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
-) -> CustomResult<
-                    payment_method_data::PaymentMethodTokenSingleUse, 
-                    errors::StorageError,
-                >{
+) -> CustomResult<payment_method_data::PaymentMethodTokenSingleUse, errors::StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
@@ -2865,7 +2866,7 @@ async fn get_single_use_token_from_store(
     redis_connection
         .get_and_deserialize_key::<payment_method_data::PaymentMethodTokenSingleUse>(
             &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
-            "PaymentMethodTokenSingleUse"
+            "PaymentMethodTokenSingleUse",
         )
         .await
         .change_context(errors::StorageError::KVError)
