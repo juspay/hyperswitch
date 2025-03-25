@@ -888,7 +888,7 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static REDSYS_SUPPORTED_WEBHOOK_FLOWS : [common_enums::EventClass; 0]  = [];
+static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Redsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
