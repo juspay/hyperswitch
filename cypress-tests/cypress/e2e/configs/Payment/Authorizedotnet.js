@@ -67,7 +67,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardOneDetails,
+          card: successfulTestCardDetailsList[0],
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -87,7 +87,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetailsList[0],
         },
         currency: "USD",
         customer_acceptance: null,
@@ -104,7 +104,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetailsList[0],
         },
         currency: "USD",
         customer_acceptance: null,
@@ -156,7 +156,7 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
-        amount: latestPaymentIntentAmount,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -181,7 +181,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardOneDetails,
+          card: successfulTestCardDetailsList[0],
         },
         currency: "USD",
         customer_acceptance: null,
@@ -197,7 +197,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardOneDetails,
+          card: successfulTestCardDetailsList[0],
         },
         currency: "USD",
         customer_acceptance: null,
@@ -213,7 +213,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulTestCardOneDetails,
+          card: successfulTestCardDetailsList[0],
         },
         currency: "USD",
         customer_acceptance: null,
