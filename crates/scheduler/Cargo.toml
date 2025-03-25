@@ -10,8 +10,8 @@ default = ["kv_store", "olap"]
 olap = ["storage_impl/olap", "hyperswitch_domain_models/olap"]
 kv_store = []
 email = ["external_services/email"]
-v1 = ["diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
-v2 = ["diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "common_utils/v2"]
+v1 = ["diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1", "common_types/v1"]
+v2 = ["diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "common_utils/v2", "common_types/v2"]
 
 [dependencies]
 # Third party crates
