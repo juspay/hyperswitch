@@ -176,7 +176,7 @@ describe("[Payout] Saved Bank transfer", () => {
         cy.listCustomerPMCallTest(globalState);
       });
 
-      it("[Payout] [Bank transfer] [sepa_bank_transfer] Fulfill using Token", () => {
+      it("[Payout] [Bank transfer] [SEPA_BANK_TRANSFER] Fulfill using Token", () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
         ]["sepa_bank_transfer"]["Token"];
@@ -229,7 +229,7 @@ describe("[Payout] Saved Bank transfer", () => {
         cy.listCustomerPMCallTest(globalState);
       });
 
-      it("[Payout] [Bank transfer] [sepa_bank_transfer] Fulfill using Token", () => {
+      it("[Payout] [Bank transfer] [SEPA_BANK_TRANSFER] Fulfill using Token", () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
         ]["sepa_bank_transfer"]["Token"];
