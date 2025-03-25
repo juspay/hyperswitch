@@ -709,15 +709,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
     ) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
         let status = get_payment_status((order.status, item.data.status));
-        // let redirection_data =
-        //     item.response
-        //         .result
-        //         .payment_data
-        //         .map(|redirection_data| RedirectForm::Form {
-        //             endpoint: redirection_data.data.url.to_string(),
-        //             method: Method::Post,
-        //             form_fields: std::collections::HashMap::new(),
-        //         });
         let url = item
             .response
             .result
