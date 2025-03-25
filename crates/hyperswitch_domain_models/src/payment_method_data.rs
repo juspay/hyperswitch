@@ -1,3 +1,6 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
+
 use api_models::{
     mandates,
     payment_methods::{self},
@@ -1862,6 +1865,33 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<CardDetailsPaymentMethod> for payment_methods::CardDetailFromLocker {
+    fn from(item: CardDetailsPaymentMethod) -> Self {
+        Self {
+            issuer_country: item
+                .issuer_country
+                .as_ref()
+                .map(|c| api_enums::CountryAlpha2::from_str(c))
+                .transpose()
+                .ok()
+                .flatten(),
+            last4_digits: item.last4_digits,
+            card_number: None,
+            expiry_month: item.expiry_month,
+            expiry_year: item.expiry_year,
+            card_holder_name: item.card_holder_name,
+            card_fingerprint: None,
+            nick_name: item.nick_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }

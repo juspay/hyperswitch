@@ -55,7 +55,7 @@ use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
-use masking::{PeekInterface, Secret};
+use masking::{ExposeOptionInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -1354,6 +1354,59 @@ pub async fn list_saved_payment_methods_for_customer(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn get_cryptogram_for_payment_methods_for_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    customer_id: id_type::GlobalCustomerId,
+    payment_method_id: String,
+) -> RouterResponse<api::CustomerPaymentMethodsCryptogramResponse> {
+    let key_manager_state = &(&state).into();
+
+    let db = &*state.store;
+
+    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(payment_method_id.clone())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
+    let payment_method = db
+        .find_payment_method(
+            key_manager_state,
+            &key_store,
+            &pm_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let network_token_requestor_ref_id = payment_method
+        .network_token_requestor_reference_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("NetworkTokenRequestorReferenceId is not present")?;
+
+    let network_token = network_tokenization::get_token_from_tokenization_service(
+        &state,
+        network_token_requestor_ref_id,
+        &payment_method,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to fetch network token data from tokenization service")?;
+
+    let customer_cryptogram_response = api::CustomerPaymentMethodsCryptogramResponse {
+        payment_method_id,
+        customer_id,
+        cryptogram: network_token.cryptogram.expose_option(),
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        customer_cryptogram_response,
     ))
 }
 

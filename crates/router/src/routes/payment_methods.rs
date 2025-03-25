@@ -625,6 +625,42 @@ pub async fn list_customer_payment_method_api(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerGetPaymentMethodCryptogram))]
+pub async fn get_customer_payment_method_cryptogram(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(id_type::GlobalCustomerId, String)>,
+) -> HttpResponse {
+    let flow = Flow::CustomerGetPaymentMethodCryptogram;
+    let (customer_id, payment_method_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payment_methods_routes::get_cryptogram_for_payment_methods_for_customer(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                customer_id.clone(),
+                payment_method_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth,
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::TotalPaymentMethodCount))]
 pub async fn get_total_payment_method_count(
     state: web::Data<AppState>,

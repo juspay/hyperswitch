@@ -1063,6 +1063,11 @@ impl Customers {
                     web::resource("/{id}/saved-payment-methods")
                         .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
+                .service(
+                    web::resource("/{id}/payment-methods/{payment_method_id}/cryptogram").route(
+                        web::get().to(payment_methods::get_customer_payment_method_cryptogram),
+                    ),
+                )
         }
         route
     }
