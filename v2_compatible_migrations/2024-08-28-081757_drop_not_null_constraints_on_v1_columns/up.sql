@@ -55,3 +55,8 @@ ALTER TABLE payment_methods
     DROP CONSTRAINT payment_methods_pkey,
     ALTER COLUMN payment_method_id DROP NOT NULL;
 CREATE INDEX idx_payment_methods_payment_method_id ON payment_methods (payment_method_id);
+
+ALTER TABLE refund
+    DROP CONSTRAINT refund_pkey,
+    ALTER COLUMN refund_id DROP NOT NULL;
+CREATE INDEX idx_refund_refund_id_merchant_id ON refund (refund_id, merchant_id);

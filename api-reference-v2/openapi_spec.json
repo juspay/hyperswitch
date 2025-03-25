@@ -4440,6 +4440,11 @@
           "three_ds_requestor_url": {
             "type": "string",
             "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.",
+            "nullable": true
           }
         }
       },
@@ -7667,6 +7672,7 @@
           "rapyd",
           "razorpay",
           "recurly",
+          "redsys",
           "shift4",
           "square",
           "stax",
@@ -8365,10 +8371,12 @@
           "CAD",
           "CDF",
           "CHF",
+          "CLF",
           "CLP",
           "CNY",
           "COP",
           "CRC",
+          "CUC",
           "CUP",
           "CVE",
           "CZK",
@@ -8464,6 +8472,7 @@
           "SOS",
           "SRD",
           "SSP",
+          "STD",
           "STN",
           "SVC",
           "SYP",
@@ -8848,6 +8857,11 @@
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
+          },
+          "connector_customer_ids": {
+            "type": "object",
+            "description": "Connector specific customer reference ids",
+            "nullable": true
           },
           "name": {
             "type": "string",
@@ -9968,6 +9982,12 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
           },
           {
             "type": "string",
@@ -11122,6 +11142,52 @@
             },
             "nullable": true
           }
+        }
+      },
+      "IframeData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_url",
+              "three_ds_method_data_submission",
+              "directory_server_id",
+              "method_key"
+            ],
+            "properties": {
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url"
+              },
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data",
+                "nullable": true
+              },
+              "directory_server_id": {
+                "type": "string",
+                "description": "ThreeDS Server ID"
+              },
+              "message_version": {
+                "type": "string",
+                "description": "ThreeDS Protocol version",
+                "nullable": true
+              },
+              "method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "method_key"
         }
       },
       "IncrementalAuthorizationResponse": {
@@ -12978,6 +13044,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains data required to invoke hidden iframe",
+            "required": [
+              "iframe_data",
+              "type"
+            ],
+            "properties": {
+              "iframe_data": {
+                "$ref": "#/components/schemas/IframeData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_hidden_iframe"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -14663,7 +14748,6 @@
         "type": "object",
         "required": [
           "payment_method_type",
-          "payment_method_subtype",
           "customer_id",
           "payment_method_data"
         ],
@@ -14672,7 +14756,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "metadata": {
             "type": "object",
@@ -16108,6 +16197,14 @@
           "client_secret": {
             "type": "string",
             "description": "Client Secret"
+          },
+          "threeds_method_comp_ind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16116,8 +16213,7 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "return_url": {
@@ -16133,7 +16229,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "shipping": {
             "allOf": [
@@ -16491,6 +16592,11 @@
           "three_ds_requestor_url": {
             "type": "string",
             "description": "Three DS Requestor URL"
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
           }
         }
       },
@@ -16911,8 +17017,7 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "amount_details": {
@@ -17104,7 +17209,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [
@@ -20466,6 +20576,7 @@
           "rapyd",
           "razorpay",
           "recurly",
+          "redsys",
           "riskified",
           "shift4",
           "signifyd",

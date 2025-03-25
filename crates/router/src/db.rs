@@ -109,15 +109,15 @@ pub trait StorageInterface:
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
-    + PaymentAttemptInterface
-    + PaymentIntentInterface
-    + PaymentMethodInterface
+    + PaymentAttemptInterface<Error = StorageError>
+    + PaymentIntentInterface<Error = StorageError>
+    + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
-    + PayoutAttemptInterface
-    + PayoutsInterface
+    + PayoutAttemptInterface<Error = StorageError>
+    + PayoutsInterface<Error = StorageError>
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface

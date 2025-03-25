@@ -3,6 +3,9 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::SessionToken;
+use common_types::primitive_wrappers::{
+    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{OptionExt, ValueExt};
 use common_utils::{
@@ -11,7 +14,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -143,6 +146,51 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating start redirection url")
     }
+    #[cfg(feature = "v1")]
+    pub fn get_request_extended_authorization_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_request_extended_authorization_optional: Option<AlwaysRequestExtendedAuthorization>,
+        payment_method_optional: Option<common_enums::PaymentMethod>,
+        payment_method_type_optional: Option<common_enums::PaymentMethodType>,
+    ) -> Option<RequestExtendedAuthorizationBool> {
+        use router_env::logger;
+
+        let is_extended_authorization_supported_by_connector = || {
+            let supported_pms = connector.get_payment_methods_supporting_extended_authorization();
+            let supported_pmts =
+                connector.get_payment_method_types_supporting_extended_authorization();
+            // check if payment method or payment method type is supported by the connector
+            logger::info!(
+                "Extended Authentication Connector:{:?}, Supported payment methods: {:?}, Supported payment method types: {:?}, Payment method Selected: {:?}, Payment method type Selected: {:?}",
+                connector,
+                supported_pms,
+                supported_pmts,
+                payment_method_optional,
+                payment_method_type_optional
+            );
+            match (payment_method_optional, payment_method_type_optional) {
+                (Some(payment_method), Some(payment_method_type)) => {
+                    supported_pms.contains(&payment_method)
+                        && supported_pmts.contains(&payment_method_type)
+                }
+                (Some(payment_method), None) => supported_pms.contains(&payment_method),
+                (None, Some(payment_method_type)) => supported_pmts.contains(&payment_method_type),
+                (None, None) => false,
+            }
+        };
+        let intent_request_extended_authorization_optional = self.request_extended_authorization;
+        if always_request_extended_authorization_optional.is_some_and(
+            |always_request_extended_authorization| *always_request_extended_authorization,
+        ) || intent_request_extended_authorization_optional.is_some_and(
+            |intent_request_extended_authorization| *intent_request_extended_authorization,
+        ) {
+            Some(is_extended_authorization_supported_by_connector())
+        } else {
+            None
+        }
+        .map(RequestExtendedAuthorizationBool::from)
+    }
 
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
@@ -226,7 +274,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
