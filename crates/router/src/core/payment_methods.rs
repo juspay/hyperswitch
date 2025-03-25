@@ -993,7 +993,7 @@ pub async fn create_payment_method_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
 
             Ok((resp, payment_method))
         }
@@ -1277,7 +1277,7 @@ pub async fn payment_method_intent_create(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
+    let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
 
     Ok(services::ApplicationResponse::Json(resp))
 }
@@ -1889,8 +1889,15 @@ pub async fn retrieve_payment_method(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    
+    let payment_method_in_cache = get_single_use_token_from_store(
+        &state.clone(),
+        payment_method_data::SingleUseToken::new(pm_id.clone().get_string_repr())
+    ).await
+    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Failed to get payment method in store")?;
 
-    transformers::generate_payment_method_response(&payment_method)
+    transformers::generate_payment_method_response(&payment_method, Some(&payment_method_in_cache))
         .map(services::ApplicationResponse::Json)
 }
 
@@ -2011,7 +2018,7 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let response = pm_transforms::generate_payment_method_response(&payment_method)?;
+    let response = pm_transforms::generate_payment_method_response(&payment_method, None)?;
 
     // Add a PT task to handle payment_method delete from vault
 
@@ -2835,4 +2842,25 @@ async fn add_single_use_token_to_store(
         .attach_printable("Failed to insert payment method token to redis");
 
     Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn get_single_use_token_from_store(
+    state: &SessionState,
+    key: payment_method_data::SingleUseToken,
+) -> RouterResult<payment_method_data::PaymentMethodTokenSingleUse>{
+    let redis_connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    redis_connection
+        .get_and_deserialize_key::<payment_method_data::PaymentMethodTokenSingleUse>(
+            &payment_method_data::SingleUseToken::get_redis_key(&key).into(),
+            "PaymentMethodTokenSingleUse"
+        )
+        .await
+        .change_context(errors::StorageError::KVError)
+        .attach_printable("Failed to get payment method token from redis")
 }

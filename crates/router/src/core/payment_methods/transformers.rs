@@ -21,6 +21,8 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -548,6 +550,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
+    single_use_token: Option<&payment_method_data::PaymentMethodTokenSingleUse>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -571,6 +574,11 @@ pub fn generate_payment_method_response(
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
         });
+    
+    if let Some(token) = single_use_token {
+            connector_tokens.append(transformers::ForeignFrom::foreign_from(token.clone()));
+        }
+    
     let network_token_pmd = payment_method
         .network_token_payment_method_data
         .clone()
@@ -1113,3 +1121,19 @@ impl
         }
     }
 }
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignFrom<payment_method_data::PaymentMethodTokenSingleUse> for api_models::payment_methods::ConnectorTokenDetails {
+    fn foreign_from(token: payment_method_data::PaymentMethodTokenSingleUse) -> Self {
+        Self {
+            connector_id: token.merchant_connector_id,
+            token_type: common_enums::TokenizationType::SingleUse,
+            status: api_enums::ConnectorTokenStatus::Active,
+            connector_token_request_reference_id: None,
+            original_payment_authorized_amount: None,
+            original_payment_authorized_currency: None,
+            metadata: None,
+            token: Secret::new(token.token),
+        }
+    }
+} 
