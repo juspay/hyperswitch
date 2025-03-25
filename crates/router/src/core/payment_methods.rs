@@ -2680,9 +2680,7 @@ async fn create_single_use_tokenization_flow(
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()> {
     let customer_id = payment_method_create_request.customer_id.to_owned();
-    let connector_id = payment_methods::PaymentMethodCreate::get_tokenize_connector_id(
-        payment_method_create_request,
-    )
+    let connector_id = payment_method_create_request.get_tokenize_connector_id()
     .change_context(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "psp_tokenization.connector_id",
     })
@@ -2709,7 +2707,7 @@ async fn create_single_use_tokenization_flow(
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "card_cvc",
         })
-        .attach_printable("Failed to convert type from ")?,
+        .attach_printable("Failed to convert type from Payment Method Create Data to Payment Method Data")?,
         browser_info: None,
         currency: api_models::enums::Currency::default(),
         amount: None,
@@ -2783,7 +2781,6 @@ async fn create_single_use_tokenization_flow(
         &mut router_data,
         payment_method_data_request.clone(),
         state.clone(),
-        connector_id.clone(),
         &merchant_connector_account_details.clone(),
     )
     .await?;
@@ -2805,7 +2802,7 @@ async fn create_single_use_tokenization_flow(
                                                 connector_id.clone()
                                             );
 
-    let key = payment_method_data::SingleUseToken::new(payment_method.id.get_string_repr());
+    let key = payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
 
     add_single_use_token_to_store(&state, key, value).await?;
 
@@ -2815,7 +2812,7 @@ async fn create_single_use_tokenization_flow(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 async fn add_single_use_token_to_store(
     state: &SessionState,
-    key: payment_method_data::SingleUseToken,
+    key: payment_method_data::SingleUseTokenKey,
     value: payment_method_data::PaymentMethodTokenSingleUse,
 ) -> RouterResult<()> {
     let redis_connection = state
@@ -2826,9 +2823,9 @@ async fn add_single_use_token_to_store(
 
     redis_connection
         .serialize_and_set_key_with_expiry(
-            &payment_method_data::SingleUseToken::get_redis_key(&key).into(),
+            &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
             value,
-            86400,
+            consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
         )
         .await
         .change_context(errors::StorageError::KVError)

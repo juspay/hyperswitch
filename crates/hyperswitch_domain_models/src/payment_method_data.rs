@@ -1960,16 +1960,16 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct SingleUseToken(String);
+pub struct SingleUseTokenKey(String);
 
 #[cfg(feature = "v2")]
-impl SingleUseToken {
-    pub fn new(token: &str) -> Self {
-        let new_token = format!("single_use_token_{}", token);
+impl SingleUseTokenKey {
+    pub fn store_key(payment_method_id: &str) -> Self {
+        let new_token = format!("single_use_token_{}", payment_method_id);
         Self(new_token)
     }
 
-    pub fn get_redis_key(&self) -> &str {
+    pub fn get_store_key(&self) -> &str {
         &self.0
     }
 }

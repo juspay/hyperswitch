@@ -473,6 +473,7 @@ pub enum StripePaymentMethodData {
     BankTransfer(StripeBankTransferData),
 }
 
+// Struct to call the Stripe tokens API to create a PSP token for the card details provided
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken {
     #[serde(rename = "card[number]")]
