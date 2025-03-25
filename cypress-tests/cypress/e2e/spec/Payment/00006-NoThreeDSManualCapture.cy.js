@@ -165,8 +165,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PaymentIntent"];
 
-          console.log("PaymentIntentAmount: ", PaymentIntentAmount);
-
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
             data,
