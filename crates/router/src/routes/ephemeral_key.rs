@@ -84,7 +84,10 @@ pub async fn client_secret_create(
                 req.headers(),
             )
         },
-        &auth::V2ApiKeyAuth,
+        &auth::V2ApiKeyAuth{
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -105,7 +108,10 @@ pub async fn client_secret_delete(
         &req,
         payload,
         |state, _: auth::AuthenticationData, req, _| helpers::delete_client_secret(state, req),
-        &auth::V2ApiKeyAuth,
+        &auth::V2ApiKeyAuth{
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -25,7 +25,10 @@ pub async fn customers_create(
             create_customer(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth{
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -129,7 +132,10 @@ pub async fn customers_retrieve(
             permission: Permission::MerchantCustomerRead,
         }
     } else {
-        api_or_client_auth(&auth::V2ApiKeyAuth, &v2_client_auth, req.headers())
+        api_or_client_auth(&auth::V2ApiKeyAuth{
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }, &v2_client_auth, req.headers())
     };
 
     Box::pin(api::server_wrap(
@@ -170,7 +176,10 @@ pub async fn customers_list(
             )
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth{
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
             },
@@ -290,7 +299,10 @@ pub async fn customers_update(
             )
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth{
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -320,7 +332,10 @@ pub async fn customers_delete(
             delete_customer(state, auth.merchant_account, id, auth.key_store)
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth{
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },

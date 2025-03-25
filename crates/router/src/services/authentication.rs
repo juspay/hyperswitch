@@ -1811,7 +1811,10 @@ where
 /// Take api-key from `Authorization` header
 #[cfg(feature = "v2")]
 #[derive(Debug)]
-pub struct V2ApiKeyAuth;
+pub struct V2ApiKeyAuth{
+    pub is_connected_allowed: bool,
+    pub is_platform_allowed: bool,
+}
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -1889,6 +1892,8 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // here also we can add the validation for granular control, v2 api key auth is same as ApiKeyAuth under v2 feature flag, that v2 feature flag auth we will be discarding
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
         let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
