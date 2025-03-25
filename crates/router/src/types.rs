@@ -513,6 +513,27 @@ pub struct PaymentMethodTokenResult {
     pub is_payment_method_tokenization_performed: bool,
 }
 
+pub struct PspTokenResult {
+    pub token: Result<String, ErrorResponse>,
+}
+
+impl From<PaymentMethodTokenResult> for PspTokenResult {
+    fn from(value: PaymentMethodTokenResult) -> Self {
+        match value.payment_method_token_result {
+            Ok(Some(token)) => PspTokenResult {
+                token: Ok(token)
+            },
+            Ok(None) => PspTokenResult {
+                token: Err(ErrorResponse::new("No token available"))
+            },
+            Err(error) => PspTokenResult {
+                token: Err(error)
+            }
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
