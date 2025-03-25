@@ -85,7 +85,7 @@ pub async fn routing_create_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -179,7 +179,7 @@ pub async fn routing_link_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -267,7 +267,7 @@ pub async fn routing_retrieve_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -397,7 +397,7 @@ pub async fn routing_unlink_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -489,7 +489,7 @@ pub async fn routing_update_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -571,7 +571,7 @@ pub async fn routing_retrieve_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -800,7 +800,7 @@ pub async fn upsert_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -875,7 +875,7 @@ pub async fn retrieve_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
@@ -1045,7 +1045,7 @@ pub async fn routing_retrieve_linked_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::V2ApiKeyAuth{
+            &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },

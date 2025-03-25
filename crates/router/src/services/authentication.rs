@@ -1811,7 +1811,7 @@ where
 /// Take api-key from `Authorization` header
 #[cfg(feature = "v2")]
 #[derive(Debug)]
-pub struct V2ApiKeyAuth{
+pub struct V2ApiKeyAuth {
     pub is_connected_allowed: bool,
     pub is_platform_allowed: bool,
 }
