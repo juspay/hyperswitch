@@ -19,6 +19,7 @@ use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use masking::ExposeOptionInterface;
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
@@ -36,7 +37,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers::MerchantConnectorAccountType, PaymentData},
+        payments::PaymentData,
     },
     db::StorageInterface,
     routes::SessionState,
