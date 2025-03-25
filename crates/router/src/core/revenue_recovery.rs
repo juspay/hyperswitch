@@ -88,7 +88,7 @@ pub async fn perform_execute_payment(
             // find if a psync task is already present
             let task = PSYNC_WORKFLOW;
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-            let process_tracker_id = format!("{runner}_{task}_{}", attempt_id.get_string_repr());
+            let process_tracker_id = attempt_id.get_psync_revenue_recovery_id(task, runner);
             let psync_process = db.find_process_by_id(&process_tracker_id).await?;
 
             match psync_process {
@@ -146,7 +146,7 @@ async fn insert_psync_pcr_task(
     runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
-    let process_tracker_id = format!("{runner}_{task}_{}", payment_attempt_id.get_string_repr());
+    let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
     let schedule_time = common_utils::date_time::now();
     let psync_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
         global_payment_id: payment_id,
@@ -257,7 +257,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
 
     let process_tracker_id_for_psync = tracking_data
         .payment_attempt_id
-        .get_psync_revenue_recovery_id(psync_task, runner);
+        .get_psync_revenue_recovery_id(task, runner);
 
     let process_tracker_for_psync = db
         .find_process_by_id(&process_tracker_id_for_psync)
