@@ -97,7 +97,7 @@ generate_permissions! {
         },
         RevenueRecovery: {
             scopes: [Read],
-            entities: [Merchant]
+            entities: [Profile]
         }
     ]
 }
