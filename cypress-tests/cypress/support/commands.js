@@ -824,6 +824,22 @@ Cypress.Commands.add(
     updateConnectorBody.connector_type = connectorType;
     updateConnectorBody.connector_label = connectorLabel;
 
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          connector_id
+        );
+
+        if (authDetails && authDetails.metadata) {
+          updateConnectorBody.metadata = {
+            ...updateConnectorBody.metadata, // Preserve existing metadata fields
+            ...authDetails.metadata, // Merge with authDetails.metadata
+          };
+        }
+      }
+    );
+
     cy.request({
       method: "POST",
       url: url,
@@ -1276,6 +1292,7 @@ Cypress.Commands.add(
 
     globalState.set("paymentAmount", createPaymentBody.amount);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -2468,6 +2485,7 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const setupFutureUsage = globalState.get("setupFutureUsage");
+
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
