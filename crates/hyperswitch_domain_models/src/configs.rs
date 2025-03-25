@@ -14,6 +14,7 @@ pub struct Connectors {
     pub airwallex: ConnectorParams,
     pub amazonpay: ConnectorParams,
     pub applepay: ConnectorParams,
+    pub archipel: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
     pub bamboraapac: ConnectorParams,

@@ -1,0 +1,27 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/refunds/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "refunds",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{refund_id}}",
+        "description": "(Required) unique refund id"
+      }
+    ]
+  },
+  "description": "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
+}

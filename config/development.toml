@@ -75,6 +75,7 @@ mock_locker = true
 basilisk_host = ""
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
+decryption_scheme = "RSA-OAEP-256"
 
 [forex_api]
 api_key = ""
@@ -118,6 +119,7 @@ cards = [
     "adyenplatform",
     "airwallex",
     "amazonpay",
+    "archipel",
     "authorizedotnet",
     "bambora",
     "bamboraapac",
@@ -230,6 +232,7 @@ adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
+archipel.base_url = "https://api-demo.archipel.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"
@@ -858,7 +861,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
+connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay"
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []

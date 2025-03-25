@@ -1,0 +1,26 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 1001
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/{{payment_id}}/incremental_authorization",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      "{{payment_id}}",
+      "incremental_authorization"
+    ]
+  }
+}
