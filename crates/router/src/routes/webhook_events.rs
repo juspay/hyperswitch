@@ -4,7 +4,11 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     core::{api_locking, webhooks::webhook_events},
     routes::AppState,
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{
+        api,
+        authentication::{self as auth, UserFromToken},
+        authorization::permissions::Permission,
+    },
     types::api::webhook_events::{
         EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
         WebhookDeliveryRetryRequestInternal,
@@ -47,6 +51,46 @@ pub async fn list_initial_webhook_delivery_attempts(
             },
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::WebhookEventInitialDeliveryAttemptList))]
+pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<EventListConstraints>,
+) -> impl Responder {
+    let flow = Flow::WebhookEventInitialDeliveryAttemptList;
+    let constraints = query.into_inner();
+
+    let request_internal = EventListRequestInternal {
+        merchant_id: common_utils::id_type::MerchantId::default(),
+        constraints,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        request_internal,
+        |state, auth: UserFromToken, mut request_internal, _| {
+            let merchant_id = auth.merchant_id;
+            let profile_id = auth.profile_id;
+
+            request_internal.merchant_id = merchant_id;
+            request_internal.constraints.profile_id = Some(profile_id);
+
+            webhook_events::list_initial_delivery_attempts(
+                state,
+                request_internal.merchant_id,
+                request_internal.constraints,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileWebhookEventRead,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
