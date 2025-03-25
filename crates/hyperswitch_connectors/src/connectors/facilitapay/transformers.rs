@@ -17,7 +17,6 @@ use crate::{
     utils::PaymentsAuthorizeRequestData,
 };
 
-
 //TODO: Fill the struct with respective fields
 pub struct FacilitapayRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
