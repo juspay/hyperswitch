@@ -257,7 +257,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
 
     let process_tracker_id_for_psync = tracking_data
         .payment_attempt_id
-        .get_psync_revenue_recovery_id(task, runner);
+        .get_psync_revenue_recovery_id(psync_task, runner);
 
     let process_tracker_for_psync = db
         .find_process_by_id(&process_tracker_id_for_psync)
