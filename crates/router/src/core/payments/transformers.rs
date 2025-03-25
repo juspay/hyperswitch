@@ -4041,10 +4041,6 @@ impl ForeignFrom<diesel_models::types::RedirectResponse>
         Self {
             param: redirect_res.param,
             json_payload: redirect_res.json_payload,
-            //     payment_description: apple_pay_recurring_details.payment_description,
-            //     regular_billing: ForeignFrom::foreign_from(apple_pay_recurring_details.regular_billing),
-            //     billing_agreement: apple_pay_recurring_details.billing_agreement,
-            //     management_url: apple_pay_recurring_details.management_url,
         }
     }
 }
@@ -4622,8 +4618,6 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             .redirect_response
             .clone()
             .map(api_models::payments::RedirectResponse::foreign_from);
-        // let searc=feature_metadata.redirect_response.map(api_models::payments::RedirectResponse::foreign_from);
-        // let search_tags=feature_metadata.search_tags.clone();
         Self {
             payment_revenue_recovery_metadata: revenue_recovery,
             apple_pay_recurring_details: apple_pay_details,

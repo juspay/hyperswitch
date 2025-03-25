@@ -106,7 +106,6 @@ pub async fn recovery_incoming_webhook_flow(
                     &payment_intent,
                 )
                 .await
-                // Depending on your return type from `get_payment_attempt`, you might not need `transpose()`
                 .transpose()
                 .async_unwrap_or_else(|| async {
                     invoice_transaction_details
