@@ -335,7 +335,7 @@ prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
 recurly.base_url = "https://v3.recurly.com"
-redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
+redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -654,6 +654,10 @@ przelewy24 = { country = "PL", currency = "PLN,EUR" }
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
 
+[pm_filters.redsys]
+credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
+debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -754,6 +758,7 @@ payme = { payment_method = "card" }
 deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
+redsys = { payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"

@@ -4,7 +4,6 @@ use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
-    errors::{StorageError, StorageResult},
     merchant_key_store::MerchantKeyStore,
 };
 use masking::StrongSecret;
@@ -37,9 +36,9 @@ use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
-pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
+pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -65,7 +64,7 @@ where
         config: Self::Config,
         tenant_config: &dyn config::TenantConfig,
         test_transaction: bool,
-    ) -> StorageResult<Self> {
+    ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
@@ -113,7 +112,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
-    ) -> StorageResult<Self> {
+    ) -> error_stack::Result<Self, StorageError> {
         let db_store = T::new(db_conf, tenant_config, false).await?;
         let redis_conn = cache_store.redis_conn.clone();
         let cache_store = Arc::new(RedisStore {
@@ -140,7 +139,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
-    ) -> StorageResult<Arc<RedisStore>> {
+    ) -> error_stack::Result<Arc<RedisStore>, StorageError> {
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
@@ -225,7 +224,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         tenant_config: &dyn config::TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
-    ) -> StorageResult<Self> {
+    ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, tenant_config, true).await?;
         let cache_store = RedisStore::new(cache_conf)
@@ -346,6 +345,7 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -353,6 +353,16 @@ impl UniqueConstraints for diesel_models::Refund {
             self.merchant_id.get_string_repr(),
             self.refund_id
         )]
+    }
+    fn table_name(&self) -> &str {
+        "Refund"
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+impl UniqueConstraints for diesel_models::Refund {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![self.id.get_string_repr().to_owned()]
     }
     fn table_name(&self) -> &str {
         "Refund"

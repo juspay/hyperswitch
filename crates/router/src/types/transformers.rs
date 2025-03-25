@@ -297,7 +297,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Razorpay => Self::Razorpay,
             api_enums::Connector::Recurly => Self::Recurly,
-            // api_enums::Connector::Redsys => Self::Redsys,
+            api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -2016,6 +2016,7 @@ impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }
@@ -2027,6 +2028,7 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }
