@@ -7343,30 +7343,19 @@ impl AmazonPayDeliveryOptions {
             .collect()
     }
 
-    pub fn validate_is_default_count(delivery_options: Vec<Self>) -> Result<(), ValidationError> {
-        let is_default_count = i32::try_from(
-            delivery_options
-                .iter()
-                .filter(|delivery_option| delivery_option.is_default)
-                .count(),
-        )
-        .map_err(|_| ValidationError::InvalidValue {
-            message: "Invalid value provided: is_default".to_string(),
-        })?;
+    pub fn validate_is_default_count(
+        delivery_options: Vec<Self>,
+    ) -> Result<(), error_stack::Report<ValidationError>> {
+        let is_default_count = delivery_options
+            .iter()
+            .filter(|delivery_option| delivery_option.is_default)
+            .count();
 
-        if is_default_count == 0 {
+        if is_default_count != 1 {
             return Err(ValidationError::InvalidValue {
-                message: "Expected one default Amazon Pay Delivery Options, encountered none."
-                    .to_string(),
-            });
-        }
-
-        if is_default_count > 1 {
-            return Err(ValidationError::InvalidValue {
-                message:
-                    "Expected one default Amazon Pay Delivery Options, encountered more than one."
-                        .to_string(),
-            });
+                message: "Amazon Pay Delivery Option".to_string(),
+            })
+            .attach_printable("Expected one default Amazon Pay Delivery Option");
         }
 
         Ok(())
