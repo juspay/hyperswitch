@@ -1035,8 +1035,9 @@ merchant_secret="Source verification key"
 [coingate]
 [[coingate.crypto]]
   payment_method_type = "crypto_currency"
-[coingate.connector_auth.HeaderKey]
+[coingate.connector_auth.BodyKey]
 api_key="API Key"
+key1 ="Merchant Token"
 
 
 [cybersource]
@@ -3654,3 +3655,33 @@ type="Text"
 [hipay.connector_auth.BodyKey]
 api_key="API Login ID"
 key1="API password"
+
+[redsys]
+[[redsys.credit]]
+payment_method_type = "Mastercard"
+[[redsys.credit]]
+payment_method_type = "Visa"
+[[redsys.credit]]
+payment_method_type = "AmericanExpress"
+[[redsys.credit]]
+payment_method_type = "JCB"
+[[redsys.credit]]
+payment_method_type = "DinersClub"
+[[redsys.credit]]
+payment_method_type = "UnionPay"
+[[redsys.debit]]
+payment_method_type = "Mastercard"
+[[redsys.debit]]
+payment_method_type = "Visa"
+[[redsys.debit]]
+payment_method_type = "AmericanExpress"
+[[redsys.debit]]
+payment_method_type = "JCB"
+[[redsys.debit]]
+payment_method_type = "DinersClub"
+[[redsys.debit]]
+payment_method_type = "UnionPay"
+[redsys.connector_auth.SignatureKey]
+api_key = "Merchant ID"
+key1 = "Terminal ID"
+api_secret = "Secret Key"

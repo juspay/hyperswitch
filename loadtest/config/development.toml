@@ -159,7 +159,7 @@ prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
 recurly.base_url = "https://v3.recurly.com"
-redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
+redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -259,6 +259,7 @@ cards = [
     "plaid",
     "powertranz",
     "prophetpay",
+    "redsys",
     "shift4",
     "square",
     "stax",
@@ -397,7 +398,7 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "wise"
+payout_connector_list = "nomupay,wise"
 
 [dummy_connector]
 enabled = true
@@ -518,3 +519,4 @@ sts_role_session_name = ""
 
 [temp_locker_enable_config]
 paybox = { payment_method = "card" }
+redsys = { payment_method = "card" }
