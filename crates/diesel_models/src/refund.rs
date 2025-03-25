@@ -704,12 +704,23 @@ impl RefundUpdate {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: ConnectorTransactionId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: common_utils::id_type::PaymentId,
+    pub processor_transaction_data: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RefundCoreWorkflow {
+    pub refund_id: common_utils::id_type::GlobalRefundId,
+    pub connector_transaction_id: ConnectorTransactionId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
     pub processor_transaction_data: Option<String>,
 }
 

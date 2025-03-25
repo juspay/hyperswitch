@@ -44,7 +44,6 @@ pub mod poll;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
-#[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
