@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Payments - Incremental Authorization",
+    "Payments - Capture"
+  ],
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

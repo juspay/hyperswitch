@@ -13,6 +13,8 @@ api_secret = "Secondary key"
 [amazonpay]
 api_key="API Key"
 
+[archipel]
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"

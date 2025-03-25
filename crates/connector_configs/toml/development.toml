@@ -4925,3 +4925,107 @@ key1="API password"
 api_key="Merchant ID"
 key1="Terminal ID"
 api_secret="Secret Key"
+
+[archipel]
+[[archipel.credit]]
+payment_method_type = "Mastercard"
+[[archipel.credit]]
+payment_method_type = "Visa"
+[[archipel.credit]]
+payment_method_type = "AmericanExpress"
+[[archipel.credit]]
+payment_method_type = "DinersClub"
+[[archipel.credit]]
+payment_method_type = "Discover"
+[[archipel.credit]]
+payment_method_type = "CartesBancaires"
+[[archipel.debit]]
+payment_method_type = "Mastercard"
+[[archipel.debit]]
+payment_method_type = "Visa"
+[[archipel.debit]]
+payment_method_type = "AmericanExpress"
+[[archipel.debit]]
+payment_method_type = "DinersClub"
+[[archipel.debit]]
+payment_method_type = "Discover"
+[[archipel.debit]]
+payment_method_type = "CartesBancaires"
+[[archipel.wallet]]
+payment_method_type = "apple_pay"
+[archipel.metadata.tenant_id]
+name = "tenant_id"
+label = "Tenant ID"
+placeholder = "Enter Archipel tenantID"
+required = true
+type = "Text"
+[archipel.metadata.platform_url]
+name = "platform_url"
+label = "Platform URL"
+placeholder = "E.g. https://192.0.0.1:8080/ArchiPEL/Transaction/v1"
+required = true
+type = "Text"
+[[archipel.metadata.apple_pay]]
+name = "certificate"
+label = "Merchant Certificate (Base64 Encoded)"
+placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+required = true
+type = "Text"
+[[archipel.metadata.apple_pay]]
+name = "certificate_keys"
+label = "Merchant PrivateKey (Base64 Encoded)"
+placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+required = true
+type = "Text"
+[[archipel.metadata.apple_pay]]
+name = "merchant_identifier"
+label = "Apple Merchant Identifier"
+placeholder = "Enter Apple Merchant Identifier"
+required = true
+type = "Text"
+[[archipel.metadata.apple_pay]]
+name = "display_name"
+label = "Display Name"
+placeholder = "Enter Display Name"
+required = true
+type = "Text"
+[[archipel.metadata.apple_pay]]
+name = "initiative"
+label = "Domain"
+placeholder = "Enter Domain"
+required = true
+type = "Select"
+options = ["web", "ios"]
+[[archipel.metadata.apple_pay]]
+name = "initiative_context"
+label = "Domain Name"
+placeholder = "Enter Domain Name"
+required = true
+type = "Text"
+[[archipel.metadata.apple_pay]]
+name = "merchant_business_country"
+label = "Merchant Business Country"
+placeholder = "Enter Merchant Business Country"
+required = true
+type = "Select"
+options = []
+[[archipel.metadata.apple_pay]]
+name = "payment_processing_details_at"
+label = "Payment Processing Details At"
+placeholder = "Enter Payment Processing Details At"
+required = true
+type = "Radio"
+options = ["Hyperswitch"]
+
+[archipel.metadata.acquirer_bin]
+name = "acquirer_bin"
+label = "Acquirer Bin"
+placeholder = "Enter Acquirer Bin"
+required = false
+type = "Text"
+[archipel.metadata.acquirer_merchant_id]
+name = "acquirer_merchant_id"
+label = "Acquirer Merchant ID"
+placeholder = "Enter Acquirer Merchant ID"
+required = false
+type = "Text"
