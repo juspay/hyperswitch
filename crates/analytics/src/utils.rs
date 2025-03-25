@@ -51,6 +51,7 @@ pub fn get_auth_event_dimensions() -> Vec<NameDescription> {
     vec![
         AuthEventDimensions::AuthenticationConnector,
         AuthEventDimensions::MessageVersion,
+        AuthEventDimensions::AcsReferenceNumber,
     ]
     .into_iter()
     .map(Into::into)
