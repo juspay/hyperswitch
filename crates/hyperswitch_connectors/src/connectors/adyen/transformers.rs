@@ -223,7 +223,7 @@ pub struct Basket {
     visits_year: Option<String>,
     ship_to_name: Option<String>,
     first8charactersof_address_line1_zip: Option<String>,
-    affiliate_order: Option<String>,
+    affiliate_order: Option<bool>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -2727,8 +2727,7 @@ impl ForeignTryFrom<serde_json::Value> for Basket {
                 .map(|s| s.to_string());
             let affiliate_order = risk_data_value
                 .get("affiliate_order")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
+                .and_then(|v| v.as_bool());
 
             Ok(Self {
                 basket,
@@ -2940,6 +2939,9 @@ impl
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -2952,13 +2954,13 @@ impl
             browser_info,
             additional_data,
             mpi_data: None,
-            telephone_number: None,
+            telephone_number,
             shopper_name: None,
             shopper_email: None,
             shopper_locale: None,
             social_security_number: None,
             billing_address: None,
-            delivery_address: None,
+            delivery_address,
             country_code: None,
             line_items: None,
             shopper_reference,
@@ -3018,6 +3020,9 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3030,13 +3035,13 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             browser_info,
             additional_data,
             mpi_data: None,
-            telephone_number: None,
+            telephone_number,
             shopper_name,
             shopper_email,
             shopper_locale: None,
             social_security_number: None,
             billing_address,
-            delivery_address: None,
+            delivery_address,
             country_code,
             line_items: None,
             shopper_reference,
@@ -3097,6 +3102,9 @@ impl
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3113,9 +3121,9 @@ impl
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
-            telephone_number: None,
+            telephone_number,
             billing_address: None,
-            delivery_address: None,
+            delivery_address,
             country_code,
             line_items: None,
             shopper_reference,
@@ -3173,6 +3181,10 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             })
             .unwrap_or_default();
 
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
+
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3188,9 +3200,9 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             mpi_data: None,
-            telephone_number: None,
+            telephone_number,
             billing_address,
-            delivery_address: None,
+            delivery_address,
             country_code: None,
             line_items: None,
             shopper_reference: None,
@@ -3247,6 +3259,9 @@ impl
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3263,9 +3278,9 @@ impl
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
-            telephone_number: None,
+            telephone_number,
             billing_address: None,
-            delivery_address: None,
+            delivery_address,
             country_code: None,
             line_items: None,
             shopper_reference: None,
@@ -3322,6 +3337,10 @@ impl
             })
             .unwrap_or_default();
 
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
+
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3336,9 +3355,9 @@ impl
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
-            telephone_number: None,
+            telephone_number,
             billing_address: None,
-            delivery_address: None,
+            delivery_address,
             country_code: None,
             line_items: None,
             shopper_reference: None,
@@ -3401,6 +3420,9 @@ impl
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3413,13 +3435,13 @@ impl
             browser_info,
             additional_data,
             mpi_data: None,
-            telephone_number: None,
+            telephone_number,
             shopper_name: None,
             shopper_email: item.router_data.get_optional_billing_email(),
             shopper_locale,
             social_security_number: None,
             billing_address,
-            delivery_address: None,
+            delivery_address,
             country_code: country,
             line_items,
             shopper_reference,
@@ -3523,6 +3545,9 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3535,13 +3560,13 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             browser_info,
             additional_data,
             mpi_data,
-            telephone_number: None,
+            telephone_number,
             shopper_name: None,
             shopper_email,
             shopper_locale: None,
             social_security_number: None,
             billing_address,
-            delivery_address: None,
+            delivery_address,
             country_code: None,
             line_items: None,
             shopper_reference,
@@ -3701,7 +3726,8 @@ impl
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
-
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3718,7 +3744,7 @@ impl
             shopper_email,
             shopper_locale: None,
             billing_address: None,
-            delivery_address: None,
+            delivery_address,
             country_code: None,
             line_items: None,
             shopper_reference: None,
@@ -5913,6 +5939,9 @@ impl
                 Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
             })
             .unwrap_or_default();
+        let delivery_address =
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
+        let telephone_number = item.router_data.get_optional_billing_phone_number();
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -5924,13 +5953,13 @@ impl
             recurring_processing_model,
             browser_info,
             additional_data,
-            telephone_number: None,
+            telephone_number,
             shopper_name,
             shopper_email,
             shopper_locale: None,
             social_security_number: None,
             billing_address,
-            delivery_address: None,
+            delivery_address,
             country_code,
             line_items: None,
             shopper_reference,
