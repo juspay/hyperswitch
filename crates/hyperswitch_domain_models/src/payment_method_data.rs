@@ -1923,14 +1923,14 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodTokenSingleUse {
-    pub token: Option<String>,
+    pub token: String,
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodTokenSingleUse {
     pub fn get_single_use_token_from_payment_method_token(
-        token: Option<String>,
+        token: String,
         mca_id: id_type::MerchantConnectorAccountId,
     ) -> Self {
         Self {
