@@ -1826,6 +1826,42 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentRecordResponse>
+    for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        _state: &SessionState,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+        _profile: &domain::Profile,
+    ) -> RouterResponse<api_models::payments::PaymentRecordResponse> {
+        let payment_attempt = self.payment_attempt;
+        let payment_intent = self.payment_intent;
+        let response = api_models::payments::PaymentRecordResponse {
+            id: payment_attempt.get_id().to_owned(),
+            status: payment_attempt.status,
+            payment_intent_feature_metadata: payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
+            payment_attempt_feature_metadata: payment_attempt
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
+        };
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
 where
@@ -3998,6 +4034,23 @@ impl ForeignFrom<diesel_models::types::RecurringPaymentIntervalUnit>
     }
 }
 
+impl ForeignFrom<diesel_models::types::RedirectResponse>
+    for api_models::payments::RedirectResponse
+{
+    fn foreign_from(
+        redirect_res: diesel_models::types::RedirectResponse,
+    ) -> Self {
+        Self {
+            param: redirect_res.param,
+            json_payload: redirect_res.json_payload,
+        //     payment_description: apple_pay_recurring_details.payment_description,
+        //     regular_billing: ForeignFrom::foreign_from(apple_pay_recurring_details.regular_billing),
+        //     billing_agreement: apple_pay_recurring_details.billing_agreement,
+        //     management_url: apple_pay_recurring_details.management_url,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -4499,6 +4552,20 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
 }
 
 #[cfg(feature = "v2")]
+impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentDetails>
+    for api_models::payments::BillingConnectorPaymentDetails
+{
+    fn foreign_from(
+        metadata: &diesel_models::types::BillingConnectorPaymentDetails,
+    ) -> Self {
+        Self {
+            payment_processor_token: metadata.payment_processor_token.clone(),
+            connector_customer_id: metadata.connector_customer_id.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
     for api_models::payments::ErrorDetails
 {
@@ -4529,6 +4596,34 @@ impl
             }
         });
         Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payments::FeatureMetadata {
+    fn foreign_from(feature_metadata: &diesel_models::types::FeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.payment_revenue_recovery_metadata.clone().map(|r| {
+            api_models::payments::PaymentRevenueRecoveryMetadata {
+                total_retry_count: r.total_retry_count,
+                payment_connector_transmission: r.payment_connector_transmission,
+                connector: r.connector,
+                billing_connector_id: r.billing_connector_id,
+                active_attempt_payment_connector_id: r.active_attempt_payment_connector_id,
+                payment_method_type: r.payment_method_type,
+                payment_method_subtype: r.payment_method_subtype,
+                billing_connector_payment_details: api_models::payments::BillingConnectorPaymentDetails::foreign_from(&r.billing_connector_payment_details),
+            }
+        });
+        let apple_pay_details = feature_metadata.apple_pay_recurring_details.clone().map(api_models::payments::ApplePayRecurringDetails::foreign_from);
+        let redirect_res=feature_metadata.redirect_response.clone().map(api_models::payments::RedirectResponse::foreign_from);
+        // let searc=feature_metadata.redirect_response.map(api_models::payments::RedirectResponse::foreign_from);
+        // let search_tags=feature_metadata.search_tags.clone();
+        Self {
+            payment_revenue_recovery_metadata: revenue_recovery,
+            apple_pay_recurring_details: apple_pay_details,
+            redirect_response:redirect_res,
+            search_tags: feature_metadata.search_tags.clone(),
+        }
     }
 }
 

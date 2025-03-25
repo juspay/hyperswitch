@@ -124,6 +124,13 @@ pub struct MerchantConnectorAccount {
 
 #[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
+    pub fn get_retry_threshold(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.billing_connector_retry_threshold)
+    }
+
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }

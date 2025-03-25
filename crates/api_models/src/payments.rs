@@ -1587,6 +1587,21 @@ pub struct PaymentAttemptResponse {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentRecordResponse {
+    /// The global identifier for the payment attempt
+    #[schema(value_type = String)]
+    pub id: id_type::GlobalAttemptId,
+    /// /// The status of the attempt
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub status: enums::AttemptStatus,
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub payment_intent_feature_metadata: Option<FeatureMetadata>,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    pub payment_attempt_feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+}
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
     /// Revenue recovery metadata that might be required by hyperswitch.
