@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.19.0-hotfix2
+
+### Features
+
+- **core:** Add three_ds_requestor_app_url in business_profile ([#7627](https://github.com/juspay/hyperswitch/pull/7627)) ([`df93bb7`](https://github.com/juspay/hyperswitch/commit/df93bb776cdcfecf0c132c51b067f2606ad6cab5))
+
+### Bug Fixes
+
+- **connector:**
+  - [CYBERSOURCE] change ucaf_collection_indicator for mastercard payments via netcetera ([#7625](https://github.com/juspay/hyperswitch/pull/7625)) ([`117108e`](https://github.com/juspay/hyperswitch/commit/117108ed237bb85af58ab2f204e0b0a443d7c98c))
+  - [CYBERSOURCE] send xid as none for external 3ds payments ([#7618](https://github.com/juspay/hyperswitch/pull/7618)) ([`34efe95`](https://github.com/juspay/hyperswitch/commit/34efe953be3b99cab8c10099be907c3c78dd8d6e))
+
+### Refactors
+
+- **connector:** [BRAINTREE] Pass email in payment requests ([#7617](https://github.com/juspay/hyperswitch/pull/7617)) ([`e578f29`](https://github.com/juspay/hyperswitch/commit/e578f2916f0222d67e4f4dfd0d5b4cb808726144))
+
+**Full Changelog:** [`2025.03.19.0-hotfix1...2025.03.19.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.03.19.0-hotfix1...2025.03.19.0-hotfix2)
+
+
+- - -
+
 ## 2025.03.19.0-hotfix1
 
 ### Features
