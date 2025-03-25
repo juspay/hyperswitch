@@ -238,3 +238,6 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
+
+// Default payment method storing TTL in redis in seconds
+pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
