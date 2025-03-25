@@ -126,6 +126,7 @@ pub struct ConfigMetadata {
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
     pub paze: Option<Vec<InputData>>,
+    pub google_pay: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
