@@ -1420,18 +1420,6 @@ impl TryFrom<masking::Secret<String>> for NameType {
     }
 }
 
-impl TryFrom<Option<masking::Secret<String>>> for NameType {
-    type Error = error_stack::Report<ValidationError>;
-    fn try_from(card_holder_name: Option<masking::Secret<String>>) -> Result<Self, Self::Error> {
-        match card_holder_name {
-            Some(card_holder_name) => Self::try_from(card_holder_name),
-            None => Err(report!(ValidationError::MissingRequiredField {
-                field_name: "card holder name ".to_string()
-            })),
-        }
-    }
-}
-
 impl NameType {
     /// This function is used to create NameType from a string without any validation
     pub fn get_unchecked(card_holder_name: String) -> Self {

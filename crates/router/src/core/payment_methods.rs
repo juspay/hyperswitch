@@ -780,13 +780,8 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: card.card_holder_name.clone().or(Some(
-                            common_utils::types::NameType::try_from(billing_name).change_context(
-                                errors::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "card_holder_name",
-                                },
-                            )?,
-                        )),
+                        card_holder_name: card.card_holder_name.clone().or(billing_name
+                            .map(common_utils::types::NameType::get_unchecked_from_secret)), // this is unchecked because billing name is coming from a checked type
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
                         card_network: card.card_network.clone(),
