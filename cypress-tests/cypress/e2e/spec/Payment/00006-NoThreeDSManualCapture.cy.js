@@ -35,7 +35,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
-        
+
         data.Request.amount = PaymentIntentAmount;
 
         cy.createPaymentIntentTest(
