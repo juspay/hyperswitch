@@ -90,7 +90,7 @@ pub async fn recovery_incoming_webhook_flow(
                     merchant_account_ref,
                     billing_connector_account_ref,
                     connector_name_ref,
-                    id.as_str(), //id is moved here, since it is an owned value.
+                    id.as_str(),
                 )
                 .await
                 .map(|response| response.inner())
