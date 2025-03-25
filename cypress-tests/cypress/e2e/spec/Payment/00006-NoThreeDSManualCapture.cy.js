@@ -1,10 +1,8 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { generateRandomAmount } from "../../../utils/RequestBodyUtils";
 
 let globalState;
-let PaymentIntentAmount;
 
 describe("Card - NoThreeDS Manual payment flow test", () => {
   before("seed global state", () => {
@@ -27,16 +25,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         }
       });
 
-      before(function () {
-        PaymentIntentAmount = generateRandomAmount();
-      });
-
       it("create-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
-
-        data.Request.amount = PaymentIntentAmount;
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
