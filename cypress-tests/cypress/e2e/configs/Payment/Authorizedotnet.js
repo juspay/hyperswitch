@@ -175,7 +175,7 @@ export const connectorDetails = {
         body: {
           error_message:
             "The referenced transaction does not meet the criteria for issuing a credit.",
-            error_code: "54",
+          error_code: "54",
         },
       },
     },
