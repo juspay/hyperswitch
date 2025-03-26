@@ -158,16 +158,17 @@ impl<F: Send + Clone + Sync>
                 ),
             })
             .attach_printable("failed while inserting new payment intent")?;
-
-        let client_secret = helpers::create_client_secret(
-            &state,
-            merchant_account.get_id(),
-            util_types::authentication::ResourceId::Payment(payment_id.clone()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create client secret")?;
-        println!(">>client_secret: {:?}", client_secret);
+        
+            let client_secret = helpers::create_client_secret(
+                &state,
+                merchant_account.get_id(),
+                util_types::authentication::ResourceId::Payment(
+                    payment_id.clone(),
+                ),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to create client secret")?;
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
