@@ -2816,8 +2816,7 @@ async fn create_single_use_tokenization_flow(
                                                 connector_id.clone()
                                             );
 
-    let key =
-        payment_method_data::SingleUseTokenKey::store_key(&payment_method.id);
+    let key = payment_method_data::SingleUseTokenKey::store_key(&payment_method.id);
 
     add_single_use_token_to_store(&state, key, value)
         .await
