@@ -15,7 +15,6 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
-
 use std::borrow::Cow;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use std::collections::HashSet;
@@ -39,7 +38,6 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
-    errors::CustomResult,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -1896,7 +1894,7 @@ pub async fn retrieve_payment_method(
 
     let payment_method_in_cache = get_single_use_token_from_store(
         &state.clone(),
-        payment_method_data::SingleUseTokenKey::store_key(pm_id.clone().get_string_repr()),
+        payment_method_data::SingleUseTokenKey::store_key(&pm_id.clone()),
     )
     .await
     .change_context(ApiErrorResponse::PaymentMethodNotFound)
@@ -2812,18 +2810,13 @@ async fn create_single_use_tokenization_flow(
         }
     })?;
 
-    // let token = token_response
-    //                         .ok_or(ApiErrorResponse::GenericNotFoundError {
-    //                             message: "No token recevied from the PSP".to_string(),
-    //                         })?;
-
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
-                                                       token_response.clone(),
+                                                       token_response.clone().into(),
                                                 connector_id.clone()
                                             );
 
     let key =
-        payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
+        payment_method_data::SingleUseTokenKey::store_key(&payment_method.id);
 
     add_single_use_token_to_store(&state, key, value)
         .await

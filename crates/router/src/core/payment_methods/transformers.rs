@@ -6,6 +6,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+use router_env::logger;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
@@ -562,7 +563,6 @@ pub fn generate_payment_method_response(
             }
             _ => None,
         });
-
     let mut connector_tokens = payment_method
         .connector_mandate_details
         .as_ref()
@@ -574,13 +574,17 @@ pub fn generate_payment_method_response(
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
         })
-        .map(|mut tokens| {
-            if let Some(token) = single_use_token {
-                let connector_token_single_use = transformers::ForeignFrom::foreign_from(token);
-                tokens.push(connector_token_single_use);
-            }
-            tokens
-        });
+        .unwrap_or_default();
+
+    if let Some(token) = single_use_token {
+            let connector_token_single_use = transformers::ForeignFrom::foreign_from(token);
+            connector_tokens.push(connector_token_single_use);
+        }
+    let connector_tokens = if connector_tokens.is_empty() {
+            None
+        } else {
+            Some(connector_tokens)
+        };
 
     let network_token_pmd = payment_method
         .network_token_payment_method_data
@@ -1138,7 +1142,7 @@ impl transformers::ForeignFrom<&payment_method_data::PaymentMethodTokenSingleUse
             original_payment_authorized_amount: None,
             original_payment_authorized_currency: None,
             metadata: None,
-            token: Secret::new(token.clone().token),
+            token: token.clone().token,
         }
     }
 }
