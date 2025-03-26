@@ -19737,7 +19737,7 @@
             ],
             "nullable": true
           },
-          "force_3ds_challenge_overwrite": {
+          "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
@@ -21038,7 +21038,7 @@
             ],
             "nullable": true
           },
-          "force_3ds_challenge_overwrite": {
+          "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true

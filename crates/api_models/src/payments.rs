@@ -5078,7 +5078,7 @@ pub struct PaymentsResponse {
     pub card_discovery: Option<enums::CardDiscovery>,
 
     /// Indicates if 3ds challenge is forced
-    pub force_3ds_challenge_overwrite: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if 3ds challenge is triggered
     pub force_3ds_challenge_trigger: Option<bool>,

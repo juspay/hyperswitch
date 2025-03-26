@@ -3851,7 +3851,7 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
-            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
@@ -3925,7 +3925,7 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
-            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
@@ -3997,7 +3997,7 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
-            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());

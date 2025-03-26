@@ -115,7 +115,7 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
-    pub force_3ds_challenge_overwrite: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
 }
 
@@ -459,7 +459,7 @@ pub struct PaymentIntent {
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
-    pub force_3ds_challenge_overwrite: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
 }
 
@@ -628,7 +628,7 @@ impl PaymentIntent {
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
-            force_3ds_challenge_overwrite: None,
+            force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         })
     }
