@@ -266,7 +266,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             total_retry_count: from.total_retry_count,
-            payment_connector_transmission: from.payment_connector_transmission,
+            payment_connector_transmission: Some(from.payment_connector_transmission.unwrap_or_default()),
             billing_connector_id: from.billing_connector_id,
             active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
             billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
@@ -281,7 +281,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
     fn convert_back(self) -> ApiRevenueRecoveryMetadata {
         ApiRevenueRecoveryMetadata {
             total_retry_count: self.total_retry_count,
-            payment_connector_transmission: self.payment_connector_transmission,
+            payment_connector_transmission: Some(self.payment_connector_transmission.unwrap_or_default()),
             billing_connector_id: self.billing_connector_id,
             active_attempt_payment_connector_id: self.active_attempt_payment_connector_id,
             billing_connector_payment_details: self

@@ -8484,7 +8484,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = u16,example = "1")]
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
-    pub payment_connector_transmission: PaymentConnectorTransmission,
+    pub payment_connector_transmission: Option<PaymentConnectorTransmission>,
     /// Billing Connector Id to update the invoices
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
@@ -8510,7 +8510,7 @@ impl PaymentRevenueRecoveryMetadata {
         &mut self,
         payment_connector_transmission: PaymentConnectorTransmission,
     ) {
-        self.payment_connector_transmission = payment_connector_transmission;
+        self.payment_connector_transmission = Some(payment_connector_transmission);
     }
     pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
         ProcessorPaymentToken {
