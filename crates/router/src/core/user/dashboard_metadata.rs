@@ -673,36 +673,43 @@ pub async fn backfill_metadata(
                 return Ok(None);
             };
             #[cfg(feature = "v1")]
-            Some(
-                insert_metadata(
-                    state,
-                    user.to_owned(),
-                    DBEnum::StripeConnected,
-                    types::MetaData::StripeConnected(api::ProcessorConnected {
-                        processor_id: mca.get_id(),
-                        processor_name: mca.connector_name,
-                    }),
+            {
+                return Some(
+                    insert_metadata(
+                        state,
+                        user.to_owned(),
+                        DBEnum::StripeConnected,
+                        types::MetaData::StripeConnected(api::ProcessorConnected {
+                            processor_id: mca.get_id(),
+                            processor_name: mca.connector_name,
+                        }),
+                    )
+                    .await,
                 )
-                .await,
-            )
-            .transpose();
+                .transpose();
+            }
+
             #[cfg(feature = "v2")]
-            Some(
-                insert_metadata(
-                    state,
-                    user.to_owned(),
-                    DBEnum::StripeConnected,
-                    types::MetaData::StripeConnected(api::ProcessorConnected {
-                        processor_id: mca.get_id(),
-                        processor_name: mca.connector_name.to_string(),
-                    }),
+            {
+                return Some(
+                    insert_metadata(
+                        state,
+                        user.to_owned(),
+                        DBEnum::StripeConnected,
+                        types::MetaData::StripeConnected(api::ProcessorConnected {
+                            processor_id: mca.get_id(),
+                            processor_name: mca.connector_name.to_string(),
+                        }),
+                    )
+                    .await,
                 )
-                .await,
-            )
-            .transpose()
+                .transpose();
+            }
+            Ok(None)
         }
+
         DBEnum::PaypalConnected => {
-            let mca = if let Some(paypal_connected) = get_merchant_connector_account_by_name(
+            let mca: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount = if let Some(paypal_connected) = get_merchant_connector_account_by_name(
                 state,
                 &user.merchant_id,
                 api_models::enums::RoutableConnectors::Paypal
@@ -726,34 +733,42 @@ pub async fn backfill_metadata(
             } else {
                 return Ok(None);
             };
+
             #[cfg(feature = "v1")]
-            Some(
-                insert_metadata(
-                    state,
-                    user.to_owned(),
-                    DBEnum::PaypalConnected,
-                    types::MetaData::PaypalConnected(api::ProcessorConnected {
-                        processor_id: mca.get_id(),
-                        processor_name: mca.connector_name,
-                    }),
+            {
+                return Some(
+                    insert_metadata(
+                        state,
+                        user.to_owned(),
+                        DBEnum::PaypalConnected,
+                        types::MetaData::PaypalConnected(api::ProcessorConnected {
+                            processor_id: mca.get_id(),
+                            processor_name: mca.connector_name,
+                        }),
+                    )
+                    .await,
                 )
-                .await,
-            )
-            .transpose();
+                .transpose();
+            }
+
             #[cfg(feature = "v2")]
-            Some(
-                insert_metadata(
-                    state,
-                    user.to_owned(),
-                    DBEnum::PaypalConnected,
-                    types::MetaData::PaypalConnected(api::ProcessorConnected {
-                        processor_id: mca.get_id(),
-                        processor_name: mca.connector_name.to_string(),
-                    }),
+            {
+                return Some(
+                    insert_metadata(
+                        state,
+                        user.to_owned(),
+                        DBEnum::PaypalConnected,
+                        types::MetaData::PaypalConnected(api::ProcessorConnected {
+                            processor_id: mca.get_id(),
+                            processor_name: mca.connector_name.to_string(),
+                        }),
+                    )
+                    .await,
                 )
-                .await,
-            )
-            .transpose()
+                .transpose();
+            }
+
+            Ok(None)
         }
         _ => Ok(None),
     }
