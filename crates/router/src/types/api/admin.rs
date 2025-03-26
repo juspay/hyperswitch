@@ -226,7 +226,6 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
 
         let card_testing_guard_config = item
             .card_testing_guard_config
-            .map(CardTestingGuardConfig::foreign_from)
             .or(Some(CardTestingGuardConfig::default()));
 
         Ok(Self {
