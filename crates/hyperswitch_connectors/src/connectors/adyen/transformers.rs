@@ -142,6 +142,7 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    #[serde(flatten)]
     riskdata: Option<RiskData>,
 }
 
@@ -212,30 +213,75 @@ pub struct Item {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RiskData {
-    basket: Option<Item>,
+    #[serde(rename = "riskdata.basket.item1.itemID")]
+    item_i_d: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.productTitle")]
+    product_title: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.amountPerItem")]
+    amount_per_item: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.currency")]
+    currency: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.upc")]
+    upc: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.brand")]
+    brand: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.manufacturer")]
+    manufacturer: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.category")]
+    category: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.quantity")]
+    quantity: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.color")]
+    color: Option<String>,
+    #[serde(rename = "riskdata.basket.item1.size")]
+    size: Option<String>,
+    #[serde(rename = "riskdata.deviceCountry")]
     device_country: Option<String>,
+    #[serde(rename = "riskdata.houseNumberorName")]
     house_numberor_name: Option<String>,
+    #[serde(rename = "riskdata.accountCreationDate")]
     account_creation_date: Option<String>,
+    #[serde(rename = "riskdata.affiliateChannel")]
     affiliate_channel: Option<String>,
+    #[serde(rename = "riskdata.avgOrderValue")]
     avg_order_value: Option<String>,
+    #[serde(rename = "riskdata.deliveryMethod")]
     delivery_method: Option<String>,
+    #[serde(rename = "riskdata.emailName")]
     email_name: Option<String>,
+    #[serde(rename = "riskdata.emailDomain")]
     email_domain: Option<String>,
+    #[serde(rename = "riskdata.lastOrderDate")]
     last_order_date: Option<String>,
+    #[serde(rename = "riskdata.merchantReference")]
     merchant_reference: Option<String>,
+    #[serde(rename = "riskdata.paymentMethod")]
     payment_method: Option<String>,
+    #[serde(rename = "riskdata.promotionName")]
     promotion_name: Option<String>,
+    #[serde(rename = "riskdata.secondaryPhoneNumber")]
     secondary_phone_number: Option<String>,
+    #[serde(rename = "riskdata.timefromLogintoOrder")]
     timefrom_loginto_order: Option<String>,
+    #[serde(rename = "riskdata.totalSessionTime")]
     total_session_time: Option<String>,
+    #[serde(rename = "riskdata.totalAuthorizedAmountInLast30Days")]
     total_authorized_amount_in_last30_days: Option<String>,
+    #[serde(rename = "riskdata.totalOrderQuantity")]
     total_order_quantity: Option<String>,
+    #[serde(rename = "riskdata.totalLifetimeValue")]
     total_lifetime_value: Option<String>,
+    #[serde(rename = "riskdata.visitsMonth")]
     visits_month: Option<String>,
+    #[serde(rename = "riskdata.visitsWeek")]
     visits_week: Option<String>,
+    #[serde(rename = "riskdata.visitsYear")]
     visits_year: Option<String>,
+    #[serde(rename = "riskdata.shipToName")]
     ship_to_name: Option<String>,
+    #[serde(rename = "riskdata.first8charactersofAddressLine1Zip")]
     first8charactersof_address_line1_zip: Option<String>,
+    #[serde(rename = "riskdata.affiliateOrder")]
     affiliate_order: Option<bool>,
 }
 
@@ -2568,7 +2614,7 @@ impl TryFrom<&CardRedirectData> for AdyenPaymentMethod<'_> {
     }
 }
 
-fn get_str<'a>(key: &str, riskdata: &'a &serde_json::Value) -> Option<String> {
+fn get_str(key: &str, riskdata: &serde_json::Value) -> Option<String> {
     riskdata
         .get(key)
         .and_then(|v| v.as_str())
@@ -2580,69 +2626,57 @@ fn get_bool(key: &str, riskdata: &serde_json::Value) -> Option<bool> {
 }
 
 pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
-    let riskdata = metadata.get("riskdata")?;
+    let item_i_d = get_str("riskdata.basket.item1.itemID", &metadata);
+    let product_title = get_str("riskdata.basket.item1.productTitle", &metadata);
+    let amount_per_item = get_str("riskdata.basket.item1.amountPerItem", &metadata);
+    let currency = get_str("riskdata.basket.item1.currency", &metadata);
+    let upc = get_str("riskdata.basket.item1.upc", &metadata);
+    let brand = get_str("riskdata.basket.item1.brand", &metadata);
+    let manufacturer = get_str("riskdata.basket.item1.manufacturer", &metadata);
+    let category = get_str("riskdata.basket.item1.category", &metadata);
+    let quantity = get_str("riskdata.basket.item1.quantity", &metadata);
+    let color = get_str("riskdata.basket.item1.color", &metadata);
+    let size = get_str("riskdata.basket.item1.size", &metadata);
 
-    let basket = riskdata
-        .get("basket")
-        .and_then(|basket| basket.get("item1"))
-        .map(|order| {
-            let item_id = get_str("item_i_d", &order);
-            let product_title = get_str("product_title", &order);
-            let amount_per_item = get_str("amount_per_item", &order);
-            let currency = get_str("currency", &order);
-            let upc = get_str("upc", &order);
-            let brand = get_str("brand", &order);
-            let manufacturer = get_str("manufacturer", &order);
-            let category = get_str("category", &order);
-            let quantity = get_str("quantity", &order);
-            let color = get_str("color", &order);
-            let size = get_str("size", &order);
-            Item {
-                item1: Some(ItemData {
-                    item_i_d: item_id,
-                    product_title,
-                    amount_per_item,
-                    currency,
-                    upc,
-                    brand,
-                    manufacturer,
-                    category,
-                    quantity,
-                    color,
-                    size,
-                }),
-            }
-        });
-
-    let device_country = get_str("device_country", &riskdata);
-    let house_numberor_name = get_str("house_numberor_name", &riskdata);
-    let account_creation_date = get_str("account_creation_date", &riskdata);
-    let affiliate_channel = get_str("affiliate_channel", &riskdata);
-    let avg_order_value = get_str("avg_order_value", &riskdata);
-    let delivery_method = get_str("delivery_method", &riskdata);
-    let email_name = get_str("email_name", &riskdata);
-    let email_domain = get_str("email_domain", &riskdata);
-    let last_order_date = get_str("last_order_date", &riskdata);
-    let merchant_reference = get_str("merchant_reference", &riskdata);
-    let payment_method = get_str("payment_method", &riskdata);
-    let promotion_name = get_str("promotion_name", &riskdata);
-    let secondary_phone_number = get_str("secondary_phone_number", &riskdata);
-    let timefrom_loginto_order = get_str("timefrom_loginto_order", &riskdata);
-    let total_session_time = get_str("total_session_time", &riskdata);
+    let device_country = get_str("riskdata.deviceCountry", &metadata);
+    let house_numberor_name = get_str("riskdata.houseNumberorName", &metadata);
+    let account_creation_date = get_str("riskdata.accountCreationDate", &metadata);
+    let affiliate_channel = get_str("riskdata.affiliateChannel", &metadata);
+    let avg_order_value = get_str("riskdata.avgOrderValue", &metadata);
+    let delivery_method = get_str("riskdata.deliveryMethod", &metadata);
+    let email_name = get_str("riskdata.emailName", &metadata);
+    let email_domain = get_str("riskdata.emailDomain", &metadata);
+    let last_order_date = get_str("riskdata.lastOrderDate", &metadata);
+    let merchant_reference = get_str("riskdata.merchantReference", &metadata);
+    let payment_method = get_str("riskdata.paymentMethod", &metadata);
+    let promotion_name = get_str("riskdata.promotionName", &metadata);
+    let secondary_phone_number = get_str("riskdata.secondaryPhoneNumber", &metadata);
+    let timefrom_loginto_order = get_str("riskdata.timefromLogintoOrder", &metadata);
+    let total_session_time = get_str("riskdata.totalSessionTime", &metadata);
     let total_authorized_amount_in_last30_days =
-        get_str("total_authorized_amount_in_last30_days", &riskdata);
-    let total_order_quantity = get_str("total_order_quantity", &riskdata);
-    let total_lifetime_value = get_str("total_lifetime_value", &riskdata);
-    let visits_month = get_str("visits_month", &riskdata);
-    let visits_week = get_str("visits_week", &riskdata);
-    let visits_year = get_str("visits_year", &riskdata);
-    let ship_to_name = get_str("ship_to_name", &riskdata);
+        get_str("riskdata.totalAuthorizedAmountInLast30Days", &metadata);
+    let total_order_quantity = get_str("riskdata.totalOrderQuantity", &metadata);
+    let total_lifetime_value = get_str("riskdata.totalLifetimeValue", &metadata);
+    let visits_month = get_str("riskdata.visitsMonth", &metadata);
+    let visits_week = get_str("riskdata.visitsWeek", &metadata);
+    let visits_year = get_str("riskdata.visitsYear", &metadata);
+    let ship_to_name = get_str("riskdata.shipToName", &metadata);
     let first8charactersof_address_line1_zip =
-        get_str("first8charactersof_address_line1_zip", &riskdata);
-    let affiliate_order = get_bool("affiliate_order", &riskdata);
-    
+        get_str("riskdata.first8charactersofAddressLine1Zip", &metadata);
+    let affiliate_order = get_bool("riskdata.affiliateOrder", &metadata);
+
     Some(RiskData {
-        basket,
+        item_i_d,
+        product_title,
+        amount_per_item,
+        currency,
+        upc,
+        brand,
+        manufacturer,
+        category,
+        quantity,
+        color,
+        size,
         device_country,
         house_numberor_name,
         account_creation_date,
