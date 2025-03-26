@@ -133,8 +133,13 @@ impl DBOperation {
                         )
                         .await?,
                 )),
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
                 Updateable::RefundUpdate(a) => {
                     DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
+                }
+                #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+                Updateable::RefundUpdate(a) => {
+                    DBResult::Refund(Box::new(a.orig.update_with_id(conn, a.update_data).await?))
                 }
                 Updateable::AddressUpdate(a) => {
                     DBResult::Address(Box::new(a.orig.update(conn, a.update_data).await?))
