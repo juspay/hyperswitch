@@ -334,7 +334,10 @@ impl Connector {
                 | (Self::Moneris, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
-                | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (
+                    Self::Trustpay,
+                    PaymentMethod::BankRedirect | PaymentMethod::BankTransfer
+                )
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)

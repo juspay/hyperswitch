@@ -244,7 +244,7 @@ pub fn make_dsl_input(
     };
     let payment_method_input = dsl_inputs::PaymentMethodInput {
         payment_method: Some(payments_dsl_input.payment_attempt.payment_method_type),
-        payment_method_type: Some(payments_dsl_input.payment_attempt.payment_method_subtype),
+        payment_method_type: payments_dsl_input.payment_attempt.payment_method_subtype,
         card_network: payments_dsl_input
             .payment_method_data
             .as_ref()
