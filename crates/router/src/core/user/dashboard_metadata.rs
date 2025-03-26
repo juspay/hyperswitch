@@ -455,7 +455,7 @@ async fn insert_metadata(
                 pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
-            let mut metadata = utils::insert_user_scoped_metadata_to_db(
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
                 user.merchant_id.clone(),
@@ -466,7 +466,7 @@ async fn insert_metadata(
             .await;
 
             if utils::is_update_required(&metadata) {
-                metadata = utils::update_user_scoped_metadata(
+                metadata = utils::update_merchant_scoped_metadata(
                     state,
                     user.user_id.clone(),
                     user.merchant_id.clone(),
@@ -705,7 +705,6 @@ pub async fn backfill_metadata(
                 )
                 .transpose();
             }
-            Ok(None)
         }
 
         DBEnum::PaypalConnected => {
@@ -767,8 +766,6 @@ pub async fn backfill_metadata(
                 )
                 .transpose();
             }
-
-            Ok(None)
         }
         _ => Ok(None),
     }
