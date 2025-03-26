@@ -1920,7 +1920,7 @@ pub struct CustomerPaymentMethodsListResponse {
 pub struct CustomerPaymentMethodsCryptogramResponse {
     /// The unique identifier of the payment method.
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
-    pub payment_method_id: String,
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
 
     /// The unique identifier of the customer.
     #[schema(

@@ -629,10 +629,10 @@ pub async fn list_customer_payment_method_api(
 pub async fn get_customer_payment_method_cryptogram(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(id_type::GlobalCustomerId, String)>,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
 ) -> HttpResponse {
     let flow = Flow::CustomerGetPaymentMethodCryptogram;
-    let (customer_id, payment_method_id) = path.into_inner();
+    let payment_method_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
@@ -644,7 +644,6 @@ pub async fn get_customer_payment_method_cryptogram(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                customer_id.clone(),
                 payment_method_id.clone(),
             )
         },

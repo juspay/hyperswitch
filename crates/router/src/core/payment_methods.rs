@@ -1363,22 +1363,17 @@ pub async fn get_cryptogram_for_payment_methods_for_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    customer_id: id_type::GlobalCustomerId,
-    payment_method_id: String,
+    payment_method_id: id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::CustomerPaymentMethodsCryptogramResponse> {
     let key_manager_state = &(&state).into();
 
     let db = &*state.store;
 
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(payment_method_id.clone())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-
     let payment_method = db
         .find_payment_method(
             key_manager_state,
             &key_store,
-            &pm_id,
+            &payment_method_id,
             merchant_account.storage_scheme,
         )
         .await
@@ -1401,7 +1396,7 @@ pub async fn get_cryptogram_for_payment_methods_for_customer(
 
     let customer_cryptogram_response = api::CustomerPaymentMethodsCryptogramResponse {
         payment_method_id,
-        customer_id,
+        customer_id: payment_method.customer_id,
         cryptogram: network_token.cryptogram.expose_option(),
     };
 
