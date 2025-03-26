@@ -16153,7 +16153,6 @@
         "type": "object",
         "required": [
           "total_retry_count",
-          "payment_connector_transmission",
           "billing_connector_id",
           "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
@@ -16170,7 +16169,12 @@
             "minimum": 0
           },
           "payment_connector_transmission": {
-            "$ref": "#/components/schemas/PaymentConnectorTransmission"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentConnectorTransmission"
+              }
+            ],
+            "nullable": true
           },
           "billing_connector_id": {
             "type": "string",
