@@ -7787,11 +7787,11 @@
             }
           },
           "supported_webhook_flows": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EventClass"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventClass"
+            },
+            "example": "payments",
             "nullable": true
           }
         }
