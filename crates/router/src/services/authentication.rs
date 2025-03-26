@@ -478,14 +478,17 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Need to change it here as well
-
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
         let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
             get_platform_merchant_account(state, request_headers, merchant).await?
         } else {
             (merchant, None)
         };
+
+        if platform_merchant_account.is_some() && !self.is_platform_allowed {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Platform not authorized to access the resource");
+        }
 
         let key_store = if platform_merchant_account.is_some() {
             state
@@ -600,19 +603,16 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // If platform is enabled but resource doesn't have the permision
-        if state.conf().platform.enabled && !self.is_platform_allowed {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                .attach_printable("No authorized to access the resource");
-        }
+        let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
+            get_platform_merchant_account(state, request_headers, merchant).await?
+        } else {
+            (merchant, None)
+        };
 
-        // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        let (merchant, platform_merchant_account) =
-            if state.conf().platform.enabled && self.is_platform_allowed == true {
-                get_platform_merchant_account(state, request_headers, merchant).await?
-            } else {
-                (merchant, None)
-            };
+        if platform_merchant_account.is_some() && !self.is_platform_allowed {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Platform not authorized to access the resource");
+        }
 
         let key_store = if platform_merchant_account.is_some() {
             state
@@ -1901,6 +1901,11 @@ where
         } else {
             (merchant, None)
         };
+
+        if platform_merchant_account.is_some() && !self.is_platform_allowed {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Platform not authorized to access the resource");
+        }
 
         let key_store = if platform_merchant_account.is_some() {
             state
