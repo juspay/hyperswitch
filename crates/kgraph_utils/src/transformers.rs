@@ -188,25 +188,10 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 )),
             },
             api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
-            api_enums::PaymentMethodType::Sepa => match self.1 {
-                api_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Sepa)),
-                api_enums::PaymentMethod::BankTransfer => Ok(dirval!(BankTransferType = Sepa)),
-                api_enums::PaymentMethod::BankRedirect
-                | api_enums::PaymentMethod::Card
-                | api_enums::PaymentMethod::CardRedirect
-                | api_enums::PaymentMethod::PayLater
-                | api_enums::PaymentMethod::Wallet
-                | api_enums::PaymentMethod::Crypto
-                | api_enums::PaymentMethod::Reward
-                | api_enums::PaymentMethod::RealTimePayment
-                | api_enums::PaymentMethod::Upi
-                | api_enums::PaymentMethod::MobilePayment
-                | api_enums::PaymentMethod::Voucher
-                | api_enums::PaymentMethod::OpenBanking
-                | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
-                    AnalysisErrorType::NotSupported,
-                )),
-            },
+            api_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
+            api_enums::PaymentMethodType::SepaBankTransfer => {
+                Ok(dirval!(BankTransferType = SepaBankTransfer))
+            }
             api_enums::PaymentMethodType::AliPay => Ok(dirval!(WalletType = AliPay)),
             api_enums::PaymentMethodType::AliPayHk => Ok(dirval!(WalletType = AliPayHk)),
             api_enums::PaymentMethodType::BancontactCard => {
@@ -282,6 +267,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::MandiriVa => Ok(dirval!(BankTransferType = MandiriVa)),
             api_enums::PaymentMethodType::LocalBankTransfer => {
                 Ok(dirval!(BankTransferType = LocalBankTransfer))
+            }
+            api_enums::PaymentMethodType::InstantBankTransfer => {
+                Ok(dirval!(BankTransferType = InstantBankTransfer))
             }
             api_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
