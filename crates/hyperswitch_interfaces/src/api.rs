@@ -73,8 +73,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, revenue_recovery::*};
 use crate::{
-    api::revenue_recovery::RevenueRecovery, connector_integration_v2::ConnectorIntegrationV2,
-    consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait

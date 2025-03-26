@@ -804,7 +804,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -821,7 +821,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {

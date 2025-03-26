@@ -100,9 +100,9 @@ use hyperswitch_interfaces::{
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
-        ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, RevenueRecovery,
-        UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
-        UasPreAuthentication, UnifiedAuthenticationService,
+        ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
+        ConnectorTransactionId, RevenueRecovery, UasAuthentication, UasAuthenticationConfirmation,
+        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };

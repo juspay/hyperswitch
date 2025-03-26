@@ -681,6 +681,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),

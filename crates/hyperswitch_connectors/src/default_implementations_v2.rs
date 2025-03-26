@@ -2,7 +2,8 @@ use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_data_v2::{
         flow_common_types::{
-            DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            DisputesFlowData, GetAdditionalRevenueRecoveryFlowCommonData, MandateRevokeFlowData,
+            PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
             WebhookSourceVerifyData,
         },
         AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -21,14 +22,19 @@ use hyperswitch_domain_models::{
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        revenue_recovery::{GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack},
         webhooks::VerifyWebhookSource,
         AccessTokenAuth,
     },
     router_request_types::{
-        authentication, AcceptDisputeRequestData, AccessTokenRequestData,
-        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        authentication,
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        },
+        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
@@ -36,6 +42,9 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::{
+            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
@@ -88,6 +97,9 @@ use hyperswitch_interfaces::{
             PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
+        revenue_recovery_v2::{
+            AdditionalRevenueRecoveryV2, RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
+        },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
@@ -2579,6 +2591,90 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Worldpay,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl RevenueRecoveryV2 for $path::$connector {}
+            impl AdditionalRevenueRecoveryV2 for $path::$connector {}
+            impl RevenueRecoveryRecordBackV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            RecoveryRecordBack,
+            RevenueRecoveryRecordBackData,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            GetAdditionalRevenueRecoveryDetails,
+            GetAdditionalRevenueRecoveryFlowCommonData,
+            GetAdditionalRevenueRecoveryRequestData,
+            GetAdditionalRevenueRecoveryResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
