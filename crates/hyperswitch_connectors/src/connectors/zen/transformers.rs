@@ -346,6 +346,7 @@ impl
             | BankTransferData::CimbVaBankTransfer { .. }
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),

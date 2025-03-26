@@ -1201,6 +1201,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::RedPagos
                     | enums::PaymentMethodType::SamsungPay
                     | enums::PaymentMethodType::Sepa
+                    | enums::PaymentMethodType::SepaBankTransfer
                     | enums::PaymentMethodType::Sofort
                     | enums::PaymentMethodType::Swish
                     | enums::PaymentMethodType::TouchNGo
@@ -1220,6 +1221,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Seicomart
                     | enums::PaymentMethodType::PayEasy
                     | enums::PaymentMethodType::LocalBankTransfer
+                    | enums::PaymentMethodType::InstantBankTransfer
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -1318,6 +1320,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),

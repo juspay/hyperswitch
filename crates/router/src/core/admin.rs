@@ -1828,11 +1828,9 @@ impl PMAuthConfigValidation<'_> {
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
-
         for conn_choice in config.enabled_payment_methods {
             let pm_auth_mca = all_mcas
-                .clone()
-                .into_iter()
+                .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),
@@ -3027,7 +3025,7 @@ async fn validate_pm_auth(
             })
             .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
-    let all_mcas = &*state
+    let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &state.into(),

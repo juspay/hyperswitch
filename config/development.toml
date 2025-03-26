@@ -668,6 +668,8 @@ card_redirect = { currency = "USD" }
 [pm_filters.trustpay]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
+instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.authorizedotnet]
 google_pay = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }

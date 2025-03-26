@@ -2854,6 +2854,7 @@ pub enum PaymentMethodDataType {
     OpenBanking,
     NetworkToken,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -3004,6 +3005,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer
+                    }
+                    domain::payments::BankTransferData::InstantBankTransfer {} => {
+                        Self::InstantBankTransfer
                     }
                 }
             }

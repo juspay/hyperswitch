@@ -5996,6 +5996,17 @@
                 "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer"
+            ],
+            "properties": {
+              "instant_bank_transfer": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6294,6 +6305,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer"
+            ],
+            "properties": {
+              "instant_bank_transfer": {
+                "type": "object"
               }
             }
           }
@@ -16057,6 +16079,7 @@
           "red_pagos",
           "samsung_pay",
           "sepa",
+          "sepa_bank_transfer",
           "sofort",
           "swish",
           "touch_n_go",
@@ -16078,7 +16101,8 @@
           "local_bank_transfer",
           "mifinity",
           "open_banking_pis",
-          "direct_carrier_billing"
+          "direct_carrier_billing",
+          "instant_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
