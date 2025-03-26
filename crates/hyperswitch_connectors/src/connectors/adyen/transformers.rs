@@ -178,36 +178,6 @@ pub struct LineItem {
     quantity: Option<u16>,
 }
 
-#[serde_with::skip_serializing_none]
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ItemData {
-    item_i_d: Option<String>,
-    product_title: Option<String>,
-    amount_per_item: Option<String>,
-    currency: Option<String>,
-    upc: Option<String>,
-    brand: Option<String>,
-    manufacturer: Option<String>,
-    category: Option<String>,
-    quantity: Option<String>,
-    color: Option<String>,
-    size: Option<String>,
-}
-
-#[serde_with::skip_serializing_none]
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Basket {
-    basket: Option<Item>,
-}
-
-#[serde_with::skip_serializing_none]
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Item {
-    item1: Option<ItemData>,
-}
 
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
