@@ -3214,8 +3214,8 @@
         "tags": [
           "Revenue Recovery"
         ],
-        "summary": "Revenue Recovery - Retreive",
-        "description": "Retreive the Revenue Recovery Payment Info",
+        "summary": "Revenue Recovery - Retrieve",
+        "description": "Retrieve the Revenue Recovery Payment Info",
         "operationId": "Retrieve Revenue Recovery Info",
         "parameters": [
           {
@@ -3230,7 +3230,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Revenue Recovery Info Retrieved Succesfully",
+            "description": "Revenue Recovery Info Retrieved Successfully",
             "content": {
               "application/json": {
                 "schema": {
