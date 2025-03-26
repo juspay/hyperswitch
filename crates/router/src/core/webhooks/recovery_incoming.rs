@@ -8,11 +8,8 @@ use common_utils::{
 use diesel_models::{process_tracker as storage, schema::process_tracker::retry_count};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    errors::api_error_response,
-    revenue_recovery,
-    router_data_v2::flow_common_types,
-    router_flow_types,
-    router_request_types::revenue_recovery as revenue_recovery_request,
+    errors::api_error_response, revenue_recovery, router_data_v2::flow_common_types,
+    router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response,
     types::AdditionalRevenueRecoveryDetailsRouterData,
 };
@@ -115,7 +112,6 @@ pub async fn recovery_incoming_webhook_flow(
         })
         .await?;
 
-
     let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
 
     let payment_attempt = RevenueRecoveryAttempt::get_recovery_payment_attempt(
@@ -129,7 +125,7 @@ pub async fn recovery_incoming_webhook_flow(
         request_details,
         &merchant_account,
         &business_profile,
-        &payment_intent
+        &payment_intent,
     )
     .await?;
 
@@ -522,17 +518,17 @@ impl RevenueRecoveryAttempt {
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
         business_profile: &domain::Profile,
-        payment_intent: &revenue_recovery::RecoveryPaymentIntent
-    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentAttempt>, errors::RevenueRecoveryError> {
+        payment_intent: &revenue_recovery::RecoveryPaymentIntent,
+    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentAttempt>, errors::RevenueRecoveryError>
+    {
         let recovery_payment_attempt = match is_recovery_transaction_event {
             true => {
                 // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
-                let invoice_transaction_details =
-                    Self::get_recovery_invoice_transaction_details(
-                        connector_enum,
-                        request_details,
-                        billing_connector_payment_details,
-                    )?;
+                let invoice_transaction_details = Self::get_recovery_invoice_transaction_details(
+                    connector_enum,
+                    request_details,
+                    billing_connector_payment_details,
+                )?;
 
                 // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
                 let payment_merchant_connector_account = invoice_transaction_details
@@ -569,14 +565,13 @@ impl RevenueRecoveryAttempt {
                                 )
                                 .await
                         })
-                        .await?
+                        .await?,
                 )
             }
             false => None,
         };
 
         Ok(recovery_payment_attempt)
-
     }
 
     async fn insert_execute_pcr_task(
