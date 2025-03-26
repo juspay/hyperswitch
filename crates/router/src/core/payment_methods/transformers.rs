@@ -573,14 +573,15 @@ pub fn generate_payment_method_response(
                 .into_iter()
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
-        }).map(|mut tokens| {
+        })
+        .map(|mut tokens| {
             if let Some(token) = single_use_token {
                 let connector_token_single_use = transformers::ForeignFrom::foreign_from(token);
                 tokens.push(connector_token_single_use);
             }
             tokens
         });
-    
+
     let network_token_pmd = payment_method
         .network_token_payment_method_data
         .clone()
@@ -1125,7 +1126,9 @@ impl
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignFrom<&payment_method_data::PaymentMethodTokenSingleUse> for api_models::payment_methods::ConnectorTokenDetails {
+impl transformers::ForeignFrom<&payment_method_data::PaymentMethodTokenSingleUse>
+    for api_models::payment_methods::ConnectorTokenDetails
+{
     fn foreign_from(token: &payment_method_data::PaymentMethodTokenSingleUse) -> Self {
         Self {
             connector_id: token.clone().merchant_connector_id,
