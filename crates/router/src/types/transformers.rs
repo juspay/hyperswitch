@@ -1646,7 +1646,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
 
-
         Ok(Self {
             payment_confirm_source,
             // client_source,
@@ -1658,7 +1657,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
-            client_secret : None,
+            client_secret: None,
         })
     }
 }

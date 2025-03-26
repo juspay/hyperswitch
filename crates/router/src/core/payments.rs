@@ -8065,7 +8065,10 @@ pub trait OperationSessionGetters<F> {
 pub trait OperationSessionSetters<F> {
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
-    fn set_client_secret(&mut self, client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>);
+    fn set_client_secret(
+        &mut self,
+        client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    );
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_email_if_not_present(&mut self, email: pii::Email);
@@ -8509,7 +8512,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-    fn set_client_secret(&mut self, client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>) {
+    fn set_client_secret(
+        &mut self,
+        client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    ) {
         self.client_secret = client_secret;
     }
     fn set_payment_attempt(&mut self, _payment_attempt: storage::PaymentAttempt) {
@@ -8730,7 +8736,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-    fn set_client_secret(&mut self, client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>) {
+    fn set_client_secret(
+        &mut self,
+        client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    ) {
         todo!()
     }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
@@ -8951,7 +8960,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-    fn set_client_secret(&mut self, client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>) {
+    fn set_client_secret(
+        &mut self,
+        client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    ) {
         todo!()
     }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
@@ -9174,7 +9186,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-    fn set_client_secret(&mut self, client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>) {
+    fn set_client_secret(
+        &mut self,
+        client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    ) {
         todo!()
     }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
