@@ -6,7 +6,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
-use router_env::logger;
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;

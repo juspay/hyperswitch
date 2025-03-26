@@ -71,6 +71,7 @@ use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
+    errors::{NetworkTokenizationError, StorageError},
     headers, logger,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -88,10 +89,10 @@ use crate::{
 use crate::{
     consts,
     core::{
-        errors::{self as other_errors, RouterResult,ProcessTrackerError},
+        errors::{RouterResult,ProcessTrackerError},
         payments::helpers as payment_helpers,
     },
-    errors::{ApiErrorResponse, NetworkTokenizationError, StorageError},
+    errors::ApiErrorResponse,
     routes::{app::StorageInterface, SessionState},
     services,
     types::{
