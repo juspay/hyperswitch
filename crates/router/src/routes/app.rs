@@ -749,6 +749,11 @@ impl Payments {
                         .route(web::post().to(payments::payments_redirect_response))
                 )
                 .service(
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/{creds_identifier}")
+                        .route(web::get().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
+                        .route(web::post().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
+                )
+                .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::get().to(payments::payments_complete_authorize_redirect))
                         .route(web::post().to(payments::payments_complete_authorize_redirect)),
@@ -1039,6 +1044,10 @@ impl Customers {
         {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/total-payment-methods")
+                        .route(web::get().to(payment_methods::get_total_payment_method_count)),
+                )
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
@@ -2091,6 +2100,43 @@ impl Verify {
 
 pub struct User;
 
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/user").app_data(web::Data::new(state));
+
+        route = route.service(
+            web::resource("/create_merchant")
+                .route(web::post().to(user::user_merchant_account_create)),
+        );
+        route = route.service(
+            web::scope("/list")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::get().to(user::list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(user::list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/switch")
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(user::switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(user::switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route
+    }
+}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
@@ -2413,21 +2459,24 @@ pub struct WebhookEvents;
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/events/{merchant_id}")
+        web::scope("/events")
             .app_data(web::Data::new(config))
+            .service(web::scope("/profile/list").service(web::resource("").route(
+                web::get().to(webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth),
+            )))
             .service(
-                web::resource("")
-                    .route(web::get().to(webhook_events::list_initial_webhook_delivery_attempts)),
-            )
-            .service(
-                web::scope("/{event_id}")
+                web::scope("/{merchant_id}")
+                    .service(web::resource("").route(
+                        web::get().to(webhook_events::list_initial_webhook_delivery_attempts),
+                    ))
                     .service(
-                        web::resource("attempts")
-                            .route(web::get().to(webhook_events::list_webhook_delivery_attempts)),
-                    )
-                    .service(
-                        web::resource("retry")
-                            .route(web::post().to(webhook_events::retry_webhook_delivery_attempt)),
+                        web::scope("/{event_id}")
+                            .service(web::resource("attempts").route(
+                                web::get().to(webhook_events::list_webhook_delivery_attempts),
+                            ))
+                            .service(web::resource("retry").route(
+                                web::post().to(webhook_events::retry_webhook_delivery_attempt),
+                            )),
                     ),
             )
     }

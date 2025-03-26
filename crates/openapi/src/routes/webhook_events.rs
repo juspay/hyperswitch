@@ -47,13 +47,60 @@
         ),
     ),
     responses(
-        (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
+        (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
     ),
     tag = "Event",
     operation_id = "List all Events associated with a Merchant Account or Profile",
     security(("admin_api_key" = []))
 )]
 pub fn list_initial_webhook_delivery_attempts() {}
+
+/// Events - List
+///
+/// List all Events associated with a Profile.
+#[utoipa::path(
+    get,
+    path = "/events/profile/list",
+    params(
+        (
+            "created_after" = Option<PrimitiveDateTime>,
+            Query,
+            description = "Only include Events created after the specified time. \
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+        ),
+        (
+            "created_before" = Option<PrimitiveDateTime>,
+            Query,
+            description = "Only include Events created before the specified time. \
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+        ),
+        (
+            "limit" = Option<i64>,
+            Query,
+            description = "The maximum number of Events to include in the response. \
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+        ),
+        (
+            "offset" = Option<i64>,
+            Query,
+            description = "The number of Events to skip when retrieving the list of Events.
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+        ),
+        (
+            "object_id" = Option<String>,
+            Query,
+            description = "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). \
+                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
+        ),
+    ),
+    responses(
+        (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
+    ),
+    tag = "Event",
+    operation_id = "List all Events associated with a Profile",
+    security(("jwt_key" = []))
+)]
+pub fn list_initial_webhook_delivery_attempts_with_jwtauth() {}
 
 /// Events - Delivery Attempt List
 ///

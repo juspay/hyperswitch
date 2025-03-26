@@ -3,6 +3,9 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::SessionToken;
+use common_types::primitive_wrappers::{
+    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{OptionExt, ValueExt};
 use common_utils::{
@@ -11,7 +14,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -143,6 +146,51 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating start redirection url")
     }
+    #[cfg(feature = "v1")]
+    pub fn get_request_extended_authorization_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_request_extended_authorization_optional: Option<AlwaysRequestExtendedAuthorization>,
+        payment_method_optional: Option<common_enums::PaymentMethod>,
+        payment_method_type_optional: Option<common_enums::PaymentMethodType>,
+    ) -> Option<RequestExtendedAuthorizationBool> {
+        use router_env::logger;
+
+        let is_extended_authorization_supported_by_connector = || {
+            let supported_pms = connector.get_payment_methods_supporting_extended_authorization();
+            let supported_pmts =
+                connector.get_payment_method_types_supporting_extended_authorization();
+            // check if payment method or payment method type is supported by the connector
+            logger::info!(
+                "Extended Authentication Connector:{:?}, Supported payment methods: {:?}, Supported payment method types: {:?}, Payment method Selected: {:?}, Payment method type Selected: {:?}",
+                connector,
+                supported_pms,
+                supported_pmts,
+                payment_method_optional,
+                payment_method_type_optional
+            );
+            match (payment_method_optional, payment_method_type_optional) {
+                (Some(payment_method), Some(payment_method_type)) => {
+                    supported_pms.contains(&payment_method)
+                        && supported_pmts.contains(&payment_method_type)
+                }
+                (Some(payment_method), None) => supported_pms.contains(&payment_method),
+                (None, Some(payment_method_type)) => supported_pmts.contains(&payment_method_type),
+                (None, None) => false,
+            }
+        };
+        let intent_request_extended_authorization_optional = self.request_extended_authorization;
+        if always_request_extended_authorization_optional.is_some_and(
+            |always_request_extended_authorization| *always_request_extended_authorization,
+        ) || intent_request_extended_authorization_optional.is_some_and(
+            |intent_request_extended_authorization| *intent_request_extended_authorization,
+        ) {
+            Some(is_extended_authorization_supported_by_connector())
+        } else {
+            None
+        }
+        .map(RequestExtendedAuthorizationBool::from)
+    }
 
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
@@ -226,7 +274,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -422,24 +470,6 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|metadata| metadata.get_payment_method_type())
-    }
-
-    pub fn set_payment_connector_transmission(
-        &self,
-        feature_metadata: Option<FeatureMetadata>,
-        status: bool,
-    ) -> Option<Box<FeatureMetadata>> {
-        feature_metadata.map(|fm| {
-            let mut updated_metadata = fm;
-            if let Some(ref mut rrm) = updated_metadata.payment_revenue_recovery_metadata {
-                rrm.payment_connector_transmission = if status {
-                    common_enums::PaymentConnectorTransmission::ConnectorCallFailed
-                } else {
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                };
-            }
-            Box::new(updated_metadata)
-        })
     }
 
     pub fn get_connector_customer_id_from_feature_metadata(&self) -> Option<String> {
@@ -774,11 +804,13 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
 
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-
-        let payment_revenue_recovery_metadata =
-            Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+        let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let payment_revenue_recovery_metadata = match payment_attempt_connector {
+            Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
-                total_retry_count: revenue_recovery.map_or(1, |data| (data.total_retry_count + 1)),
+                total_retry_count: revenue_recovery
+                    .as_ref()
+                    .map_or(1, |data| (data.total_retry_count + 1)),
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
@@ -799,7 +831,14 @@ where
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,
-            });
+                connector: connector.parse().map_err(|err| {
+                    router_env::logger::error!(?err, "Failed to parse connector string to enum");
+                    errors::api_error_response::ApiErrorResponse::InternalServerError
+                })?,
+            }),
+            None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector not found in payment attempt")?,
+        };
         Ok(Some(FeatureMetadata {
             redirect_response: payment_intent_feature_metadata
                 .as_ref()

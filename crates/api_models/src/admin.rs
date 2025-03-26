@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "v1")]
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -8,10 +10,7 @@ use common_utils::{
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v1")]
-use common_utils::{
-    crypto::OptionalEncryptableName, ext_traits::ValueExt,
-    types::AlwaysRequestExtendedAuthorization,
-};
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -113,7 +112,7 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -198,6 +197,7 @@ pub struct MerchantAccountCreateWithoutOrgId {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -278,6 +278,8 @@ pub struct AuthenticationConnectorDetails {
     pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -560,7 +562,7 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -596,7 +598,7 @@ pub struct MerchantAccountResponse {
     pub recon_status: api_enums::ReconStatus,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<api_enums::MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -2839,6 +2841,8 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2924,6 +2928,8 @@ pub struct PaymentLinkConfig {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

@@ -551,6 +551,8 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -1219,6 +1221,8 @@ impl<F, T>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1310,6 +1314,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1458,6 +1464,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         });
 
@@ -1554,6 +1562,7 @@ pub enum RSyncStatus {
     RefundPendingSettlement,
     Declined,
     GeneralError,
+    Voided,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1587,8 +1596,9 @@ pub struct AuthorizedotnetRSyncResponse {
 impl From<SyncStatus> for enums::AttemptStatus {
     fn from(transaction_status: SyncStatus) -> Self {
         match transaction_status {
-            SyncStatus::SettledSuccessfully => Self::Charged,
-            SyncStatus::CapturedPendingSettlement => Self::CaptureInitiated,
+            SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
+                Self::Charged
+            }
             SyncStatus::AuthorizedPendingCapture => Self::Authorized,
             SyncStatus::Declined => Self::AuthenticationFailed,
             SyncStatus::Voided => Self::Voided,
@@ -1606,7 +1616,9 @@ impl From<RSyncStatus> for enums::RefundStatus {
         match transaction_status {
             RSyncStatus::RefundSettledSuccessfully => Self::Success,
             RSyncStatus::RefundPendingSettlement => Self::Pending,
-            RSyncStatus::Declined | RSyncStatus::GeneralError => Self::Failure,
+            RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
+                Self::Failure
+            }
         }
     }
 }
@@ -1735,6 +1747,8 @@ fn get_err_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        issuer_error_code: None,
+        issuer_error_message: None,
     })
 }
 

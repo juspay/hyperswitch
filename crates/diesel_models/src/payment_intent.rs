@@ -1,9 +1,6 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_utils::{
-    encryption::Encryption,
-    pii,
-    types::{MinorUnit, RequestExtendedAuthorizationBool},
-};
+use common_types::primitive_wrappers::RequestExtendedAuthorizationBool;
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -193,6 +190,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     /// Payment link configuration rules
     pub payment_link_ui_rules:
         Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);

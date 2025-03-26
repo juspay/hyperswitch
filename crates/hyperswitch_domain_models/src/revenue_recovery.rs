@@ -31,7 +31,7 @@ pub struct RevenueRecoveryAttemptData {
     /// payment method of payment attempt.
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
-    pub payment_method_sub_type: common_enums::PaymentMethodType,
+    pub payment_method_sub_type: Option<common_enums::PaymentMethodType>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -61,7 +61,6 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
-
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
@@ -75,10 +74,11 @@ pub struct RecoveryPaymentAttempt {
 }
 
 impl RecoveryPaymentAttempt {
-    pub fn get_attempt_triggered_by(self) -> Option<common_enums::TriggeredBy> {
-        self.feature_metadata.and_then(|metadata| {
+    pub fn get_attempt_triggered_by(&self) -> Option<common_enums::TriggeredBy> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
             metadata
                 .revenue_recovery
+                .as_ref()
                 .map(|recovery| recovery.attempt_triggered_by)
         })
     }

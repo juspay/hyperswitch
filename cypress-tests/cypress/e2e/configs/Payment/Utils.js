@@ -11,6 +11,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
+import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
@@ -21,7 +22,9 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
+import { connectorDetails as HipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
@@ -37,6 +40,7 @@ const connectorDetails = {
   cybersource: cybersourceConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
+  getnet: getnetConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
@@ -47,6 +51,8 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   xendit: xenditConnectorDetails,
   paypal: paypalConnectorDetails,
+  hipay: HipayConnectorDetails,
+  redsys: redsysConnectorDetails,
   stripe: stripeConnectorDetails,
   elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
@@ -313,7 +319,7 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: ["paypal"],
+    CONNECTOR_AGNOSTIC_NTID: ["fiuu", "paypal"],
     // Add more exclusion lists
   },
 
