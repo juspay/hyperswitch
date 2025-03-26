@@ -61,6 +61,8 @@ RUN apt-get update \
 
 EXPOSE 8080
 
+USER app:app
+
 ENV TZ=Etc/UTC \
     RUN_ENV=${RUN_ENV} \
     CONFIG_DIR=${CONFIG_DIR} \
