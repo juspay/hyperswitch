@@ -35,10 +35,10 @@ use common_utils::{consts::DEFAULT_LOCALE, id_type};
 use common_utils::{
     crypto::Encryptable,
     errors,
+    errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
-    errors::{ CustomResult },
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -72,7 +72,7 @@ use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
-    errors::{ StorageError, ApiErrorResponse, NetworkTokenizationError},
+    errors::{ApiErrorResponse, NetworkTokenizationError, StorageError},
     headers, logger,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -1892,13 +1892,14 @@ pub async fn retrieve_payment_method(
         )
         .await
         .to_not_found_response(ApiErrorResponse::PaymentMethodNotFound)?;
-    
+
     let payment_method_in_cache = get_single_use_token_from_store(
         &state.clone(),
-        payment_method_data::SingleUseTokenKey::store_key(pm_id.clone().get_string_repr())
-    ).await
+        payment_method_data::SingleUseTokenKey::store_key(pm_id.clone().get_string_repr()),
+    )
+    .await
     .change_context(ApiErrorResponse::PaymentMethodNotFound)
-    .attach_printable("Unable to find payment method")?;;
+    .attach_printable("Unable to find payment method")?;
 
     transformers::generate_payment_method_response(&payment_method, Some(&payment_method_in_cache))
         .map(services::ApplicationResponse::Json)
@@ -2690,11 +2691,12 @@ async fn create_single_use_tokenization_flow(
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
 ) -> RouterResult<()> {
     let customer_id = payment_method_create_request.customer_id.to_owned();
-    let connector_id = payment_method_create_request.get_tokenize_connector_id()
-    .change_context(ApiErrorResponse::MissingRequiredField {
-        field_name: "psp_tokenization.connector_id",
-    })
-    .attach_printable("Failed to get tokenize connector id")?;
+    let connector_id = payment_method_create_request
+        .get_tokenize_connector_id()
+        .change_context(ApiErrorResponse::MissingRequiredField {
+            field_name: "psp_tokenization.connector_id",
+        })
+        .attach_printable("Failed to get tokenize connector id")?;
 
     let db = &state.store;
 
@@ -2797,9 +2799,8 @@ async fn create_single_use_tokenization_flow(
     )
     .await?;
 
-    let token_response = payment_method_token_response
-        .token
-        .map_err(|err| ApiErrorResponse::ExternalConnectorError {
+    let token_response = payment_method_token_response.token.map_err(|err| {
+        ApiErrorResponse::ExternalConnectorError {
             code: err.code,
             message: err.message,
             connector: (merchant_connector_account_details.clone())
@@ -2807,7 +2808,8 @@ async fn create_single_use_tokenization_flow(
                 .to_string(),
             status_code: err.status_code,
             reason: err.reason,
-        })?;
+        }
+    })?;
 
     // let token = token_response
     //                         .ok_or(ApiErrorResponse::GenericNotFoundError {
@@ -2857,16 +2859,12 @@ async fn add_single_use_token_to_store(
 async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
-) -> CustomResult<
-        payment_method_data::PaymentMethodTokenSingleUse, 
-        StorageError,
-        >
-{
+) -> CustomResult<payment_method_data::PaymentMethodTokenSingleUse, StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
         .map_err(Into::<StorageError>::into)?;
-        // .attach_printable("Failed to get redis connection")?;
+    // .attach_printable("Failed to get redis connection")?;
 
     redis_connection
         .get_and_deserialize_key::<payment_method_data::PaymentMethodTokenSingleUse>(
