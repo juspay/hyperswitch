@@ -14,6 +14,7 @@ v1 = ["common_utils/v1", "common_types/v1"]
 v2 = ["common_utils/v2", "common_types/v2"]
 customer_v2 = []
 payment_methods_v2 = []
+refunds_v2 = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
