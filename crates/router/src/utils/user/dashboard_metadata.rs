@@ -218,11 +218,9 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::SetupWoocomWebhook
             | DBEnum::OnboardingSurvey
             | DBEnum::IsMultipleConfiguration
-            | DBEnum::ReconStatus 
+            | DBEnum::ReconStatus
             | DBEnum::ProdIntent => merchant_scoped.push(key),
-            DBEnum::Feedback  | DBEnum::IsChangePasswordRequired => {
-                user_scoped.push(key)
-            }
+            DBEnum::Feedback | DBEnum::IsChangePasswordRequired => user_scoped.push(key),
         }
     }
     (merchant_scoped, user_scoped)
