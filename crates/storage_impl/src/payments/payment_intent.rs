@@ -603,8 +603,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         let diesel_payment_intent_update =
-            diesel_models::PaymentIntentUpdateInternal::from(payment_intent);
-
+            diesel_models::PaymentIntentUpdateInternal::try_from(payment_intent)
+                .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
             .await
