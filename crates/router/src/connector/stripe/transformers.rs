@@ -2352,6 +2352,8 @@ impl From<AdditionalPaymentMethodDetails> for types::AdditionalPaymentMethodConn
         Self::Card {
             authentication_data: item.authentication_details,
             payment_checks: item.payment_checks,
+            card_network: None,
+            domestic_network: None,
         }
     }
 }

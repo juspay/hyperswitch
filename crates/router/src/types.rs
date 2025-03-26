@@ -511,6 +511,7 @@ pub struct AddAccessTokenResult {
 pub struct PaymentMethodTokenResult {
     pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
     pub is_payment_method_tokenization_performed: bool,
+    pub connector_response: Option<ConnectorResponseData>,
 }
 
 #[derive(Debug, Clone, Copy)]
