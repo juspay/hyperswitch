@@ -21,7 +21,7 @@ pub struct AuthenticationInfo {
     pub is_authenticated: bool,
     pub locale: Option<String>,
     pub supported_card_brands: Option<String>,
-    pub encypted_payload: Option<String>,
+    pub encypted_payload: Option<Secret<String>>,
 }
 #[derive(Clone, Debug)]
 pub struct UasAuthenticationRequestData {

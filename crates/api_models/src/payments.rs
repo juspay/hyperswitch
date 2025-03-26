@@ -1165,7 +1165,7 @@ pub struct CtpServiceDetails {
     #[schema(value_type = CtpServiceProvider)]
     pub provider: api_enums::CtpServiceProvider,
     /// Encrypted payload
-    pub encypted_payload: Option<String>,
+    pub encypted_payload: Secret<String>,
 }
 
 impl CtpServiceDetails {
