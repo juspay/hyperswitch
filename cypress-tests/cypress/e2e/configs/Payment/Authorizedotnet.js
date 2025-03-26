@@ -163,9 +163,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          message:
+          error_message:
             "The referenced transaction does not meet the criteria for issuing a credit.",
-          code: "54",
+          error_code: "54",
         },
       },
     },
@@ -173,9 +173,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          message:
+          error_message:
             "The referenced transaction does not meet the criteria for issuing a credit.",
-          code: "54",
+            error_code: "54",
         },
       },
     },
@@ -196,22 +196,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetailsList[0],
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SyncRefund: {
       Request: {
         payment_method: "card",
         payment_method_data: {
