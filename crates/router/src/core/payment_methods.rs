@@ -37,7 +37,7 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
-    errors,
+    errors::{ CustomResult },
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -71,6 +71,7 @@ use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
+    errors::{ StorageError, ApiErrorResponse, NetworkTokenizationError},
     headers, logger,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -221,7 +222,7 @@ pub async fn initiate_pm_collect_link(
     )
     .await?;
     let customer_id = id_type::CustomerId::try_from(Cow::from(pm_collect_link.primary_reference))
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        .change_context(ApiErrorResponse::InvalidDataValue {
         field_name: "customer_id",
     })?;
 
@@ -232,7 +233,7 @@ pub async fn initiate_pm_collect_link(
         customer_id,
         expiry: pm_collect_link.expiry,
         link: url::Url::parse(url)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
                 format!("Failed to parse the payment method collect link - {}", url)
             })?
@@ -253,7 +254,7 @@ pub async fn create_pm_collect_db_entry(
     let db: &dyn StorageInterface = &*state.store;
 
     let link_data = serde_json::to_value(pm_collect_link_data)
-        .map_err(|_| report!(errors::ApiErrorResponse::InternalServerError))
+        .map_err(|_| report!(ApiErrorResponse::InternalServerError))
         .attach_printable("Failed to convert PaymentMethodCollectLinkData to Value")?;
 
     let pm_collect_link = GenericLinkNew {
@@ -274,7 +275,7 @@ pub async fn create_pm_collect_db_entry(
 
     db.insert_pm_collect_link(pm_collect_link)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+        .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: "payment method collect link already exists".to_string(),
         })
 }
@@ -758,7 +759,7 @@ pub(crate) fn get_payment_method_create_request(
             };
             Ok(payment_method_request)
         }
-        _ => Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+        _ => Err(report!(ApiErrorResponse::UnprocessableEntity {
             message: "only card payment methods are supported for tokenization".to_string()
         })
         .attach_printable("Payment method data is incorrect")),
@@ -904,7 +905,7 @@ pub async fn create_payment_method_core(
         merchant_account.storage_scheme,
     )
     .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .to_not_found_response(ApiErrorResponse::CustomerNotFound)
     .attach_printable("Customer not found for the payment method")?;
 
     let payment_method_billing_address = req
@@ -913,18 +914,18 @@ pub async fn create_payment_method_core(
         .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt Payment method billing address")?
         .map(|encoded_address| {
             encoded_address.deserialize_inner_value(|value| value.parse_value("Address"))
         })
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse Payment method billing address")?;
 
     let payment_method_id =
         id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = create_payment_method_for_intent(
@@ -991,7 +992,7 @@ pub async fn create_payment_method_core(
                     merchant_account.storage_scheme,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
             let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
@@ -1011,7 +1012,7 @@ pub async fn create_payment_method_core(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
 
             Err(e)
@@ -1039,13 +1040,13 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
 ) -> Option<NetworkTokenPaymentMethodDetails> {
-    let network_token_pm_details_result: errors::CustomResult<
+    let network_token_pm_details_result: CustomResult<
         NetworkTokenPaymentMethodDetails,
-        errors::NetworkTokenizationError,
+        NetworkTokenizationError,
     > = async {
         when(!network_tokenization_enabled_for_profile, || {
             Err(report!(
-                errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+                NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
             ))
         })?;
 
@@ -1058,7 +1059,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             .get_card()
             .and_then(|card| is_network_tokenization_enabled_for_pm.then_some(card))
             .ok_or_else(|| {
-                report!(errors::NetworkTokenizationError::NotSupported {
+                report!(NetworkTokenizationError::NotSupported {
                     message: "Payment method".to_string(),
                 })
             })?;
@@ -1079,7 +1080,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             None,
         )
         .await
-        .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
+        .change_context(NetworkTokenizationError::SaveNetworkTokenFailed)
         .attach_printable("Failed to vault network token")?;
 
         let key_manager_state = &(state).into();
@@ -1089,7 +1090,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             network_token_vaulting_data.get_payment_methods_data(),
         )
         .await
-        .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
+        .change_context(NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
         .attach_printable("Failed to encrypt PaymentMethodsData")?;
 
         Ok(NetworkTokenPaymentMethodDetails {
@@ -1240,7 +1241,7 @@ pub async fn payment_method_intent_create(
         merchant_account.storage_scheme,
     )
     .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .to_not_found_response(ApiErrorResponse::CustomerNotFound)
     .attach_printable("Customer not found for the payment method")?;
 
     let payment_method_billing_address = req
@@ -1249,20 +1250,20 @@ pub async fn payment_method_intent_create(
         .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt Payment method billing address")?
         .map(|encoded_address| {
             encoded_address.deserialize_inner_value(|value| value.parse_value("Address"))
         })
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse Payment method billing address")?;
 
     // create pm entry
 
     let payment_method_id =
         id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = create_payment_method_for_intent(
@@ -1313,7 +1314,7 @@ pub async fn list_payment_methods_for_session(
     let payment_method_session = db
         .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
         .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .change_context(ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
     let payment_connector_accounts = db
@@ -1324,7 +1325,7 @@ pub async fn list_payment_methods_for_session(
             common_enums::ConnectorType::PaymentProcessor,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
     let customer_payment_methods = list_customer_payment_method_core(
@@ -1529,7 +1530,7 @@ pub async fn create_payment_method_for_intent(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
+) -> CustomResult<domain::PaymentMethod, ApiErrorResponse> {
     let db = &*state.store;
 
     let current_time = common_utils::date_time::now();
@@ -1565,7 +1566,7 @@ pub async fn create_payment_method_for_intent(
             storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
 
     Ok(response)
@@ -1645,7 +1646,7 @@ pub async fn create_pm_additional_data_update(
 
             cards::create_encrypted_data(key_manager_state, key_store, payment_method_details)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt Payment method data")
         })
         .await
@@ -1692,7 +1693,7 @@ pub async fn vault_payment_method(
     let fingerprint_id_from_vault =
         vault::get_fingerprint_id_from_vault(state, pmd, customer_id.get_string_repr().to_owned())
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get fingerprint_id from vault")?;
 
     // throw back error if payment method is duplicated
@@ -1703,12 +1704,12 @@ pub async fn vault_payment_method(
             &fingerprint_id_from_vault,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find payment method by fingerprint_id")
         .inspect_err(|e| logger::error!("Vault Fingerprint_id error: {:?}", e))
         .is_ok(),
         || {
-            Err(report!(errors::ApiErrorResponse::DuplicatePaymentMethod)
+            Err(report!(ApiErrorResponse::DuplicatePaymentMethod)
                 .attach_printable("Cannot vault duplicate payment method"))
         },
     )?;
@@ -1716,7 +1717,7 @@ pub async fn vault_payment_method(
     let resp_from_vault =
         vault::add_payment_method_to_vault(state, merchant_account, pmd, existing_vault_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in vault")?;
 
     Ok((resp_from_vault, fingerprint_id_from_vault))
@@ -1733,7 +1734,7 @@ fn get_pm_list_context(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,
     is_payment_associated: bool,
-) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<Option<PaymentMethodListContext>, error_stack::Report<ApiErrorResponse>> {
     let payment_method_data = payment_method
         .payment_method_data
         .clone()
@@ -1764,12 +1765,12 @@ fn get_pm_list_context(
         }
         Some(payment_methods::PaymentMethodsData::BankDetails(bank_details)) => {
             let get_bank_account_token_data =
-                || -> errors::CustomResult<payment_methods::BankAccountTokenData, errors::ApiErrorResponse> {
+                || -> CustomResult<payment_methods::BankAccountTokenData, ApiErrorResponse> {
                     let connector_details = bank_details
                         .connector_details
                         .first()
                         .cloned()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .ok_or(ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to obtain bank account connector details")?;
 
                     let payment_method_subtype = payment_method
@@ -1832,13 +1833,13 @@ pub async fn list_customer_payment_method_core(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .to_not_found_response(ApiErrorResponse::PaymentMethodNotFound)?;
 
     let customer_payment_methods = saved_payment_methods
         .into_iter()
         .map(ForeignTryFrom::foreign_try_from)
         .collect::<Result<Vec<api::CustomerPaymentMethod>, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(ApiErrorResponse::InternalServerError)?;
 
     let response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods,
@@ -1860,7 +1861,7 @@ pub async fn get_total_payment_method_count_core(
             common_enums::PaymentMethodStatus::Active,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to get total payment method count")?;
 
     let response = api::TotalPaymentMethodCountResponse { total_count };
@@ -1878,7 +1879,7 @@ pub async fn retrieve_payment_method(
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = db
@@ -1889,16 +1890,14 @@ pub async fn retrieve_payment_method(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .to_not_found_response(ApiErrorResponse::PaymentMethodNotFound)?;
     
     let payment_method_in_cache = get_single_use_token_from_store(
         &state.clone(),
         payment_method_data::SingleUseTokenKey::store_key(pm_id.clone().get_string_repr())
     ).await
-    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "payment methods session does not exist or has expired".to_string(),
-    })
-    .attach_printable("Failed to retrieve payment method from redis")?;
+    .change_context(ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Unable to find payment method")?;;
 
     transformers::generate_payment_method_response(&payment_method, Some(&payment_method_in_cache))
         .map(services::ApplicationResponse::Json)
@@ -1944,13 +1943,13 @@ pub async fn update_payment_method_core(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .to_not_found_response(ApiErrorResponse::PaymentMethodNotFound)?;
     let current_vault_id = payment_method.locker_id.clone();
 
     when(
         payment_method.status == enums::PaymentMethodStatus::AwaitingData,
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
+            Err(ApiErrorResponse::InvalidRequestData {
                 message: "This Payment method is awaiting data and hence cannot be updated"
                     .to_string(),
             })
@@ -1960,7 +1959,7 @@ pub async fn update_payment_method_core(
     let pmd: domain::PaymentMethodVaultingData =
         vault::retrieve_payment_method_from_vault(state, merchant_account, &payment_method)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method from vault")?
             .data;
 
@@ -2018,7 +2017,7 @@ pub async fn update_payment_method_core(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
     let response = pm_transforms::generate_payment_method_response(&payment_method, None)?;
@@ -2040,7 +2039,7 @@ pub async fn delete_payment_method(
     let key_manager_state = &(&state).into();
 
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = db
@@ -2051,11 +2050,11 @@ pub async fn delete_payment_method(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .to_not_found_response(ApiErrorResponse::PaymentMethodNotFound)?;
 
     when(
         payment_method.status == enums::PaymentMethodStatus::Inactive,
-        || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
+        || Err(ApiErrorResponse::PaymentMethodNotFound),
     )?;
 
     let vault_id = payment_method
@@ -2073,7 +2072,7 @@ pub async fn delete_payment_method(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
     // Soft delete
@@ -2089,12 +2088,12 @@ pub async fn delete_payment_method(
         merchant_account.storage_scheme,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment method in db")?;
 
     vault::delete_payment_method_data_from_vault(&state, &merchant_account, vault_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
     let response = api::PaymentMethodDeleteResponse { id: pm_id };
@@ -2130,7 +2129,7 @@ impl EncryptableData for payment_methods::PaymentMethodSessionRequest {
             .clone()
             .map(|address| address.encode_to_value())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode billing address")?
             .map(Secret::new);
 
@@ -2149,14 +2148,14 @@ impl EncryptableData for payment_methods::PaymentMethodSessionRequest {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encrypting payment methods session details".to_string())?;
 
         let encrypted_data =
         hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodSession::from_encryptable(
             batch_encrypted_data,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encrypting payment methods session detailss")?;
 
         Ok(encrypted_data)
@@ -2180,7 +2179,7 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
             .clone()
             .map(|address| address.encode_to_value())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode billing address")?
             .map(Secret::new);
 
@@ -2199,14 +2198,14 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encrypting payment methods session details".to_string())?;
 
         let encrypted_data =
         hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodSession::from_encryptable(
             batch_encrypted_data,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encrypting payment methods session detailss")?;
 
         Ok(encrypted_data)
@@ -2231,17 +2230,17 @@ pub async fn payment_methods_session_create(
         merchant_account.storage_scheme,
     )
     .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    .to_not_found_response(ApiErrorResponse::CustomerNotFound)?;
 
     let payment_methods_session_id =
         id_type::GlobalPaymentMethodSessionId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
 
     let encrypted_data = request
         .encrypt_data(key_manager_state, &key_store)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt payment methods session data")?;
 
     let billing = encrypted_data
@@ -2252,7 +2251,7 @@ pub async fn payment_methods_session_create(
                 .deserialize_inner_value(|value| value.parse_value("Address"))
         })
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to decode billing address")?;
 
     // If not passed in the request, use the default value from constants
@@ -2271,7 +2270,7 @@ pub async fn payment_methods_session_create(
         ),
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Unable to create client secret")?;
 
     let payment_method_session_domain_model =
@@ -2294,7 +2293,7 @@ pub async fn payment_methods_session_create(
         expires_in,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
     let response = transformers::generate_payment_method_session_response(
@@ -2320,7 +2319,7 @@ pub async fn payment_methods_session_update(
     let existing_payment_method_session_state = db
         .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        .to_not_found_response(ApiErrorResponse::GenericNotFoundError {
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
@@ -2328,7 +2327,7 @@ pub async fn payment_methods_session_update(
     let encrypted_data = request
         .encrypt_data(key_manager_state, &key_store)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt payment methods session data")?;
 
     let billing = encrypted_data
@@ -2339,7 +2338,7 @@ pub async fn payment_methods_session_update(
                 .deserialize_inner_value(|value| value.parse_value("Address"))
         })
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to decode billing address")?;
 
     let payment_method_session_domain_model =
@@ -2358,7 +2357,7 @@ pub async fn payment_methods_session_update(
             existing_payment_method_session_state.clone(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment methods session in db")?;
 
     let response = transformers::generate_payment_method_session_response(
@@ -2382,7 +2381,7 @@ pub async fn payment_methods_session_retrieve(
     let payment_method_session_domain_model = db
         .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        .to_not_found_response(ApiErrorResponse::GenericNotFoundError {
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
@@ -2410,7 +2409,7 @@ pub async fn payment_methods_session_update_payment_method(
     // Validate if the session still exists
     db.get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        .to_not_found_response(ApiErrorResponse::GenericNotFoundError {
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
@@ -2501,7 +2500,7 @@ async fn create_zero_auth_payment(
 
     response
         .get_json_body()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Unexpected response from payments core")
 }
 
@@ -2522,7 +2521,7 @@ pub async fn payment_methods_session_confirm(
     let payment_method_session = db
         .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        .to_not_found_response(ApiErrorResponse::GenericNotFoundError {
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
@@ -2691,7 +2690,7 @@ async fn create_single_use_tokenization_flow(
 ) -> RouterResult<()> {
     let customer_id = payment_method_create_request.customer_id.to_owned();
     let connector_id = payment_method_create_request.get_tokenize_connector_id()
-    .change_context(errors::ApiErrorResponse::MissingRequiredField {
+    .change_context(ApiErrorResponse::MissingRequiredField {
         field_name: "psp_tokenization.connector_id",
     })
     .attach_printable("Failed to get tokenize connector id")?;
@@ -2701,20 +2700,20 @@ async fn create_single_use_tokenization_flow(
     let merchant_connector_account_details = db
         .find_merchant_connector_account_by_id(&(&state).into(), &connector_id, &key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_owned(),
         })
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
     let auth_type = merchant_connector_account_details
         .get_connector_account_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let payment_method_data_request = types::PaymentMethodTokenizationData {
         payment_method_data: payment_method_data::PaymentMethodData::try_from(
             payment_method_create_request.payment_method_data.clone(),
         )
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+        .change_context(ApiErrorResponse::MissingRequiredField {
             field_name: "card_cvc",
         })
         .attach_printable("Failed to convert type from Payment Method Create Data to Payment Method Data")?,
@@ -2796,8 +2795,8 @@ async fn create_single_use_tokenization_flow(
     .await?;
 
     let token_response = payment_method_token_response
-        .payment_method_token_result
-        .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+        .token
+        .map_err(|err| ApiErrorResponse::ExternalConnectorError {
             code: err.code,
             message: err.message,
             connector: (merchant_connector_account_details.clone())
@@ -2807,19 +2806,22 @@ async fn create_single_use_tokenization_flow(
             reason: err.reason,
         })?;
 
-    let token = token_response
-                            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                                message: "No token recevied from the PSP".to_string(),
-                            })?;
+    // let token = token_response
+    //                         .ok_or(ApiErrorResponse::GenericNotFoundError {
+    //                             message: "No token recevied from the PSP".to_string(),
+    //                         })?;
 
     let value = payment_method_data::PaymentMethodTokenSingleUse::get_single_use_token_from_payment_method_token(
-                                                       token.clone(),
+                                                       token_response.clone(),
                                                 connector_id.clone()
                                             );
 
     let key = payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
 
-    add_single_use_token_to_store(&state, key, value).await?;
+    add_single_use_token_to_store(&state, key, value)
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to store single use token")?;
 
     Ok(())
 }
@@ -2829,12 +2831,11 @@ async fn add_single_use_token_to_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
     value: payment_method_data::PaymentMethodTokenSingleUse,
-) -> RouterResult<()> {
+) -> CustomResult<(), StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get redis connection")?;
+        .map_err(Into::<StorageError>::into)?;
 
     redis_connection
         .serialize_and_set_key_with_expiry(
@@ -2843,7 +2844,7 @@ async fn add_single_use_token_to_store(
             consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
         )
         .await
-        .change_context(errors::StorageError::KVError)
+        .change_context(StorageError::KVError)
         .attach_printable("Failed to insert payment method token to redis")?;
     Ok(())
 }
@@ -2853,14 +2854,15 @@ async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
 ) -> CustomResult<
-                    payment_method_data::PaymentMethodTokenSingleUse, 
-                    errors::StorageError,
-                >{
+        payment_method_data::PaymentMethodTokenSingleUse, 
+        StorageError,
+        >
+{
     let redis_connection = state
         .store
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get redis connection")?;
+        .map_err(Into::<StorageError>::into)?;
+        // .attach_printable("Failed to get redis connection")?;
 
     redis_connection
         .get_and_deserialize_key::<payment_method_data::PaymentMethodTokenSingleUse>(
@@ -2868,6 +2870,6 @@ async fn get_single_use_token_from_store(
             "PaymentMethodTokenSingleUse"
         )
         .await
-        .change_context(errors::StorageError::KVError)
+        .change_context(StorageError::KVError)
         .attach_printable("Failed to get payment method token from redis")
 }

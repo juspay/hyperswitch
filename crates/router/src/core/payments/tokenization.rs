@@ -1354,7 +1354,7 @@ pub async fn add_token_for_payment_method(
     payment_method_data_request: types::PaymentMethodTokenizationData,
     state: SessionState,
     merchant_connector_account_details: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-) -> RouterResult<types::PaymentMethodTokenResult> {
+) -> RouterResult<types::PspTokenResult> {
     let connector_id = merchant_connector_account_details
                         .id
                         .clone();
@@ -1396,14 +1396,27 @@ pub async fn add_token_for_payment_method(
     .to_payment_failed_response()?;
     let payment_token_response = connector_integration_response.response.map(|res| {
         if let types::PaymentsResponseData::TokenizationResponse { token } = res {
-            Some(token)
+            Ok(token)
         } else {
-            None
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get token from connector")
         }
     });
 
-    Ok(types::PaymentMethodTokenResult {
-        payment_method_token_result: payment_token_response,
-        is_payment_method_tokenization_performed: true,
-    })
+    match payment_token_response {
+        Ok(token) => {
+            Ok(types::PspTokenResult {
+                token: Ok(token?),
+            })
+        },
+        Err(error_response) => {
+            Ok(types::PspTokenResult {
+                token: Err(error_response),
+            })
+        }
+    }
+
+    // Ok(types::PspTokenResult {
+    //     token: payment_token_response,
+    // })
 }

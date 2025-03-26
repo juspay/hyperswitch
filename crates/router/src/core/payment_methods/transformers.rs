@@ -563,7 +563,7 @@ pub fn generate_payment_method_response(
             _ => None,
         });
 
-    let connector_tokens = payment_method
+    let mut connector_tokens = payment_method
         .connector_mandate_details
         .as_ref()
         .and_then(|connector_token_details| connector_token_details.payments.clone())
@@ -573,11 +573,13 @@ pub fn generate_payment_method_response(
                 .into_iter()
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
+        }).map(|mut tokens| {
+            if let Some(token) = single_use_token {
+                let connector_token_single_use = transformers::ForeignFrom::foreign_from(token);
+                tokens.push(connector_token_single_use);
+            }
+            tokens
         });
-    
-    if let Some(token) = single_use_token {
-            connector_tokens.append(transformers::ForeignFrom::foreign_from(token.clone()));
-        }
     
     let network_token_pmd = payment_method
         .network_token_payment_method_data
@@ -1123,17 +1125,17 @@ impl
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignFrom<payment_method_data::PaymentMethodTokenSingleUse> for api_models::payment_methods::ConnectorTokenDetails {
-    fn foreign_from(token: payment_method_data::PaymentMethodTokenSingleUse) -> Self {
+impl transformers::ForeignFrom<&payment_method_data::PaymentMethodTokenSingleUse> for api_models::payment_methods::ConnectorTokenDetails {
+    fn foreign_from(token: &payment_method_data::PaymentMethodTokenSingleUse) -> Self {
         Self {
-            connector_id: token.merchant_connector_id,
+            connector_id: token.clone().merchant_connector_id,
             token_type: common_enums::TokenizationType::SingleUse,
             status: api_enums::ConnectorTokenStatus::Active,
             connector_token_request_reference_id: None,
             original_payment_authorized_amount: None,
             original_payment_authorized_currency: None,
             metadata: None,
-            token: Secret::new(token.token),
+            token: Secret::new(token.clone().token),
         }
     }
 } 

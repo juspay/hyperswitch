@@ -513,6 +513,10 @@ pub struct PaymentMethodTokenResult {
     pub is_payment_method_tokenization_performed: bool,
 }
 
+pub struct PspTokenResult {
+    pub token: Result<String, ErrorResponse>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
