@@ -71,7 +71,6 @@ use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, payments as payments_core},
     db::errors::ConnectorErrorExt,
-    errors::{ApiErrorResponse, NetworkTokenizationError, StorageError},
     headers, logger,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -89,9 +88,10 @@ use crate::{
 use crate::{
     consts,
     core::{
-        errors::{self as other_errors, RouterResult},
+        errors::{self as other_errors, RouterResult,ProcessTrackerError},
         payments::helpers as payment_helpers,
     },
+    errors::{ApiErrorResponse, NetworkTokenizationError, StorageError},
     routes::{app::StorageInterface, SessionState},
     services,
     types::{
@@ -303,7 +303,7 @@ pub async fn render_pm_collect_link(
     let pm_collect_link = db
         .find_pm_collect_link_by_link_id(&req.pm_collect_link_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        .to_not_found_response(ApiErrorResponse::GenericNotFoundError {
             message: "payment method collect link not found".to_string(),
         })?;
 
@@ -347,7 +347,7 @@ pub async fn render_pm_collect_link(
                 let customer_id = id_type::CustomerId::try_from(Cow::from(
                     pm_collect_link.primary_reference.clone(),
                 ))
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                .change_context(ApiErrorResponse::InvalidDataValue {
                     field_name: "customer_id",
                 })?;
                 // Fetch customer
@@ -361,7 +361,7 @@ pub async fn render_pm_collect_link(
                         merchant_account.storage_scheme,
                     )
                     .await
-                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    .change_context(ApiErrorResponse::InvalidRequestData {
                         message: format!(
                             "Customer [{}] not found for link_id - {}",
                             pm_collect_link.primary_reference, pm_collect_link.link_id
@@ -389,7 +389,7 @@ pub async fn render_pm_collect_link(
                     "window.__PM_COLLECT_DETAILS = {}",
                     js_data
                         .encode_to_string_of_json()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .change_context(ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to serialize PaymentMethodCollectLinkDetails")?
                 );
 
@@ -420,7 +420,7 @@ pub async fn render_pm_collect_link(
                     .as_ref()
                     .map(|url| url::Url::parse(url))
                     .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed to parse return URL for payment method collect's status link",
                     )?,
@@ -434,7 +434,7 @@ pub async fn render_pm_collect_link(
                 "window.__PM_COLLECT_DETAILS = {}",
                 js_data
                     .encode_to_string_of_json()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed to serialize PaymentMethodCollectLinkStatusDetails"
                     )?
@@ -473,7 +473,7 @@ pub async fn add_payment_method_status_update_task(
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
     merchant_id: &id_type::MerchantId,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> Result<(), ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
         created_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
@@ -504,13 +504,13 @@ pub async fn add_payment_method_status_update_task(
         schedule_time,
         hyperswitch_domain_models::consts::API_VERSION,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
 
     db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
@@ -616,7 +616,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info
                     .get_required_value("PaymentMethod")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("PaymentMethod not found")?,
                 business_profile,
                 payment_attempt.connector.clone(),
@@ -656,7 +656,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info
                     .get_required_value("PaymentMethod")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("PaymentMethod not found")?,
                 business_profile,
                 payment_attempt.connector.clone(),
@@ -843,12 +843,12 @@ pub(crate) async fn get_payment_method_create_request(
                     Ok(payment_method_request)
                 }
             },
-            None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            None => Err(report!(ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type"
             })
             .attach_printable("PaymentMethodType Required")),
         },
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+        None => Err(report!(ApiErrorResponse::MissingRequiredField {
             field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
