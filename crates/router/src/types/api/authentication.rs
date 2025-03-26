@@ -3,27 +3,15 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
-
-pub use super::authentication_v2::{
-    ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
-    ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
+pub use hyperswitch_domain_models::{
+    router_flow_types::authentication::{
+        Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+    },
+    router_request_types::authentication::MessageCategory,
 };
-use crate::core::errors;
 
-#[derive(Debug, Clone)]
-pub struct PreAuthentication;
-
-#[derive(Debug, Clone)]
-pub struct PreAuthenticationVersionCall;
-
-#[derive(Debug, Clone)]
-pub struct Authentication;
-
-#[derive(Debug, Clone)]
-pub struct PostAuthentication;
 use crate::{
-    connector, services, services::connector_integration_interface::ConnectorEnum, types,
+    connector, core::errors, services::connector_integration_interface::ConnectorEnum,
     types::storage,
 };
 
@@ -72,51 +60,6 @@ pub struct PostAuthenticationResponse {
     pub trans_status: String,
     pub authentication_value: Option<String>,
     pub eci: Option<String>,
-}
-
-pub trait ConnectorAuthentication:
-    services::ConnectorIntegration<
-    Authentication,
-    types::authentication::ConnectorAuthenticationRequestData,
-    types::authentication::AuthenticationResponseData,
->
-{
-}
-
-pub trait ConnectorPreAuthentication:
-    services::ConnectorIntegration<
-    PreAuthentication,
-    types::authentication::PreAuthNRequestData,
-    types::authentication::AuthenticationResponseData,
->
-{
-}
-
-pub trait ConnectorPreAuthenticationVersionCall:
-    services::ConnectorIntegration<
-    PreAuthenticationVersionCall,
-    types::authentication::PreAuthNRequestData,
-    types::authentication::AuthenticationResponseData,
->
-{
-}
-
-pub trait ConnectorPostAuthentication:
-    services::ConnectorIntegration<
-    PostAuthentication,
-    types::authentication::ConnectorPostAuthenticationRequestData,
-    types::authentication::AuthenticationResponseData,
->
-{
-}
-
-pub trait ExternalAuthentication:
-    super::ConnectorCommon
-    + ConnectorAuthentication
-    + ConnectorPreAuthentication
-    + ConnectorPreAuthenticationVersionCall
-    + ConnectorPostAuthentication
-{
 }
 
 #[derive(Clone)]
