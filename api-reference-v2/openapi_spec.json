@@ -19257,6 +19257,19 @@
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not.",
             "nullable": true
+          },
+          "is_debit_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if debit routing is enabled or not",
+            "nullable": true
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19494,6 +19507,19 @@
           "is_clear_pan_retries_enabled": {
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not."
+          },
+          "is_debit_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if debit routing is enabled or not",
+            "nullable": true
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },

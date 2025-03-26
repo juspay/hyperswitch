@@ -255,6 +255,7 @@ pub enum DashboardMetadata {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
     OnboardingSurvey,
+    ReconStatus,
 }
 
 #[derive(
