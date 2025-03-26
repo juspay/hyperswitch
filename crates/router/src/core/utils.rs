@@ -388,6 +388,7 @@ pub async fn construct_refund_router_data<'a, F>(
             minor_payment_amount: payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
+            refund_connector_metadata: refund.metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,
@@ -1785,10 +1786,13 @@ impl<T, F, R> GetProfileId for (storage::Payouts, T, F, R) {
 }
 
 /// Filter Objects based on profile ids
-pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
+pub(super) fn filter_objects_based_on_profile_id_list<
+    T: GetProfileId,
+    U: IntoIterator<Item = T> + FromIterator<T>,
+>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
-    object_list: Vec<T>,
-) -> Vec<T> {
+    object_list: U,
+) -> U {
     if let Some(profile_id_list) = profile_id_list_auth_layer {
         let profile_ids_to_filter: HashSet<_> = profile_id_list.iter().collect();
         object_list

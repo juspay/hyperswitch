@@ -590,6 +590,10 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
 
+[pm_filters.trustpay]
+instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
+
 [pm_filters.dlocal]
 credit = {country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW"}
 debit = {country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW"}
@@ -669,7 +673,7 @@ connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "stripe,wise"
+payout_connector_list = "nomupay,stripe,wise"
 
 
 [payment_method_auth]
@@ -842,11 +846,11 @@ timeout = 10 # Timeout for SMTP connection in seconds
 connection = "plaintext" #currently plaintext and starttls are supported
 
 [theme.email_config]
-entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
-entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
-foreground_color = "#000000"                     # Foreground color of email text
-primary_color = "#006DF9"                        # Primary color of email body
-background_color = "#FFFFFF"                     # Background color of email body
+entity_name = "Hyperswitch"                                                      # Display name in emails
+entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png"  # Logo URL for emails
+foreground_color = "#111326"                                                     # Text color
+primary_color = "#006DF9"                                                        # Primary color
+background_color = "#FFFFFF"                                                     # Email background color
 
 [platform]
 enabled = true

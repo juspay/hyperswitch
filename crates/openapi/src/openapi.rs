@@ -195,6 +195,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for events
         routes::webhook_events::list_initial_webhook_delivery_attempts,
+        routes::webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth,
         routes::webhook_events::list_webhook_delivery_attempts,
         routes::webhook_events::retry_webhook_delivery_attempt,
 
@@ -317,6 +318,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ElementPosition,
         api_models::enums::ElementSize,
         api_models::enums::SizeVariants,
+        api_models::enums::MerchantProductType,
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::UIWidgetFormLayout,

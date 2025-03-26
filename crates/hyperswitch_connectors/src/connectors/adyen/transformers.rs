@@ -691,15 +691,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "econtext_seven_eleven")]
     SevenEleven(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
-    Lawson(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    MiniStop(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    FamilyMart(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    Seicomart(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    PayEasy(Box<JCSVoucherData>),
+    JapaneseConvenienceStores(Box<JCSVoucherData>),
     Pix,
     #[serde(rename = "networkToken")]
     NetworkToken(Box<AdyenNetworkTokenData>),
@@ -1965,21 +1957,13 @@ impl TryFrom<(&VoucherData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMetho
             VoucherData::SevenEleven(_) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::Lawson(_) => Ok(AdyenPaymentMethod::Lawson(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::MiniStop(_) => Ok(AdyenPaymentMethod::MiniStop(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::FamilyMart(_) => Ok(AdyenPaymentMethod::FamilyMart(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::Seicomart(_) => Ok(AdyenPaymentMethod::Seicomart(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
+            VoucherData::Lawson(_)
+            | VoucherData::MiniStop(_)
+            | VoucherData::FamilyMart(_)
+            | VoucherData::Seicomart(_)
+            | VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(
+                Box::new(JCSVoucherData::try_from(item)?),
+            )),
             VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
@@ -2459,6 +2443,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::BacsBankTransfer { .. }
             | BankTransferData::MultibancoBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
