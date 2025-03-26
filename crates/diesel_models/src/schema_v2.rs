@@ -240,7 +240,8 @@ diesel::table! {
     callback_mapper (id, type_) {
         #[max_length = 128]
         id -> Varchar,
-        #[sql_name = "type", max_length = 64]
+        #[sql_name = "type"]
+        #[max_length = 64]
         type_ -> Varchar,
         data -> Jsonb,
         created_at -> Timestamp,
