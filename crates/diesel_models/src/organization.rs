@@ -60,7 +60,7 @@ impl Organization {
             modified_at,
             id: _,
             organization_name: _,
-            version: _,
+            version,
         } = org_new;
         Self {
             id: Some(org_id.clone()),
@@ -71,7 +71,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
-            version: common_types::consts::API_VERSION,
+            version,
         }
     }
 }
@@ -86,7 +86,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
-            version: _,
+            version,
         } = org_new;
         Self {
             id,
@@ -95,7 +95,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
-            version: common_types::consts::API_VERSION,
+            version,
         }
     }
 }
