@@ -461,6 +461,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "diesel_models",
  "error-stack",
  "euclid",
  "indexmap 2.5.0",

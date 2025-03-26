@@ -75,7 +75,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
 
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
-        helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
+        // helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(

@@ -10,7 +10,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-
+use common_utils::types as util_types;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
@@ -157,10 +157,23 @@ impl<F: Send + Clone + Sync>
                 ),
             })
             .attach_printable("failed while inserting new payment intent")?;
+        
+            let client_secret = helpers::create_client_secret(
+                &state,
+                merchant_account.get_id(),
+                util_types::authentication::ResourceId::Payment(
+                    payment_id.clone(),
+                ),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to create client secret")?;
+            println!(">>client_secret: {:?}", client_secret);
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            client_secret : Some(client_secret),
             sessions_token: vec![],
         };
 

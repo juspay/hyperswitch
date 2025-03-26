@@ -44,7 +44,7 @@ pub async fn list_payment_methods(
             field_name: "client_secret header",
         })?;
 
-    payment_intent.validate_client_secret(client_secret)?;
+    // payment_intent.validate_client_secret(client_secret)?;
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(

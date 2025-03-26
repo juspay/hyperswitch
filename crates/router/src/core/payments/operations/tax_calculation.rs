@@ -90,7 +90,7 @@ impl<F: Send + Clone + Sync>
             "create a session update for",
         )?;
 
-        helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
+        // helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(

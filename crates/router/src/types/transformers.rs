@@ -1646,13 +1646,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
 
-        // TODO: combine publishable key and client secret when we unify the auth
-        let client_secret = get_header_value_by_key(X_CLIENT_SECRET.into(), headers)?
-            .map(common_utils::types::ClientSecret::from_str)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid data received in client_secret header".into(),
-            })?;
 
         Ok(Self {
             payment_confirm_source,
@@ -1665,7 +1658,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
-            client_secret,
+            client_secret : None,
         })
     }
 }

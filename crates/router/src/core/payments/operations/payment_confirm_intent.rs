@@ -173,7 +173,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .client_secret
             .as_ref()
             .get_required_value("client_secret header")?;
-        payment_intent.validate_client_secret(client_secret)?;
+        // payment_intent.validate_client_secret(client_secret)?;
 
         let cell_id = state.conf.cell_information.id.clone();
 
