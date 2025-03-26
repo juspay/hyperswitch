@@ -36,10 +36,10 @@ use common_utils::{
     crypto::Encryptable,
     errors,
     errors::CustomResult,
+    errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
-    errors::CustomResult,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
