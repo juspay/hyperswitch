@@ -13390,7 +13390,7 @@ impl Default for settings::RequiredFields {
                                     },
                                 ),
                                 (
-                                    enums::PaymentMethodType::Sepa,
+                                    enums::PaymentMethodType::SepaBankTransfer,
                                     ConnectorFields {
                                         fields: HashMap::from([
                                             (
