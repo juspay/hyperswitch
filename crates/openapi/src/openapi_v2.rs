@@ -268,6 +268,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
+        api_models::enums::CountryAlpha3,
         api_models::enums::FieldType,
         api_models::enums::FrmAction,
         api_models::enums::FrmPreferredFlowTypes,
