@@ -38,7 +38,7 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
-    errors::{ CustomResult },
+    errors::CustomResult,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -90,7 +90,7 @@ use crate::{
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResult},
+        errors::{self as other_errors, RouterResult},
         payments::helpers as payment_helpers,
     },
     routes::{app::StorageInterface, SessionState},
