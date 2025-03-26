@@ -61,8 +61,6 @@ RUN apt-get update \
 
 EXPOSE 8080
 
-USER app:app
-
 ENV TZ=Etc/UTC \
     RUN_ENV=${RUN_ENV} \
     CONFIG_DIR=${CONFIG_DIR} \
@@ -72,7 +70,12 @@ ENV TZ=Etc/UTC \
 
 RUN mkdir -p ${BIN_DIR}
 
+# Create the 'app' user and group
+RUN groupadd -r app && useradd -r -g app app
+
 COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
+
+USER app:app
 
 WORKDIR ${BIN_DIR}
 
