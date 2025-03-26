@@ -2717,7 +2717,7 @@ impl GetPaymentMethodType for BankTransferData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankTransfer { .. } => api_enums::PaymentMethodType::Ach,
-            Self::SepaBankTransfer { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::SepaBankTransfer { .. } => api_enums::PaymentMethodType::SepaBankTransfer,
             Self::BacsBankTransfer { .. } => api_enums::PaymentMethodType::Bacs,
             Self::MultibancoBankTransfer { .. } => api_enums::PaymentMethodType::Multibanco,
             Self::PermataBankTransfer { .. } => api_enums::PaymentMethodType::PermataBankTransfer,
@@ -2730,6 +2730,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
+            Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
         }
     }
 }
@@ -3386,6 +3387,7 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+    InstantBankTransfer {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3453,7 +3455,10 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     email: details.email.clone(),
                 })
             }
-            Self::LocalBankTransfer { .. } | Self::Pix { .. } | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. }
+            | Self::Pix { .. }
+            | Self::Pse {}
+            | Self::InstantBankTransfer {} => None,
         }
     }
 }
@@ -7506,6 +7511,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
