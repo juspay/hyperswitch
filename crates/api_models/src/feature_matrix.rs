@@ -6,20 +6,20 @@ use utoipa::ToSchema;
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct FeatureMatrixRequest {
     // List of connectors for which the feature matrix is requested
-    #[schema(value_type = Option<Vec<Connector>>, example = "stripe")]
+    #[schema(value_type = Option<Vec<Connector>>)]
     pub connectors: Option<Vec<common_enums::connector_enums::Connector>>,
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize)]
 pub struct CardSpecificFeatures {
     /// Indicates whether three_ds card payments are supported.
-    #[schema(value_type = FeatureStatus, example = "supported")]
+    #[schema(value_type = FeatureStatus)]
     pub three_ds: common_enums::FeatureStatus,
     /// Indicates whether non three_ds card payments are supported.
-    #[schema(value_type = FeatureStatus, example = "supported")]
+    #[schema(value_type = FeatureStatus)]
     pub no_three_ds: common_enums::FeatureStatus,
     /// List of supported card networks
-    #[schema(value_type = Vec<CardNetwork>, example = "VISA")]
+    #[schema(value_type = Vec<CardNetwork>)]
     pub supported_card_networks: Vec<common_enums::CardNetwork>,
 }
 
@@ -32,22 +32,22 @@ pub enum PaymentMethodSpecificFeatures {
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethod {
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: common_enums::PaymentMethodType,
     pub payment_method_type_display_name: String,
-    #[schema(value_type = FeatureStatus, example = "supported")]
+    #[schema(value_type = FeatureStatus)]
     pub mandates: common_enums::FeatureStatus,
-    #[schema(value_type = FeatureStatus, example = "supported")]
+    #[schema(value_type = FeatureStatus)]
     pub refunds: common_enums::FeatureStatus,
-    #[schema(value_type = Vec<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Vec<CaptureMethod>)]
     pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
     #[serde(flatten)]
     pub payment_method_specific_features: Option<PaymentMethodSpecificFeatures>,
-    #[schema(value_type = Option<HashSet<CountryAlpha3>>, example = "[\"USA\", \"CAN\", \"GBR\"]")]
+    #[schema(value_type = Option<HashSet<CountryAlpha3>>)]
     pub supported_countries: Option<HashSet<common_enums::CountryAlpha3>>,
-    #[schema(value_type = Option<HashSet<Currency>>, example = "[\"USD\", \"CAD\", \"EUR\"]")]
+    #[schema(value_type = Option<HashSet<Currency>>)]
     pub supported_currencies: Option<HashSet<common_enums::Currency>>,
 }
 

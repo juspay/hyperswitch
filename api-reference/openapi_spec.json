@@ -9558,8 +9558,7 @@
             "items": {
               "$ref": "#/components/schemas/CardNetwork"
             },
-            "description": "List of supported card networks",
-            "example": "VISA"
+            "description": "List of supported card networks"
           }
         }
       },
@@ -12022,7 +12021,6 @@
             "items": {
               "$ref": "#/components/schemas/Connector"
             },
-            "example": "stripe",
             "nullable": true
           }
         }
@@ -26451,15 +26449,13 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/CaptureMethod"
-                },
-                "example": "automatic"
+                }
               },
               "supported_countries": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/CountryAlpha3"
                 },
-                "example": "[\"USA\", \"CAN\", \"GBR\"]",
                 "uniqueItems": true,
                 "nullable": true
               },
@@ -26468,7 +26464,6 @@
                 "items": {
                   "$ref": "#/components/schemas/Currency"
                 },
-                "example": "[\"USD\", \"CAD\", \"EUR\"]",
                 "uniqueItems": true,
                 "nullable": true
               }
