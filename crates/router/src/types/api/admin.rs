@@ -224,7 +224,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
         let masked_outgoing_webhook_custom_http_headers =
             outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
-        let card_testing_guard_config = self
+        let card_testing_guard_config = item
             .card_testing_guard_config
             .map(CardTestingGuardConfig::foreign_from)
             .or(Some(CardTestingGuardConfig::default()));
