@@ -121,6 +121,7 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::OnboardingSurvey(req) => {
             Ok(types::MetaData::OnboardingSurvey(req))
         }
+        api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
     }
 }
 
@@ -149,6 +150,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
+        api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
     }
 }
 
@@ -231,6 +233,10 @@ fn into_response(
         DBEnum::OnboardingSurvey => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::OnboardingSurvey(resp))
+        }
+        DBEnum::ReconStatus => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::ReconStatus(resp))
         }
     }
 }
@@ -592,6 +598,30 @@ async fn insert_metadata(
                 data,
             )
             .await
+        }
+        types::MetaData::ReconStatus(data) => {
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key,
+                data.clone(),
+            )
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_merchant_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await;
+            }
+            metadata
         }
     }
 }
