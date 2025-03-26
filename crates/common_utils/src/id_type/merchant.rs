@@ -132,6 +132,15 @@ impl MerchantId {
         format!("surcharge_dsl_{}", self.get_string_repr())
     }
 
+    /// get_surcharge_profile_level_key
+    pub fn get_surcharge_profile_level_key(&self, profile_id: super::ProfileId) -> String {
+        format!(
+            "surcharge_dsl_{}_{}",
+            self.get_string_repr(),
+            profile_id.get_string_repr(),
+        )
+    }
+
     /// get_dsk_key
     pub fn get_dsl_config(&self) -> String {
         format!("dsl_{}", self.get_string_repr())

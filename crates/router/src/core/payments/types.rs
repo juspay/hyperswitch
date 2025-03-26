@@ -242,13 +242,15 @@ pub enum SurchargeKey {
 pub struct SurchargeMetadata {
     surcharge_results: HashMap<SurchargeKey, SurchargeDetails>,
     pub payment_attempt_id: String,
+    pub surcharge_algorithm_id: Option<String>,
 }
 
 impl SurchargeMetadata {
-    pub fn new(payment_attempt_id: String) -> Self {
+    pub fn new(payment_attempt_id: String, surcharge_algo_id: Option<String>) -> Self {
         Self {
             surcharge_results: HashMap::new(),
             payment_attempt_id,
+            surcharge_algorithm_id: surcharge_algo_id,
         }
     }
     pub fn is_empty_result(&self) -> bool {
@@ -321,6 +323,15 @@ impl SurchargeMetadata {
                         .attach_printable("Failed to encode to string of json")?,
                 ));
             }
+            value_list.push((
+                "surcharge_algorithm_id".to_string(),
+                self.surcharge_algorithm_id
+                    .clone()
+                    .unwrap_or_default()
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode to string of json")?,
+            ));
             let intent_fulfillment_time = business_profile
                 .get_order_fulfillment_time()
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
