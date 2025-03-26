@@ -5410,6 +5410,7 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5554,6 +5555,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer
+                }
+                payment_method_data::BankTransferData::InstantBankTransfer {} => {
+                    Self::InstantBankTransfer
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
