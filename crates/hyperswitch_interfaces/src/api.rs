@@ -1,5 +1,9 @@
 //! API interface
 
+/// authentication module
+pub mod authentication;
+/// authentication_v2 module
+pub mod authentication_v2;
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;
@@ -19,6 +23,8 @@ pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
 
+use std::fmt::Debug;
+
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
     PaymentMethod,
@@ -29,6 +35,8 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    configs::Connectors,
+    errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
@@ -55,13 +63,66 @@ use hyperswitch_domain_models::{
 use masking::Maskable;
 use serde_json::json;
 
+#[cfg(feature = "frm")]
+pub use self::fraud_check::*;
+#[cfg(feature = "frm")]
+pub use self::fraud_check_v2::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
+#[cfg(feature = "payouts")]
+pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, revenue_recovery::*};
 use crate::{
-    configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types,
+    api::revenue_recovery::RevenueRecovery, connector_integration_v2::ConnectorIntegrationV2,
+    consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
+
+/// Connector trait
+pub trait Connector:
+    Send
+    + Refund
+    + Payment
+    + ConnectorRedirectResponse
+    + webhooks::IncomingWebhook
+    + ConnectorAccessToken
+    + disputes::Dispute
+    + files::FileUpload
+    + ConnectorTransactionId
+    + Payouts
+    + ConnectorVerifyWebhookSource
+    + FraudCheck
+    + ConnectorMandateRevoke
+    + authentication::ExternalAuthentication
+    + TaxCalculation
+    + UnifiedAuthenticationService
+    + RevenueRecovery
+{
+}
+
+impl<
+        T: Refund
+            + Payment
+            + ConnectorRedirectResponse
+            + Send
+            + webhooks::IncomingWebhook
+            + ConnectorAccessToken
+            + disputes::Dispute
+            + files::FileUpload
+            + ConnectorTransactionId
+            + Payouts
+            + ConnectorVerifyWebhookSource
+            + FraudCheck
+            + ConnectorMandateRevoke
+            + authentication::ExternalAuthentication
+            + TaxCalculation
+            + UnifiedAuthenticationService
+            + RevenueRecovery,
+    > Connector for T
+{
+}
+
+/// Alias for Box<&'static (dyn Connector + Sync)>
+pub type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 /// type BoxedConnectorIntegration
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -582,6 +643,16 @@ pub trait ConnectorRedirectResponse {
 /// Empty trait for when payouts feature is disabled
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+/// Empty trait for when payouts feature is disabled
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsV2 {}
+
+/// Empty trait for when frm feature is disabled
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheck {}
+/// Empty trait for when frm feature is disabled
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheckV2 {}
 
 fn get_connector_payment_method_type_info(
     supported_payment_method: &SupportedPaymentMethods,
@@ -608,4 +679,17 @@ fn get_connector_payment_method_type_info(
             })
         })
         .transpose()
+}
+
+/// ConnectorTransactionId trait
+pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+    /// fn connector_transaction_id
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        Ok(payment_attempt
+            .get_connector_payment_id()
+            .map(ToString::to_string))
+    }
 }
