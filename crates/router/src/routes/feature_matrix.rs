@@ -131,12 +131,13 @@ fn build_payment_method_wise_feature_details(
                         )
                     });
 
-            let supported_countries =
-                payment_method_type_config.and_then(|config| config.country.clone().map(|set| {
+            let supported_countries = payment_method_type_config.and_then(|config| {
+                config.country.clone().map(|set| {
                     set.into_iter()
                         .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3)
                         .collect::<std::collections::HashSet<_>>()
-                }));
+                })
+            });
 
             let supported_currencies =
                 payment_method_type_config.and_then(|config| config.currency.clone());

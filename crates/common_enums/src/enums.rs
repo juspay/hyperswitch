@@ -1843,13 +1843,13 @@ impl PaymentMethodType {
     }
     pub fn to_display_name(&self) -> String {
         match self {
-            PaymentMethodType::Ach => "ACH Direct Debit".to_string(), 
+            PaymentMethodType::Ach => "ACH Direct Debit".to_string(),
             PaymentMethodType::Bacs => "BACS Direct Debit".to_string(),
             PaymentMethodType::Affirm => "Affirm".to_string(),
             PaymentMethodType::AfterpayClearpay => "Afterpay and Clearpay".to_string(),
             PaymentMethodType::Alfamart => "Alfamart".to_string(),
             PaymentMethodType::AliPay => "Alipay".to_string(),
-            PaymentMethodType::AliPayHk =>"AlipayHK".to_string(),
+            PaymentMethodType::AliPayHk => "AlipayHK".to_string(),
             PaymentMethodType::Alma => "Alma".to_string(),
             PaymentMethodType::AmazonPay => "Amazon Pay".to_string(),
             PaymentMethodType::ApplePay => "Apple Pay".to_string(),
@@ -1898,7 +1898,9 @@ impl PaymentMethodType {
             PaymentMethodType::MomoAtm => "MoMo ATM".to_string(),
             PaymentMethodType::Multibanco => "Multibanco".to_string(),
             PaymentMethodType::OnlineBankingThailand => "Online Banking Thailand".to_string(),
-            PaymentMethodType::OnlineBankingCzechRepublic => "Online Banking Czech Republic".to_string(),
+            PaymentMethodType::OnlineBankingCzechRepublic => {
+                "Online Banking Czech Republic".to_string()
+            }
             PaymentMethodType::OnlineBankingFinland => "Online Banking Finland".to_string(),
             PaymentMethodType::OnlineBankingFpx => "Online Banking FPX".to_string(),
             PaymentMethodType::OnlineBankingPoland => "Online Banking Poland".to_string(),
