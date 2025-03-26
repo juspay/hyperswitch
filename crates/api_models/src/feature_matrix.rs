@@ -3,25 +3,24 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{
-    CaptureMethod, CardNetwork, Connector, CountryAlpha2, Currency, EventClass, FeatureStatus,
-    PaymentConnectorCategory, PaymentMethod, PaymentMethodType,
-};
-
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct FeatureMatrixRequest {
     // List of connectors for which the feature matrix is requested
-    pub connectors: Option<Vec<Connector>>,
+    #[schema(value_type = Option<Connector>, example = "stripe")]
+    pub connectors: Option<Vec<common_enums::connector_enums::Connector>>,
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize)]
 pub struct CardSpecificFeatures {
     /// Indicates whether three_ds card payments are supported.
-    pub three_ds: FeatureStatus,
+    #[schema(value_type = Option<FeatureStatus>, example = "supported")]
+    pub three_ds: common_enums::FeatureStatus,
     /// Indicates whether non three_ds card payments are supported.
-    pub no_three_ds: FeatureStatus,
+    #[schema(value_type = Option<FeatureStatus>, example = "supported")]
+    pub no_three_ds: common_enums::FeatureStatus,
     /// List of supported card networks
-    pub supported_card_networks: Vec<CardNetwork>,
+    #[schema(value_type = Option<CardNetwork>, example = "VISA")]
+    pub supported_card_networks: Vec<common_enums::CardNetwork>,
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize)]
@@ -33,15 +32,23 @@ pub enum PaymentMethodSpecificFeatures {
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethod {
-    pub payment_method: PaymentMethod,
-    pub payment_method_type: PaymentMethodType,
-    pub mandates: FeatureStatus,
-    pub refunds: FeatureStatus,
-    pub supported_capture_methods: Vec<CaptureMethod>,
+    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    pub payment_method: common_enums::PaymentMethod,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type_display_name: String,
+    #[schema(value_type = Option<FeatureStatus>, example = "supported")]
+    pub mandates: common_enums::FeatureStatus,
+    #[schema(value_type = Option<FeatureStatus>, example = "supported")]
+    pub refunds: common_enums::FeatureStatus,
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
     #[serde(flatten)]
     pub payment_method_specific_features: Option<PaymentMethodSpecificFeatures>,
-    pub supported_countries: Option<HashSet<CountryAlpha2>>,
-    pub supported_currencies: Option<HashSet<Currency>>,
+    #[schema(value_type = Option<CountryAlpha3>, example = "USA")]
+    pub supported_countries: Option<HashSet<common_enums::CountryAlpha3>>,
+    #[schema(value_type = Option<Currency>, example = "USD")]
+    pub supported_currencies: Option<HashSet<common_enums::Currency>>,
 }
 
 #[derive(Debug, ToSchema, Serialize)]
@@ -49,9 +56,11 @@ pub struct ConnectorFeatureMatrixResponse {
     pub name: String,
     pub display_name: Option<String>,
     pub description: Option<String>,
-    pub category: Option<PaymentConnectorCategory>,
+    #[schema(value_type = Option<PaymentConnectorCategory>, example = "payment_gateway")]
+    pub category: Option<common_enums::PaymentConnectorCategory>,
     pub supported_payment_methods: Vec<SupportedPaymentMethod>,
-    pub supported_webhook_flows: Option<Vec<EventClass>>,
+    #[schema(value_type = Option<Currency>, example = "payments")]
+    pub supported_webhook_flows: Option<Vec<common_enums::EventClass>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
