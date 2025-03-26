@@ -1811,6 +1811,7 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Sepa,
+    SepaBankTransfer,
     Sofort,
     Swish,
     TouchNGo,
@@ -1834,6 +1835,7 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl PaymentMethodType {
