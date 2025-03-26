@@ -48,7 +48,9 @@ pub async fn perform_execute_payment(
     let decision = pcr_types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
-        pcr_metadata.payment_connector_transmission.unwrap_or_default(),
+        pcr_metadata
+            .payment_connector_transmission
+            .unwrap_or_default(),
         payment_intent.active_attempt_id.clone(),
         pcr_data,
         &tracking_data.global_payment_id,

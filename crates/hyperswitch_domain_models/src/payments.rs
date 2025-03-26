@@ -812,8 +812,9 @@ where
                     .as_ref()
                     .map_or(1, |data| (data.total_retry_count + 1)),
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallUnsucceeded.
-                payment_connector_transmission:
-                    Some(common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful),
+                payment_connector_transmission: Some(
+                    common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                ),
                 billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
                 active_attempt_payment_connector_id: self
                     .payment_attempt
