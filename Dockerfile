@@ -70,7 +70,6 @@ ENV TZ=Etc/UTC \
 
 RUN mkdir -p ${BIN_DIR}
 
-
 COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
 
 # Create the 'app' user and group
