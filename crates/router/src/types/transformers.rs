@@ -297,7 +297,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Razorpay => Self::Razorpay,
             api_enums::Connector::Recurly => Self::Recurly,
-            // api_enums::Connector::Redsys => Self::Redsys,
+            api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -552,6 +552,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::LocalBankTransfer
+            | api_enums::PaymentMethodType::InstantBankTransfer
+            | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -1438,7 +1440,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
         match value {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
-            api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+            api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
         }
     }
@@ -2016,6 +2018,7 @@ impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }
@@ -2027,6 +2030,7 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }

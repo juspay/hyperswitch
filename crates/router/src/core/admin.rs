@@ -1328,6 +1328,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Coingate => {
                 coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
+                coingate::transformers::CoingateConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Cryptopay => {
@@ -1389,6 +1392,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
+                globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Globepay => {
@@ -1538,6 +1542,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Recurly => {
                 recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Redsys => {
+                redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Shift4 => {
@@ -1816,11 +1824,9 @@ impl PMAuthConfigValidation<'_> {
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
-
         for conn_choice in config.enabled_payment_methods {
             let pm_auth_mca = all_mcas
-                .clone()
-                .into_iter()
+                .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),
@@ -3015,7 +3021,7 @@ async fn validate_pm_auth(
             })
             .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
-    let all_mcas = &*state
+    let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &state.into(),

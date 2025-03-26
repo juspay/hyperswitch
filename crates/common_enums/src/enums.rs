@@ -1810,6 +1810,7 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Sepa,
+    SepaBankTransfer,
     Sofort,
     Swish,
     TouchNGo,
@@ -1833,6 +1834,7 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl PaymentMethodType {
@@ -2217,7 +2219,7 @@ pub enum RequestIncrementalAuthorization {
     Default,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, strum::Display,)]
 #[rustfmt::skip]
 pub enum CountryAlpha3 {
     AFG, ALA, ALB, DZA, ASM, AND, AGO, AIA, ATA, ATG, ARG, ARM, ABW, AUS, AUT,
@@ -7815,4 +7817,10 @@ pub enum TriggeredBy {
     Internal,
     /// Denotes payment attempt is been created by external system.
     External,
+}
+
+#[derive(Debug)]
+pub enum CryptoPadding {
+    PKCS7,
+    ZeroPadding,
 }
