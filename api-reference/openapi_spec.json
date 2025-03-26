@@ -9973,7 +9973,6 @@
             "items": {
               "$ref": "#/components/schemas/EventClass"
             },
-            "example": "payments",
             "nullable": true
           }
         }

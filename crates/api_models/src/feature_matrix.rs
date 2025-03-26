@@ -59,7 +59,7 @@ pub struct ConnectorFeatureMatrixResponse {
     #[schema(value_type = Option<PaymentConnectorCategory>, example = "payment_gateway")]
     pub category: Option<common_enums::PaymentConnectorCategory>,
     pub supported_payment_methods: Vec<SupportedPaymentMethod>,
-    #[schema(value_type = Option<Vec<EventClass>>, example = "payments")]
+    #[schema(value_type = Option<Vec<EventClass>>)]
     pub supported_webhook_flows: Option<Vec<common_enums::EventClass>>,
 }
 
