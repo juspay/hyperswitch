@@ -142,7 +142,7 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
-    risk_data: Option<RiskData>,
+    riskdata: Option<RiskData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -1817,13 +1817,11 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
         }
         _ => (None, None),
     };
-    let risk_data = match item.request.metadata.clone() {
-        Some(metadata) => match RiskData::foreign_try_from(metadata) {
-            Ok(basket) => Some(basket),
-            Err(_) => None,
-        },
-        None => None,
-    };
+    let riskdata = item
+        .request
+        .metadata
+        .clone()
+        .and_then(|metadata| get_risk_data(metadata));
 
     let execute_three_d = if matches!(item.auth_type, storage_enums::AuthenticationType::ThreeDs) {
         Some("true".to_string())
@@ -1833,7 +1831,7 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
     if authorisation_type.is_none()
         && manual_capture.is_none()
         && execute_three_d.is_none()
-        && risk_data.is_none()
+        && riskdata.is_none()
     {
         //without this if-condition when the above 3 values are None, additionalData will be serialized to JSON like this -> additionalData: {}
         //returning None, ensures that additionalData key will not be present in the serialized JSON
@@ -1847,7 +1845,7 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
             recurring_detail_reference: None,
             recurring_shopper_reference: None,
             recurring_processing_model: None,
-            risk_data,
+            riskdata,
             ..AdditionalData::default()
         })
     }
@@ -2570,248 +2568,113 @@ impl TryFrom<&CardRedirectData> for AdyenPaymentMethod<'_> {
     }
 }
 
-impl ForeignTryFrom<serde_json::Value> for RiskData {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn foreign_try_from(metadata: serde_json::Value) -> Result<Self, Self::Error> {
-        let risk_data = metadata.get("risk_data");
-
-        match risk_data {
-            Some(risk_data_value) => {
-                let basket = risk_data_value.get("basket");
-                let basket_data = basket.and_then(|basket| basket.get("item1"));
-                let basket = match basket_data {
-                    Some(order) => {
-                        let item_id = order
-                            .get("item_id")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let product_title = order
-                            .get("product_title")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let amount_per_item = order
-                            .get("amount_per_item")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let currency = order
-                            .get("currency")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let upc = order
-                            .get("upc")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let brand = order
-                            .get("brand")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let manufacturer = order
-                            .get("manufacturer")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let category = order
-                            .get("category")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let quantity = order
-                            .get("quantity")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let color = order
-                            .get("color")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-                        let size = order
-                            .get("size")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-
-                        Some(Item {
-                            item1: Some(ItemData {
-                                item_i_d: item_id,
-                                product_title,
-                                amount_per_item,
-                                currency,
-                                upc,
-                                brand,
-                                manufacturer,
-                                category,
-                                quantity,
-                                color,
-                                size,
-                            }),
-                        })
-                    }
-                    None => None,
-                };
-
-                let device_country = risk_data_value
-                    .get("device_country")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let house_numberor_name = risk_data_value
-                    .get("house_numberor_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let account_creation_date = risk_data_value
-                    .get("account_creation_date")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let affiliate_channel = risk_data_value
-                    .get("affiliate_channel")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let avg_order_value = risk_data_value
-                    .get("avg_order_value")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let delivery_method = risk_data_value
-                    .get("delivery_method")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let email_name = risk_data_value
-                    .get("email_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let email_domain = risk_data_value
-                    .get("email_domain")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let last_order_date = risk_data_value
-                    .get("last_order_date")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let merchant_reference = risk_data_value
-                    .get("merchant_reference")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let payment_method = risk_data_value
-                    .get("payment_method")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let promotion_name = risk_data_value
-                    .get("promotion_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let secondary_phone_number = risk_data_value
-                    .get("secondary_phone_number")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let timefrom_loginto_order = risk_data_value
-                    .get("timefrom_loginto_order")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let total_session_time = risk_data_value
-                    .get("total_session_time")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let total_authorized_amount_in_last30_days = risk_data_value
-                    .get("total_authorized_amount_in_last30_days")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let total_order_quantity = risk_data_value
-                    .get("total_order_quantity")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let total_lifetime_value = risk_data_value
-                    .get("total_lifetime_value")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let visits_month = risk_data_value
-                    .get("visits_month")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let visits_week = risk_data_value
-                    .get("visits_week")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let visits_year = risk_data_value
-                    .get("visits_year")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let ship_to_name = risk_data_value
-                    .get("ship_to_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let first8charactersof_address_line1_zip = risk_data_value
-                    .get("first8charactersof_address_line1_zip")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let affiliate_order = risk_data_value
-                    .get("affiliate_order")
-                    .and_then(|v| v.as_bool());
-
-                Ok(Self {
-                    basket,
-                    device_country,
-                    house_numberor_name,
-                    account_creation_date,
-                    affiliate_channel,
-                    avg_order_value,
-                    delivery_method,
-                    email_name,
-                    email_domain,
-                    last_order_date,
-                    merchant_reference,
-                    payment_method,
-                    promotion_name,
-                    secondary_phone_number,
-                    timefrom_loginto_order,
-                    total_session_time,
-                    total_authorized_amount_in_last30_days,
-                    total_order_quantity,
-                    total_lifetime_value,
-                    visits_month,
-                    visits_week,
-                    visits_year,
-                    ship_to_name,
-                    first8charactersof_address_line1_zip,
-                    affiliate_order,
-                })
-            }
-            None => Ok(Self {
-                basket: None,
-                device_country: None,
-                house_numberor_name: None,
-                account_creation_date: None,
-                affiliate_channel: None,
-                avg_order_value: None,
-                delivery_method: None,
-                email_name: None,
-                email_domain: None,
-                last_order_date: None,
-                merchant_reference: None,
-                payment_method: None,
-                promotion_name: None,
-                secondary_phone_number: None,
-                timefrom_loginto_order: None,
-                total_session_time: None,
-                total_authorized_amount_in_last30_days: None,
-                total_order_quantity: None,
-                total_lifetime_value: None,
-                visits_month: None,
-                visits_week: None,
-                visits_year: None,
-                ship_to_name: None,
-                first8charactersof_address_line1_zip: None,
-                affiliate_order: None,
-            }),
-        }
-    }
+fn get_str<'a>(key: &str, riskdata: &'a &serde_json::Value) -> Option<String> {
+    riskdata
+        .get(key)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
-impl ForeignTryFrom<serde_json::Value> for Option<Secret<String>> {
-    type Error = error_stack::Report<errors::ConnectorError>;
+fn get_bool(key: &str, riskdata: &serde_json::Value) -> Option<bool> {
+    riskdata.get(key).and_then(|v| v.as_bool())
+}
 
-    fn foreign_try_from(metadata: serde_json::Value) -> Result<Self, Self::Error> {
-        let device_fingerprint = metadata
-            .get("device_fingerprint")
-            .and_then(|value| value.as_str())
-            .map(|fingerprint| Secret::new(fingerprint.to_string()));
+pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
+    let riskdata = metadata.get("riskdata")?;
 
-        Ok(device_fingerprint)
-    }
+    let basket = riskdata
+        .get("basket")
+        .and_then(|basket| basket.get("item1"))
+        .map(|order| {
+            let item_id = get_str("item_i_d", &order);
+            let product_title = get_str("product_title", &order);
+            let amount_per_item = get_str("amount_per_item", &order);
+            let currency = get_str("currency", &order);
+            let upc = get_str("upc", &order);
+            let brand = get_str("brand", &order);
+            let manufacturer = get_str("manufacturer", &order);
+            let category = get_str("category", &order);
+            let quantity = get_str("quantity", &order);
+            let color = get_str("color", &order);
+            let size = get_str("size", &order);
+            Item {
+                item1: Some(ItemData {
+                    item_i_d: item_id,
+                    product_title,
+                    amount_per_item,
+                    currency,
+                    upc,
+                    brand,
+                    manufacturer,
+                    category,
+                    quantity,
+                    color,
+                    size,
+                }),
+            }
+        });
+
+    let device_country = get_str("device_country", &riskdata);
+    let house_numberor_name = get_str("house_numberor_name", &riskdata);
+    let account_creation_date = get_str("account_creation_date", &riskdata);
+    let affiliate_channel = get_str("affiliate_channel", &riskdata);
+    let avg_order_value = get_str("avg_order_value", &riskdata);
+    let delivery_method = get_str("delivery_method", &riskdata);
+    let email_name = get_str("email_name", &riskdata);
+    let email_domain = get_str("email_domain", &riskdata);
+    let last_order_date = get_str("last_order_date", &riskdata);
+    let merchant_reference = get_str("merchant_reference", &riskdata);
+    let payment_method = get_str("payment_method", &riskdata);
+    let promotion_name = get_str("promotion_name", &riskdata);
+    let secondary_phone_number = get_str("secondary_phone_number", &riskdata);
+    let timefrom_loginto_order = get_str("timefrom_loginto_order", &riskdata);
+    let total_session_time = get_str("total_session_time", &riskdata);
+    let total_authorized_amount_in_last30_days =
+        get_str("total_authorized_amount_in_last30_days", &riskdata);
+    let total_order_quantity = get_str("total_order_quantity", &riskdata);
+    let total_lifetime_value = get_str("total_lifetime_value", &riskdata);
+    let visits_month = get_str("visits_month", &riskdata);
+    let visits_week = get_str("visits_week", &riskdata);
+    let visits_year = get_str("visits_year", &riskdata);
+    let ship_to_name = get_str("ship_to_name", &riskdata);
+    let first8charactersof_address_line1_zip =
+        get_str("first8charactersof_address_line1_zip", &riskdata);
+    let affiliate_order = get_bool("affiliate_order", &riskdata);
+    
+    Some(RiskData {
+        basket,
+        device_country,
+        house_numberor_name,
+        account_creation_date,
+        affiliate_channel,
+        avg_order_value,
+        delivery_method,
+        email_name,
+        email_domain,
+        last_order_date,
+        merchant_reference,
+        payment_method,
+        promotion_name,
+        secondary_phone_number,
+        timefrom_loginto_order,
+        total_session_time,
+        total_authorized_amount_in_last30_days,
+        total_order_quantity,
+        total_lifetime_value,
+        visits_month,
+        visits_week,
+        visits_year,
+        ship_to_name,
+        first8charactersof_address_line1_zip,
+        affiliate_order,
+    })
+}
+
+fn get_device_fingerprint(metadata: serde_json::Value) -> Option<Secret<String>> {
+    metadata
+        .get("device_fingerprint")
+        .and_then(|value| value.as_str())
+        .map(|fingerprint| Secret::new(fingerprint.to_string()))
 }
 
 impl
@@ -2971,10 +2834,8 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3052,10 +2913,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3134,10 +2993,8 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3212,10 +3069,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3291,10 +3145,8 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3368,10 +3220,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3452,10 +3301,8 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3577,10 +3424,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3676,10 +3521,7 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3758,10 +3600,8 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
@@ -5971,10 +5811,8 @@ impl
             .request
             .metadata
             .clone()
-            .map(|metadata| {
-                Option::<Secret<String>>::foreign_try_from(metadata).unwrap_or_default()
-            })
-            .unwrap_or_default();
+            .and_then(|metadata| get_device_fingerprint(metadata));
+
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
