@@ -505,9 +505,9 @@ impl
                         .response
                         .is_ok()
                     {
-                        Some(common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded)
+                        common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
                     } else {
-                        Some(common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful)
+                        common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
                     };
                 }
                 Box::new(feature_metadata)

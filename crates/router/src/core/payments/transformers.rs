@@ -4600,7 +4600,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             .map(|r| api_models::payments::PaymentRevenueRecoveryMetadata {
                 total_retry_count: r.total_retry_count,
                 payment_connector_transmission: Some(
-                    r.payment_connector_transmission.unwrap_or_default(),
+                    r.payment_connector_transmission,
                 ),
                 connector: r.connector,
                 billing_connector_id: r.billing_connector_id,

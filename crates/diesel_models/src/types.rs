@@ -148,7 +148,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Total number of billing connector + recovery retries for a payment intent.
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
-    pub payment_connector_transmission: Option<PaymentConnectorTransmission>,
+    pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// Payment Connector Id to retry the payments
