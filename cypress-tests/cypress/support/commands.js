@@ -1276,7 +1276,6 @@ Cypress.Commands.add(
 
     globalState.set("paymentAmount", createPaymentBody.amount);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
-
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -2484,7 +2483,6 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const setupFutureUsage = globalState.get("setupFutureUsage");
-
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }

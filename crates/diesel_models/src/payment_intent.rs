@@ -1,9 +1,6 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_utils::{
-    encryption::Encryption,
-    pii,
-    types::{MinorUnit, RequestExtendedAuthorizationBool},
-};
+use common_types::primitive_wrappers::RequestExtendedAuthorizationBool;
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -562,6 +559,7 @@ pub struct PaymentIntentUpdateFields {
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
     pub status: Option<storage_enums::IntentStatus>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
     pub active_attempt_id: Option<Option<common_utils::id_type::GlobalAttemptId>>,

@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
@@ -27,16 +25,14 @@ use hyperswitch_domain_models::{
     router_data::{
         ConnectorAuthType, ErrorResponse, PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData,
-    },
+    router_request_types::{PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData},
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateReference, PaymentsResponseData,
         RedirectForm, RefundsResponseData, SubmitEvidenceResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -695,15 +691,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "econtext_seven_eleven")]
     SevenEleven(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
-    Lawson(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    MiniStop(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    FamilyMart(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    Seicomart(Box<JCSVoucherData>),
-    #[serde(rename = "econtext_stores")]
-    PayEasy(Box<JCSVoucherData>),
+    JapaneseConvenienceStores(Box<JCSVoucherData>),
     Pix,
     #[serde(rename = "networkToken")]
     NetworkToken(Box<AdyenNetworkTokenData>),
@@ -1969,21 +1957,13 @@ impl TryFrom<(&VoucherData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMetho
             VoucherData::SevenEleven(_) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(
                 JCSVoucherData::try_from(item)?,
             ))),
-            VoucherData::Lawson(_) => Ok(AdyenPaymentMethod::Lawson(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::MiniStop(_) => Ok(AdyenPaymentMethod::MiniStop(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::FamilyMart(_) => Ok(AdyenPaymentMethod::FamilyMart(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::Seicomart(_) => Ok(AdyenPaymentMethod::Seicomart(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
-            VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
-                JCSVoucherData::try_from(item)?,
-            ))),
+            VoucherData::Lawson(_)
+            | VoucherData::MiniStop(_)
+            | VoucherData::FamilyMart(_)
+            | VoucherData::Seicomart(_)
+            | VoucherData::PayEasy(_) => Ok(AdyenPaymentMethod::JapaneseConvenienceStores(
+                Box::new(JCSVoucherData::try_from(item)?),
+            )),
             VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
@@ -2463,6 +2443,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::BacsBankTransfer { .. }
             | BankTransferData::MultibancoBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -5543,108 +5524,5 @@ impl
             store,
             splits,
         })
-    }
-}
-
-pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
-    data: &SetupMandateRouterData,
-) -> PaymentsAuthorizeData {
-    PaymentsAuthorizeData {
-        currency: data.request.currency,
-        payment_method_data: data.request.payment_method_data.clone(),
-        confirm: data.request.confirm,
-        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
-        mandate_id: data.request.mandate_id.clone(),
-        setup_future_usage: data.request.setup_future_usage,
-        off_session: data.request.off_session,
-        setup_mandate_details: data.request.setup_mandate_details.clone(),
-        router_return_url: data.request.router_return_url.clone(),
-        email: data.request.email.clone(),
-        customer_name: data.request.customer_name.clone(),
-        amount: 0,
-        order_tax_amount: Some(MinorUnit::zero()),
-        minor_amount: MinorUnit::new(0),
-        statement_descriptor: None,
-        capture_method: None,
-        webhook_url: None,
-        complete_authorize_url: None,
-        browser_info: data.request.browser_info.clone(),
-        order_details: None,
-        order_category: None,
-        session_token: None,
-        enrolled_for_3ds: true,
-        related_transaction_id: None,
-        payment_experience: None,
-        payment_method_type: None,
-        customer_id: None,
-        surcharge_details: None,
-        request_incremental_authorization: data.request.request_incremental_authorization,
-        metadata: None,
-        authentication_data: None,
-        customer_acceptance: data.request.customer_acceptance.clone(),
-        split_payments: None, // TODO: allow charges on mandates?
-        merchant_order_reference_id: None,
-        integrity_object: None,
-        additional_payment_method_data: None,
-        shipping_cost: data.request.shipping_cost,
-        merchant_account_id: None,
-        merchant_config_currency: None,
-    }
-}
-
-pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
-    item: (&RouterData<F1, T1, PaymentsResponseData>, T2),
-) -> RouterData<F2, T2, PaymentsResponseData> {
-    let data = item.0;
-    let request = item.1;
-    RouterData {
-        flow: PhantomData,
-        request,
-        merchant_id: data.merchant_id.clone(),
-        connector: data.connector.clone(),
-        attempt_id: data.attempt_id.clone(),
-        tenant_id: data.tenant_id.clone(),
-        status: data.status,
-        payment_method: data.payment_method,
-        connector_auth_type: data.connector_auth_type.clone(),
-        description: data.description.clone(),
-        address: data.address.clone(),
-        auth_type: data.auth_type,
-        connector_meta_data: data.connector_meta_data.clone(),
-        connector_wallets_details: data.connector_wallets_details.clone(),
-        amount_captured: data.amount_captured,
-        minor_amount_captured: data.minor_amount_captured,
-        access_token: data.access_token.clone(),
-        response: data.response.clone(),
-        payment_id: data.payment_id.clone(),
-        session_token: data.session_token.clone(),
-        reference_id: data.reference_id.clone(),
-        customer_id: data.customer_id.clone(),
-        payment_method_token: None,
-        preprocessing_id: None,
-        connector_customer: data.connector_customer.clone(),
-        recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
-        connector_request_reference_id: data.connector_request_reference_id.clone(),
-        #[cfg(feature = "payouts")]
-        payout_method_data: data.payout_method_data.clone(),
-        #[cfg(feature = "payouts")]
-        quote_id: data.quote_id.clone(),
-        test_mode: data.test_mode,
-        payment_method_status: None,
-        payment_method_balance: data.payment_method_balance.clone(),
-        connector_api_version: data.connector_api_version.clone(),
-        connector_http_status_code: data.connector_http_status_code,
-        external_latency: data.external_latency,
-        apple_pay_flow: data.apple_pay_flow.clone(),
-        frm_metadata: data.frm_metadata.clone(),
-        dispute_id: data.dispute_id.clone(),
-        refund_id: data.refund_id.clone(),
-        connector_response: data.connector_response.clone(),
-        integrity_check: Ok(()),
-        additional_merchant_data: data.additional_merchant_data.clone(),
-        header_payload: data.header_payload.clone(),
-        connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
-        authentication_id: data.authentication_id.clone(),
-        psd2_sca_exemption_type: data.psd2_sca_exemption_type,
     }
 }
