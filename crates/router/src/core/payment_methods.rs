@@ -88,7 +88,7 @@ use crate::{
 use crate::{
     consts,
     core::{
-        errors::{self as other_errors, RouterResult,ProcessTrackerError},
+        errors::{self as other_errors, ProcessTrackerError, RouterResult},
         payments::helpers as payment_helpers,
     },
     errors::{ApiErrorResponse, NetworkTokenizationError, StorageError},
@@ -2815,8 +2815,7 @@ async fn create_single_use_tokenization_flow(
                                                 connector_id.clone()
                                             );
 
-    let key =
-        payment_method_data::SingleUseTokenKey::store_key(&payment_method.id);
+    let key = payment_method_data::SingleUseTokenKey::store_key(&payment_method.id);
 
     add_single_use_token_to_store(&state, key, value)
         .await
