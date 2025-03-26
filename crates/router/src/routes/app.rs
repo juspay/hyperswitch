@@ -1216,25 +1216,25 @@ impl PaymentMethods {
                     .route(web::post().to(payment_methods::create_payment_method_intent_api)),
             );
 
-        route =
-            route.service(
-                web::scope("/{id}")
-                    .service(
-                        web::resource("")
-                            .route(web::get().to(payment_methods::payment_method_retrieve_api))
-                            .route(web::delete().to(payment_methods::payment_method_delete_api)),
-                    )
-                    .service(web::resource("/list-enabled-payment-methods").route(
-                        web::get().to(payment_methods::payment_method_session_list_payment_methods),
-                    ))
-                    .service(
-                        web::resource("/update-saved-payment-method")
-                            .route(web::put().to(payment_methods::payment_method_update_api)),
-                    )
-                    .service(web::resource("/cryptogram").route(
-                        web::get().to(payment_methods::get_customer_payment_method_cryptogram),
-                    )),
-            );
+        route = route.service(
+            web::scope("/{id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(payment_methods::payment_method_retrieve_api))
+                        .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                )
+                .service(web::resource("/list-enabled-payment-methods").route(
+                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                ))
+                .service(
+                    web::resource("/update-saved-payment-method")
+                        .route(web::put().to(payment_methods::payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/get-token")
+                        .route(web::get().to(payment_methods::get_payment_method_token_data)),
+                ),
+        );
 
         route
     }

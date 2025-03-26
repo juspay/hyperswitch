@@ -124,8 +124,8 @@ pub enum Flow {
     PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
-    /// Customer payment methods cryptogram get flow.
-    CustomerGetPaymentMethodCryptogram,
+    /// Payment methods token data get flow.
+    GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method

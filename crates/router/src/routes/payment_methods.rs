@@ -625,13 +625,13 @@ pub async fn list_customer_payment_method_api(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
-#[instrument(skip_all, fields(flow = ?Flow::CustomerGetPaymentMethodCryptogram))]
-pub async fn get_customer_payment_method_cryptogram(
+#[instrument(skip_all, fields(flow = ?Flow::GetPaymentMethodTokenData))]
+pub async fn get_payment_method_token_data(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodId>,
 ) -> HttpResponse {
-    let flow = Flow::CustomerGetPaymentMethodCryptogram;
+    let flow = Flow::GetPaymentMethodTokenData;
     let payment_method_id = path.into_inner();
 
     Box::pin(api::server_wrap(
@@ -640,7 +640,7 @@ pub async fn get_customer_payment_method_cryptogram(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payment_methods_routes::get_cryptogram_for_payment_methods_for_customer(
+            payment_methods_routes::get_token_data_for_payment_method(
                 state,
                 auth.merchant_account,
                 auth.key_store,

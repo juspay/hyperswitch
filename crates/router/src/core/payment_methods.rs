@@ -1359,12 +1359,12 @@ pub async fn list_saved_payment_methods_for_customer(
 
 #[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all)]
-pub async fn get_cryptogram_for_payment_methods_for_customer(
+pub async fn get_token_data_for_payment_method(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payment_method_id: id_type::GlobalPaymentMethodId,
-) -> RouterResponse<api::CustomerPaymentMethodsCryptogramResponse> {
+) -> RouterResponse<api::NetworkTokenDataResponse> {
     let key_manager_state = &(&state).into();
 
     let db = &*state.store;
@@ -1394,14 +1394,24 @@ pub async fn get_cryptogram_for_payment_methods_for_customer(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed to fetch network token data from tokenization service")?;
 
-    let customer_cryptogram_response = api::CustomerPaymentMethodsCryptogramResponse {
-        payment_method_id,
-        customer_id: payment_method.customer_id,
-        cryptogram: network_token.cryptogram.expose_option(),
+    let network_token_data_response = api::NetworkTokenDataResponse {
+        payment_method_id: payment_method_id.clone(),
+        network_token: network_token.network_token,
+        network_token_exp_month: network_token.network_token_exp_month,
+        network_token_exp_year: network_token.network_token_exp_year,
+        cryptogram: network_token.cryptogram,
+        card_issuer: network_token.card_issuer,
+        card_network: network_token.card_network,
+        card_type: network_token.card_type,
+        card_issuing_country: network_token.card_issuing_country,
+        bank_code: network_token.bank_code,
+        card_holder_name: network_token.card_holder_name,
+        nick_name: network_token.nick_name,
+        eci: network_token.eci,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        customer_cryptogram_response,
+        network_token_data_response,
     ))
 }
 
