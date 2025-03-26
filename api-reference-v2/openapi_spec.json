@@ -13672,6 +13672,22 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "OverCaptureStatus": {
+        "type": "string",
+        "description": "Whether overcapture is allowed by the connector",
+        "enum": [
+          "applicable",
+          "not_applicable"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {

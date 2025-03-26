@@ -456,6 +456,7 @@ async fn payments_create_core() {
         card_discovery: None,
         issuer_error_code: None,
         issuer_error_message: None,
+        overcapture_status: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -725,6 +726,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_discovery: None,
             issuer_error_code: None,
             issuer_error_message: None,
+            overcapture_status: None,
         },
         vec![],
     ));

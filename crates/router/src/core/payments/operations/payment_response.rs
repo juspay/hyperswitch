@@ -1428,7 +1428,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_reason: Some(err.reason),
                             amount_capturable: router_data
                                 .request
-                                .get_amount_capturable(&payment_data, status)
+                                .get_amount_capturable(&payment_data, status, None)
                                 .map(MinorUnit::new),
                             updated_by: storage_scheme.to_string(),
                             unified_code: Some(Some(unified_code)),
@@ -1499,6 +1499,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         },
                         _ => router_data.get_attempt_status_for_db_update(&payment_data),
                     };
+
                     match payments_response {
                         types::PaymentsResponseData::PreProcessingResponse {
                             pre_processing_id,
@@ -1575,6 +1576,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             } else {
                                 None
                             };
+
+                            let overcapture_data = router_data
+                                .connector_response
+                                .as_ref()
+                                .and_then(|resp| resp.get_overcapture_data());
+                            let overcapture_status =
+                                overcapture_data.map(|data| data.get_overcapture_status());
+                            let maximum_capturable_amount =
+                                overcapture_data.map(|data| data.get_maximum_capturable_amount());
 
                             // incase of success, update error code and error message
                             let error_status =
@@ -1679,6 +1689,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     )
                                 })
                                 .unwrap_or((None, None));
+
                             let (capture_updates, payment_attempt_update) = match payment_data
                                 .multiple_capture_data
                             {
@@ -1724,6 +1735,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .get_amount_capturable(
                                                 &payment_data,
                                                 updated_attempt_status,
+                                                maximum_capturable_amount,
                                             )
                                             .map(MinorUnit::new),
                                         payment_method_id,
@@ -1747,6 +1759,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .connector_mandate_detail
                                             .clone(),
                                         charges,
+                                        overcapture_status,
                                     }),
                                 ),
                             };

@@ -399,7 +399,6 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
         },
-
         response: Ok(types::RefundsResponseData {
             connector_refund_id: connector_refund_id.unwrap_or_default(),
             refund_status: refund.refund_status,

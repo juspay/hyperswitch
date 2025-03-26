@@ -66,6 +66,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -116,6 +117,7 @@ pub struct ProfileNew {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -164,6 +166,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -210,6 +213,7 @@ impl ProfileUpdateInternal {
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
             force_3ds_challenge,
+            always_request_overcapture,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -281,6 +285,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
+            always_request_overcapture: always_request_overcapture
+                .or(source.always_request_overcapture),
         }
     }
 }
@@ -335,6 +341,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub always_request_overcapture: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -582,6 +589,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
+            always_request_overcapture: source.always_request_overcapture,
         }
     }
 }
