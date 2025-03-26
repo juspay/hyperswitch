@@ -1,11 +1,13 @@
 use common_enums::enums::CaptureMethod;
-use common_utils::types::MinorUnit;
+use common_utils::{request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, ResponseId},
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefreshTokenRouterData, RefundsRouterData,
@@ -109,6 +111,12 @@ pub enum AccountOnFile {
 pub struct JpmorganCard {
     account_number: cards::CardNumber,
     expiry: Expiry,
+    payment_authentication_request: Option<PaymentAuthenticationRequest>,
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentAuthenticationRequest {
+    authentication_return_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -116,7 +124,14 @@ pub struct JpmorganCard {
 #[serde(untagged)]
 pub enum JpmorganCardData {
     Card(JpmorganCard),
-    OriginalNetworkTransactionId(String),
+    CardMandate(JpmorganCardMandate),
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganCardMandate {
+    original_network_transaction_id: String,
+    expiry: Expiry,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -166,13 +181,6 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                if item.router_data.is_three_ds() {
-                    return Err(errors::ConnectorError::NotSupported {
-                        message: "3DS payments".to_string(),
-                        connector: "Jpmorgan",
-                    }
-                    .into());
-                }
 
                 let capture_method =
                     map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
@@ -188,11 +196,18 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                     month: req_card.card_exp_month.clone(),
                     year: req_card.get_expiry_year_4_digit(),
                 };
-
+                let payment_authentication_request = if item.router_data.is_three_ds() {
+                    Some(PaymentAuthenticationRequest {
+                        authentication_return_url: Some("https://merchantreturnurl.com".to_string()),
+                    })
+                } else {
+                    None
+                };
 
                 let card = JpmorganCardData::Card(JpmorganCard {
                     account_number: req_card.card_number.clone(),
                     expiry,
+                    payment_authentication_request,
                 });
 
                 let payment_method_type = JpmorganPaymentMethodType { card };
@@ -230,9 +245,8 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
 
                 let merchant = JpmorganMerchant { merchant_software };
 
-
-                let jp_morgan_pm_data = JpmorganCardData::OriginalNetworkTransactionId(
-                    item
+                let jp_morgan_pm_data = JpmorganCardData::CardMandate(JpmorganCardMandate {
+                    original_network_transaction_id: item
                         .router_data
                         .request
                         .connector_mandate_id()
@@ -240,7 +254,12 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                             field_name: "connector_mandate_id",
                         })?
                         .into(),
-                );
+                        //TODO: This is a dummy expiry date. We need to remove these fields from the struct JpmorganCardMandate. This is just for testing purpose in local.
+                        expiry:  Expiry {
+                            month: Secret::new("12".to_string()),
+                            year: Secret::new("2040".to_string()),
+                        },
+                });
 
                 let payment_method_type = JpmorganPaymentMethodType { card: jp_morgan_pm_data };
 
@@ -342,6 +361,13 @@ pub struct JpmorganPaymentsResponse {
     response_message: String,
     payment_method_type: PaymentMethodType,
     capture_method: Option<CapMethod>,
+    payment_authentication_result: Option<PaymentAuthenticationResult>,
+}
+
+#[derive(Default, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentAuthenticationResult {
+    authentication_orchestration_url: String,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -402,7 +428,7 @@ pub fn attempt_status_from_transaction_state(
         JpmorganTransactionState::Declined | JpmorganTransactionState::Error => {
             common_enums::AttemptStatus::Failure
         }
-        JpmorganTransactionState::Pending => common_enums::AttemptStatus::Pending,
+        JpmorganTransactionState::Pending => common_enums::AttemptStatus::AuthenticationPending,
         JpmorganTransactionState::Voided => common_enums::AttemptStatus::Voided,
     }
 }
@@ -439,13 +465,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 
         println!("Mandate ID: {:?}", mandate_id);
 
+        let redirection_data =
+            item.response
+                .payment_authentication_result
+                .as_ref()
+                .map(|auth_result| RedirectForm::Form {
+                    endpoint: auth_result.authentication_orchestration_url.to_string(),
+                    method: Method::Post,
+                    form_fields: std::collections::HashMap::new(),
+                });
+
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
                 ),
-                redirection_data: Box::new(None),
+                redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(Some(MandateReference {
                     connector_mandate_id: mandate_id,
                     payment_method_id: None,
