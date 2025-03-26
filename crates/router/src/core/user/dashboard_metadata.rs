@@ -38,7 +38,6 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
-#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -632,7 +631,6 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
-#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,
@@ -674,7 +672,7 @@ pub async fn backfill_metadata(
             } else {
                 return Ok(None);
             };
-
+            #[cfg(feature = "v1")]
             Some(
                 insert_metadata(
                     state,
@@ -683,6 +681,20 @@ pub async fn backfill_metadata(
                     types::MetaData::StripeConnected(api::ProcessorConnected {
                         processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
+                    }),
+                )
+                .await,
+            )
+            .transpose();
+            #[cfg(feature = "v2")]
+            Some(
+                insert_metadata(
+                    state,
+                    user.to_owned(),
+                    DBEnum::StripeConnected,
+                    types::MetaData::StripeConnected(api::ProcessorConnected {
+                        processor_id: mca.get_id(),
+                        processor_name: mca.connector_name.to_string(),
                     }),
                 )
                 .await,
@@ -714,7 +726,7 @@ pub async fn backfill_metadata(
             } else {
                 return Ok(None);
             };
-
+            #[cfg(feature = "v1")]
             Some(
                 insert_metadata(
                     state,
@@ -723,6 +735,20 @@ pub async fn backfill_metadata(
                     types::MetaData::PaypalConnected(api::ProcessorConnected {
                         processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
+                    }),
+                )
+                .await,
+            )
+            .transpose();
+            #[cfg(feature = "v2")]
+            Some(
+                insert_metadata(
+                    state,
+                    user.to_owned(),
+                    DBEnum::PaypalConnected,
+                    types::MetaData::PaypalConnected(api::ProcessorConnected {
+                        processor_id: mca.get_id(),
+                        processor_name: mca.connector_name.to_string(),
                     }),
                 )
                 .await,

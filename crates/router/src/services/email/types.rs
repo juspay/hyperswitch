@@ -39,6 +39,7 @@ pub enum EmailBody {
         legal_business_name: String,
         business_location: String,
         business_website: String,
+        product_type: common_enums::MerchantProductType,
     },
     ReconActivation {
         user_name: String,
@@ -106,6 +107,7 @@ pub mod html {
                 legal_business_name,
                 business_location,
                 business_website,
+                product_type,
             } => {
                 format!(
                     include_str!("assets/bizemailprod.html"),
@@ -114,6 +116,7 @@ pub mod html {
                     business_location = business_location,
                     business_website = business_website,
                     username = user_name,
+                    product_type = product_type
                 )
             }
             EmailBody::ProFeatureRequest {
@@ -438,6 +441,7 @@ pub struct BizEmailProd {
     pub subject: &'static str,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
+    pub product_type: common_enums::MerchantProductType,
 }
 
 impl BizEmailProd {
@@ -463,6 +467,7 @@ impl BizEmailProd {
             business_website: data.business_website.unwrap_or_default(),
             theme_id,
             theme_config,
+            product_type: data.product_type.unwrap_or_default(),
         })
     }
 }
@@ -476,6 +481,7 @@ impl EmailData for BizEmailProd {
             legal_business_name: self.legal_business_name.clone(),
             business_location: self.business_location.clone(),
             business_website: self.business_website.clone(),
+            product_type: self.product_type.clone(),
         });
 
         Ok(EmailContents {
