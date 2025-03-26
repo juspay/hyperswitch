@@ -32,6 +32,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
+use common_enums::CountryAlpha2;
+use api_models::payment_methods::CountryCodeWithName;
+use strum::IntoEnumIterator;
 
 struct SeedData {
     cgraph: hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>,
@@ -71,6 +74,20 @@ pub fn convert_forex_value(amount: i64, from_currency: JsValue, to_currency: JsV
         .err_to_js()?;
 
     Ok(serde_wasm_bindgen::to_value(&converted_amount)?)
+}
+
+/// This function can be used by the frontend to get all the two letter country codes
+/// along with their country names.
+#[wasm_bindgen(js_name=getTwoLetterCountryCode)]
+pub fn get_two_letter_country_code() -> JsResult {
+    let country_code_with_name = CountryAlpha2::iter()
+        .map(|country_code| CountryCodeWithName {
+            code: country_code,
+            name: common_enums::Country::from_alpha2(country_code),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(serde_wasm_bindgen::to_value(&country_code_with_name)?)
 }
 
 /// This function can be used by the frontend to provide the WASM with information about
