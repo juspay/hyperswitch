@@ -709,7 +709,7 @@ pub async fn backfill_metadata(
         }
 
         DBEnum::PaypalConnected => {
-            let mca: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount = if let Some(paypal_connected) = get_merchant_connector_account_by_name(
+            let mca = if let Some(paypal_connected) = get_merchant_connector_account_by_name(
                 state,
                 &user.merchant_id,
                 api_models::enums::RoutableConnectors::Paypal
