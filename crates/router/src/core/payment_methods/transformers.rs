@@ -6,6 +6,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
@@ -21,8 +23,6 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -1138,4 +1138,4 @@ impl transformers::ForeignFrom<&payment_method_data::PaymentMethodTokenSingleUse
             token: Secret::new(token.clone().token),
         }
     }
-} 
+}

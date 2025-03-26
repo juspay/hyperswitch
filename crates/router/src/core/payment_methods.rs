@@ -34,6 +34,7 @@ use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::Encryptable,
+    errors,
     ext_traits::{AsyncExt, Encode, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
@@ -2716,7 +2717,9 @@ async fn create_single_use_tokenization_flow(
         .change_context(ApiErrorResponse::MissingRequiredField {
             field_name: "card_cvc",
         })
-        .attach_printable("Failed to convert type from Payment Method Create Data to Payment Method Data")?,
+        .attach_printable(
+            "Failed to convert type from Payment Method Create Data to Payment Method Data",
+        )?,
         browser_info: None,
         currency: api_models::enums::Currency::default(),
         amount: None,
@@ -2816,7 +2819,8 @@ async fn create_single_use_tokenization_flow(
                                                 connector_id.clone()
                                             );
 
-    let key = payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
+    let key =
+        payment_method_data::SingleUseTokenKey::store_key(payment_method.id.get_string_repr());
 
     add_single_use_token_to_store(&state, key, value)
         .await
@@ -2867,7 +2871,7 @@ async fn get_single_use_token_from_store(
     redis_connection
         .get_and_deserialize_key::<payment_method_data::PaymentMethodTokenSingleUse>(
             &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
-            "PaymentMethodTokenSingleUse"
+            "PaymentMethodTokenSingleUse",
         )
         .await
         .change_context(StorageError::KVError)
