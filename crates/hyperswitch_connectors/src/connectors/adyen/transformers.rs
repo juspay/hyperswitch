@@ -142,7 +142,7 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
-    risk_data: Option<Basket>,
+    risk_data: Option<RiskData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -180,9 +180,8 @@ pub struct LineItem {
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OrderLines {
-    #[serde(rename = "itemID")]
-    item_id: Option<String>,
+pub struct ItemData {
+    item_i_d: Option<String>,
     product_title: Option<String>,
     amount_per_item: Option<String>,
     currency: Option<String>,
@@ -199,7 +198,21 @@ pub struct OrderLines {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Basket {
-    basket: Vec<OrderLines>,
+    basket: Option<Item>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Item {
+    item1: Option<ItemData>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskData {
+    basket: Option<Item>,
     device_country: Option<String>,
     house_numberor_name: Option<String>,
     account_creation_date: Option<String>,
@@ -1805,7 +1818,7 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
         _ => (None, None),
     };
     let risk_data = match item.request.metadata.clone() {
-        Some(metadata) => match Basket::foreign_try_from(metadata) {
+        Some(metadata) => match RiskData::foreign_try_from(metadata) {
             Ok(basket) => Some(basket),
             Err(_) => None,
         },
@@ -2557,18 +2570,18 @@ impl TryFrom<&CardRedirectData> for AdyenPaymentMethod<'_> {
     }
 }
 
-impl ForeignTryFrom<serde_json::Value> for Basket {
+impl ForeignTryFrom<serde_json::Value> for RiskData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn foreign_try_from(metadata: serde_json::Value) -> Result<Self, Self::Error> {
         let risk_data = metadata.get("risk_data");
-        if let Some(risk_data_value) = risk_data {
-            let basket_data = risk_data_value.get("basket").and_then(|val| val.as_array());
 
-            let basket = match basket_data {
-                Some(order_lines) => {
-                    let mut order_lines_vec = Vec::new();
-                    for order in order_lines {
+        match risk_data {
+            Some(risk_data_value) => {
+                let basket = risk_data_value.get("basket");
+                let basket_data = basket.and_then(|basket| basket.get("item1"));
+                let basket = match basket_data {
+                    Some(order) => {
                         let item_id = order
                             .get("item_id")
                             .and_then(|v| v.as_str())
@@ -2614,153 +2627,176 @@ impl ForeignTryFrom<serde_json::Value> for Basket {
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
 
-                        order_lines_vec.push(OrderLines {
-                            item_id,
-                            product_title,
-                            amount_per_item,
-                            currency,
-                            upc,
-                            brand,
-                            manufacturer,
-                            category,
-                            quantity,
-                            color,
-                            size,
-                        });
+                        Some(Item {
+                            item1: Some(ItemData {
+                                item_i_d: item_id,
+                                product_title,
+                                amount_per_item,
+                                currency,
+                                upc,
+                                brand,
+                                manufacturer,
+                                category,
+                                quantity,
+                                color,
+                                size,
+                            }),
+                        })
                     }
-                    order_lines_vec
-                }
-                None => Vec::new(),
-            };
+                    None => None,
+                };
 
-            let device_country = risk_data_value
-                .get("device_country")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let house_numberor_name = risk_data_value
-                .get("house_numberor_name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let account_creation_date = risk_data_value
-                .get("account_creation_date")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let affiliate_channel = risk_data_value
-                .get("affiliate_channel")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let avg_order_value = risk_data_value
-                .get("avg_order_value")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let delivery_method = risk_data_value
-                .get("delivery_method")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let email_name = risk_data_value
-                .get("email_name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let email_domain = risk_data_value
-                .get("email_domain")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let last_order_date = risk_data_value
-                .get("last_order_date")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let merchant_reference = risk_data_value
-                .get("merchant_reference")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let payment_method = risk_data_value
-                .get("payment_method")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let promotion_name = risk_data_value
-                .get("promotion_name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let secondary_phone_number = risk_data_value
-                .get("secondary_phone_number")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let timefrom_loginto_order = risk_data_value
-                .get("timefrom_loginto_order")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let total_session_time = risk_data_value
-                .get("total_session_time")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let total_authorized_amount_in_last30_days = risk_data_value
-                .get("total_authorized_amount_in_last30_days")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let total_order_quantity = risk_data_value
-                .get("total_order_quantity")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let total_lifetime_value = risk_data_value
-                .get("total_lifetime_value")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let visits_month = risk_data_value
-                .get("visits_month")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let visits_week = risk_data_value
-                .get("visits_week")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let visits_year = risk_data_value
-                .get("visits_year")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let ship_to_name = risk_data_value
-                .get("ship_to_name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let first8charactersof_address_line1_zip = risk_data_value
-                .get("first8charactersof_address_line1_zip")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let affiliate_order = risk_data_value
-                .get("affiliate_order")
-                .and_then(|v| v.as_bool());
+                let device_country = risk_data_value
+                    .get("device_country")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let house_numberor_name = risk_data_value
+                    .get("house_numberor_name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let account_creation_date = risk_data_value
+                    .get("account_creation_date")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let affiliate_channel = risk_data_value
+                    .get("affiliate_channel")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let avg_order_value = risk_data_value
+                    .get("avg_order_value")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let delivery_method = risk_data_value
+                    .get("delivery_method")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let email_name = risk_data_value
+                    .get("email_name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let email_domain = risk_data_value
+                    .get("email_domain")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let last_order_date = risk_data_value
+                    .get("last_order_date")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let merchant_reference = risk_data_value
+                    .get("merchant_reference")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let payment_method = risk_data_value
+                    .get("payment_method")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let promotion_name = risk_data_value
+                    .get("promotion_name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let secondary_phone_number = risk_data_value
+                    .get("secondary_phone_number")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let timefrom_loginto_order = risk_data_value
+                    .get("timefrom_loginto_order")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let total_session_time = risk_data_value
+                    .get("total_session_time")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let total_authorized_amount_in_last30_days = risk_data_value
+                    .get("total_authorized_amount_in_last30_days")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let total_order_quantity = risk_data_value
+                    .get("total_order_quantity")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let total_lifetime_value = risk_data_value
+                    .get("total_lifetime_value")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let visits_month = risk_data_value
+                    .get("visits_month")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let visits_week = risk_data_value
+                    .get("visits_week")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let visits_year = risk_data_value
+                    .get("visits_year")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let ship_to_name = risk_data_value
+                    .get("ship_to_name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let first8charactersof_address_line1_zip = risk_data_value
+                    .get("first8charactersof_address_line1_zip")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let affiliate_order = risk_data_value
+                    .get("affiliate_order")
+                    .and_then(|v| v.as_bool());
 
-            Ok(Self {
-                basket,
-                device_country,
-                house_numberor_name,
-                account_creation_date,
-                affiliate_channel,
-                avg_order_value,
-                delivery_method,
-                email_name,
-                email_domain,
-                last_order_date,
-                merchant_reference,
-                payment_method,
-                promotion_name,
-                secondary_phone_number,
-                timefrom_loginto_order,
-                total_session_time,
-                total_authorized_amount_in_last30_days,
-                total_order_quantity,
-                total_lifetime_value,
-                visits_month,
-                visits_week,
-                visits_year,
-                ship_to_name,
-                first8charactersof_address_line1_zip,
-                affiliate_order,
-            })
-        } else {
-            Err(errors::ConnectorError::RequestEncodingFailedWithReason(
-                "risk_data field not found".to_owned(),
-            )
-            .into())
+                Ok(Self {
+                    basket,
+                    device_country,
+                    house_numberor_name,
+                    account_creation_date,
+                    affiliate_channel,
+                    avg_order_value,
+                    delivery_method,
+                    email_name,
+                    email_domain,
+                    last_order_date,
+                    merchant_reference,
+                    payment_method,
+                    promotion_name,
+                    secondary_phone_number,
+                    timefrom_loginto_order,
+                    total_session_time,
+                    total_authorized_amount_in_last30_days,
+                    total_order_quantity,
+                    total_lifetime_value,
+                    visits_month,
+                    visits_week,
+                    visits_year,
+                    ship_to_name,
+                    first8charactersof_address_line1_zip,
+                    affiliate_order,
+                })
+            }
+            None => Ok(Self {
+                basket: None,
+                device_country: None,
+                house_numberor_name: None,
+                account_creation_date: None,
+                affiliate_channel: None,
+                avg_order_value: None,
+                delivery_method: None,
+                email_name: None,
+                email_domain: None,
+                last_order_date: None,
+                merchant_reference: None,
+                payment_method: None,
+                promotion_name: None,
+                secondary_phone_number: None,
+                timefrom_loginto_order: None,
+                total_session_time: None,
+                total_authorized_amount_in_last30_days: None,
+                total_order_quantity: None,
+                total_lifetime_value: None,
+                visits_month: None,
+                visits_week: None,
+                visits_year: None,
+                ship_to_name: None,
+                first8charactersof_address_line1_zip: None,
+                affiliate_order: None,
+            }),
         }
     }
 }
