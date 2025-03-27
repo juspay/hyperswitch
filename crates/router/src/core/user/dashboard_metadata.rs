@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+use api_models::user::dashboard_metadata::{
+    self as api, GetMultipleMetaDataPayload, ProdIntentWithProductType,
+};
 #[cfg(feature = "email")]
 use common_enums::EntityType;
 use common_utils::pii;
@@ -482,19 +484,13 @@ async fn insert_metadata(
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to retrieve merchant account by merchant_id")?;
-
+            // The product type field in the merchant account table is nullable, and if the corresponding value is null, the default orchestration product type is considered.
             let product_type = merchant_account.product_type.unwrap_or_default();
 
-            let mut data_value = serde_json::to_value(&data)
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Error converting ProdIntent to JSON")?;
-
-            if let serde_json::Value::Object(ref mut map) = data_value {
-                map.insert("product_type".to_string(), serde_json::json!(product_type));
-            } else {
-                return Err(UserErrors::InternalServerError)
-                    .attach_printable("Error adding product type to the JSON object");
-            }
+            let data_value = ProdIntentWithProductType {
+                prod_intent: data.clone(),
+                product_type,
+            };
 
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
@@ -534,10 +530,9 @@ async fn insert_metadata(
                         EntityType::Merchant,
                     )
                     .await?;
-                    let prod_intent_with_product_type = (data, product_type);
                     let email_contents = email_types::BizEmailProd::new(
                         state,
-                        prod_intent_with_product_type,
+                        data_value,
                         theme.as_ref().map(|theme| theme.theme_id.clone()),
                         theme
                             .map(|theme| theme.email_config())
@@ -737,39 +732,25 @@ pub async fn backfill_metadata(
             } else {
                 return Ok(None);
             };
+
             #[cfg(feature = "v1")]
-            {
-                return Some(
-                    insert_metadata(
-                        state,
-                        user.to_owned(),
-                        DBEnum::StripeConnected,
-                        types::MetaData::StripeConnected(api::ProcessorConnected {
-                            processor_id: mca.get_id(),
-                            processor_name: mca.connector_name,
-                        }),
-                    )
-                    .await,
-                )
-                .transpose();
-            }
+            let processor_name = mca.connector_name.clone();
 
             #[cfg(feature = "v2")]
-            {
-                return Some(
-                    insert_metadata(
-                        state,
-                        user.to_owned(),
-                        DBEnum::StripeConnected,
-                        types::MetaData::StripeConnected(api::ProcessorConnected {
-                            processor_id: mca.get_id(),
-                            processor_name: mca.connector_name.to_string(),
-                        }),
-                    )
-                    .await,
+            let processor_name = mca.connector_name.to_string().clone();
+            Some(
+                insert_metadata(
+                    state,
+                    user.to_owned(),
+                    DBEnum::StripeConnected,
+                    types::MetaData::StripeConnected(api::ProcessorConnected {
+                        processor_id: mca.get_id(),
+                        processor_name,
+                    }),
                 )
-                .transpose();
-            }
+                .await,
+            )
+            .transpose()
         }
 
         DBEnum::PaypalConnected => {
@@ -799,38 +780,23 @@ pub async fn backfill_metadata(
             };
 
             #[cfg(feature = "v1")]
-            {
-                return Some(
-                    insert_metadata(
-                        state,
-                        user.to_owned(),
-                        DBEnum::PaypalConnected,
-                        types::MetaData::PaypalConnected(api::ProcessorConnected {
-                            processor_id: mca.get_id(),
-                            processor_name: mca.connector_name,
-                        }),
-                    )
-                    .await,
-                )
-                .transpose();
-            }
+            let processor_name = mca.connector_name.clone();
 
             #[cfg(feature = "v2")]
-            {
-                return Some(
-                    insert_metadata(
-                        state,
-                        user.to_owned(),
-                        DBEnum::PaypalConnected,
-                        types::MetaData::PaypalConnected(api::ProcessorConnected {
-                            processor_id: mca.get_id(),
-                            processor_name: mca.connector_name.to_string(),
-                        }),
-                    )
-                    .await,
+            let processor_name = mca.connector_name.to_string().clone();
+            Some(
+                insert_metadata(
+                    state,
+                    user.to_owned(),
+                    DBEnum::PaypalConnected,
+                    types::MetaData::PaypalConnected(api::ProcessorConnected {
+                        processor_id: mca.get_id(),
+                        processor_name,
+                    }),
                 )
-                .transpose();
-            }
+                .await,
+            )
+            .transpose()
         }
         _ => Ok(None),
     }

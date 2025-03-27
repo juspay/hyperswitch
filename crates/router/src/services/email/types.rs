@@ -576,18 +576,18 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            user_name: data.0.poc_name.unwrap_or_default().into(),
-            poc_email: data.0.poc_email.unwrap_or_default(),
-            legal_business_name: data.0.legal_business_name.unwrap_or_default(),
+            user_name: data.prod_intent.poc_name.unwrap_or_default().into(),
+            poc_email: data.prod_intent.poc_email.unwrap_or_default(),
+            legal_business_name: data.prod_intent.legal_business_name.unwrap_or_default(),
             business_location: data
-                .0
+                .prod_intent
                 .business_location
                 .unwrap_or(common_enums::CountryAlpha2::AD)
                 .to_string(),
-            business_website: data.0.business_website.unwrap_or_default(),
+            business_website: data.prod_intent.business_website.unwrap_or_default(),
             theme_id,
             theme_config,
-            product_type: data.1,
+            product_type: data.product_type,
         })
     }
 }

@@ -105,7 +105,12 @@ pub struct ProdIntent {
     pub is_completed: bool,
 }
 
-pub type ProdIntentWithProductType = (ProdIntent, MerchantProductType);
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ProdIntentWithProductType {
+    #[serde(flatten)]
+    pub prod_intent: ProdIntent,
+    pub product_type: MerchantProductType,
+}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct ReconStatus {
