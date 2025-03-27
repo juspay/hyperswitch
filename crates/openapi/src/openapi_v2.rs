@@ -488,7 +488,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentConnectorTransmission,
         api_models::enums::TriggeredBy,
         api_models::payments::PaymentAttemptResponse,
-        api_models::payments::PaymentRecordResponse,
+        api_models::payments::PaymentAttemptRecordResponse,
         api_models::payments::PaymentAttemptAmountDetails,
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,

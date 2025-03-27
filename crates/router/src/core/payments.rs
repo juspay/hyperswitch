@@ -1737,7 +1737,7 @@ pub async fn record_attempt_core(
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<api_models::payments::PaymentRecordResponse> {
+) -> RouterResponse<api_models::payments::PaymentAttemptRecordResponse> {
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
     let operation: &operations::payment_attempt_record::PaymentAttemptRecord =

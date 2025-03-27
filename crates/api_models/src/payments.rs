@@ -1588,7 +1588,7 @@ pub struct PaymentAttemptResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentRecordResponse {
+pub struct PaymentAttemptRecordResponse {
     /// The global identifier for the payment attempt
     #[schema(value_type = String)]
     pub id: id_type::GlobalAttemptId,

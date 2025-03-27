@@ -16087,7 +16087,7 @@
           "propertyName": "payment_processing_details_at"
         }
       },
-      "PaymentRecordResponse": {
+      "PaymentsAttemptRecordRequest": {
         "type": "object",
         "required": [
           "id",

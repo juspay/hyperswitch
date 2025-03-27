@@ -1827,7 +1827,7 @@ where
 }
 
 #[cfg(feature = "v2")]
-impl<F> GenerateResponse<api_models::payments::PaymentRecordResponse>
+impl<F> GenerateResponse<api_models::payments::PaymentAttemptRecordResponse>
     for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
 where
     F: Clone,
@@ -1840,10 +1840,10 @@ where
         _is_latency_header_enabled: Option<bool>,
         _merchant_account: &domain::MerchantAccount,
         _profile: &domain::Profile,
-    ) -> RouterResponse<api_models::payments::PaymentRecordResponse> {
+    ) -> RouterResponse<api_models::payments::PaymentAttemptRecordResponse> {
         let payment_attempt = self.payment_attempt;
         let payment_intent = self.payment_intent;
-        let response = api_models::payments::PaymentRecordResponse {
+        let response = api_models::payments::PaymentAttemptRecordResponse {
             id: payment_attempt.get_id().to_owned(),
             status: payment_attempt.status,
             payment_intent_feature_metadata: payment_intent
@@ -4596,18 +4596,18 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
     fn foreign_from(feature_metadata: &diesel_models::types::FeatureMetadata) -> Self {
         let revenue_recovery = feature_metadata
             .payment_revenue_recovery_metadata
-            .clone()
-            .map(|r| api_models::payments::PaymentRevenueRecoveryMetadata {
-                total_retry_count: r.total_retry_count,
-                payment_connector_transmission: Some(r.payment_connector_transmission),
-                connector: r.connector,
-                billing_connector_id: r.billing_connector_id,
-                active_attempt_payment_connector_id: r.active_attempt_payment_connector_id,
-                payment_method_type: r.payment_method_type,
-                payment_method_subtype: r.payment_method_subtype,
+            .as_ref()
+            .map(|payment_revenue_recovery_metadata| api_models::payments::PaymentRevenueRecoveryMetadata {
+                total_retry_count: payment_revenue_recovery_metadata.total_retry_count,
+                payment_connector_transmission: Some(payment_revenue_recovery_metadata.payment_connector_transmission),
+                connector: payment_revenue_recovery_metadata.connector,
+                billing_connector_id: payment_revenue_recovery_metadata.billing_connector_id.clone(),
+                active_attempt_payment_connector_id: payment_revenue_recovery_metadata.active_attempt_payment_connector_id.clone(),
+                payment_method_type: payment_revenue_recovery_metadata.payment_method_type,
+                payment_method_subtype: payment_revenue_recovery_metadata.payment_method_subtype,
                 billing_connector_payment_details:
                     api_models::payments::BillingConnectorPaymentDetails::foreign_from(
-                        &r.billing_connector_payment_details,
+                        &payment_revenue_recovery_metadata.billing_connector_payment_details,
                     ),
             });
         let apple_pay_details = feature_metadata
