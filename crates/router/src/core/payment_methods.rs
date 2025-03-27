@@ -1892,11 +1892,11 @@ pub async fn retrieve_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let single_use_token_in_cache = get_single_use_token_from_store(
-            &state.clone(),
-            payment_method_data::SingleUseTokenKey::store_key(&pm_id.clone()),
-        )
-        .await
-        .unwrap_or_default();
+        &state.clone(),
+        payment_method_data::SingleUseTokenKey::store_key(&pm_id.clone()),
+    )
+    .await
+    .unwrap_or_default();
 
     transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache)
         .map(services::ApplicationResponse::Json)
