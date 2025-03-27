@@ -1932,6 +1932,133 @@ key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[noon]
+[[noon.credit]]
+  payment_method_type = "Mastercard"
+[[noon.credit]]
+  payment_method_type = "Visa"
+[[noon.credit]]
+  payment_method_type = "Interac"
+[[noon.credit]]
+  payment_method_type = "AmericanExpress"
+[[noon.credit]]
+  payment_method_type = "JCB"
+[[noon.credit]]
+  payment_method_type = "DinersClub"
+[[noon.credit]]
+  payment_method_type = "Discover"
+[[noon.credit]]
+  payment_method_type = "CartesBancaires"
+[[noon.credit]]
+  payment_method_type = "UnionPay"
+[[noon.debit]]
+  payment_method_type = "Mastercard"
+[[noon.debit]]
+  payment_method_type = "Visa"
+[[noon.debit]]
+  payment_method_type = "Interac"
+[[noon.debit]]
+  payment_method_type = "AmericanExpress"
+[[noon.debit]]
+  payment_method_type = "JCB"
+[[noon.debit]]
+  payment_method_type = "DinersClub"
+[[noon.debit]]
+  payment_method_type = "Discover"
+[[noon.debit]]
+  payment_method_type = "CartesBancaires"
+[[noon.debit]]
+  payment_method_type = "UnionPay"
+[[noon.wallet]]
+  payment_method_type = "apple_pay"
+[[noon.wallet]]
+  payment_method_type = "google_pay"
+[[noon.wallet]]
+  payment_method_type = "paypal"
+[noon.connector_auth.SignatureKey]
+api_key="API Key"
+key1="Business Identifier"
+api_secret="Application Identifier"
+[noon.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[[noon.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[noon.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector"]
+
+[[noon.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 [novalnet]
 [[novalnet.credit]]
   payment_method_type = "Mastercard"

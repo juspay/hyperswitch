@@ -39,6 +39,7 @@ pub struct Connectors {
     pub dummyconnector: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub elavon: ConnectorParams,
+    pub facilitapay: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
