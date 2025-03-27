@@ -3,7 +3,7 @@ use common_enums::enums as common_enums;
 use common_utils::{id_type, types as util_types};
 use time::PrimitiveDateTime;
 
-use crate::router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData;
+use crate::router_response_types::revenue_recovery::BillingConnectorPaymentsSyncResponse;
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
@@ -193,8 +193,8 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
     }
 }
 
-impl From<&GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryInvoiceData {
-    fn from(data: &GetAdditionalRevenueRecoveryResponseData) -> Self {
+impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryInvoiceData {
+    fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
         Self {
             amount: data.amount,
             currency: data.currency,
@@ -203,8 +203,8 @@ impl From<&GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryInvoiceD
     }
 }
 
-impl From<&GetAdditionalRevenueRecoveryResponseData> for RevenueRecoveryAttemptData {
-    fn from(data: &GetAdditionalRevenueRecoveryResponseData) -> Self {
+impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData {
+    fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
         Self {
             amount: data.amount,
             currency: data.currency,

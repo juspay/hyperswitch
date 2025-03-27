@@ -669,6 +669,8 @@ card_redirect = { currency = "USD" }
 [pm_filters.trustpay]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
+instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.authorizedotnet]
 google_pay = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
@@ -790,8 +792,8 @@ connectors_with_delayed_session_response = "trustpay,payme"
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 
-[additional_revenue_recovery_details_call]
-connectors_with_additional_revenue_recovery_details_call = "stripebilling, recurly"
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }

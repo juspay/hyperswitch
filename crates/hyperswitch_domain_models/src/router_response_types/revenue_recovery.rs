@@ -1,7 +1,7 @@
 use common_utils::types::MinorUnit;
 use time::PrimitiveDateTime;
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct GetAdditionalRevenueRecoveryResponseData {
+pub struct BillingConnectorPaymentsSyncResponse {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: MinorUnit,
     /// currency of the transaction
