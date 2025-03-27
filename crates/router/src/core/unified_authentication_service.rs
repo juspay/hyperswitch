@@ -79,7 +79,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             encypted_payload: payment_data
                 .service_details
                 .as_ref()
-                .map(|details| details.encypted_payload.clone()),
+                .and_then(|details| details.encypted_payload.clone()),
         });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),
