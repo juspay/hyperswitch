@@ -578,6 +578,8 @@ pub enum Flow {
     CardsInfoMigrate,
     ///Total payment method count for merchant
     TotalPaymentMethodCount,
+    /// Process Tracker Revenue Recovery Workflow Retrieve
+    RevenueRecoveryRetrieve,
 }
 
 /// Trait for providing generic behaviour to flow metric

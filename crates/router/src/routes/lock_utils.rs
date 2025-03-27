@@ -42,6 +42,7 @@ pub enum ApiIdentifier {
     CardNetworkTokenization,
     Hypersense,
     PaymentMethodSession,
+    ProcessTracker,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -333,6 +334,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
             | Flow::PaymentMethodSessionDeleteSavedPaymentMethod
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
+
+            Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
         }
     }
 }

@@ -148,6 +148,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for refunds
         routes::refunds::refunds_create,
+
+        // Routes for Revenue Recovery flow under Process Tracker
+        routes::revenue_recovery::revenue_recovery_pt_retrieve_api
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -708,6 +711,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodSessionConfirmRequest,
         api_models::payment_methods::PaymentMethodSessionResponse,
         api_models::payment_methods::AuthenticationDetails,
+        api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
+        api_models::enums::ProcessTrackerStatus,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)
