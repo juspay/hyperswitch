@@ -16,22 +16,47 @@ use crate::{
 pub enum EmailBody {
     Verify {
         link: String,
+        entity_name: String,
+        entity_logo_url: String,
+        primary_color: String,
+        background_color: String,
+        foreground_color: String,
     },
     Reset {
         link: String,
         user_name: String,
+        entity_name: String,
+        entity_logo_url: String,
+        primary_color: String,
+        background_color: String,
+        foreground_color: String,
     },
     MagicLink {
         link: String,
         user_name: String,
+        entity_name: String,
+        entity_logo_url: String,
+        primary_color: String,
+        background_color: String,
+        foreground_color: String,
     },
     InviteUser {
         link: String,
         user_name: String,
+        entity_name: String,
+        entity_logo_url: String,
+        primary_color: String,
+        background_color: String,
+        foreground_color: String,
     },
     AcceptInviteFromEmail {
         link: String,
         user_name: String,
+        entity_name: String,
+        entity_logo_url: String,
+        primary_color: String,
+        background_color: String,
+        foreground_color: String,
     },
     BizEmailProd {
         user_name: String,
@@ -63,36 +88,104 @@ pub mod html {
 
     pub fn get_html_body(email_body: EmailBody) -> String {
         match email_body {
-            EmailBody::Verify { link } => {
-                format!(include_str!("assets/verify.html"), link = link)
+            EmailBody::Verify {
+                link,
+                entity_name,
+                entity_logo_url,
+                primary_color,
+                background_color,
+                foreground_color,
+            } => {
+                format!(
+                    include_str!("assets/verify.html"),
+                    link = link,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    primary_color = primary_color,
+                    background_color = background_color,
+                    foreground_color = foreground_color
+                )
             }
-            EmailBody::Reset { link, user_name } => {
+            EmailBody::Reset {
+                link,
+                user_name,
+                entity_name,
+                entity_logo_url,
+                primary_color,
+                background_color,
+                foreground_color,
+            } => {
                 format!(
                     include_str!("assets/reset.html"),
                     link = link,
-                    username = user_name
+                    username = user_name,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    primary_color = primary_color,
+                    background_color = background_color,
+                    foreground_color = foreground_color
                 )
             }
-            EmailBody::MagicLink { link, user_name } => {
+            EmailBody::MagicLink {
+                link,
+                user_name,
+                entity_name,
+                entity_logo_url,
+                primary_color,
+                background_color,
+                foreground_color,
+            } => {
                 format!(
                     include_str!("assets/magic_link.html"),
                     username = user_name,
-                    link = link
+                    link = link,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    primary_color = primary_color,
+                    background_color = background_color,
+                    foreground_color = foreground_color
                 )
             }
-            EmailBody::InviteUser { link, user_name } => {
+
+            EmailBody::InviteUser {
+                link,
+                user_name,
+                entity_name,
+                entity_logo_url,
+                primary_color,
+                background_color,
+                foreground_color,
+            } => {
                 format!(
                     include_str!("assets/invite.html"),
                     username = user_name,
-                    link = link
+                    link = link,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    primary_color = primary_color,
+                    background_color = background_color,
+                    foreground_color = foreground_color
                 )
             }
             // TODO: Change the linked html for accept invite from email
-            EmailBody::AcceptInviteFromEmail { link, user_name } => {
+            EmailBody::AcceptInviteFromEmail {
+                link,
+                user_name,
+                entity_name,
+                entity_logo_url,
+                primary_color,
+                background_color,
+                foreground_color,
+            } => {
                 format!(
                     include_str!("assets/invite.html"),
                     username = user_name,
-                    link = link
+                    link = link,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    primary_color = primary_color,
+                    background_color = background_color,
+                    foreground_color = foreground_color
                 )
             }
             EmailBody::ReconActivation { user_name } => {
@@ -239,7 +332,6 @@ pub fn get_base_url(state: &SessionState) -> &str {
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
     pub auth_id: Option<String>,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
@@ -268,10 +360,18 @@ impl EmailData for VerifyEmail {
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
+            entity_name: self.theme_config.entity_name.clone(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone(),
+            primary_color: self.theme_config.primary_color.clone(),
+            background_color: self.theme_config.background_color.clone(),
+            foreground_color: self.theme_config.foreground_color.clone(),
         });
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: format!(
+                "Welcome to the {} community!",
+                self.theme_config.entity_name
+            ),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -282,7 +382,6 @@ pub struct ResetPassword {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
     pub auth_id: Option<String>,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
@@ -311,10 +410,18 @@ impl EmailData for ResetPassword {
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
             user_name: self.user_name.clone().get_secret().expose(),
+            entity_name: self.theme_config.entity_name.clone(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone(),
+            primary_color: self.theme_config.primary_color.clone(),
+            background_color: self.theme_config.background_color.clone(),
+            foreground_color: self.theme_config.foreground_color.clone(),
         });
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: format!(
+                "Get back to {} - Reset Your Password Now!",
+                self.theme_config.entity_name
+            ),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -325,7 +432,6 @@ pub struct MagicLink {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
     pub auth_id: Option<String>,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
@@ -354,10 +460,18 @@ impl EmailData for MagicLink {
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
             user_name: self.user_name.clone().get_secret().expose(),
+            entity_name: self.theme_config.entity_name.clone(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone(),
+            primary_color: self.theme_config.primary_color.clone(),
+            background_color: self.theme_config.background_color.clone(),
+            foreground_color: self.theme_config.foreground_color.clone(),
         });
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: format!(
+                "Unlock {}: Use Your Magic Link to Sign In",
+                self.theme_config.entity_name
+            ),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -368,7 +482,6 @@ pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
     pub entity: Entity,
     pub auth_id: Option<String>,
     pub theme_id: Option<String>,
@@ -397,10 +510,18 @@ impl EmailData for InviteUser {
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
+            entity_name: self.theme_config.entity_name.clone(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone(),
+            primary_color: self.theme_config.primary_color.clone(),
+            background_color: self.theme_config.background_color.clone(),
+            foreground_color: self.theme_config.foreground_color.clone(),
         });
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: format!(
+                "You have been invited to join {} Community!",
+                self.theme_config.entity_name
+            ),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -438,7 +559,6 @@ pub struct BizEmailProd {
     pub business_location: String,
     pub business_website: String,
     pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
     pub product_type: common_enums::MerchantProductType,
@@ -456,7 +576,6 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            subject: consts::user::EMAIL_SUBJECT_NEW_PROD_INTENT,
             user_name: data.0.poc_name.unwrap_or_default().into(),
             poc_email: data.0.poc_email.unwrap_or_default(),
             legal_business_name: data.0.legal_business_name.unwrap_or_default(),
@@ -485,7 +604,7 @@ impl EmailData for BizEmailProd {
         });
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: "New Prod Intent".to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
@@ -554,7 +673,6 @@ impl EmailData for ApiKeyExpiryReminder {
 
 pub struct WelcomeToCommunity {
     pub recipient_email: domain::UserEmail,
-    pub subject: &'static str,
 }
 
 #[async_trait::async_trait]
@@ -563,7 +681,7 @@ impl EmailData for WelcomeToCommunity {
         let body = html::get_html_body(EmailBody::WelcomeToCommunity);
 
         Ok(EmailContents {
-            subject: self.subject.to_string(),
+            subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })
