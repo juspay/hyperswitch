@@ -128,7 +128,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
-    //Stripebilling,
+    Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -272,7 +272,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
-    // Stripebilling,
+    Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -426,7 +426,7 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
-            // | Self::Stripebilling
+            | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -576,7 +576,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
-            // RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
@@ -681,6 +681,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),

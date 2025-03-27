@@ -9,9 +9,9 @@ use hyperswitch_domain_models::{
     router_data::{self, RouterData},
     router_data_v2::{
         flow_common_types::{
-            AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
-            UasFlowData, WebhookSourceVerifyData,
+            AccessTokenFlowData, BillingConnectorPaymentsSyncFlowData, DisputesFlowData,
+            ExternalAuthenticationFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
+            RefundFlowData, RevenueRecoveryRecordBackData, UasFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -796,5 +796,44 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
         router_data.connector = authenticate_by;
         router_data.authentication_id = Some(source_authentication_id);
         Ok(router_data)
+    }
+}
+
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
+    for BillingConnectorPaymentsSyncFlowData
+{
+    fn from_old_router_data(
+        old_router_data: &RouterData<T, Req, Resp>,
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let resource_common_data = Self {};
+        Ok(RouterDataV2 {
+            flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
+            resource_common_data,
+            connector_auth_type: old_router_data.connector_auth_type.clone(),
+            request: old_router_data.request.clone(),
+            response: old_router_data.response.clone(),
+        })
+    }
+
+    fn to_old_router_data(
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "BillingConnectorPaymentsSync",
+            new_router_data.request,
+            new_router_data.response,
+        );
+        Ok(RouterData {
+            connector_auth_type: new_router_data.connector_auth_type.clone(),
+            ..router_data
+        })
     }
 }

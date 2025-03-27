@@ -110,10 +110,10 @@ pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
 pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;
 
-pub type BoxedGetAdditionalRecoveryRecoveryDetailsIntegrationInterface<T, Req, Res> =
+pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
-        common_types::GetAdditionalRevenueRecoveryFlowCommonData,
+        common_types::BillingConnectorPaymentsSyncFlowData,
         Req,
         Res,
     >;

@@ -1,6 +1,14 @@
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use std::str::FromStr;
+
 use common_enums::enums;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use common_utils::types::{ConnectorTransactionId, FloatMajorUnitForConnector};
 use common_utils::{
-    errors::CustomResult, ext_traits::ByteSliceExt, id_type, types::StringMinorUnit,
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    id_type,
+    types::{FloatMajorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -13,15 +21,21 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
     router_flow_types::RecoveryRecordBack,
+    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
+    types::AdditionalRevenueRecoveryDetailsRouterData, types::RevenueRecoveryRecordBackRouterData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::utils;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
@@ -261,6 +275,142 @@ impl RecurlyWebhookBody {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum RecurlyChargeStatus {
+    #[serde(rename = "success")]
+    Succeeded,
+    #[serde(rename = "failed")]
+    Failed,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename = "snake_case")]
+pub enum RecurlyFundingTypes {
+    #[serde(rename = "credit")]
+    Credit,
+    #[serde(rename = "debit")]
+    Debit,
+    #[serde(rename = "prepaid")]
+    Prepaid,
+    #[serde(rename = "unknown")]
+    Unknown,
+    #[serde(rename = "deferred_debit")]
+    DeferredDebit,
+    #[serde(rename = "charge")]
+    Charge,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RecurlyRecoveryDetailsData {
+    pub amount: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    pub uuid: String,
+    pub status_code: Option<String>,
+    pub status_message: Option<String>,
+    pub account: Account,
+    pub invoice: Invoice,
+    pub payment_method: PaymentMethod,
+    pub payment_gateway: PaymentGateway,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    pub status: RecurlyChargeStatus,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentMethod {
+    pub gateway_token: String,
+    pub funding_source: RecurlyFundingTypes,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Invoice {
+    pub id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Account {
+    pub id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentGateway {
+    pub id: String,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl
+    TryFrom<
+        ResponseRouterData<
+            GetAdditionalRevenueRecoveryDetails,
+            RecurlyRecoveryDetailsData,
+            GetAdditionalRevenueRecoveryRequestData,
+            GetAdditionalRevenueRecoveryResponseData,
+        >,
+    > for AdditionalRevenueRecoveryDetailsRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            GetAdditionalRevenueRecoveryDetails,
+            RecurlyRecoveryDetailsData,
+            GetAdditionalRevenueRecoveryRequestData,
+            GetAdditionalRevenueRecoveryResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_reference_id =
+            id_type::PaymentReferenceId::from_str(&item.response.invoice.id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let connector_transaction_id = Some(ConnectorTransactionId::from(item.response.uuid));
+
+        Ok(Self {
+            response: Ok(GetAdditionalRevenueRecoveryResponseData {
+                status: item.response.status.into(),
+                amount: utils::convert_back_amount_to_minor_units(
+                    &FloatMajorUnitForConnector,
+                    item.response.amount,
+                    item.response.currency,
+                )?,
+                currency: item.response.currency,
+                merchant_reference_id,
+                connector_account_reference_id: item.response.payment_gateway.id,
+                connector_transaction_id,
+                error_code: item.response.status_code,
+                error_message: item.response.status_message,
+                processor_payment_method_token: item.response.payment_method.gateway_token,
+                connector_customer_id: item.response.account.id,
+                transaction_created_at: Some(item.response.created_at),
+                payment_method_sub_type: common_enums::PaymentMethodType::from(
+                    item.response.payment_method.funding_source,
+                ),
+                payment_method_type: common_enums::PaymentMethod::Card,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl From<RecurlyChargeStatus> for enums::AttemptStatus {
+    fn from(status: RecurlyChargeStatus) -> Self {
+        match status {
+            RecurlyChargeStatus::Succeeded => Self::Charged,
+            RecurlyChargeStatus::Failed => Self::Failure,
+        }
+    }
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl From<RecurlyFundingTypes> for common_enums::PaymentMethodType {
+    fn from(funding: RecurlyFundingTypes) -> Self {
+        match funding {
+            RecurlyFundingTypes::Credit | RecurlyFundingTypes::Charge => Self::Credit,
+            RecurlyFundingTypes::Debit
+            | RecurlyFundingTypes::Prepaid
+            | RecurlyFundingTypes::DeferredDebit
+            | RecurlyFundingTypes::Unknown => Self::Debit,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum RecurlyRecordStatus {
@@ -309,7 +459,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyRecordbackResponse {
-    // invoice id
+    // Invoice id
     pub id: id_type::PaymentReferenceId,
 }
 
