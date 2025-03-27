@@ -550,7 +550,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
-    single_use_token: Option<&payment_method_data::SingleUsePaymentMethodToken>,
+    single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
