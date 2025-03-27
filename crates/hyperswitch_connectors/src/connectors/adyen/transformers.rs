@@ -178,7 +178,6 @@ pub struct LineItem {
     quantity: Option<u16>,
 }
 
-
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -284,7 +283,6 @@ pub struct AdyenPaymentRequest<'a> {
     country_code: Option<enums::CountryAlpha2>,
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
-    metadata: Option<common_utils::pii::SecretSerdeValue>,
     merchant_order_reference: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
@@ -2840,6 +2838,8 @@ impl
             .clone()
             .and_then(|metadata| get_device_fingerprint(metadata));
 
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -2860,7 +2860,7 @@ impl
             shopper_email: None,
             shopper_locale: None,
             social_security_number: None,
-            billing_address: None,
+            billing_address,
             delivery_address,
             country_code: None,
             line_items: None,
@@ -2869,7 +2869,6 @@ impl
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -2948,7 +2947,6 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -2999,6 +2997,8 @@ impl
             .clone()
             .and_then(|metadata| get_device_fingerprint(metadata));
 
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3019,7 +3019,7 @@ impl
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number,
-            billing_address: None,
+            billing_address,
             delivery_address,
             country_code,
             line_items: None,
@@ -3028,7 +3028,6 @@ impl
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3104,7 +3103,6 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3150,7 +3148,8 @@ impl
             .metadata
             .clone()
             .and_then(|metadata| get_device_fingerprint(metadata));
-
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3171,7 +3170,7 @@ impl
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number,
-            billing_address: None,
+            billing_address,
             delivery_address,
             country_code: None,
             line_items: None,
@@ -3180,7 +3179,6 @@ impl
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3226,6 +3224,8 @@ impl
             .clone()
             .and_then(|metadata| get_device_fingerprint(metadata));
 
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
@@ -3245,7 +3245,7 @@ impl
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
             telephone_number,
-            billing_address: None,
+            billing_address,
             delivery_address,
             country_code: None,
             line_items: None,
@@ -3255,7 +3255,6 @@ impl
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3336,7 +3335,6 @@ impl
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3459,7 +3457,6 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             channel,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3552,7 +3549,6 @@ impl
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -3605,7 +3601,8 @@ impl
             .metadata
             .clone()
             .and_then(|metadata| get_device_fingerprint(metadata));
-
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
@@ -3623,7 +3620,7 @@ impl
             shopper_name,
             shopper_email,
             shopper_locale: None,
-            billing_address: None,
+            billing_address,
             delivery_address,
             country_code: None,
             line_items: None,
@@ -3633,7 +3630,6 @@ impl
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
             splits,
@@ -5845,7 +5841,6 @@ impl
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             mpi_data: Some(mpi_data),
             store,
