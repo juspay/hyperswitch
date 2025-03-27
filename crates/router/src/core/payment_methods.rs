@@ -994,7 +994,7 @@ pub async fn create_payment_method_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method, &&None)?;
 
             Ok((resp, payment_method))
         }
@@ -2859,18 +2859,20 @@ async fn add_single_use_token_to_store(
 async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
-) -> CustomResult<payment_method_data::SingleUsePaymentMethodToken, errors::StorageError> {
+) -> CustomResult<Option<payment_method_data::SingleUsePaymentMethodToken>, errors::StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
         .map_err(Into::<errors::StorageError>::into)?;
 
-    redis_connection
+    match redis_connection
         .get_and_deserialize_key::<payment_method_data::SingleUsePaymentMethodToken>(
             &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
             "SingleUsePaymentMethodToken",
         )
         .await
-        .change_context(errors::StorageError::KVError)
-        .attach_printable("Failed to get payment method token from redis")
+    {
+        Ok(token) => Ok(Some(token)),
+        Err(e) => Ok(None),
+    }
 }
