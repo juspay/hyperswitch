@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.26.0-hotfix1
+
+### Refactors
+
+- **connector:** [TrustPay] Fix status and wasm changes ([#7651](https://github.com/juspay/hyperswitch/pull/7651)) ([`cc7617d`](https://github.com/juspay/hyperswitch/commit/cc7617df12b4f5694c490ffa73b681753a8844a3))
+
+**Full Changelog:** [`2025.03.26.0...2025.03.26.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.03.26.0...2025.03.26.0-hotfix1)
+
+
+- - -
+
 ## 2025.03.26.0
 
 ### Features
