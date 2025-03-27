@@ -119,6 +119,9 @@ pub struct ConfigMetadata {
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
     pub merchant_configuration_id: Option<InputData>,
+    pub currency_id: Option<InputData>,
+    pub platform_id: Option<InputData>,
+    pub ledger_account_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
