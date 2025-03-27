@@ -5,7 +5,7 @@ const cardDetailsWithoutNickName = {
   card_number: "4111111111111111",
   card_exp_month: "03",
   card_exp_year: "30",
-  card_holder_name: "joseph Doe",
+  card_holder_name: "John Doe",
   card_cvc: "737",
 };
 

@@ -23,7 +23,6 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {

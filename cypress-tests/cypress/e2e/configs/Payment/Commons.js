@@ -10,8 +10,6 @@ export const customerAcceptance = {
   },
 };
 
-
-
 const cardDetailsWithoutNickName = {
   card_number: "4111111111111111",
   card_exp_month: "08",
