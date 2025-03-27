@@ -53,7 +53,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         let request = PaymentsGetIntentRequest {
             id: tracking_data.global_payment_id.clone(),
         };
-        let key_manager_state = &state.into();
         let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
@@ -76,19 +75,37 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                Box::pin(pcr::perform_execute_payment(
+                pcr::perform_execute_payment(
                     state,
                     &process,
                     &tracking_data,
                     &pcr_data,
-                    key_manager_state,
                     &payment_data.payment_intent,
-                ))
+                )
                 .await
             }
-            Some("PSYNC_WORKFLOW") => todo!(),
+            Some("PSYNC_WORKFLOW") => {
+                Box::pin(pcr::perform_payments_sync(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &pcr_data,
+                ))
+                .await?;
+                Ok(())
+            }
 
-            Some("REVIEW_WORKFLOW") => todo!(),
+            Some("REVIEW_WORKFLOW") => {
+                pcr::perform_review_task(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &pcr_data,
+                    &payment_data.payment_intent,
+                )
+                .await?;
+                Ok(())
+            }
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
