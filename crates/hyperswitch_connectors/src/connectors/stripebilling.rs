@@ -627,7 +627,10 @@ impl
         data: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<recovery_router_data_types::BillingConnectorPaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<
+        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
+        errors::ConnectorError,
+    > {
         let response: stripebilling::StripebillingRecoveryDetailsData = res
             .response
             .parse_struct::<stripebilling::StripebillingRecoveryDetailsData>(
@@ -638,11 +641,13 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData::try_from(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+        )
     }
 
     fn get_error_response(
@@ -721,7 +726,10 @@ impl
         data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<recovery_router_data_types::RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
+    ) -> CustomResult<
+        recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        errors::ConnectorError,
+    > {
         let response = res
             .response
             .parse_struct::<stripebilling::StripebillingRecordBackResponse>(
@@ -730,11 +738,13 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        recovery_router_data_types::RevenueRecoveryRecordBackRouterData::try_from(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+        )
     }
 
     fn get_error_response(

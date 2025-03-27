@@ -436,29 +436,32 @@ impl
         ));
 
         Ok(Self {
-            response: Ok(recovery_response_types::BillingConnectorPaymentsSyncResponse {
-                status: item.response.status.into(),
-                amount: item.response.amount,
-                currency: item.response.currency,
-                merchant_reference_id,
-                connector_account_reference_id:
-                    MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA.to_string(),
-                connector_transaction_id,
-                error_code: item.response.failure_code,
-                error_message: item.response.failure_message,
-                processor_payment_method_token: item.response.payment_method,
-                connector_customer_id: item.response.customer,
-                transaction_created_at: Some(item.response.created),
-                payment_method_sub_type: common_enums::PaymentMethodType::from(
-                    item.response
-                        .payment_method_details
-                        .card_funding_type
-                        .funding,
-                ),
-                payment_method_type: common_enums::PaymentMethod::from(
-                    item.response.payment_method_details.type_of_payment_method,
-                ),
-            }),
+            response: Ok(
+                recovery_response_types::BillingConnectorPaymentsSyncResponse {
+                    status: item.response.status.into(),
+                    amount: item.response.amount,
+                    currency: item.response.currency,
+                    merchant_reference_id,
+                    connector_account_reference_id:
+                        MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA
+                            .to_string(),
+                    connector_transaction_id,
+                    error_code: item.response.failure_code,
+                    error_message: item.response.failure_message,
+                    processor_payment_method_token: item.response.payment_method,
+                    connector_customer_id: item.response.customer,
+                    transaction_created_at: Some(item.response.created),
+                    payment_method_sub_type: common_enums::PaymentMethodType::from(
+                        item.response
+                            .payment_method_details
+                            .card_funding_type
+                            .funding,
+                    ),
+                    payment_method_type: common_enums::PaymentMethod::from(
+                        item.response.payment_method_details.type_of_payment_method,
+                    ),
+                },
+            ),
             ..item.data
         })
     }

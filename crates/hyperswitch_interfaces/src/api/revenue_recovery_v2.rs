@@ -16,7 +16,10 @@ use hyperswitch_domain_models::{
 use crate::connector_integration_v2::ConnectorIntegrationV2;
 
 /// trait RevenueRecoveryV2
-pub trait RevenueRecoveryV2: BillingConnectorPaymentsSyncIntegrationV2 + RevenueRecoveryRecordBackV2 {}
+pub trait RevenueRecoveryV2:
+    BillingConnectorPaymentsSyncIntegrationV2 + RevenueRecoveryRecordBackV2
+{
+}
 
 /// trait BillingConnectorPaymentsSyncIntegrationV2
 pub trait BillingConnectorPaymentsSyncIntegrationV2:

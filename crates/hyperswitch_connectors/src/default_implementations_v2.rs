@@ -2,7 +2,7 @@ use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_data_v2::{
         flow_common_types::{
-            DisputesFlowData, BillingConnectorPaymentsSyncFlowData, MandateRevokeFlowData,
+            BillingConnectorPaymentsSyncFlowData, DisputesFlowData, MandateRevokeFlowData,
             PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
             WebhookSourceVerifyData,
         },
@@ -28,9 +28,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        revenue_recovery::{
-            BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
-        },
+        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
@@ -98,7 +96,8 @@ use hyperswitch_interfaces::{
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
-            BillingConnectorPaymentsSyncIntegrationV2, RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
+            BillingConnectorPaymentsSyncIntegrationV2, RevenueRecoveryRecordBackV2,
+            RevenueRecoveryV2,
         },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },

@@ -21,9 +21,7 @@ use hyperswitch_domain_models::{
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
-        revenue_recovery::{
-            BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
-        },
+        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,

@@ -10,8 +10,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     errors::api_error_response, revenue_recovery, router_data_v2::flow_common_types,
     router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
-    router_response_types::revenue_recovery as revenue_recovery_response,
-    types as router_types,
+    router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
@@ -61,13 +60,11 @@ pub async fn recovery_incoming_webhook_flow(
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-    let billing_connectors_with_payment_sync_call =
-        &state.conf.billing_connectors_payment_sync;
+    let billing_connectors_with_payment_sync_call = &state.conf.billing_connectors_payment_sync;
 
-    let should_billing_connector_payment_api_called =
-        billing_connectors_with_payment_sync_call
-            .billing_connectors_which_require_payment_sync
-            .contains(&connector);
+    let should_billing_connector_payment_api_called = billing_connectors_with_payment_sync_call
+        .billing_connectors_which_require_payment_sync
+        .contains(&connector);
 
     let billing_connector_payment_details =
         BillingConnectorPaymentsSyncResponseData::get_billing_connector_payment_details(
@@ -654,7 +651,9 @@ impl RevenueRecoveryAttempt {
 pub struct BillingConnectorPaymentsSyncResponseData(
     revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
 );
-pub struct BillingConnectorPaymentsSyncFlowRouterData(router_types::BillingConnectorPaymentsSyncRouterData);
+pub struct BillingConnectorPaymentsSyncFlowRouterData(
+    router_types::BillingConnectorPaymentsSyncRouterData,
+);
 
 impl BillingConnectorPaymentsSyncResponseData {
     async fn handle_billing_connector_payment_sync_call(
@@ -674,9 +673,9 @@ impl BillingConnectorPaymentsSyncResponseData {
         .attach_printable("invalid connector name received in payment attempt")?;
 
         let connector_integration: services::BoxedBillingConnectorPaymentsSyncIntegrationInterface<
-        router_flow_types::BillingConnectorPaymentsSync,
-        revenue_recovery_request::BillingConnectorPaymentsSyncRequest,
-        revenue_recovery_response::BillingConnectorPaymentsSyncResponse
+            router_flow_types::BillingConnectorPaymentsSync,
+            revenue_recovery_request::BillingConnectorPaymentsSyncRequest,
+            revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         > = connector_data.connector.get_connector_integration();
 
         let router_data =
@@ -789,7 +788,9 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
                 router_data,
             )
             .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
-            .attach_printable("Cannot construct router data for making the billing connector payments api call")?;
+            .attach_printable(
+                "Cannot construct router data for making the billing connector payments api call",
+            )?;
 
         Ok(Self(old_router_data))
     }

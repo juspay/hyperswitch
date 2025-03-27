@@ -56,7 +56,9 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
-        revenue_recovery::{ BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack},
+        revenue_recovery::{
+            BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack,
+        },
         revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,

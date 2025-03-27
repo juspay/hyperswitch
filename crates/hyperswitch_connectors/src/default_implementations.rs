@@ -24,9 +24,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::{
-        BillingConnectorPaymentsSync, RecoveryRecordBack,
-    },
+    router_flow_types::revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
     router_request_types::revenue_recovery::{
         BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
     },
@@ -100,10 +98,10 @@ use hyperswitch_interfaces::{
             PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
+        revenue_recovery::RevenueRecovery,
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
         ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
         UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
-        revenue_recovery::RevenueRecovery
     },
     errors::ConnectorError,
 };
