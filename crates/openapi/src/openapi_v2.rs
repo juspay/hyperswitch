@@ -143,10 +143,14 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_session_retrieve,
         routes::payment_method::payment_method_session_list_payment_methods,
         routes::payment_method::payment_method_session_update_saved_payment_method,
+        routes::payment_method::payment_method_session_delete_saved_payment_method,
         routes::payment_method::payment_method_session_confirm,
 
         //Routes for refunds
         routes::refunds::refunds_create,
+
+        // Routes for Revenue Recovery flow under Process Tracker
+        routes::revenue_recovery::revenue_recovery_pt_retrieve_api
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -212,6 +216,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCreate,
         api_models::payment_methods::PaymentMethodIntentCreate,
         api_models::payment_methods::PaymentMethodIntentConfirm,
+        api_models::payment_methods::AuthenticationDetails,
         api_models::payment_methods::PaymentMethodResponse,
         api_models::payment_methods::PaymentMethodResponseData,
         api_models::payment_methods::CustomerPaymentMethod,
@@ -699,6 +704,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
         api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
+        api_models::payment_methods::PaymentMethodSessionDeleteSavedPaymentMethod,
         common_utils::types::BrowserInformation,
         api_models::enums::TokenizationType,
         api_models::enums::NetworkTokenizationToggle,
@@ -706,6 +712,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodSessionConfirmRequest,
         api_models::payment_methods::PaymentMethodSessionResponse,
         api_models::payment_methods::AuthenticationDetails,
+        api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
+        api_models::enums::ProcessTrackerStatus,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)

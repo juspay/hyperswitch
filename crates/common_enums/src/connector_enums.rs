@@ -80,6 +80,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -224,6 +225,7 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -378,13 +380,14 @@ impl Connector {
             | Self::Cashtocode
             | Self::Chargebee
             | Self::Coinbase
-            |Self::Coingate
+            | Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Elavon
+            // | Self::Facilitapay
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -534,6 +537,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dlocal => Self::Dlocal,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
+            // RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -642,6 +646,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Dlocal => Ok(Self::Dlocal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
+            // Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),

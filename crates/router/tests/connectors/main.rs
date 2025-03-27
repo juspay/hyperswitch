@@ -34,6 +34,7 @@ mod dlocal;
 mod dummyconnector;
 mod ebanx;
 mod elavon;
+mod facilitapay;
 mod fiserv;
 mod fiservemea;
 mod fiuu;
