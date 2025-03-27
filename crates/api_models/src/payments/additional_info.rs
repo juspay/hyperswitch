@@ -151,6 +151,7 @@ pub enum BankTransferAdditionalData {
     Pix(Box<PixBankTransferAdditionalData>),
     Pse {},
     LocalBankTransfer(Box<LocalBankTransferAdditionalData>),
+    InstantBankTransfer {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

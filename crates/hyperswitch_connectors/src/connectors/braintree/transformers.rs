@@ -206,10 +206,19 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CustomerBody {
+    email: pii::Email,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegularTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     channel: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_details: Option<CustomerBody>,
+    order_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -218,6 +227,9 @@ pub struct VaultTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     vault_payment_method_after_transacting: TransactionTiming,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_details: Option<CustomerBody>,
+    order_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -257,6 +269,8 @@ impl
                 amount: item.amount.to_owned(),
                 merchant_account_id: metadata.merchant_account_id,
                 channel: CHANNEL_CODE.to_string(),
+                customer_details: None,
+                order_id: item.router_data.connector_request_reference_id.clone(),
             }),
         );
         Ok(Self {
@@ -447,7 +461,8 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors, item.http_code),
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreeAuthResponse::AuthResponse(auth_response) => {
@@ -461,6 +476,8 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -513,7 +530,7 @@ impl<F>
 fn build_error_response<T>(
     response: &[ErrorDetails],
     http_code: u16,
-) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
+) -> Result<T, Box<hyperswitch_domain_models::router_data::ErrorResponse>> {
     let error_messages = response
         .iter()
         .map(|error| error.message.to_string())
@@ -542,15 +559,19 @@ fn get_error_response<T>(
     error_msg: Option<String>,
     error_reason: Option<String>,
     http_code: u16,
-) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
-    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-        code: error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-        message: error_msg.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-        reason: error_reason,
-        status_code: http_code,
-        attempt_status: None,
-        connector_transaction_id: None,
-    })
+) -> Result<T, Box<hyperswitch_domain_models::router_data::ErrorResponse>> {
+    Err(Box::new(
+        hyperswitch_domain_models::router_data::ErrorResponse {
+            code: error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: error_msg.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: error_reason,
+            status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+        },
+    ))
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
@@ -624,7 +645,8 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreePaymentsResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors.clone(), item.http_code),
+                response: build_error_response(&error_response.errors.clone(), item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreePaymentsResponse::PaymentsResponse(payment_response) => {
@@ -638,6 +660,8 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -708,7 +732,8 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeCompleteChargeResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors.clone(), item.http_code),
+                response: build_error_response(&error_response.errors.clone(), item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreeCompleteChargeResponse::PaymentsResponse(payment_response) => {
@@ -722,6 +747,8 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -773,7 +800,8 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeCompleteAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors, item.http_code),
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreeCompleteAuthResponse::AuthResponse(auth_response) => {
@@ -787,6 +815,8 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -848,6 +878,8 @@ pub struct DataResponse {
 pub struct RefundInputData {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<String>,
 }
 #[derive(Serialize, Debug, Clone)]
 struct IdFilter {
@@ -901,6 +933,7 @@ impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundR
                 refund: RefundInputData {
                     amount: item.amount,
                     merchant_account_id: metadata.merchant_account_id,
+                    order_id: item.router_data.refund_id.clone(),
                 },
             },
         };
@@ -962,7 +995,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
         Ok(Self {
             response: match item.response {
                 BraintreeRefundResponse::ErrorResponse(error_response) => {
-                    build_error_response(&error_response.errors, item.http_code)
+                    build_error_response(&error_response.errors, item.http_code).map_err(|err| *err)
                 }
                 BraintreeRefundResponse::SuccessResponse(refund_data) => {
                     let refund_data = refund_data.data.refund_transaction.refund;
@@ -975,6 +1008,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.id),
                             status_code: item.http_code,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
@@ -1079,7 +1114,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, BraintreeRSyncResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeRSyncResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors, item.http_code),
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreeRSyncResponse::RSyncResponse(rsync_response) => {
@@ -1241,6 +1277,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResp
             response: match item.response {
                 BraintreeTokenResponse::ErrorResponse(error_response) => {
                     build_error_response(error_response.errors.as_ref(), item.http_code)
+                        .map_err(|err| *err)
                 }
 
                 BraintreeTokenResponse::TokenResponse(token_response) => {
@@ -1332,6 +1369,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1352,7 +1391,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                 })
             }
             BraintreeCaptureResponse::ErrorResponse(error_data) => Ok(Self {
-                response: build_error_response(&error_data.errors, item.http_code),
+                response: build_error_response(&error_data.errors, item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
         }
@@ -1417,6 +1457,7 @@ impl<F>
             response: match item.response {
                 BraintreeRevokeMandateResponse::ErrorResponse(error_response) => {
                     build_error_response(error_response.errors.as_ref(), item.http_code)
+                        .map_err(|err| *err)
                 }
                 BraintreeRevokeMandateResponse::RevokeMandateResponse(..) => {
                     Ok(MandateRevokeResponseData {
@@ -1515,7 +1556,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeCancelResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors, item.http_code),
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreeCancelResponse::CancelResponse(void_response) => {
@@ -1529,6 +1571,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1611,7 +1655,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreePSyncResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors, item.http_code),
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
                 ..item.data
             }),
             BraintreePSyncResponse::SuccessResponse(psync_response) => {
@@ -1631,6 +1676,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1715,6 +1762,12 @@ impl
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: "ALWAYS".to_string(),
                     },
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         } else {
@@ -1727,6 +1780,12 @@ impl
                     amount: item.amount.to_owned(),
                     merchant_account_id: metadata.merchant_account_id,
                     channel: CHANNEL_CODE.to_string(),
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         };
@@ -1814,6 +1873,12 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: "ALWAYS".to_string(),
                     },
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         } else {
@@ -1826,6 +1891,12 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     amount: item.amount.to_owned(),
                     merchant_account_id: metadata.merchant_account_id,
                     channel: CHANNEL_CODE.to_string(),
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         };

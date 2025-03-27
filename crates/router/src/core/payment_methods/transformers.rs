@@ -985,6 +985,15 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
         // TODO: check how we can get this field
         let recurring_enabled = true;
 
+        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
+            details.payments.map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
+                })
+            })
+        });
+
         Ok(Self {
             id: item.id,
             customer_id: item.customer_id,
@@ -999,6 +1008,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
             is_default: false,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
+            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
         })
     }
 }

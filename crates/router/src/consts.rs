@@ -6,7 +6,10 @@ pub mod user_role;
 use std::collections::HashSet;
 
 use common_utils::consts;
-pub use hyperswitch_domain_models::consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH;
+pub use hyperswitch_domain_models::consts::{
+    CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
+    ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
+};
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 
 // ID generation
@@ -152,6 +155,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 
+/// [PaymentLink] Default bool for enabling button only when form is ready
+pub const DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY: bool = false;
+
 /// Default Merchant Logo Link
 pub const DEFAULT_MERCHANT_LOGO: &str =
     "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
@@ -226,3 +232,6 @@ pub(crate) const PROTOCOL: &str = "ECv2";
 
 /// Sender ID for Google Pay Decryption
 pub(crate) const SENDER_ID: &[u8] = b"Google";
+
+/// Default value for the number of attempts to retry fetching forex rates
+pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;

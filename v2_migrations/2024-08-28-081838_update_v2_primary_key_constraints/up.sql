@@ -76,3 +76,8 @@ ADD PRIMARY KEY (id);
 -- Add primary key constraint
 ALTER TABLE payment_methods 
 ADD PRIMARY KEY (id);
+
+------------------------ Refunds -----------------------
+-- Add primary key constraint
+ALTER TABLE refund
+ADD PRIMARY KEY (id);
