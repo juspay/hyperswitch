@@ -1898,9 +1898,7 @@ impl PaymentMethodType {
             Self::MomoAtm => "MoMo ATM".to_string(),
             Self::Multibanco => "Multibanco".to_string(),
             Self::OnlineBankingThailand => "Online Banking Thailand".to_string(),
-            Self::OnlineBankingCzechRepublic => {
-                "Online Banking Czech Republic".to_string()
-            }
+            Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic".to_string(),
             Self::OnlineBankingFinland => "Online Banking Finland".to_string(),
             Self::OnlineBankingFpx => "Online Banking FPX".to_string(),
             Self::OnlineBankingPoland => "Online Banking Poland".to_string(),
