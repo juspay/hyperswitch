@@ -12,10 +12,10 @@ pub struct FeatureMatrixRequest {
 
 #[derive(Debug, Clone, ToSchema, Serialize)]
 pub struct CardSpecificFeatures {
-    /// Indicates whether three_ds card payments are supported.
+    /// Indicates whether three_ds card payments are supported
     #[schema(value_type = FeatureStatus)]
     pub three_ds: common_enums::FeatureStatus,
-    /// Indicates whether non three_ds card payments are supported.
+    /// Indicates whether non three_ds card payments are supported
     #[schema(value_type = FeatureStatus)]
     pub no_three_ds: common_enums::FeatureStatus,
     /// List of supported card networks
