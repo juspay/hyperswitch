@@ -424,7 +424,7 @@ impl Action {
     ) -> RecoveryResult<()> {
         match self {
             Self::SyncPayment(_active_attempt_id) => {
-                // retry the Psync Taks
+                // retry the Psync Tasks
                 let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
                     status: storage::enums::ProcessTrackerStatus::Pending,
                     business_status: Some(business_status::PENDING.to_owned()),
@@ -548,92 +548,4 @@ impl Action {
             None => Ok(Self::TerminalFailure),
         }
     }
-}
-
-async fn call_proxy_api(
-    state: &SessionState,
-    payment_intent: &PaymentIntent,
-    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
-    revenue_recovery: &PaymentRevenueRecoveryMetadata,
-) -> RouterResult<PaymentConfirmData<api_types::Authorize>> {
-    let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
-    let req = ProxyPaymentsRequest {
-        return_url: None,
-        amount: AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
-        shipping: None,
-        browser_info: None,
-        connector: revenue_recovery.connector.to_string(),
-        merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
-    };
-    logger::info!(
-        "Call made to payments proxy api , with the request body {:?}",
-        req
-    );
-
-    // TODO : Use api handler instead of calling get_tracker and payments_operation_core
-    // Get the tracker related information. This includes payment intent and payment attempt
-    let get_tracker_response = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            payment_intent.get_id(),
-            &req,
-            &pcr_data.merchant_account,
-            &pcr_data.profile,
-            &pcr_data.key_store,
-            &hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
-        )
-        .await?;
-
-    let (payment_data, _req, _, _) = Box::pin(payments::proxy_for_payments_operation_core::<
-        api_types::Authorize,
-        _,
-        _,
-        _,
-        PaymentConfirmData<api_types::Authorize>,
-    >(
-        state,
-        state.get_req_state(),
-        pcr_data.merchant_account.clone(),
-        pcr_data.key_store.clone(),
-        pcr_data.profile.clone(),
-        operation,
-        req,
-        get_tracker_response,
-        payments::CallConnectorAction::Trigger,
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-    ))
-    .await?;
-    Ok(payment_data)
-}
-
-pub async fn update_payment_intent_api(
-    state: &SessionState,
-    global_payment_id: id_type::GlobalPaymentId,
-    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
-    update_req: PaymentsUpdateIntentRequest,
-) -> RouterResult<PaymentIntentData<api_types::PaymentUpdateIntent>> {
-    // TODO : Use api handler instead of calling payments_intent_operation_core
-    let operation = payments::operations::PaymentUpdateIntent;
-    let (payment_data, _req, _) = payments::payments_intent_operation_core::<
-        api_types::PaymentUpdateIntent,
-        _,
-        _,
-        PaymentIntentData<api_types::PaymentUpdateIntent>,
-    >(
-        state,
-        state.get_req_state(),
-        pcr_data.merchant_account.clone(),
-        pcr_data.profile.clone(),
-        pcr_data.key_store.clone(),
-        operation,
-        update_req,
-        global_payment_id,
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
-    )
-    .await?;
-    Ok(payment_data)
 }

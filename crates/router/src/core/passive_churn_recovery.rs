@@ -1,3 +1,4 @@
+pub mod api;
 pub mod transformers;
 pub mod types;
 use api_models::payments::PaymentsRetrieveRequest;
@@ -206,55 +207,6 @@ pub async fn perform_payments_sync(
         .await?;
 
     Ok(())
-}
-
-pub async fn call_psync_api(
-    state: &SessionState,
-    global_payment_id: &id_type::GlobalPaymentId,
-    revenue_recovery_data: &pcr::PcrPaymentData,
-) -> RouterResult<PaymentStatusData<api::PSync>> {
-    let operation = payments::operations::PaymentGet;
-    let req = PaymentsRetrieveRequest {
-        force_sync: false,
-        param: None,
-        expand_attempts: true,
-    };
-    // TODO : Use api handler instead of calling get_tracker and payments_operation_core
-    // Get the tracker related information. This includes payment intent and payment attempt
-    let get_tracker_response = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            global_payment_id,
-            &req,
-            &revenue_recovery_data.merchant_account,
-            &revenue_recovery_data.profile,
-            &revenue_recovery_data.key_store,
-            &hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
-        )
-        .await?;
-
-    let (payment_data, _req, _, _, _) = Box::pin(payments::payments_operation_core::<
-        api::PSync,
-        _,
-        _,
-        _,
-        PaymentStatusData<api::PSync>,
-    >(
-        state,
-        state.get_req_state(),
-        revenue_recovery_data.merchant_account.clone(),
-        revenue_recovery_data.key_store.clone(),
-        &revenue_recovery_data.profile,
-        operation,
-        req,
-        get_tracker_response,
-        payments::CallConnectorAction::Trigger,
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-    ))
-    .await?;
-    Ok(payment_data)
 }
 
 async fn insert_review_task(
