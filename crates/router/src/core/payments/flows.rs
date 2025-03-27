@@ -14,7 +14,7 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
+    BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -2004,14 +2004,14 @@ default_imp_for_revenue_recovery! {
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_additional_revenue_recovery_call {
+macro_rules! default_imp_for_billing_connector_payment_sync {
     ($($path:ident::$connector:ident),*) => {
-        $(  impl api::AdditionalRevenueRecovery for $path::$connector {}
+        $(  impl api::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                GetAdditionalRevenueRecoveryDetails,
-                types::GetAdditionalRevenueRecoveryRequestData,
-                types::GetAdditionalRevenueRecoveryResponseData,
+                BillingConnectorPaymentsSync,
+                types::BillingConnectorPaymentsSyncRequest,
+                types::BillingConnectorPaymentsSyncResponse,
         > for $path::$connector
         {}
     )*
@@ -2019,20 +2019,20 @@ macro_rules! default_imp_for_additional_revenue_recovery_call {
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::AdditionalRevenueRecovery for connector::DummyConnector<T> {}
+impl<const T: u8> api::BillingConnectorPaymentsSyncIntegration for connector::DummyConnector<T> {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        GetAdditionalRevenueRecoveryDetails,
-        types::GetAdditionalRevenueRecoveryRequestData,
-        types::GetAdditionalRevenueRecoveryResponseData,
+        BillingConnectorPaymentsSync,
+        types::BillingConnectorPaymentsSyncRequest,
+        types::BillingConnectorPaymentsSyncResponse,
     > for connector::DummyConnector<T>
 {
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_additional_revenue_recovery_call!(
+default_imp_for_billing_connector_payment_sync!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,

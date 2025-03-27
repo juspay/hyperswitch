@@ -6,13 +6,13 @@ use crate::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken, CalculateTax,
         Capture, CompleteAuthorize, CreateConnectorCustomer, Execute,
-        GetAdditionalRevenueRecoveryDetails, IncrementalAuthorization, PSync, PaymentMethodToken,
+        BillingConnectorPaymentsSync, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
         SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
-            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+            BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -29,7 +29,7 @@ use crate::{
     },
     router_response_types::{
         revenue_recovery::{
-            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
         },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VerifyWebhookSourceResponseData,
@@ -104,8 +104,8 @@ pub type RevenueRecoveryRecordBackRouterData = RouterData<
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
 
-pub type AdditionalRevenueRecoveryDetailsRouterData = RouterData<
-    GetAdditionalRevenueRecoveryDetails,
-    GetAdditionalRevenueRecoveryRequestData,
-    GetAdditionalRevenueRecoveryResponseData,
+pub type BillingConnectorPaymentsSyncRouterData = RouterData<
+    BillingConnectorPaymentsSync,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
 >;

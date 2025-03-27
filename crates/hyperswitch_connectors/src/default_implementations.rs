@@ -25,13 +25,13 @@ use hyperswitch_domain_models::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
+        BillingConnectorPaymentsSync, RecoveryRecordBack,
     },
     router_request_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+        BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
     },
     router_response_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+        BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
     },
 };
 use hyperswitch_domain_models::{
@@ -83,7 +83,7 @@ use hyperswitch_interfaces::api::payouts::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery::{
-    AdditionalRevenueRecovery, RevenueRecoveryRecordBack,
+    BillingConnectorPaymentsSyncIntegration, RevenueRecoveryRecordBack,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -101,8 +101,9 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
-        ConnectorTransactionId, RevenueRecovery, UasAuthentication, UasAuthenticationConfirmation,
+        ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
         UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+        revenue_recovery::RevenueRecovery
     },
     errors::ConnectorError,
 };
@@ -4069,14 +4070,14 @@ default_imp_for_revenue_recovery! {
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_additional_revenue_recovery_call {
+macro_rules! default_imp_for_billing_connector_payment_sync {
     ($($path:ident::$connector:ident),*) => {
-        $(  impl AdditionalRevenueRecovery for $path::$connector {}
+        $(  impl BillingConnectorPaymentsSyncIntegration for $path::$connector {}
             impl
                 ConnectorIntegration<
-                GetAdditionalRevenueRecoveryDetails,
-                GetAdditionalRevenueRecoveryRequestData,
-                GetAdditionalRevenueRecoveryResponseData
+                BillingConnectorPaymentsSync,
+                BillingConnectorPaymentsSyncRequest,
+                BillingConnectorPaymentsSyncResponse
             > for $path::$connector
             {}
         )*
@@ -4084,7 +4085,7 @@ macro_rules! default_imp_for_additional_revenue_recovery_call {
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_additional_revenue_recovery_call!(
+default_imp_for_billing_connector_payment_sync!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,

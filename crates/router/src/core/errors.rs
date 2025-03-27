@@ -499,5 +499,5 @@ pub enum RevenueRecoveryError {
     #[error("Failed to get the response from process tracker")]
     ProcessTrackerResponseError,
     #[error("Additional revenue recovery call failed")]
-    AdditionalRevenueRecoveryCallFailed,
+    BillingConnectorPaymentsSyncFailed,
 }

@@ -18,16 +18,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
-    },
-    router_request_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
-    },
-    router_response_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
-    },
-    types::{AdditionalRevenueRecoveryDetailsRouterData, RevenueRecoveryRecordBackRouterData},
+    router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    types as recovery_router_data_types,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -415,20 +409,20 @@ const MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA: &str 
 impl
     TryFrom<
         ResponseRouterData<
-            GetAdditionalRevenueRecoveryDetails,
+            recovery_router_flows::BillingConnectorPaymentsSync,
             StripebillingRecoveryDetailsData,
-            GetAdditionalRevenueRecoveryRequestData,
-            GetAdditionalRevenueRecoveryResponseData,
+            recovery_request_types::BillingConnectorPaymentsSyncRequest,
+            recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
-    > for AdditionalRevenueRecoveryDetailsRouterData
+    > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            GetAdditionalRevenueRecoveryDetails,
+            recovery_router_flows::BillingConnectorPaymentsSync,
             StripebillingRecoveryDetailsData,
-            GetAdditionalRevenueRecoveryRequestData,
-            GetAdditionalRevenueRecoveryResponseData,
+            recovery_request_types::BillingConnectorPaymentsSyncRequest,
+            recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id = id_type::PaymentReferenceId::from_str(
@@ -442,7 +436,7 @@ impl
         ));
 
         Ok(Self {
-            response: Ok(GetAdditionalRevenueRecoveryResponseData {
+            response: Ok(recovery_response_types::BillingConnectorPaymentsSyncResponse {
                 status: item.response.status.into(),
                 amount: item.response.amount,
                 currency: item.response.currency,
@@ -508,24 +502,24 @@ pub struct StripebillingRecordBackResponse {
 impl
     TryFrom<
         ResponseRouterData<
-            RecoveryRecordBack,
+            recovery_router_flows::RecoveryRecordBack,
             StripebillingRecordBackResponse,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
+            recovery_request_types::RevenueRecoveryRecordBackRequest,
+            recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
-    > for RevenueRecoveryRecordBackRouterData
+    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            RecoveryRecordBack,
+            recovery_router_flows::RecoveryRecordBack,
             StripebillingRecordBackResponse,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
+            recovery_request_types::RevenueRecoveryRecordBackRequest,
+            recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(RevenueRecoveryRecordBackResponse {
+            response: Ok(recovery_response_types::RevenueRecoveryRecordBackResponse {
                 merchant_reference_id: id_type::PaymentReferenceId::from_str(
                     item.response.id.as_str(),
                 )

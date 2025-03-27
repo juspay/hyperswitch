@@ -31,16 +31,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack,
-    },
-    router_request_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
-    },
-    router_response_types::revenue_recovery::{
-        GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
-    },
-    types::{AdditionalRevenueRecoveryDetailsRouterData, RevenueRecoveryRecordBackRouterData},
+    router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    types as recovery_router_data_types,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -89,7 +83,7 @@ impl api::PaymentToken for Stripebilling {}
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Stripebilling {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-impl api::AdditionalRevenueRecovery for Stripebilling {}
+impl api::revenue_recovery::BillingConnectorPaymentsSyncIntegration for Stripebilling {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Stripebilling
@@ -581,14 +575,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripebil
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
-        GetAdditionalRevenueRecoveryDetails,
-        GetAdditionalRevenueRecoveryRequestData,
-        GetAdditionalRevenueRecoveryResponseData,
+        recovery_router_flows::BillingConnectorPaymentsSync,
+        recovery_request_types::BillingConnectorPaymentsSyncRequest,
+        recovery_response_types::BillingConnectorPaymentsSyncResponse,
     > for Stripebilling
 {
     fn get_headers(
         &self,
-        req: &AdditionalRevenueRecoveryDetailsRouterData,
+        req: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -600,28 +594,28 @@ impl
 
     fn get_url(
         &self,
-        req: &AdditionalRevenueRecoveryDetailsRouterData,
+        req: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}v1/charges/{}",
             self.base_url(connectors),
-            req.request.additional_revenue_recovery_id
+            req.request.billing_connector_psync_id
         ))
     }
 
     fn build_request(
         &self,
-        req: &AdditionalRevenueRecoveryDetailsRouterData,
+        req: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Get)
-            .url(&types::AdditionalRevenueRecoveryCallType::get_url(
+            .url(&types::BillingConnectorPaymentsSyncType::get_url(
                 self, req, connectors,
             )?)
             .attach_default_headers()
-            .headers(types::AdditionalRevenueRecoveryCallType::get_headers(
+            .headers(types::BillingConnectorPaymentsSyncType::get_headers(
                 self, req, connectors,
             )?)
             .build();
@@ -630,10 +624,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &AdditionalRevenueRecoveryDetailsRouterData,
+        data: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<AdditionalRevenueRecoveryDetailsRouterData, errors::ConnectorError> {
+    ) -> CustomResult<recovery_router_data_types::BillingConnectorPaymentsSyncRouterData, errors::ConnectorError> {
         let response: stripebilling::StripebillingRecoveryDetailsData = res
             .response
             .parse_struct::<stripebilling::StripebillingRecoveryDetailsData>(
@@ -644,7 +638,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        AdditionalRevenueRecoveryDetailsRouterData::try_from(ResponseRouterData {
+        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -663,14 +657,14 @@ impl
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
-        RecoveryRecordBack,
-        RevenueRecoveryRecordBackRequest,
-        RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::RecoveryRecordBack,
+        recovery_request_types::RevenueRecoveryRecordBackRequest,
+        recovery_response_types::RevenueRecoveryRecordBackResponse,
     > for Stripebilling
 {
     fn get_headers(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -682,7 +676,7 @@ impl
 
     fn get_url(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let invoice_id = req
@@ -705,7 +699,7 @@ impl
 
     fn build_request(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -724,10 +718,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &RevenueRecoveryRecordBackRouterData,
+        data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
+    ) -> CustomResult<recovery_router_data_types::RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
         let response = res
             .response
             .parse_struct::<stripebilling::StripebillingRecordBackResponse>(
@@ -736,7 +730,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RevenueRecoveryRecordBackRouterData::try_from(ResponseRouterData {
+        recovery_router_data_types::RevenueRecoveryRecordBackRouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

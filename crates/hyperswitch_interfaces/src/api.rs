@@ -71,7 +71,7 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{payments::*, refunds::*, revenue_recovery::*};
+pub use self::{payments::*, refunds::*};
 use crate::{
     connector_integration_v2::ConnectorIntegrationV2, consts, errors,
     events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
@@ -95,7 +95,7 @@ pub trait Connector:
     + authentication::ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
-    + RevenueRecovery
+    + revenue_recovery::RevenueRecovery
 {
 }
 
@@ -116,7 +116,7 @@ impl<
             + authentication::ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + RevenueRecovery,
+            + revenue_recovery::RevenueRecovery,
     > Connector for T
 {
 }

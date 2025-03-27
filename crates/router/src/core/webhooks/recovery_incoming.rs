@@ -11,9 +11,9 @@ use hyperswitch_domain_models::{
     errors::api_error_response, revenue_recovery, router_data_v2::flow_common_types,
     router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response,
-    types::AdditionalRevenueRecoveryDetailsRouterData,
+    types as router_types,
 };
-use hyperswitch_interfaces::{api::RevenueRecovery, webhooks as interface_webhooks};
+use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
 use serde_with::rust::unwrap_or_skip;
 
@@ -61,16 +61,16 @@ pub async fn recovery_incoming_webhook_flow(
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-    let billing_connectors_which_require_payment_api_call =
-        &state.conf.additional_revenue_recovery_details_call;
+    let billing_connectors_with_payment_sync_call =
+        &state.conf.billing_connectors_payment_sync;
 
     let should_billing_connector_payment_api_called =
-        billing_connectors_which_require_payment_api_call
-            .connectors_with_additional_revenue_recovery_details_call
+        billing_connectors_with_payment_sync_call
+            .billing_connectors_which_require_payment_sync
             .contains(&connector);
 
     let billing_connector_payment_details =
-        AdditionalRevenueRecoveryResponse::get_billing_connector_payment_details(
+        BillingConnectorPaymentsSyncResponseData::get_billing_connector_payment_details(
             should_billing_connector_payment_api_called,
             &state,
             &merchant_account,
@@ -184,7 +184,7 @@ impl RevenueRecoveryInvoice {
         connector_enum: &connector_integration_interface::ConnectorEnum,
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
         billing_connector_payment_details: Option<
-            &revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData,
+            &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         billing_connector_payment_details.map_or_else(
@@ -306,7 +306,7 @@ impl RevenueRecoveryAttempt {
         connector_enum: &connector_integration_interface::ConnectorEnum,
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
         billing_connector_payment_details: Option<
-            &revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData,
+            &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         billing_connector_payment_details.map_or_else(
@@ -513,7 +513,7 @@ impl RevenueRecoveryAttempt {
         connector_enum: &connector_integration_interface::ConnectorEnum,
         req_state: &ReqState,
         billing_connector_payment_details: Option<
-            &revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData,
+            &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         >,
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
@@ -651,13 +651,13 @@ impl RevenueRecoveryAttempt {
     }
 }
 
-pub struct AdditionalRevenueRecoveryResponse(
-    revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData,
+pub struct BillingConnectorPaymentsSyncResponseData(
+    revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
 );
-pub struct AdditionalRevenueRecoveryRouterData(AdditionalRevenueRecoveryDetailsRouterData);
+pub struct BillingConnectorPaymentsSyncFlowRouterData(router_types::BillingConnectorPaymentsSyncRouterData);
 
-impl AdditionalRevenueRecoveryResponse {
-    async fn handle_additional_recovery_details_call(
+impl BillingConnectorPaymentsSyncResponseData {
+    async fn handle_billing_connector_payment_sync_call(
         state: &SessionState,
         merchant_account: &domain::MerchantAccount,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
@@ -670,17 +670,17 @@ impl AdditionalRevenueRecoveryResponse {
             api::GetToken::Connector,
             None,
         )
-        .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
+        .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
         .attach_printable("invalid connector name received in payment attempt")?;
 
-        let connector_integration: services::BoxedGetAdditionalRecoveryRecoveryDetailsIntegrationInterface<
-        router_flow_types::GetAdditionalRevenueRecoveryDetails,
-        revenue_recovery_request::GetAdditionalRevenueRecoveryRequestData,
-        revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData
+        let connector_integration: services::BoxedBillingConnectorPaymentsSyncIntegrationInterface<
+        router_flow_types::BillingConnectorPaymentsSync,
+        revenue_recovery_request::BillingConnectorPaymentsSyncRequest,
+        revenue_recovery_response::BillingConnectorPaymentsSyncResponse
         > = connector_data.connector.get_connector_integration();
 
         let router_data =
-            AdditionalRevenueRecoveryRouterData::construct_router_data_for_additional_call(
+            BillingConnectorPaymentsSyncFlowRouterData::construct_router_data_for_billing_connector_payment_sync_call(
                 state,
                 connector_name,
                 merchant_connector_account,
@@ -688,9 +688,9 @@ impl AdditionalRevenueRecoveryResponse {
                 id,
             )
             .await
-            .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
+            .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
             .attach_printable(
-                "Failed while constructing additional recovery details call router data",
+                "Failed while constructing router data for billing connector psync call",
             )?
             .inner();
 
@@ -702,15 +702,15 @@ impl AdditionalRevenueRecoveryResponse {
             None,
         )
         .await
-        .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
-        .attach_printable("Failed while fetching additional revenue recovery details")?;
+        .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+        .attach_printable("Failed while fetching billing connector payment details")?;
 
         let additional_recovery_details = match response.response {
             Ok(response) => Ok(response),
             error @ Err(_) => {
                 router_env::logger::error!(?error);
-                Err(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
-                    .attach_printable("Failed while fetching additional revenue recovery details")
+                Err(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+                    .attach_printable("Failed while fetching billing connector payment details")
             }
         }?;
         Ok(Self(additional_recovery_details))
@@ -724,7 +724,7 @@ impl AdditionalRevenueRecoveryResponse {
         connector_name: &str,
         object_ref_id: &webhooks::ObjectReferenceId,
     ) -> CustomResult<
-        Option<revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData>,
+        Option<revenue_recovery_response::BillingConnectorPaymentsSyncResponse>,
         errors::RevenueRecoveryError,
     > {
         let response_data = match should_billing_connector_payment_api_called {
@@ -733,11 +733,11 @@ impl AdditionalRevenueRecoveryResponse {
                     .clone()
                     .get_connector_transaction_id_as_string()
                     .change_context(
-                        errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed,
+                        errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed,
                     )
                     .attach_printable("Billing connector Payments api call failed")?;
                 let billing_connector_payment_details =
-                    Self::handle_additional_recovery_details_call(
+                    Self::handle_billing_connector_payment_sync_call(
                         state,
                         merchant_account,
                         billing_connector_account,
@@ -753,48 +753,48 @@ impl AdditionalRevenueRecoveryResponse {
         Ok(response_data)
     }
 
-    fn inner(self) -> revenue_recovery_response::GetAdditionalRevenueRecoveryResponseData {
+    fn inner(self) -> revenue_recovery_response::BillingConnectorPaymentsSyncResponse {
         self.0
     }
 }
 
-impl AdditionalRevenueRecoveryRouterData {
-    async fn construct_router_data_for_additional_call(
+impl BillingConnectorPaymentsSyncFlowRouterData {
+    async fn construct_router_data_for_billing_connector_payment_sync_call(
         state: &SessionState,
         connector_name: &str,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         merchant_account: &domain::MerchantAccount,
-        additional_revenue_recovery_id: &str,
+        billing_connector_psync_id: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let auth_type: types::ConnectorAuthType = helpers::MerchantConnectorAccountType::DbVal(
             Box::new(merchant_connector_account.clone()),
         )
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
-        .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)?;
+        .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)?;
 
         let router_data = types::RouterDataV2 {
-            flow: PhantomData::<router_flow_types::GetAdditionalRevenueRecoveryDetails>,
+            flow: PhantomData::<router_flow_types::BillingConnectorPaymentsSync>,
             tenant_id: state.tenant.tenant_id.clone(),
-            resource_common_data: flow_common_types::GetAdditionalRevenueRecoveryFlowCommonData,
+            resource_common_data: flow_common_types::BillingConnectorPaymentsSyncFlowData,
             connector_auth_type: auth_type,
-            request: revenue_recovery_request::GetAdditionalRevenueRecoveryRequestData {
-                additional_revenue_recovery_id: additional_revenue_recovery_id.to_string(),
+            request: revenue_recovery_request::BillingConnectorPaymentsSyncRequest {
+                billing_connector_psync_id: billing_connector_psync_id.to_string(),
             },
             response: Err(types::ErrorResponse::default()),
         };
 
         let old_router_data =
-            flow_common_types::GetAdditionalRevenueRecoveryFlowCommonData::to_old_router_data(
+            flow_common_types::BillingConnectorPaymentsSyncFlowData::to_old_router_data(
                 router_data,
             )
-            .change_context(errors::RevenueRecoveryError::AdditionalRevenueRecoveryCallFailed)
-            .attach_printable("Cannot construct router data for making the additional call")?;
+            .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+            .attach_printable("Cannot construct router data for making the billing connector payments api call")?;
 
         Ok(Self(old_router_data))
     }
 
-    fn inner(self) -> AdditionalRevenueRecoveryDetailsRouterData {
+    fn inner(self) -> router_types::BillingConnectorPaymentsSyncRouterData {
         self.0
     }
 }

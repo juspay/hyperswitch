@@ -2,7 +2,7 @@ use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_data_v2::{
         flow_common_types::{
-            DisputesFlowData, GetAdditionalRevenueRecoveryFlowCommonData, MandateRevokeFlowData,
+            DisputesFlowData, BillingConnectorPaymentsSyncFlowData, MandateRevokeFlowData,
             PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
             WebhookSourceVerifyData,
         },
@@ -22,14 +22,14 @@ use hyperswitch_domain_models::{
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::{GetAdditionalRevenueRecoveryDetails, RecoveryRecordBack},
+        revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
         webhooks::VerifyWebhookSource,
         AccessTokenAuth,
     },
     router_request_types::{
         authentication,
         revenue_recovery::{
-            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
+            BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
@@ -43,7 +43,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         revenue_recovery::{
-            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
@@ -98,7 +98,7 @@ use hyperswitch_interfaces::{
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
-            AdditionalRevenueRecoveryV2, RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
+            BillingConnectorPaymentsSyncIntegrationV2, RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
@@ -2651,8 +2651,8 @@ default_imp_for_new_connector_integration_connector_authentication!(
 
 macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
     ($($path:ident::$connector:ident),*) => {
-        $( impl RevenueRecoveryV2 for $path::$connector {}
-            impl AdditionalRevenueRecoveryV2 for $path::$connector {}
+        $(  impl RevenueRecoveryV2 for $path::$connector {}
+            impl BillingConnectorPaymentsSyncIntegrationV2 for $path::$connector {}
             impl RevenueRecoveryRecordBackV2 for $path::$connector {}
             impl
             ConnectorIntegrationV2<
@@ -2660,16 +2660,16 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
             RevenueRecoveryRecordBackData,
             RevenueRecoveryRecordBackRequest,
             RevenueRecoveryRecordBackResponse,
-        > for $path::$connector
-        {}
-        impl
-            ConnectorIntegrationV2<
-            GetAdditionalRevenueRecoveryDetails,
-            GetAdditionalRevenueRecoveryFlowCommonData,
-            GetAdditionalRevenueRecoveryRequestData,
-            GetAdditionalRevenueRecoveryResponseData,
-        > for $path::$connector
-        {}
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                BillingConnectorPaymentsSync,
+                BillingConnectorPaymentsSyncFlowData,
+                BillingConnectorPaymentsSyncRequest,
+                BillingConnectorPaymentsSyncResponse,
+            > for $path::$connector
+            {}
     )*
     };
 }

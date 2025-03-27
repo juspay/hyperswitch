@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-            GetAdditionalRevenueRecoveryFlowCommonData, MandateRevokeFlowData, PaymentFlowData,
+            BillingConnectorPaymentsSyncFlowData, MandateRevokeFlowData, PaymentFlowData,
             RefundFlowData, RevenueRecoveryRecordBackData, UasFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
@@ -800,7 +800,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
 }
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
-    for GetAdditionalRevenueRecoveryFlowCommonData
+    for BillingConnectorPaymentsSyncFlowData
 {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
@@ -827,7 +827,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     {
         let router_data = get_default_router_data(
             new_router_data.tenant_id.clone(),
-            "getadditionalrevenuerecoverydetails",
+            "BillingConnectorPaymentsSync",
             new_router_data.request,
             new_router_data.response,
         );
