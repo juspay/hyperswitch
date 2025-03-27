@@ -579,7 +579,8 @@ impl BizEmailProd {
             user_name: data.0.poc_name.unwrap_or_default().into(),
             poc_email: data.0.poc_email.unwrap_or_default(),
             legal_business_name: data.0.legal_business_name.unwrap_or_default(),
-            business_location: data.0
+            business_location: data
+                .0
                 .business_location
                 .unwrap_or(common_enums::CountryAlpha2::AD)
                 .to_string(),

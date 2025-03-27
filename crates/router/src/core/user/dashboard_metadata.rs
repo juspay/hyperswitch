@@ -483,9 +483,7 @@ async fn insert_metadata(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to retrieve merchant account by merchant_id")?;
 
-            let product_type = merchant_account
-                .product_type
-                .unwrap_or_default();
+            let product_type = merchant_account.product_type.unwrap_or_default();
 
             let mut data_value = serde_json::to_value(&data)
                 .change_context(UserErrors::InternalServerError)
