@@ -404,6 +404,74 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
     };
     logger::debug!(customer_saved_card_list_surcharge_source = surcharge_source_log_message);
+    
+    let metadata = get_surcharge_metadata_for_saved_cards(
+        payment_attempt, 
+        payment_intent, 
+        customer_payment_method_list, 
+        &mut surcharge_metadata, 
+        surcharge_source
+    ).await?;
+    
+    Ok(metadata)
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub async fn perform_surcharge_decision_management_for_saved_cards_profile_level(
+    state: &SessionState,
+    surcharge_algorithm_id: common_utils::id_type::SurchargeRoutingId,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
+    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone(), Some(surcharge_algorithm_id.0.get_string_repr().to_string()));
+    let surcharge_source = match (
+        payment_attempt.get_surcharge_details(),
+        surcharge_algorithm_id,
+    ) {
+        (Some(request_surcharge_details), _) => {
+            SurchargeSource::Predetermined(request_surcharge_details)
+        }
+        (None, algorithm_id) => {
+            let cached_algo = ensure_surcharge_algorithm_cached(
+                &*state.store,
+                &payment_attempt.merchant_id,
+                &payment_attempt.profile_id,
+                algorithm_id
+            )
+            .await?;
+
+            SurchargeSource::Generate(cached_algo)
+        }
+    };
+    let surcharge_source_log_message = match &surcharge_source {
+        SurchargeSource::Generate(_) => "Surcharge was calculated through surcharge rules",
+        SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
+    };
+    logger::debug!(customer_saved_card_list_surcharge_source = surcharge_source_log_message);
+
+    let metadata = get_surcharge_metadata_for_saved_cards(
+        payment_attempt, 
+        payment_intent, 
+        customer_payment_method_list, 
+        &mut surcharge_metadata, 
+        surcharge_source
+    ).await?;
+    
+    Ok(metadata)
+}
+
+#[cfg(feature = "v1")]
+async fn get_surcharge_metadata_for_saved_cards(
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
+    surcharge_metadata: &mut types::SurchargeMetadata,
+    surcharge_source: SurchargeSource,
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
     let mut backend_input = make_dsl_input_for_surcharge(payment_attempt, payment_intent, None)
         .change_context(ConfigError::InputConstructionError)?;
 
@@ -433,7 +501,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
                 &backend_input,
                 payment_attempt,
                 (
-                    &mut surcharge_metadata,
+                    surcharge_metadata,
                     types::SurchargeKey::Token(payment_token),
                 ),
             )?;
@@ -444,7 +512,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
             })
             .transpose()?;
     }
-    Ok(surcharge_metadata)
+    Ok(surcharge_metadata.clone())
 }
 
 // TODO: uncomment and resolve compiler error when required
@@ -612,7 +680,7 @@ pub async fn ensure_surcharge_algorithm_cached(
 ) -> ConditionalConfigResult<VirInterpreterBackendCacheWrapper> {
     let key = merchant_id.get_surcharge_profile_level_key(profile_id.clone());
     let value_to_cache = || async {
-        let config = store.find_surcharge_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id).await?;
+        let config = store.find_surcharge_algorithm_by_profile_id_algorithm_id(profile_id, &algorithm_id).await?;
         let algorithm_data: surcharge_decision_configs::SurchargeDecisionManagerConfig = serde_json::from_str(&config.algorithm_data.to_string())
             .change_context(errors::StorageError::DeserializationFailed)
             .attach_printable("Error parsing surcharge algorithm from configs")?;
