@@ -65,4 +65,5 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
     pub(crate) initial_attempt_id: Option<String>,
+    pub(crate) webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }

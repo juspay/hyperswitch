@@ -245,10 +245,15 @@ pub async fn retry_delivery_attempt(
 
     let delivery_attempt = storage::enums::WebhookDeliveryAttempt::ManualRetry;
     let new_event_id = super::utils::generate_event_id();
+    let webhook_endpoint_id = event_to_retry
+        .webhook_endpoint_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::WebhookBadRequest)?;
     let idempotent_event_id = super::utils::get_idempotent_event_id(
         &event_to_retry.primary_object_id,
         event_to_retry.event_type,
         delivery_attempt,
+        webhook_endpoint_id.get_string_repr(),
     );
 
     let now = common_utils::date_time::now();
@@ -269,6 +274,7 @@ pub async fn retry_delivery_attempt(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
+        webhook_endpoint_id: event_to_retry.webhook_endpoint_id,
     };
 
     let event = store

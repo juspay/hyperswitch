@@ -185,7 +185,7 @@ diesel::table! {
         #[max_length = 255]
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        webhook_details -> Nullable<Json>,
+        webhook_details -> Nullable<Array<Nullable<Json>>>,
         metadata -> Nullable<Json>,
         routing_algorithm -> Nullable<Json>,
         intent_fulfillment_time -> Nullable<Int8>,
@@ -474,6 +474,7 @@ diesel::table! {
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
         metadata -> Nullable<Jsonb>,
+        webhook_endpoint_id -> Nullable<Varchar>,
     }
 }
 
@@ -716,7 +717,7 @@ diesel::table! {
         redirect_to_merchant_with_http_post -> Bool,
         merchant_name -> Nullable<Bytea>,
         merchant_details -> Nullable<Bytea>,
-        webhook_details -> Nullable<Json>,
+        webhook_details -> Nullable<Array<Nullable<Json>>>,
         sub_merchants_enabled -> Nullable<Bool>,
         #[max_length = 64]
         parent_merchant_id -> Nullable<Varchar>,

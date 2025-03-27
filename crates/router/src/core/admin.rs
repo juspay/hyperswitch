@@ -4047,9 +4047,26 @@ pub async fn list_profile(
     let profiles = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, profiles);
     let mut business_profiles = Vec::new();
     for profile in profiles {
-        let business_profile = api_models::admin::ProfileResponse::foreign_try_from(profile)
+        let mut business_profile = api_models::admin::ProfileResponse::foreign_try_from(profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?;
+        if let Some(webhooks) = &mut business_profile.webhook_details {
+            business_profile.webhook_details = Some(
+                webhooks
+                    .iter()
+                    .filter_map(|webhook_opt| {
+                        if let Some(webhook) = webhook_opt {
+                            if webhook.status
+                                != Some(common_enums::OutgoingWebhookEndpointStatus::Deprecated)
+                            {
+                                return Some(Some(webhook.clone()));
+                            }
+                        }
+                        None
+                    })
+                    .collect::<Vec<Option<api_models::admin::WebhookDetails>>>(),
+            );
+        }
         business_profiles.push(business_profile);
     }
 
@@ -4070,11 +4087,30 @@ pub async fn retrieve_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(
+    let mut profile_response =
         api_models::admin::ProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?,
-    ))
+            .attach_printable("Failed to parse business profile details")?;
+
+    if let Some(webhooks_option_vec) = &mut profile_response.webhook_details {
+        profile_response.webhook_details = Some(
+            webhooks_option_vec
+                .iter()
+                .filter_map(|webhook_opt| {
+                    if let Some(webhook) = webhook_opt {
+                        if webhook.status
+                            != Some(common_enums::OutgoingWebhookEndpointStatus::Deprecated)
+                        {
+                            return Some(Some(webhook.clone()));
+                        }
+                    }
+                    None
+                })
+                .collect::<Vec<Option<api_models::admin::WebhookDetails>>>(),
+        );
+    }
+
+    Ok(service_api::ApplicationResponse::Json(profile_response))
 }
 
 pub async fn delete_profile(

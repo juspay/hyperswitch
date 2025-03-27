@@ -37,6 +37,7 @@ pub struct Event {
     pub response: Option<Encryptable<Secret<String>>>,
     pub delivery_attempt: Option<WebhookDeliveryAttempt>,
     pub metadata: Option<EventMetadata>,
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Debug)]
@@ -84,6 +85,7 @@ impl super::behaviour::Conversion for Event {
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
+            webhook_endpoint_id: self.webhook_endpoint_id,
         })
     }
 
@@ -133,6 +135,7 @@ impl super::behaviour::Conversion for Event {
             response: encryptable_event.response,
             delivery_attempt: item.delivery_attempt,
             metadata: item.metadata,
+            webhook_endpoint_id: item.webhook_endpoint_id,
         })
     }
 
@@ -154,6 +157,7 @@ impl super::behaviour::Conversion for Event {
             response: self.response.map(Into::into),
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
+            webhook_endpoint_id: self.webhook_endpoint_id,
         })
     }
 }
