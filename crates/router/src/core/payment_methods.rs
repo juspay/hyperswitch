@@ -1897,7 +1897,7 @@ pub async fn retrieve_payment_method(
     )
     .await
     {
-        Ok(token) => Some(token),
+        Ok(token) => token,
         Err(error) => None,
     };
 
@@ -2853,14 +2853,14 @@ async fn add_single_use_token_to_store(
 async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
-) -> CustomResult<payment_method_data::SingleUsePaymentMethodToken, errors::StorageError> {
+) -> CustomResult<Option<payment_method_data::SingleUsePaymentMethodToken>, errors::StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
         .map_err(Into::<errors::StorageError>::into)?;
 
     redis_connection
-        .get_and_deserialize_key::<payment_method_data::SingleUsePaymentMethodToken>(
+        .get_and_deserialize_key::<Option<payment_method_data::SingleUsePaymentMethodToken>>(
             &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
             "SingleUsePaymentMethodToken",
         )
