@@ -1228,11 +1228,21 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let card_type = match ccard
-            .card_network
-            .clone()
-            .and_then(get_cybersource_card_type)
-        {
+        let additional_card_network = item
+            .router_data
+            .request
+            .get_card_network_from_additional_payment_method_data()
+            .map_err(|err| {
+                router_env::logger::info!(
+                    "Error while getting card network from additional payment method data: {}",
+                    err
+                );
+            })
+            .ok();
+
+        let raw_card_type = ccard.card_network.clone().or(additional_card_network);
+
+        let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
             None => ccard.get_card_issuer().ok().map(String::from),
         };
@@ -1258,7 +1268,11 @@ impl
             },
         }));
 
-        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            None,
+            raw_card_type.map(|network| network.to_string()),
+        ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
             .router_data
@@ -1273,17 +1287,21 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1357,17 +1375,21 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1439,17 +1461,21 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -2661,10 +2687,10 @@ fn get_error_response_if_failure(
 
 fn get_payment_response(
     (info_response, status, http_code): (&CybersourcePaymentsResponse, enums::AttemptStatus, u16),
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
-        Some(error) => Err(error),
+        Some(error) => Err(Box::new(error)),
         None => {
             let incremental_authorization_allowed =
                 Some(status == enums::AttemptStatus::Authorized);
@@ -2729,7 +2755,8 @@ impl
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -2827,6 +2854,8 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3237,6 +3266,8 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -3274,7 +3305,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -3330,7 +3362,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             true,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -3365,7 +3398,8 @@ impl<F>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -4113,6 +4147,8 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 

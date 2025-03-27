@@ -1436,6 +1436,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_transaction_id: err.connector_transaction_id,
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,
+                            issuer_error_code: err.issuer_error_code,
+                            issuer_error_message: err.issuer_error_message,
                         }),
                     )
                 }
@@ -1473,6 +1475,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_transaction_id,
                             payment_method_data: None,
                             authentication_type: auth_update,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         }),
                     )
                 }
@@ -1662,6 +1666,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 payment_data.payment_attempt.connector.clone(),
                                 payment_data.payment_attempt.merchant_id.clone(),
                             );
+                            let (capture_before, extended_authorization_applied) = router_data
+                                .connector_response
+                                .as_ref()
+                                .and_then(|connector_response| {
+                                    connector_response.get_extended_authorization_response_data()
+                                })
+                                .map(|extended_auth_resp| {
+                                    (
+                                        extended_auth_resp.capture_before,
+                                        extended_auth_resp.extended_authentication_applied,
+                                    )
+                                })
+                                .unwrap_or((None, None));
                             let (capture_updates, payment_attempt_update) = match payment_data
                                 .multiple_capture_data
                             {
@@ -1723,6 +1740,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
+                                        capture_before,
+                                        extended_authorization_applied,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail
@@ -2613,7 +2632,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         original_payment_authorized_amount: Some(net_amount),
                         original_payment_authorized_currency: Some(currency),
                         metadata: None,
-                        token,
+                        token: masking::Secret::new(token),
                         token_type: common_enums::TokenizationType::MultiUse,
                     };
 

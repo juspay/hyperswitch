@@ -140,6 +140,7 @@ pub struct MerchantAccountSetter {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub is_platform_account: bool,
+    pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
 }
 
@@ -158,6 +159,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             organization_id,
             recon_status,
             is_platform_account,
+            version,
             product_type,
         } = item;
         Self {
@@ -172,6 +174,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             organization_id,
             recon_status,
             is_platform_account,
+            version,
             product_type,
         }
     }
@@ -191,6 +194,7 @@ pub struct MerchantAccount {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub is_platform_account: bool,
+    pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
 }
 
@@ -631,6 +635,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 organization_id: item.organization_id,
                 recon_status: item.recon_status,
                 is_platform_account: item.is_platform_account,
+                version: item.version,
                 product_type: item.product_type,
             })
         }

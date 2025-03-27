@@ -282,7 +282,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             )
             .await
             .map_err(|err| match err.current_context() {
-                storage_impl::errors::StorageError::DatabaseError(err)
+                errors::StorageError::DatabaseError(err)
                     if matches!(
                         err.current_context(),
                         diesel_models::errors::DatabaseError::NotFound
@@ -292,7 +292,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                         message: "Invalid payment_method_id".into(),
                     })
                 }
-                storage_impl::errors::StorageError::ValueNotFound(_) => {
+                errors::StorageError::ValueNotFound(_) => {
                     report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payment_method_id".to_string(),
                     })

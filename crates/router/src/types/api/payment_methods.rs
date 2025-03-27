@@ -4,14 +4,15 @@ pub use api_models::payment_methods::{
     CardNetworkTokenizeResponse, CardType, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
     GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
-    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
-    PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted,
-    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2,
+    NetworkTokenDetailsPaymentMethod, NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest,
+    PaymentMethodCollectLinkRequest, PaymentMethodCreate, PaymentMethodCreateData,
+    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodIntentConfirm,
+    PaymentMethodIntentCreate, PaymentMethodListData, PaymentMethodListRequest,
+    PaymentMethodListResponse, PaymentMethodMigrate, PaymentMethodMigrateResponse,
+    PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
+    PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    TotalPaymentMethodCountResponse,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -68,10 +69,15 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
-            !validate_payment_method_type_against_payment_method(
-                self.payment_method_type,
-                self.payment_method_subtype,
-            ),
+            !self
+                .payment_method_subtype
+                .map(|sub| {
+                    validate_payment_method_type_against_payment_method(
+                        self.payment_method_type,
+                        sub,
+                    )
+                })
+                .unwrap_or(true), // If payment_method_subtype is None, we assume it to be valid
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()
