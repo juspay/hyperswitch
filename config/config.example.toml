@@ -950,4 +950,4 @@ primary_color = "#006DF9"                        # Primary color of email body
 background_color = "#FFFFFF"                     # Background color of email body
 
 [billing_connectors_payment_sync]
-billing_connectors_which_require_payment_sync = "stripebilling" # List of connectors which has additional revenue recovery details api-call
+billing_connectors_which_require_payment_sync = "stripebilling" # List of billing connectors which has payment sync api call
