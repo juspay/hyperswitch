@@ -36,13 +36,13 @@ pub async fn list_payment_methods(
 
     validate_payment_status_for_payment_method_list(payment_intent.status)?;
 
-    let client_secret = header_payload
-        .client_secret
-        .as_ref()
-        .get_required_value("client_secret header")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret header",
-        })?;
+    // let client_secret = header_payload
+    //     .client_secret
+    //     .as_ref()
+    //     .get_required_value("client_secret header")
+    //     .change_context(errors::ApiErrorResponse::MissingRequiredField {
+    //         field_name: "client_secret header",
+    //     })?;
 
     // payment_intent.validate_client_secret(client_secret)?;
 

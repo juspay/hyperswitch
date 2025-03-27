@@ -1971,8 +1971,12 @@ where
                 .get_required_value(headers::X_PROFILE_ID)?;
 
         match db_client_secret.resource_id {
-            common_utils::types::authentication::ResourceId::Payment(global_payment_id) => {
-                return Err(errors::ApiErrorResponse::Unauthorized.into())
+            common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id
+            ) => {
+                if global_payment_id.get_string_repr() != self.0.to_str() {
+                    return Err(errors::ApiErrorResponse::Unauthorized.into())
+                }
             }
             common_utils::types::authentication::ResourceId::Customer(global_customer_id) => {
                 if global_customer_id.get_string_repr() != self.0.to_str() {
