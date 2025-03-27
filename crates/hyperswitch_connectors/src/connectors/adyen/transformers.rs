@@ -1831,11 +1831,7 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
         }
         _ => (None, None),
     };
-    let riskdata = item
-        .request
-        .metadata
-        .clone()
-        .and_then(|metadata| get_risk_data(metadata));
+    let riskdata = item.request.metadata.clone().and_then(get_risk_data);
 
     let execute_three_d = if matches!(item.auth_type, storage_enums::AuthenticationType::ThreeDs) {
         Some("true".to_string())
@@ -2836,7 +2832,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -2916,7 +2912,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -2995,7 +2991,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -3072,7 +3068,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3147,7 +3143,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
@@ -3222,7 +3218,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -3304,7 +3300,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3426,7 +3422,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3522,7 +3518,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3600,7 +3596,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
@@ -5811,7 +5807,7 @@ impl
             .request
             .metadata
             .clone()
-            .and_then(|metadata| get_device_fingerprint(metadata));
+            .and_then(get_device_fingerprint);
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
