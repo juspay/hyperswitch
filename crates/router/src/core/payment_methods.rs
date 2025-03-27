@@ -1898,13 +1898,7 @@ pub async fn retrieve_payment_method(
     .await
     {
         Ok(token) => Some(token),
-        Err(error) => {
-            logger::debug!(
-                "Failed to retrieve single use token from cache: {:?}",
-                error
-            );
-            None
-        }
+        Err(error) => None,
     };
 
     transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache)
@@ -2859,20 +2853,18 @@ async fn add_single_use_token_to_store(
 async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
-) -> CustomResult<Option<payment_method_data::SingleUsePaymentMethodToken>, errors::StorageError> {
+) -> CustomResult<payment_method_data::SingleUsePaymentMethodToken, errors::StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
         .map_err(Into::<errors::StorageError>::into)?;
 
-    match redis_connection
+    redis_connection
         .get_and_deserialize_key::<payment_method_data::SingleUsePaymentMethodToken>(
             &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
             "SingleUsePaymentMethodToken",
         )
         .await
-    {
-        Ok(token) => Ok(Some(token)),
-        Err(e) => Ok(None),
-    }
+        .change_context(errors::StorageError::KVError)
+        .attach_printable("Failed to get payment method token from redis")
 }
