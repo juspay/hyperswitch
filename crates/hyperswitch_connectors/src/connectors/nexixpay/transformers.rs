@@ -632,7 +632,7 @@ impl TryFrom<&ConnectorAuthType> for NexixpayAuthType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexixpayPaymentStatus {
     Authorized,
@@ -968,8 +968,15 @@ impl<F>
             meta_data,
             is_auto_capture,
         })?);
+        let status = if item.data.request.amount == 0
+            && item.response.operation.operation_result == NexixpayPaymentStatus::Authorized
+        {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::from(item.response.operation.operation_result.clone())
+        };
         Ok(Self {
-            status: AttemptStatus::from(item.response.operation.operation_result),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.operation.order_id.clone(),

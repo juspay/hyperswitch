@@ -10,7 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{BankRedirectData, Card, PaymentMethodData},
+    payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
     router_response_types::{
@@ -86,6 +86,13 @@ pub enum TrustpayPaymentMethod {
     IDeal,
     Sofort,
     Blik,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum TrustpayBankTransferPaymentMethod {
+    SepaCreditTransfer,
+    #[serde(rename = "Wire")]
+    InstantBankTransfer,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -216,6 +223,16 @@ pub struct PaymentRequestBankRedirect {
 pub enum TrustpayPaymentsRequest {
     CardsPaymentRequest(Box<PaymentRequestCards>),
     BankRedirectPaymentRequest(Box<PaymentRequestBankRedirect>),
+    BankTransferPaymentRequest(Box<PaymentRequestBankTransfer>),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentRequestBankTransfer {
+    pub payment_method: TrustpayBankTransferPaymentMethod,
+    pub merchant_identification: MerchantIdentification,
+    pub payment_information: BankPaymentInformation,
+    pub callback_urls: CallbackURLs,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -255,6 +272,20 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
                 )
                 .into())
             }
+        }
+    }
+}
+
+impl TryFrom<&BankTransferData> for TrustpayBankTransferPaymentMethod {
+    type Error = Error;
+    fn try_from(value: &BankTransferData) -> Result<Self, Self::Error> {
+        match value {
+            BankTransferData::SepaBankTransfer { .. } => Ok(Self::SepaCreditTransfer),
+            BankTransferData::InstantBankTransfer {} => Ok(Self::InstantBankTransfer),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("trustpay"),
+            )
+            .into()),
         }
     }
 }
@@ -356,6 +387,25 @@ fn get_debtor_info(
     })
 }
 
+fn get_bank_transfer_debtor_info(
+    item: &PaymentsAuthorizeRouterData,
+    pm: TrustpayBankTransferPaymentMethod,
+    params: TrustpayMandatoryParams,
+) -> CustomResult<Option<DebtorInformation>, errors::ConnectorError> {
+    let billing_last_name = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .and_then(|address| address.last_name.clone());
+    Ok(match pm {
+        TrustpayBankTransferPaymentMethod::SepaCreditTransfer
+        | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
+            name: get_full_name(params.billing_first_name, billing_last_name),
+            email: item.request.get_email()?,
+        }),
+    })
+}
+
 fn get_bank_redirection_request_data(
     item: &PaymentsAuthorizeRouterData,
     bank_redirection_data: &BankRedirectData,
@@ -380,6 +430,40 @@ fn get_bank_redirection_request_data(
                     merchant_reference: item.connector_request_reference_id.clone(),
                 },
                 debtor: get_debtor_info(item, pm, params)?,
+            },
+            callback_urls: CallbackURLs {
+                success: format!("{return_url}?status=SuccessOk"),
+                cancel: return_url.clone(),
+                error: return_url,
+            },
+        }));
+    Ok(payment_request)
+}
+
+fn get_bank_transfer_request_data(
+    item: &PaymentsAuthorizeRouterData,
+    bank_transfer_data: &BankTransferData,
+    params: TrustpayMandatoryParams,
+    amount: StringMajorUnit,
+    auth: TrustpayAuthType,
+) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let pm = TrustpayBankTransferPaymentMethod::try_from(bank_transfer_data)?;
+    let return_url = item.request.get_router_return_url()?;
+    let payment_request =
+        TrustpayPaymentsRequest::BankTransferPaymentRequest(Box::new(PaymentRequestBankTransfer {
+            payment_method: pm.clone(),
+            merchant_identification: MerchantIdentification {
+                project_id: auth.project_id,
+            },
+            payment_information: BankPaymentInformation {
+                amount: Amount {
+                    amount,
+                    currency: item.request.currency.to_string(),
+                },
+                references: References {
+                    merchant_reference: item.connector_request_reference_id.clone(),
+                },
+                debtor: get_bank_transfer_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
                 success: format!("{return_url}?status=SuccessOk"),
@@ -439,11 +523,19 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                     auth,
                 )
             }
+            PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+                get_bank_transfer_request_data(
+                    item.router_data,
+                    bank_transfer_data,
+                    params,
+                    amount,
+                    auth,
+                )
+            }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
@@ -689,7 +781,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data) =
-            get_trustpay_response(item.response, item.http_code)?;
+            get_trustpay_response(item.response, item.http_code, item.data.status)?;
         Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
@@ -782,6 +874,7 @@ fn handle_bank_redirects_response(
 fn handle_bank_redirects_error_response(
     response: ErrorResponseBankRedirect,
     status_code: u16,
+    previous_attempt_status: enums::AttemptStatus,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -790,14 +883,18 @@ fn handle_bank_redirects_error_response(
     ),
     errors::ConnectorError,
 > {
-    let status = enums::AttemptStatus::AuthorizationFailed;
+    let status = if matches!(response.payment_result_info.result_code, 1132014 | 1132005) {
+        previous_attempt_status
+    } else {
+        enums::AttemptStatus::AuthorizationFailed
+    };
     let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),
         reason: response.payment_result_info.additional_info,
         status_code,
-        attempt_status: None,
+        attempt_status: Some(status),
         connector_transaction_id: None,
         issuer_error_code: None,
         issuer_error_message: None,
@@ -931,6 +1028,7 @@ pub fn handle_webhook_response(
 pub fn get_trustpay_response(
     response: TrustpayPaymentsResponse,
     status_code: u16,
+    previous_attempt_status: enums::AttemptStatus,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -950,7 +1048,7 @@ pub fn get_trustpay_response(
             handle_bank_redirects_sync_response(*response, status_code)
         }
         TrustpayPaymentsResponse::BankRedirectError(response) => {
-            handle_bank_redirects_error_response(*response, status_code)
+            handle_bank_redirects_error_response(*response, status_code, previous_attempt_status)
         }
         TrustpayPaymentsResponse::WebhookResponse(response) => {
             handle_webhook_response(*response, status_code)
