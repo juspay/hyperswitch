@@ -103,8 +103,9 @@ pub struct ProdIntent {
     pub poc_contact: Option<String>,
     pub comments: Option<String>,
     pub is_completed: bool,
-    pub product_type: Option<MerchantProductType>,
 }
+
+pub type ProdIntentWithProductType = (ProdIntent, MerchantProductType);
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct ReconStatus {

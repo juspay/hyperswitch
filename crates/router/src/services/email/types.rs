@@ -1,4 +1,4 @@
-use api_models::user::dashboard_metadata::ProdIntent;
+use api_models::user::dashboard_metadata::ProdIntentWithProductType;
 use common_enums::EntityType;
 use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
 use error_stack::ResultExt;
@@ -447,7 +447,7 @@ pub struct BizEmailProd {
 impl BizEmailProd {
     pub fn new(
         state: &SessionState,
-        data: ProdIntent,
+        data: ProdIntentWithProductType,
         theme_id: Option<String>,
         theme_config: EmailThemeConfig,
     ) -> UserResult<Self> {
@@ -457,17 +457,17 @@ impl BizEmailProd {
             )?,
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_NEW_PROD_INTENT,
-            user_name: data.poc_name.unwrap_or_default().into(),
-            poc_email: data.poc_email.unwrap_or_default(),
-            legal_business_name: data.legal_business_name.unwrap_or_default(),
-            business_location: data
+            user_name: data.0.poc_name.unwrap_or_default().into(),
+            poc_email: data.0.poc_email.unwrap_or_default(),
+            legal_business_name: data.0.legal_business_name.unwrap_or_default(),
+            business_location: data.0
                 .business_location
                 .unwrap_or(common_enums::CountryAlpha2::AD)
                 .to_string(),
-            business_website: data.business_website.unwrap_or_default(),
+            business_website: data.0.business_website.unwrap_or_default(),
             theme_id,
             theme_config,
-            product_type: data.product_type.unwrap_or_default(),
+            product_type: data.1,
         })
     }
 }

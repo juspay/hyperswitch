@@ -461,13 +461,50 @@ async fn insert_metadata(
                 pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
+            let key_manager_state = &(state).into();
+            let merchant_key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    key_manager_state,
+                    &user.merchant_id.clone(),
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+            let merchant_account = state
+                .store
+                .find_merchant_account_by_merchant_id(
+                    key_manager_state,
+                    &user.merchant_id.clone(),
+                    &merchant_key_store,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve merchant account by merchant_id")?;
+
+            let product_type = merchant_account
+                .product_type
+                .unwrap_or_default();
+
+            let mut data_value = serde_json::to_value(&data)
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Error converting ProdIntent to JSON")?;
+
+            if let serde_json::Value::Object(ref mut map) = data_value {
+                map.insert("product_type".to_string(), serde_json::json!(product_type));
+            } else {
+                return Err(UserErrors::InternalServerError)
+                    .attach_printable("Error adding product type to the JSON object");
+            }
+
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
                 user.merchant_id.clone(),
                 user.org_id.clone(),
                 metadata_key,
-                data.clone(),
+                data_value.clone(),
             )
             .await;
 
@@ -478,7 +515,7 @@ async fn insert_metadata(
                     user.merchant_id.clone(),
                     user.org_id.clone(),
                     metadata_key,
-                    data.clone(),
+                    data_value.clone(),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError);
@@ -499,10 +536,10 @@ async fn insert_metadata(
                         EntityType::Merchant,
                     )
                     .await?;
-
+                    let prod_intent_with_product_type = (data, product_type);
                     let email_contents = email_types::BizEmailProd::new(
                         state,
-                        data,
+                        prod_intent_with_product_type,
                         theme.as_ref().map(|theme| theme.theme_id.clone()),
                         theme
                             .map(|theme| theme.email_config())
