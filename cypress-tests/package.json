@@ -21,7 +21,7 @@
   "license": "ISC",
   "devDependencies": {
     "@eslint/js": "^9.20.0",
-    "cypress": "^14.0.3",
+    "cypress": "^14.2.0",
     "cypress-mochawesome-reporter": "^3.8.2",
     "eslint": "^9.20.1",
     "eslint-config-prettier": "^10.0.1",
