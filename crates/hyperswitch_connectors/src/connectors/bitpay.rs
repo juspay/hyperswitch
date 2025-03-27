@@ -431,7 +431,7 @@ static BITPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
+            supported_capture_methods,
             specific_features: None,
         },
     );
@@ -446,8 +446,7 @@ static BITPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
     };
 
-static BITPAY_SUPPORTED_WEBHOOK_FLOWS: LazyLock<[enums::EventClass; 1]> =
-    LazyLock::new(|| [enums::EventClass::Payments]);
+static BITPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Bitpay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -459,6 +458,6 @@ impl ConnectorSpecifications for Bitpay {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*BITPAY_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&BITPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

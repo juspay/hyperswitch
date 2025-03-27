@@ -878,7 +878,7 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-static PAYU_SUPPORTED_WEBHOOK_FLOWS: LazyLock<[enums::EventClass; 0]> = LazyLock::new(|| []);
+static PAYU_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Payu {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -890,6 +890,6 @@ impl ConnectorSpecifications for Payu {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*PAYU_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&PAYU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

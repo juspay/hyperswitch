@@ -877,7 +877,7 @@ static JPMORGAN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 
-static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: LazyLock<[enums::EventClass; 0]> = LazyLock::new(|| []);
+static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Jpmorgan {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -889,6 +889,6 @@ impl ConnectorSpecifications for Jpmorgan {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*JPMORGAN_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&JPMORGAN_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

@@ -540,7 +540,7 @@ static DIGITALVIRGO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods>
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods,
                 specific_features: None,
             },
         );
@@ -555,8 +555,7 @@ static DIGITALVIRGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
     };
 
-static DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS: LazyLock<[enums::EventClass; 0]> =
-    LazyLock::new(|| []);
+static DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Digitalvirgo {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -568,6 +567,6 @@ impl ConnectorSpecifications for Digitalvirgo {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
