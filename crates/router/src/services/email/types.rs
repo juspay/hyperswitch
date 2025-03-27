@@ -1,5 +1,5 @@
 use api_models::user::dashboard_metadata::ProdIntentWithProductType;
-use common_enums::EntityType;
+use common_enums::{EntityType, MerchantProductType};
 use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
@@ -64,7 +64,7 @@ pub enum EmailBody {
         legal_business_name: String,
         business_location: String,
         business_website: String,
-        product_type: common_enums::MerchantProductType,
+        product_type: MerchantProductType,
     },
     ReconActivation {
         user_name: String,
@@ -561,7 +561,7 @@ pub struct BizEmailProd {
     pub settings: std::sync::Arc<configs::Settings>,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
-    pub product_type: common_enums::MerchantProductType,
+    pub product_type: MerchantProductType,
 }
 
 impl BizEmailProd {
