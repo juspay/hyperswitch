@@ -396,7 +396,7 @@ impl Action {
                 PcrAttemptStatus::Failed => {
                     Self::decide_retry_failure_action(
                         db,
-                        &pcr_data.merchant_account.get_id(),
+                        pcr_data.merchant_account.get_id(),
                         process.clone(),
                     )
                     .await
@@ -501,7 +501,7 @@ impl Action {
             Self::ReviewPayment => {
                 core_pcr::insert_review_task(
                     db,
-                    tracking_data.clone(),
+                    tracking_data,
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 )
                 .await

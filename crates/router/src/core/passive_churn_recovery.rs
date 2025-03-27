@@ -118,7 +118,7 @@ pub async fn perform_execute_payment(
         types::Decision::ReviewForSuccessfulPayment | types::Decision::ReviewForFailedPayment => {
             insert_review_task(
                 db,
-                tracking_data.clone(),
+                tracking_data,
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
             )
             .await?;
@@ -194,7 +194,7 @@ pub async fn perform_payments_sync(
         .payment_attempt
         .get_required_value("Payment Attempt")?;
 
-    let pcr_status: types::PcrAttemptStatus = payment_attempt.status.clone().foreign_into();
+    let pcr_status: types::PcrAttemptStatus = payment_attempt.status.foreign_into();
     pcr_status
         .update_pt_status_based_on_attempt_status_for_payments_sync(
             state,

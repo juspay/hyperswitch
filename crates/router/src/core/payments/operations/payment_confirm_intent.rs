@@ -418,7 +418,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: payment_data.payment_attempt.id.clone(),
+                active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
             };
 
         let authentication_type = payment_data.payment_attempt.authentication_type;

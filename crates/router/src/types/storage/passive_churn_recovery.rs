@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::id_type;
 use hyperswitch_domain_models::{business_profile, merchant_account, merchant_key_store};
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct PcrWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
