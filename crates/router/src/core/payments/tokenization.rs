@@ -1408,7 +1408,4 @@ pub async fn add_token_for_payment_method(
         }),
     }
 
-    // Ok(types::PspTokenResult {
-    //     token: payment_token_response,
-    // })
 }

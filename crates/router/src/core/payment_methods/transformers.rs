@@ -550,7 +550,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
-    single_use_token: Option<&payment_method_data::PaymentMethodTokenSingleUse>,
+    single_use_token: Option<&payment_method_data::SingleUsePaymentMethodToken>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -1129,10 +1129,10 @@ impl
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignFrom<&payment_method_data::PaymentMethodTokenSingleUse>
+impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken>
     for api_models::payment_methods::ConnectorTokenDetails
 {
-    fn foreign_from(token: &payment_method_data::PaymentMethodTokenSingleUse) -> Self {
+    fn foreign_from(token: &payment_method_data::SingleUsePaymentMethodToken) -> Self {
         Self {
             connector_id: token.clone().merchant_connector_id,
             token_type: common_enums::TokenizationType::SingleUse,
