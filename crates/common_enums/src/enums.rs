@@ -1941,7 +1941,7 @@ impl PaymentMethodType {
             Self::Seicomart => "Seicomart".to_string(),
             Self::PayEasy => "PayEasy".to_string(),
             Self::LocalBankTransfer => "Local Bank Transfer".to_string(),
-            Self::Mifinity => "Mifinity".to_string(),
+            Self::Mifinity => "MiFinity".to_string(),
             Self::OpenBankingPIS => "Open Banking PIS".to_string(),
             Self::DirectCarrierBilling => "Direct Carrier Billing".to_string(),
         }
