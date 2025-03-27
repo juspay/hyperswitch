@@ -97,6 +97,7 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
+    pub secondary_fingerprint_id : Option<String>,
 }
 
 impl PaymentMethod {
@@ -185,6 +186,7 @@ pub struct PaymentMethodNew {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
+    pub secondary_fingerprint_id : Option<String>,
 }
 
 impl PaymentMethodNew {
@@ -332,6 +334,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
     locker_fingerprint_id: Option<String>,
+    secondary_fingerprint_id : Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -352,6 +355,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id,
             network_token_payment_method_data,
             locker_fingerprint_id,
+            secondary_fingerprint_id,
         } = self;
 
         PaymentMethod {
@@ -380,6 +384,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
+            secondary_fingerprint_id: source.secondary_fingerprint_id,
         }
     }
 }
