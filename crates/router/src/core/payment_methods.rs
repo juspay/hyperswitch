@@ -1898,17 +1898,14 @@ pub async fn retrieve_payment_method(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Redis connection error")?;
-    
+
     // .map_err(|err| {
     //     logger::debug!("No token found in store: {:?}", err);
     // })
     // .unwrap_or(None);
 
-    transformers::generate_payment_method_response(
-        &payment_method,
-        &single_use_token_in_cache,
-    )
-    .map(services::ApplicationResponse::Json)
+    transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache)
+        .map(services::ApplicationResponse::Json)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
