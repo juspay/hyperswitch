@@ -9944,14 +9944,17 @@
         ],
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the connector"
           },
           "display_name": {
             "type": "string",
+            "description": "The display name of the connector",
             "nullable": true
           },
           "description": {
             "type": "string",
+            "description": "The description of the connector",
             "nullable": true
           },
           "category": {
@@ -9966,13 +9969,15 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
-            }
+            },
+            "description": "The list of payment methods supported by the connector"
           },
           "supported_webhook_flows": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EventClass"
             },
+            "description": "The list of webhook flows supported by the connector",
             "nullable": true
           }
         }
@@ -26716,7 +26721,8 @@
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "payment_method_type_display_name": {
-                "type": "string"
+                "type": "string",
+                "description": "The display name of the payment method type"
               },
               "mandates": {
                 "$ref": "#/components/schemas/FeatureStatus"
@@ -26728,13 +26734,15 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/CaptureMethod"
-                }
+                },
+                "description": "List of supported capture methods supported by the payment method type"
               },
               "supported_countries": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/CountryAlpha3"
                 },
+                "description": "List of countries supported by the payment method type via the connector",
                 "uniqueItems": true,
                 "nullable": true
               },
@@ -26743,6 +26751,7 @@
                 "items": {
                   "$ref": "#/components/schemas/Currency"
                 },
+                "description": "List of currencies supported by the payment method type via the connector",
                 "uniqueItems": true,
                 "nullable": true
               }
