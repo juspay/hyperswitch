@@ -14092,6 +14092,38 @@
           }
         }
       },
+      "PaymentAttemptRecordResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The global identifier for the payment attempt"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "payment_intent_feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_attempt_feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -16208,38 +16240,6 @@
         ],
         "discriminator": {
           "propertyName": "payment_processing_details_at"
-        }
-      },
-      "PaymentsAttemptRecordRequest": {
-        "type": "object",
-        "required": [
-          "id",
-          "status"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "The global identifier for the payment attempt"
-          },
-          "status": {
-            "$ref": "#/components/schemas/AttemptStatus"
-          },
-          "payment_intent_feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_attempt_feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
-              }
-            ],
-            "nullable": true
-          }
         }
       },
       "PaymentRetrieveBody": {
