@@ -2,9 +2,7 @@ use std::{collections::HashMap, num::TryFromIntError};
 
 use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
-    errors::CustomResult,
-    ext_traits::{Encode, OptionExt},
-    types::{self as common_types, ConnectorTransactionIdTrait},
+    errors::CustomResult, ext_traits::{Encode, OptionExt}, id_type::SurchargeRoutingId, types::{self as common_types, ConnectorTransactionIdTrait}
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
@@ -370,6 +368,34 @@ impl SurchargeMetadata {
             .await;
         logger::debug!(
             "Surcharge result fetched from redis with key = {} and {}",
+            redis_key,
+            value_key
+        );
+        result
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_surcharge_id_from_redis(
+        state: &SessionState,
+        surcharge_key: SurchargeKey,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<Option<SurchargeRoutingId>, RedisError> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = merchant_id.get_surcharge_profile_level_key(profile_id.to_owned());
+        let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
+        let result = redis_conn
+            .get_hash_field_and_deserialize(
+                &redis_key.as_str().into(),
+                &value_key,
+                "SurchargeRoutingId",
+            )
+            .await;
+        logger::debug!(
+            "Surcharge algorithm id fetched from redis with key = {} and  {}",
             redis_key,
             value_key
         );
