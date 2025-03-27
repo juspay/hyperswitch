@@ -29,15 +29,6 @@ const browser_info = {
   ip_address: "127.0.0.1",
 };
 
-const successfulNoThreeDsCardDetailsRequest = {
-  card_number: "4242424242424242",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "morino",
-  nick_name: "Bank1",
-  card_cvc: "737",
-};
-
 const successfulThreeDsTestCardDetailsRequest = {
   card_number: "4000000000001091",
   card_exp_month: "10",
@@ -53,6 +44,11 @@ const cardDetailsWithoutNickName = {
   card_exp_year: "30",
   card_holder_name: "morino",
   card_cvc: "737",
+};
+
+const successfulNoThreeDsCardDetailsRequest = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank1",
 };
 
 const paymentMethodDataNoThreeDsResponse = {

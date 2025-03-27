@@ -1,14 +1,5 @@
 import { customerAcceptance } from "./Commons";
 
-const successfulNo3DSCardDetails = {
-  card_number: "5105105105105100",
-  card_exp_month: "12",
-  card_exp_year: "2030",
-  card_holder_name: "joseph Doe",
-  nick_name: "Bank1",
-  card_cvc: "123",
-};
-
 const successfulThreeDSTestCardDetails = {
   card_number: "5105105105105100",
   card_exp_month: "12",
@@ -24,6 +15,11 @@ const cardDetailsWithoutNickName = {
   card_exp_year: "2030",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank1",
 };
 
 const singleUseMandateData = {

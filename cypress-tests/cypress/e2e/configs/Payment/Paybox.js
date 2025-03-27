@@ -1,12 +1,3 @@
-const successfulNo3DSCardDetails = {
-  card_number: "1111222233334444",
-  card_exp_month: "05",
-  card_exp_year: "27",
-  card_holder_name: "joseph Doe",
-  nick_name: "Bank1",
-  card_cvc: "222",
-};
-
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "01",
@@ -22,6 +13,11 @@ const cardDetailsWithoutNickName = {
   card_exp_year: "27",
   card_holder_name: "joseph Doe",
   card_cvc: "222",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank1",
 };
 
 const customerAcceptance = {

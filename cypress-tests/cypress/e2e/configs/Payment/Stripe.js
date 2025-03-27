@@ -5,15 +5,6 @@ import {
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
-const successfulNo3DSCardDetails = {
-  card_number: "378282246310005",
-  card_exp_month: "10",
-  card_exp_year: "50",
-  card_holder_name: "morino",
-  nick_name: "Bank1",
-  card_cvc: "737",
-};
-
 const successfulThreeDSTestCardDetails = {
   card_number: "4000002500003155",
   card_exp_month: "10",
@@ -38,6 +29,11 @@ const cardDetailsWithoutNickName = {
   card_exp_year: "40",
   card_holder_name: "morino",
   card_cvc: "737",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank1",
 };
 
 const singleUseMandateData = {

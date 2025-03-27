@@ -699,6 +699,14 @@ describe("Card - SaveCard payment flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardWithoutCardNickName"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
+
     it("retrieve-customerPM-call-test", () => {
       cy.listCustomerPMCallTest(globalState);
     });

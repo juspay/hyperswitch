@@ -1,14 +1,5 @@
 import { getCustomExchange } from "./Modifiers";
 
-const successfulNo3DSCardDetails = {
-  card_number: "4012000033330026",
-  card_exp_month: "01",
-  card_exp_year: "50",
-  card_holder_name: "joseph Doe",
-  nick_name: "Bank1",
-  card_cvc: "123",
-};
-
 const successfulThreeDSTestCardDetails = {
   card_number: "5329879786234393",
   card_exp_month: "01",
@@ -24,6 +15,11 @@ const cardDetailsWithoutNickName = {
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank1",
 };
 
 const customerAcceptance = {
