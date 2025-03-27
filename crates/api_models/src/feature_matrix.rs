@@ -32,7 +32,7 @@ pub enum PaymentMethodSpecificFeatures {
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethod {
-    /// The payment method supported by the connector 
+    /// The payment method supported by the connector
     #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
     /// The payment method type supported by the connector
