@@ -518,7 +518,7 @@ impl RevenueRecoveryAttempt {
         let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
 
         let schedule_time =
-            passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments(
+            revenue_recovery_flow::get_schedule_time_to_retry_mit_payments(
                 db,
                 &merchant_id,
                 (intent_retry_count + 1).into(),
