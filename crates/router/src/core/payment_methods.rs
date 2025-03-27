@@ -1899,16 +1899,16 @@ pub async fn retrieve_payment_method(
     {
         Ok(token) => Some(token),
         Err(error) => {
-            logger::debug!("Failed to retrieve single use token from cache: {:?}", error);
+            logger::debug!(
+                "Failed to retrieve single use token from cache: {:?}",
+                error
+            );
             None
         }
     };
 
-    transformers::generate_payment_method_response(
-        &payment_method,
-        &single_use_token_in_cache,
-    )
-    .map(services::ApplicationResponse::Json)
+    transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache)
+        .map(services::ApplicationResponse::Json)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
