@@ -29,7 +29,7 @@ pub async fn profile_create(
             create_profile(state, req, auth_data.merchant_account, auth_data.key_store)
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
@@ -95,7 +95,7 @@ pub async fn profile_retrieve(
         profile_id,
         |state, auth_data, profile_id, _| retrieve_profile(state, profile_id, auth_data.key_store),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountRead,
@@ -158,7 +158,7 @@ pub async fn profile_update(
         json_payload.into_inner(),
         |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
