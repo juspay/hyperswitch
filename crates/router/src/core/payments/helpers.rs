@@ -3587,7 +3587,7 @@ pub fn authenticate_client_secret(
     }
 }
 
-#[cfg(feature = "v2")]
+// #[cfg(feature = "v2")]
 // A function to manually authenticate the client secret with intent fulfillment time
 // pub fn authenticate_client_secret(
 //     request_client_secret: Option<&common_utils::types::ClientSecret>,

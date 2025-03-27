@@ -515,7 +515,8 @@ impl PaymentIntent {
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
 
-    /// Check if the client secret is associated with the payment and if it has been expired
+    // Check if the client secret is associated with the payment and if it has been expire
+
     // pub fn validate_client_secret(
     //     &self,
     //     client_secret: &common_utils::types::ClientSecret,
