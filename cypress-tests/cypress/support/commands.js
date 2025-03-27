@@ -2381,6 +2381,7 @@ Cypress.Commands.add(
             // Determine expected status based on payment status
             const expectedStatus = [
               "succeeded",
+              "processing",
               "requires_capture",
               "partially_captured",
             ].includes(response.body.status)
