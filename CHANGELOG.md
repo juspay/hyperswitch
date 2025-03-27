@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.27.0
+
+### Features
+
+- **connector:** [BRAINTREE] Pass connector request reference id ([#7609](https://github.com/juspay/hyperswitch/pull/7609)) ([`da8cf61`](https://github.com/juspay/hyperswitch/commit/da8cf61f1ae45765eeb13e867b03ae3e822b1615))
+- **core:** Add profile level config for debit routing feature ([#7470](https://github.com/juspay/hyperswitch/pull/7470)) ([`8e85465`](https://github.com/juspay/hyperswitch/commit/8e854657c962e6ea5ea4fbdab3f0a6b0eefcb8dc))
+- **dashboard_metadata:** Add `ReconStatus` in `dashboard_metadata` ([#7595](https://github.com/juspay/hyperswitch/pull/7595)) ([`7b275ec`](https://github.com/juspay/hyperswitch/commit/7b275ec4484cba8db0b949d58dbd22f1a67cc426))
+- **themes:** Add email configuration support for themes ([#7580](https://github.com/juspay/hyperswitch/pull/7580)) ([`7805a20`](https://github.com/juspay/hyperswitch/commit/7805a20d64b622452200ec3682019a0570cdd411))
+- Add routing support for v2 sdk session flow ([#6763](https://github.com/juspay/hyperswitch/pull/6763)) ([`c3e8c67`](https://github.com/juspay/hyperswitch/commit/c3e8c67bfae0731e9fbc07f18c33ac23f53531e5))
+
+### Bug Fixes
+
+- **connector:**
+  - [GlobalPay] Address `5xx` when cancelling a paypal transaction ([#7605](https://github.com/juspay/hyperswitch/pull/7605)) ([`8b0c133`](https://github.com/juspay/hyperswitch/commit/8b0c133371fc2d87ca660522b547893fe8fb2f46))
+  - Fix required fields for mandates supported connectors ([#6930](https://github.com/juspay/hyperswitch/pull/6930)) ([`878717e`](https://github.com/juspay/hyperswitch/commit/878717ea99666b74b8ab0c064e4a851a0f3d713a))
+  - [CYBERSOURCE] change ucaf_collection_indicator for mastercard payments via netcetera ([#7623](https://github.com/juspay/hyperswitch/pull/7623)) ([`b19b195`](https://github.com/juspay/hyperswitch/commit/b19b195fbe3c3155bee049fd43e5098d2bf38a6a))
+  - [redsys] psync transaction type mapping ([#7628](https://github.com/juspay/hyperswitch/pull/7628)) ([`9159823`](https://github.com/juspay/hyperswitch/commit/9159823d963c5ac1adbfe5e5b6d4dbabb25d1a17))
+  - [Nexixpay] update status mapping nexixpay ([#7612](https://github.com/juspay/hyperswitch/pull/7612)) ([`4a4284a`](https://github.com/juspay/hyperswitch/commit/4a4284a6961b1c1b32bbff1c2f1cbdd0c60fbf71))
+- **connectors:** [Adyen] remove redundant enums ([#7601](https://github.com/juspay/hyperswitch/pull/7601)) ([`68aa485`](https://github.com/juspay/hyperswitch/commit/68aa4854b6d6c22fe03dc47141b3398e98e24883))
+
+### Refactors
+
+- **connector:** [TrustPay] Fix status and wasm changes ([#7649](https://github.com/juspay/hyperswitch/pull/7649)) ([`27da0af`](https://github.com/juspay/hyperswitch/commit/27da0af46ddc2108d147cb0ed1c03add5509e028))
+
+### Miscellaneous Tasks
+
+- **cypress:** Bump cypress to `v14.2.0` ([#7640](https://github.com/juspay/hyperswitch/pull/7640)) ([`60d5c77`](https://github.com/juspay/hyperswitch/commit/60d5c779e9ace4cb95bdbe9a2c9277c41ce96573))
+
+**Full Changelog:** [`2025.03.26.0...2025.03.27.0`](https://github.com/juspay/hyperswitch/compare/2025.03.26.0...2025.03.27.0)
+
+
+- - -
+
 ## 2025.03.26.0
 
 ### Features
