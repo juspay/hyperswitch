@@ -121,3 +121,9 @@ ALTER TABLE refund DROP COLUMN connector_refund_data,
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE captures DROP COLUMN connector_capture_data;
+
+-- Run below queries only when V1 is deprecated
+ALTER TABLE refund 
+    DROP COLUMN IF EXISTS internal_reference_id,
+    DROP COLUMN IF EXISTS refund_id,
+    DROP COLUMN IF EXISTS merchant_connector_id;

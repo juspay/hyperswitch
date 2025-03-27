@@ -116,8 +116,8 @@ pub struct PaymentMethodCreate {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -980,16 +980,21 @@ pub struct CardDetailsPaymentMethod {
     pub saved_to_locker: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
+    #[schema(value_type = Option<String>)]
     pub network_token_expiry_month: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub network_token_expiry_year: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub card_holder_name: Option<masking::Secret<String>>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
+    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
@@ -2019,6 +2024,10 @@ pub struct CustomerPaymentMethod {
 
     ///The network token details for the payment method
     pub network_tokenization: Option<NetworkTokenResponse>,
+
+    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
+    /// one multi-use token with status `Active` is available for the payment method
+    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2774,6 +2783,14 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
     /// The payment method type
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -2781,7 +2798,7 @@ pub struct PaymentMethodSessionConfirmRequest {
 
     /// The payment method subtype
     #[schema(value_type = PaymentMethodType, example = "credit")]
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
 
     /// The payment instrument data to be used for the payment
     #[schema(value_type = PaymentMethodDataRequest)]
@@ -2849,6 +2866,6 @@ pub struct AuthenticationDetails {
     pub status: common_enums::IntentStatus,
 
     /// Error details of the authentication
-    #[schema(value_type = ErrorDetails)]
+    #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }
