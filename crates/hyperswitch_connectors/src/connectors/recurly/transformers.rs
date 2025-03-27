@@ -309,7 +309,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyRecordbackResponse {
-    // inovice id
+    // invoice id
     pub id: id_type::PaymentReferenceId,
 }
 
