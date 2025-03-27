@@ -994,7 +994,7 @@ pub async fn create_payment_method_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
             Ok((resp, payment_method))
         }
@@ -1278,7 +1278,7 @@ pub async fn payment_method_intent_create(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
+    let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
     Ok(services::ApplicationResponse::Json(resp))
 }
@@ -1891,17 +1891,22 @@ pub async fn retrieve_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let single_use_token_in_cache = get_single_use_token_from_store(
+    let single_use_token_in_cache = match get_single_use_token_from_store(
         &state.clone(),
         payment_method_data::SingleUseTokenKey::store_key(&pm_id.clone()),
     )
     .await
-    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-    .attach_printable("Unable to find payment method")?;
+    {
+        Ok(token) => Some(token),
+        Err(error) => {
+            logger::debug!("Failed to retrieve single use token from cache: {:?}", error);
+            None
+        }
+    };
 
     transformers::generate_payment_method_response(
         &payment_method,
-        Some(&single_use_token_in_cache),
+        &single_use_token_in_cache,
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -2023,7 +2028,7 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let response = pm_transforms::generate_payment_method_response(&payment_method, None)?;
+    let response = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
     // Add a PT task to handle payment_method delete from vault
 
