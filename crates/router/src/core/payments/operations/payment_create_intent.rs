@@ -171,7 +171,7 @@ impl<F: Send + Clone + Sync>
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
-            client_secret: Some(client_secret),
+            client_secret: Some(client_secret.secret),
             sessions_token: vec![],
         };
 

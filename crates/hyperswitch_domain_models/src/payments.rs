@@ -711,7 +711,7 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
-    pub client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    pub client_secret: Option<Secret<String>>,
 }
 
 // TODO: Check if this can be merged with existing payment data

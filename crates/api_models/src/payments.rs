@@ -481,7 +481,7 @@ pub struct PaymentsIntentResponse {
 
     /// It's a token used for client side verification.
     #[schema(value_type = String, example = "cs_0195b34da95d75239c6a4bf514458896")]
-    pub client_secret: Option<diesel_models::ephemeral_key::ClientSecretType>,
+    pub client_secret: Option<Secret<String>>,
 
     /// The identifier for the profile. This is inferred from the `x-profile-id` header
     #[schema(value_type = String)]
