@@ -824,22 +824,6 @@ Cypress.Commands.add(
     updateConnectorBody.connector_type = connectorType;
     updateConnectorBody.connector_label = connectorLabel;
 
-    cy.readFile(globalState.get("connectorAuthFilePath")).then(
-      (jsonContent) => {
-        const { authDetails } = getValueByKey(
-          JSON.stringify(jsonContent),
-          connector_id
-        );
-
-        if (authDetails && authDetails.metadata) {
-          updateConnectorBody.metadata = {
-            ...updateConnectorBody.metadata, // Preserve existing metadata fields
-            ...authDetails.metadata, // Merge with authDetails.metadata
-          };
-        }
-      }
-    );
-
     cy.request({
       method: "POST",
       url: url,
