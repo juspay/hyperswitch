@@ -218,6 +218,7 @@ pub struct RegularTransactionBody {
     channel: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
+    order_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -228,6 +229,7 @@ pub struct VaultTransactionBody {
     vault_payment_method_after_transacting: TransactionTiming,
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
+    order_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -268,6 +270,7 @@ impl
                 merchant_account_id: metadata.merchant_account_id,
                 channel: CHANNEL_CODE.to_string(),
                 customer_details: None,
+                order_id: item.router_data.connector_request_reference_id.clone(),
             }),
         );
         Ok(Self {
@@ -875,6 +878,8 @@ pub struct DataResponse {
 pub struct RefundInputData {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<String>,
 }
 #[derive(Serialize, Debug, Clone)]
 struct IdFilter {
@@ -928,6 +933,7 @@ impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundR
                 refund: RefundInputData {
                     amount: item.amount,
                     merchant_account_id: metadata.merchant_account_id,
+                    order_id: item.router_data.refund_id.clone(),
                 },
             },
         };
@@ -1761,6 +1767,7 @@ impl
                         .get_billing_email()
                         .ok()
                         .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         } else {
@@ -1778,6 +1785,7 @@ impl
                         .get_billing_email()
                         .ok()
                         .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         };
@@ -1870,6 +1878,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                         .get_billing_email()
                         .ok()
                         .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         } else {
@@ -1887,6 +1896,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                         .get_billing_email()
                         .ok()
                         .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         };
