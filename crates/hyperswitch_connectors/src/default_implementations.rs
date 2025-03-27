@@ -24,13 +24,9 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
-    router_request_types::revenue_recovery::{
-        BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
-    },
-    router_response_types::revenue_recovery::{
-        BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
-    },
+    router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request,
+    router_response_types::revenue_recovery as recovery_response,
 };
 use hyperswitch_domain_models::{
     router_flow_types::{
@@ -80,9 +76,7 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutRecipientAccount, PayoutSync,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_interfaces::api::revenue_recovery::{
-    BillingConnectorPaymentsSyncIntegration, RevenueRecoveryRecordBack,
-};
+use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 use hyperswitch_interfaces::{
     api::{
         self,
@@ -146,6 +140,7 @@ default_imp_for_authorize_session_token!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -244,6 +239,7 @@ default_imp_for_calculate_tax!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -342,6 +338,7 @@ default_imp_for_session_update!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Forte,
@@ -441,7 +438,7 @@ default_imp_for_post_session_tokens!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
-    connectors::Square,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Forte,
@@ -458,6 +455,7 @@ default_imp_for_post_session_tokens!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Shift4,
+    connectors::Square,
     connectors::Stax,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -535,6 +533,7 @@ default_imp_for_complete_authorize!(
     connectors::Datatrans,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -554,7 +553,6 @@ default_imp_for_complete_authorize!(
     connectors::Moneris,
     connectors::Multisafepay,
     connectors::Nomupay,
-    connectors::Noon,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Opayo,
@@ -623,6 +621,7 @@ default_imp_for_incremental_authorization!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -723,6 +722,7 @@ default_imp_for_create_customer!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -817,6 +817,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Deutschebank,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -902,6 +903,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -994,6 +996,7 @@ default_imp_for_post_processing_steps!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1095,6 +1098,7 @@ default_imp_for_approve!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1196,6 +1200,7 @@ default_imp_for_reject!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1297,6 +1302,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1396,6 +1402,7 @@ default_imp_for_accept_dispute!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1495,6 +1502,7 @@ default_imp_for_submit_evidence!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1594,6 +1602,7 @@ default_imp_for_defend_dispute!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1702,6 +1711,7 @@ default_imp_for_file_upload!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1794,6 +1804,7 @@ default_imp_for_payouts!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1893,6 +1904,7 @@ default_imp_for_payouts_create!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1994,6 +2006,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2094,6 +2107,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2194,6 +2208,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2294,6 +2309,7 @@ default_imp_for_payouts_cancel!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2396,6 +2412,7 @@ default_imp_for_payouts_quote!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2498,6 +2515,7 @@ default_imp_for_payouts_recipient!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2600,6 +2618,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2702,6 +2721,7 @@ default_imp_for_frm_sale!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2805,6 +2825,7 @@ default_imp_for_frm_checkout!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2908,6 +2929,7 @@ default_imp_for_frm_transaction!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3011,6 +3033,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3114,6 +3137,7 @@ default_imp_for_frm_record_return!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3212,6 +3236,7 @@ default_imp_for_revoking_mandates!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3312,6 +3337,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3410,6 +3436,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3509,6 +3536,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3600,6 +3628,7 @@ default_imp_for_connector_request_id!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3693,6 +3722,7 @@ default_imp_for_fraud_check!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3818,6 +3848,7 @@ default_imp_for_connector_authentication!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -3917,6 +3948,7 @@ default_imp_for_uas_authentication!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -4008,6 +4040,7 @@ default_imp_for_revenue_recovery! {
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -4070,12 +4103,12 @@ default_imp_for_revenue_recovery! {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_billing_connector_payment_sync {
     ($($path:ident::$connector:ident),*) => {
-        $(  impl BillingConnectorPaymentsSyncIntegration for $path::$connector {}
+        $(  impl recovery_traits::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
             impl
                 ConnectorIntegration<
-                BillingConnectorPaymentsSync,
-                BillingConnectorPaymentsSyncRequest,
-                BillingConnectorPaymentsSyncResponse
+                recovery_router_flows::BillingConnectorPaymentsSync,
+                recovery_request::BillingConnectorPaymentsSyncRequest,
+                recovery_response::BillingConnectorPaymentsSyncResponse
             > for $path::$connector
             {}
         )*
@@ -4110,6 +4143,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -4171,12 +4205,12 @@ default_imp_for_billing_connector_payment_sync!(
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
-        $( impl RevenueRecoveryRecordBack for $path::$connector {}
+        $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
             impl
             ConnectorIntegration<
-            RecoveryRecordBack,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse
+            recovery_router_flows::RecoveryRecordBack,
+            recovery_request::RevenueRecoveryRecordBackRequest,
+            recovery_response::RevenueRecoveryRecordBackResponse
             > for $path::$connector
             {}
         )*
@@ -4210,6 +4244,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
