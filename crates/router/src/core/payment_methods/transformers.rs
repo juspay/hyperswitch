@@ -9,7 +9,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
-use router_env::{tracing_actix_web::RequestId};
+use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
