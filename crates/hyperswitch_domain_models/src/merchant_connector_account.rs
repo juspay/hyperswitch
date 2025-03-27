@@ -733,10 +733,35 @@ common_utils::create_list_wrapper!(
     MerchantConnectorAccounts,
     MerchantConnectorAccount,
     impl_functions: {
+        fn filter_and_map<'a, T>(
+            &'a self,
+            filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
+            func: impl Fn(&'a MerchantConnectorAccount) -> T,
+        ) -> rustc_hash::FxHashSet<T>
+        where
+            T: std::hash::Hash + Eq,
+        {
+            self.0
+                .iter()
+                .filter(|mca| filter(mca))
+                .map(func)
+                .collect::<rustc_hash::FxHashSet<_>>()
+        }
+
+        pub fn filter_by_profile<'a, T>(
+            &'a self,
+            profile_id: &'a id_type::ProfileId,
+            func: impl Fn(&'a MerchantConnectorAccount) -> T,
+        ) -> rustc_hash::FxHashSet<T>
+        where
+            T: std::hash::Hash + Eq,
+        {
+            self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
+        }
         #[cfg(feature = "v2")]
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
-        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
+        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType, common_enums::PaymentMethod)> {
             // This vector is created to work around lifetimes
             let ref_vector = Vec::default();
 
@@ -745,12 +770,12 @@ common_utils::create_list_wrapper!(
                     .payment_methods_enabled.as_ref()
                     .unwrap_or(&Vec::default())
                     .iter()
-                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector))
-                    .filter(|payment_method_types_enabled| {
+                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector).iter().map(|payment_method_subtype| (payment_method_subtype, payment_method_types.payment_method_type)).collect::<Vec<_>>())
+                    .filter(|(payment_method_types_enabled, _)| {
                         payment_method_types_enabled.payment_experience == Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                     })
-                    .map(|payment_method_types| {
-                        (connector_account, payment_method_types.payment_method_subtype)
+                    .map(|(payment_method_subtypes, payment_method_type)| {
+                        (connector_account, payment_method_subtypes.payment_method_subtype, payment_method_type)
                     })
                     .collect::<Vec<_>>()
             }).collect();

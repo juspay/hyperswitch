@@ -15,8 +15,8 @@ use crate::{
     db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
     services::{self, connector_integration_interface},
-    types::{api, domain, storage::passive_churn_recovery as storage_churn_recovery},
-    workflows::passive_churn_recovery_workflow,
+    types::{api, domain, storage::revenue_recovery as storage_churn_recovery},
+    workflows::revenue_recovery as revenue_recovery_flow,
 };
 
 #[allow(clippy::too_many_arguments)]

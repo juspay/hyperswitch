@@ -5972,7 +5972,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         order_tax_amount: Some(MinorUnit::zero()),
         minor_amount: MinorUnit::new(0),
         statement_descriptor: None,
-        capture_method: None,
+        capture_method: data.request.capture_method,
         webhook_url: None,
         complete_authorize_url: None,
         browser_info: data.request.browser_info.clone(),
