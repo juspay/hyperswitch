@@ -4530,18 +4530,27 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
         let revenue_recovery = feature_metadata
             .payment_revenue_recovery_metadata
             .as_ref()
-            .map(|payment_revenue_recovery_metadata| api_models::payments::PaymentRevenueRecoveryMetadata {
-                total_retry_count: payment_revenue_recovery_metadata.total_retry_count,
-                payment_connector_transmission: Some(payment_revenue_recovery_metadata.payment_connector_transmission),
-                connector: payment_revenue_recovery_metadata.connector,
-                billing_connector_id: payment_revenue_recovery_metadata.billing_connector_id.clone(),
-                active_attempt_payment_connector_id: payment_revenue_recovery_metadata.active_attempt_payment_connector_id.clone(),
-                payment_method_type: payment_revenue_recovery_metadata.payment_method_type,
-                payment_method_subtype: payment_revenue_recovery_metadata.payment_method_subtype,
-                billing_connector_payment_details:
-                    api_models::payments::BillingConnectorPaymentDetails::foreign_from(
-                        &payment_revenue_recovery_metadata.billing_connector_payment_details,
+            .map(|payment_revenue_recovery_metadata| {
+                api_models::payments::PaymentRevenueRecoveryMetadata {
+                    total_retry_count: payment_revenue_recovery_metadata.total_retry_count,
+                    payment_connector_transmission: Some(
+                        payment_revenue_recovery_metadata.payment_connector_transmission,
                     ),
+                    connector: payment_revenue_recovery_metadata.connector,
+                    billing_connector_id: payment_revenue_recovery_metadata
+                        .billing_connector_id
+                        .clone(),
+                    active_attempt_payment_connector_id: payment_revenue_recovery_metadata
+                        .active_attempt_payment_connector_id
+                        .clone(),
+                    payment_method_type: payment_revenue_recovery_metadata.payment_method_type,
+                    payment_method_subtype: payment_revenue_recovery_metadata
+                        .payment_method_subtype,
+                    billing_connector_payment_details:
+                        api_models::payments::BillingConnectorPaymentDetails::foreign_from(
+                            &payment_revenue_recovery_metadata.billing_connector_payment_details,
+                        ),
+                }
             });
         let apple_pay_details = feature_metadata
             .apple_pay_recurring_details

@@ -126,23 +126,25 @@ pub async fn recovery_incoming_webhook_flow(
         false => (None, payment_intent),
     };
 
-    let attempt_triggered_by =
-        payment_attempt_with_recovery_intent
-            .0
-            .as_ref()
-            .and_then(|attempt| attempt.get_attempt_triggered_by());
+    let attempt_triggered_by = payment_attempt_with_recovery_intent
+        .0
+        .as_ref()
+        .and_then(|attempt| attempt.get_attempt_triggered_by());
 
     let action = revenue_recovery::RecoveryAction::get_action(event_type, attempt_triggered_by);
 
-    let mca_retry_threshold = billing_connector_account.get_retry_threshold()
-            .ok_or(report!(errors::RevenueRecoveryError::BillingThresholdRetryCountFetchFailed))?;
+    let mca_retry_threshold = billing_connector_account
+        .get_retry_threshold()
+        .ok_or(report!(
+            errors::RevenueRecoveryError::BillingThresholdRetryCountFetchFailed
+        ))?;
 
     let intent_retry_count = payment_attempt_with_recovery_intent
-            .1
-            .feature_metadata
-            .as_ref()
-            .and_then(|metadata| metadata.get_retry_count())
-            .ok_or(report!(errors::RevenueRecoveryError::RetryCountFetchFailed))?;
+        .1
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.get_retry_count())
+        .ok_or(report!(errors::RevenueRecoveryError::RetryCountFetchFailed))?;
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
 
@@ -164,11 +166,14 @@ pub async fn recovery_incoming_webhook_flow(
                     payment_attempt_with_recovery_intent.1.clone(),
                     business_profile.get_id().to_owned(),
                     intent_retry_count,
-                    payment_attempt_with_recovery_intent.0.as_ref().map(|attempt| attempt.attempt_id.clone()),
+                    payment_attempt_with_recovery_intent
+                        .0
+                        .as_ref()
+                        .map(|attempt| attempt.attempt_id.clone()),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 )
                 .await
-                .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)?)
+                .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)?),
             }
         }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
@@ -358,7 +363,8 @@ impl RevenueRecoveryAttempt {
                         feature_metadata: attempt_res.feature_metadata.to_owned(),
                     });
                 // If we have an attempt, combine it with payment_intent in a tuple.
-                let res_with_payment_intent_and_attempt = payment_attempt.map(|attempt| (attempt, (*payment_intent).clone()));
+                let res_with_payment_intent_and_attempt =
+                    payment_attempt.map(|attempt| (attempt, (*payment_intent).clone()));
                 Ok(res_with_payment_intent_and_attempt)
             }
             Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
@@ -501,7 +507,7 @@ impl RevenueRecoveryAttempt {
         merchant_id: id_type::MerchantId,
         payment_intent: revenue_recovery::RecoveryPaymentIntent,
         profile_id: id_type::ProfileId,
-        intent_retry_count:u16,
+        intent_retry_count: u16,
         payment_attempt_id: Option<id_type::GlobalAttemptId>,
         runner: storage::ProcessTrackerRunner,
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
