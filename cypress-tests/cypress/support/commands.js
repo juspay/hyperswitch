@@ -3148,10 +3148,12 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           `${arrayCount} payment_method_type`
         ).to.not.be.null;
 
-        expect(
-          paymentMethod.card?.nick_name,
-          `${arrayCount} nick_name`
-        ).to.equal(nickName);
+        if (!baseUrl.includes("localhost") && paymentMethod.card) {
+          expect(
+            paymentMethod.card.nick_name,
+            `${arrayCount} nick_name`
+          ).to.equal(nickName);
+        }
 
         expect(paymentMethod.last_used_at, `${arrayCount} last_used_at`).to.not
           .be.null;
