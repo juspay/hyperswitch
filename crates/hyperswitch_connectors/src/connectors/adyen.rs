@@ -72,10 +72,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
-use transformers::{
-    self as adyen, convert_payment_authorize_router_response,
-    convert_setup_mandate_router_data_to_authorize_router_data,
-};
+use transformers as adyen;
 
 #[cfg(feature = "payouts")]
 use crate::utils::PayoutsData as UtilsPayoutData;
@@ -86,7 +83,11 @@ use crate::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
         SubmitEvidenceRouterData,
     },
-    utils::{self as connector_utils, is_mandate_supported, ForeignTryFrom, PaymentMethodDataType},
+    utils::{
+        self as connector_utils, convert_payment_authorize_router_response,
+        convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
+        ForeignTryFrom, PaymentMethodDataType,
+    },
 };
 const ADYEN_API_VERSION: &str = "v68";
 
@@ -144,6 +145,8 @@ impl ConnectorCommon for Adyen {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -292,7 +295,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::VietQr
                 | PaymentMethodType::Mifinity
                 | PaymentMethodType::LocalBankRedirect
-                | PaymentMethodType::OpenBankingPIS => {
+                | PaymentMethodType::OpenBankingPIS
+                | PaymentMethodType::InstantBankTransfer
+                | PaymentMethodType::SepaBankTransfer => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -988,6 +993,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..data.clone()
             })

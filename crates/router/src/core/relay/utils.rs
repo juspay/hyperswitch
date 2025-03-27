@@ -101,6 +101,7 @@ pub async fn construct_relay_refund_router_data<F>(
             minor_payment_amount: relay_refund_data.amount,
             webhook_url,
             connector_metadata: None,
+            refund_connector_metadata: None,
             reason: relay_refund_data.reason,
             connector_refund_id: relay_record.connector_reference_id.clone(),
             browser_info: None,
@@ -109,6 +110,7 @@ pub async fn construct_relay_refund_router_data<F>(
             refund_status: common_enums::RefundStatus::from(relay_record.status),
             merchant_account_id: None,
             merchant_config_currency: None,
+            capture_method: None,
         },
 
         response: Err(ErrorResponse::default()),

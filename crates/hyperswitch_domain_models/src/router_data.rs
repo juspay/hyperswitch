@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_types::primitive_wrappers;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -361,6 +362,7 @@ pub struct PaymentMethodBalance {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+    extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
 }
 
 impl ConnectorResponseData {
@@ -369,7 +371,13 @@ impl ConnectorResponseData {
     ) -> Self {
         Self {
             additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
         }
+    }
+    pub fn get_extended_authorization_response_data(
+        &self,
+    ) -> Option<&ExtendedAuthorizationResponseData> {
+        self.extended_authorization_response_data.as_ref()
     }
 }
 
@@ -387,6 +395,13 @@ pub enum AdditionalPaymentMethodConnectorResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExtendedAuthorizationResponseData {
+    pub extended_authentication_applied:
+        Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
 }
@@ -399,6 +414,8 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -410,6 +427,8 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -423,6 +442,8 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -484,12 +505,14 @@ impl
                     if let Some(ref mut payment_revenue_recovery_metadata) =
                         feature_metadata.payment_revenue_recovery_metadata
                     {
-                        payment_revenue_recovery_metadata.payment_connector_transmission =
-                            if self.response.is_ok() {
-                                common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                            } else {
-                                common_enums::PaymentConnectorTransmission::ConnectorCallFailed
-                            };
+                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
+                            .response
+                            .is_ok()
+                        {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                        } else {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
+                        };
                     }
                     Box::new(feature_metadata)
                 });
@@ -599,6 +622,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -796,6 +821,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1011,8 +1038,11 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
 
                 let error_details = ErrorDetails {
                     code,
@@ -1253,6 +1283,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 

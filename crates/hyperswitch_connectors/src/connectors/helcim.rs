@@ -11,6 +11,8 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse,
+    payments::payment_attempt::PaymentAttempt,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -34,7 +36,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        ConnectorTransactionId, ConnectorValidation,
     },
     configs::Connectors,
     consts::NO_ERROR_CODE,
@@ -43,6 +45,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
 use masking::{ExposeInterface, Mask};
 use transformers as helcim;
 
@@ -181,6 +185,8 @@ impl ConnectorCommon for Helcim {
             reason: Some(error_string),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -910,5 +916,46 @@ impl ConnectorSpecifications for Helcim {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&HELCIM_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+impl ConnectorTransactionId for Helcim {
+    #[cfg(feature = "v1")]
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        if payment_attempt.get_connector_payment_id().is_none() {
+            let metadata =
+                Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
+            metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string))
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
+        if payment_attempt.get_connector_payment_id().is_none() {
+            let metadata = Self::connector_transaction_id(
+                self,
+                payment_attempt
+                    .connector_metadata
+                    .as_ref()
+                    .map(|connector_metadata| connector_metadata.peek()),
+            );
+            metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string))
+        }
     }
 }
