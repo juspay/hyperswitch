@@ -400,7 +400,7 @@ fn get_bank_transfer_debtor_info(
     Ok(match pm {
         TrustpayBankTransferPaymentMethod::SepaCreditTransfer
         | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
-            name: get_full_name(params.billing_first_name, billing_last_name),
+            name: get_full_name(params.billing_first_name, billing_last_name.map(From::from)),
             email: item.request.get_email()?,
         }),
     })
