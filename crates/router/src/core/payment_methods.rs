@@ -1529,7 +1529,7 @@ pub async fn create_payment_method_for_intent(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-) -> CustomResult<domain::PaymentMethod,errors::ApiErrorResponse> {
+) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
 
     let current_time = common_utils::date_time::now();
@@ -1899,8 +1899,11 @@ pub async fn retrieve_payment_method(
     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
     .attach_printable("Unable to find payment method")?;
 
-    transformers::generate_payment_method_response(&payment_method, Some(&single_use_token_in_cache))
-        .map(services::ApplicationResponse::Json)
+    transformers::generate_payment_method_response(
+        &payment_method,
+        Some(&single_use_token_in_cache),
+    )
+    .map(services::ApplicationResponse::Json)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2836,7 +2839,7 @@ async fn add_single_use_token_to_store(
         .map_err(Into::<errors::StorageError>::into)?;
 
     redis_connection
-    .serialize_and_set_key_with_expiry(
+        .serialize_and_set_key_with_expiry(
             &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
             value,
             consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,

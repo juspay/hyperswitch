@@ -1407,5 +1407,4 @@ pub async fn add_token_for_payment_method(
             token: Err(error_response),
         }),
     }
-
 }
