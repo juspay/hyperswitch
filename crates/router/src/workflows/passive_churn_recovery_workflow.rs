@@ -1,3 +1,4 @@
+#[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{StringExt, ValueExt};
@@ -7,27 +8,24 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntentData;
 #[cfg(feature = "v2")]
 use router_env::logger;
+use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
-use scheduler::{
-    consumer::workflows::ProcessTrackerWorkflow, errors, types::process_data,
-    utils as scheduler_utils,
-};
+use scheduler::{types::process_data, utils as scheduler_utils};
 
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        passive_churn_recovery::{self as pcr, types as pcr_types},
+        passive_churn_recovery::{self as pcr},
         payments,
     },
     db::StorageInterface,
     errors::StorageError,
-    routes::SessionState,
     types::{
         api::{self as api_types},
-        storage::{self, passive_churn_recovery as pcr_storage_types},
+        storage::passive_churn_recovery as pcr_storage_types,
     },
 };
-
+use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 
 #[async_trait::async_trait]
@@ -49,13 +47,12 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
+            .parse_value::<pcr_storage_types::PcrWorkflowTrackingData>(
             "PCRWorkflowTrackingData",
         )?;
         let request = PaymentsGetIntentRequest {
             id: tracking_data.global_payment_id.clone(),
         };
-        let key_manager_state = &state.into();
         let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
@@ -72,30 +69,27 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             request,
             tracking_data.global_payment_id.clone(),
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            pcr_data.platform_merchant_account.clone(),
+            None,
         )
         .await?;
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                pcr::perform_execute_task(
+                pcr::perform_execute_payment(
                     state,
                     &process,
                     &tracking_data,
                     &pcr_data,
-                    key_manager_state,
                     &payment_data.payment_intent,
                 )
                 .await
             }
             Some("PSYNC_WORKFLOW") => {
-                Box::pin(pcr::perform_psync_task(
+                Box::pin(pcr::perform_payments_sync(
                     state,
                     &process,
                     &tracking_data,
                     &pcr_data,
-                    key_manager_state,
-                    &payment_data.payment_intent,
                 ))
                 .await?;
                 Ok(())
@@ -107,7 +101,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     &process,
                     &tracking_data,
                     &pcr_data,
-                    key_manager_state,
                     &payment_data.payment_intent,
                 )
                 .await?;
@@ -120,8 +113,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
-    tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
-) -> Result<pcr_storage_types::PCRPaymentData, errors::ProcessTrackerError> {
+    tracking_data: &pcr_storage_types::PcrWorkflowTrackingData,
+) -> Result<pcr_storage_types::PcrPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
     let key_manager_state = &state.into();
@@ -148,24 +141,10 @@ pub(crate) async fn extract_data_and_perform_action(
             &tracking_data.profile_id,
         )
         .await?;
-    let platform_merchant_account =
-        if let Some(platform_merchant_id) = &tracking_data.platform_merchant_id {
-            Some(
-                db.find_merchant_account_by_merchant_id(
-                    key_manager_state,
-                    platform_merchant_id,
-                    &key_store,
-                )
-                .await?,
-            )
-        } else {
-            None
-        };
 
-    let pcr_payment_data = pcr_storage_types::PCRPaymentData {
+    let pcr_payment_data = pcr_storage_types::PcrPaymentData {
         merchant_account,
         profile,
-        platform_merchant_account,
         key_store,
     };
     Ok(pcr_payment_data)

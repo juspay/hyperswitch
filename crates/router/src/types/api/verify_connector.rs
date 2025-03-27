@@ -52,6 +52,7 @@ impl VerifyConnectorData {
             complete_authorize_url: None,
             related_transaction_id: None,
             statement_descriptor_suffix: None,
+            request_extended_authorization: None,
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
@@ -60,6 +61,8 @@ impl VerifyConnectorData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: None,
+            merchant_account_id: None,
+            merchant_config_currency: None,
         }
     }
 

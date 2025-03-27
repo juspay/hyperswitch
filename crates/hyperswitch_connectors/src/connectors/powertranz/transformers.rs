@@ -343,7 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             Err,
         );
@@ -459,6 +459,8 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -470,6 +472,8 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
             reason: Some(item.response_message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None

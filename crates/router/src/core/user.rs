@@ -128,13 +128,62 @@ pub async fn get_user_details(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
+    let key_manager_state = &(&state).into();
+
+    let merchant_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await;
+
+    let version = if let Ok(merchant_key_store) = merchant_key_store {
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &user_from_token.merchant_id,
+                &merchant_key_store,
+            )
+            .await;
+
+        if let Ok(merchant_account) = merchant_account {
+            merchant_account.version
+        } else if merchant_account
+            .as_ref()
+            .map_err(|e| e.current_context().is_db_not_found())
+            .err()
+            .unwrap_or(false)
+        {
+            common_enums::ApiVersion::V2
+        } else {
+            Err(merchant_account
+                .err()
+                .map(|e| e.change_context(UserErrors::InternalServerError))
+                .unwrap_or(UserErrors::InternalServerError.into()))?
+        }
+    } else if merchant_key_store
+        .as_ref()
+        .map_err(|e| e.current_context().is_db_not_found())
+        .err()
+        .unwrap_or(false)
+    {
+        common_enums::ApiVersion::V2
+    } else {
+        Err(merchant_key_store
+            .err()
+            .map(|e| e.change_context(UserErrors::InternalServerError))
+            .unwrap_or(UserErrors::InternalServerError.into()))?
+    };
+
     let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
         &state,
         &user_from_token,
         EntityType::Profile,
     )
     .await?;
-
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
             merchant_id: user_from_token.merchant_id,
@@ -149,6 +198,7 @@ pub async fn get_user_details(
             profile_id: user_from_token.profile_id,
             entity_type: role_info.get_entity_type(),
             theme_id: theme.map(|theme| theme.theme_id),
+            version,
         },
     ))
 }
@@ -637,6 +687,7 @@ async fn handle_invitation(
         &request.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
         user_from_token
             .tenant_id
             .as_ref()
@@ -1461,13 +1512,13 @@ pub async fn create_org_merchant_for_user(
 ) -> UserResponse<()> {
     let db_organization = ForeignFrom::foreign_from(req.clone());
     let org: diesel_models::organization::Organization = state
-        .store
+        .accounts_store
         .insert_organization(db_organization)
         .await
         .change_context(UserErrors::InternalServerError)?;
-
+    let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
     let merchant_account_create_request =
-        utils::user::create_merchant_account_request_for_org(req, org)?;
+        utils::user::create_merchant_account_request_for_org(req, org, default_product_type)?;
 
     admin::create_merchant_account(state.clone(), merchant_account_create_request)
         .await
@@ -1481,15 +1532,22 @@ pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
-) -> UserResponse<()> {
+) -> UserResponse<user_api::UserMerchantAccountResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
-    new_merchant
+    let domain_merchant_account = new_merchant
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        user_api::UserMerchantAccountResponse {
+            merchant_id: domain_merchant_account.get_id().to_owned(),
+            merchant_name: domain_merchant_account.merchant_name,
+            product_type: domain_merchant_account.product_type,
+            version: domain_merchant_account.version,
+        },
+    ))
 }
 
 pub async fn list_user_roles_details(
@@ -1547,7 +1605,7 @@ pub async fn list_user_roles_details(
         .collect::<HashSet<_>>();
 
     let org_name = state
-        .store
+        .accounts_store
         .find_organization_by_org_id(&user_from_token.org_id)
         .await
         .change_context(UserErrors::InternalServerError)
@@ -2836,7 +2894,7 @@ pub async fn list_orgs_for_user(
 
     let resp = futures::future::try_join_all(
         orgs.iter()
-            .map(|org_id| state.store.find_organization_by_org_id(org_id)),
+            .map(|org_id| state.accounts_store.find_organization_by_org_id(org_id)),
     )
     .await
     .change_context(UserErrors::InternalServerError)?
@@ -2857,7 +2915,7 @@ pub async fn list_orgs_for_user(
 pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
+) -> UserResponse<Vec<user_api::UserMerchantAccountResponse>> {
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
@@ -2916,19 +2974,18 @@ pub async fn list_merchants_for_user_in_org(
         }
     };
 
-    if merchant_accounts.is_empty() {
-        Err(UserErrors::InternalServerError).attach_printable("No merchant found for a user")?;
-    }
+    // TODO: Add a check to see if merchant accounts are empty, and handle accordingly, when a single route will be used instead
+    // of having two separate routes.
 
     Ok(ApplicationResponse::Json(
         merchant_accounts
             .into_iter()
-            .map(
-                |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
-                    merchant_name: merchant_account.merchant_name.clone(),
-                    merchant_id: merchant_account.get_id().to_owned(),
-                },
-            )
+            .map(|merchant_account| user_api::UserMerchantAccountResponse {
+                merchant_name: merchant_account.merchant_name.clone(),
+                merchant_id: merchant_account.get_id().to_owned(),
+                product_type: merchant_account.product_type.clone(),
+                version: merchant_account.version,
+            })
             .collect::<Vec<_>>(),
     ))
 }

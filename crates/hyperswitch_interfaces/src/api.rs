@@ -16,6 +16,8 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
+pub mod revenue_recovery;
+pub mod revenue_recovery_v2;
 
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
@@ -34,13 +36,14 @@ use hyperswitch_domain_models::{
         UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, PostAuthenticate,
-        PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
@@ -94,6 +97,11 @@ pub trait ConnectorIntegration<T, Req, Resp>:
 
     /// fn get_content_type
     fn get_content_type(&self) -> &'static str {
+        mime::APPLICATION_JSON.essence_str()
+    }
+
+    /// fn get_content_type
+    fn get_accept_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
 
@@ -195,6 +203,8 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 
@@ -283,6 +293,8 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -371,7 +383,11 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait UnifiedAuthenticationService
 pub trait UnifiedAuthenticationService:
-    ConnectorCommon + UasPreAuthentication + UasPostAuthentication + UasAuthentication
+    ConnectorCommon
+    + UasPreAuthentication
+    + UasPostAuthentication
+    + UasAuthenticationConfirmation
+    + UasAuthentication
 {
 }
 
@@ -395,6 +411,16 @@ pub trait UasPostAuthentication:
 {
 }
 
+/// trait UasAuthenticationConfirmation
+pub trait UasAuthenticationConfirmation:
+    ConnectorIntegration<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
 /// trait UasAuthentication
 pub trait UasAuthentication:
     ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
@@ -403,7 +429,11 @@ pub trait UasAuthentication:
 
 /// trait UnifiedAuthenticationServiceV2
 pub trait UnifiedAuthenticationServiceV2:
-    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2 + UasAuthenticationV2
+    ConnectorCommon
+    + UasPreAuthenticationV2
+    + UasPostAuthenticationV2
+    + UasAuthenticationV2
+    + UasAuthenticationConfirmationV2
 {
 }
 
@@ -424,6 +454,17 @@ pub trait UasPostAuthenticationV2:
     PostAuthenticate,
     UasFlowData,
     UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasAuthenticationConfirmationV2
+pub trait UasAuthenticationConfirmationV2:
+    ConnectorIntegrationV2<
+    AuthenticationConfirmation,
+    UasFlowData,
+    UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >
 {
@@ -468,7 +509,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                             .supported_capture_methods
                             .contains(&capture_method)
                     })
-                    .unwrap_or_else(|| is_default_capture_method)
+                    .unwrap_or(true)
             }
             None => is_default_capture_method,
         };

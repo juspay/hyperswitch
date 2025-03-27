@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "v1")]
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -108,6 +110,10 @@ pub struct MerchantAccountCreate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v1")]
@@ -190,6 +196,9 @@ pub struct MerchantAccountCreateWithoutOrgId {
     /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    #[schema(value_type = Option<MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 // In v2 the struct used in the API is MerchantAccountCreateWithoutOrgId
@@ -202,6 +211,8 @@ pub struct MerchantAccountCreate {
     pub merchant_details: Option<MerchantDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub organization_id: id_type::OrganizationId,
+    /// Product Type of this merchant account
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -236,12 +247,39 @@ impl MerchantAccountCreate {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct CardTestingGuardConfig {
+    /// Determines if Card IP Blocking is enabled for profile
+    pub card_ip_blocking_status: CardTestingGuardStatus,
+    /// Determines the unsuccessful payment threshold for Card IP Blocking for profile
+    pub card_ip_blocking_threshold: i32,
+    /// Determines if Guest User Card Blocking is enabled for profile
+    pub guest_user_card_blocking_status: CardTestingGuardStatus,
+    /// Determines the unsuccessful payment threshold for Guest User Card Blocking for profile
+    pub guest_user_card_blocking_threshold: i32,
+    /// Determines if Customer Id Blocking is enabled for profile
+    pub customer_id_blocking_status: CardTestingGuardStatus,
+    /// Determines the unsuccessful payment threshold for Customer Id Blocking for profile
+    pub customer_id_blocking_threshold: i32,
+    /// Determines Redis Expiry for Card Testing Guard for profile
+    pub card_testing_guard_expiry: i32,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CardTestingGuardStatus {
+    Enabled,
+    Disabled,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
     pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -522,6 +560,10 @@ pub struct MerchantAccountResponse {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[cfg(feature = "v2")]
@@ -554,6 +596,10 @@ pub struct MerchantAccountResponse {
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: api_enums::ReconStatus,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<MerchantProductType>)]
+    pub product_type: Option<api_enums::MerchantProductType>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -732,6 +778,10 @@ pub struct MerchantConnectorCreate {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -907,6 +957,28 @@ pub enum AdditionalMerchantData {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Feature metadata for merchant connector account
+pub struct MerchantConnectorAccountFeatureMetadata {
+    /// Revenue recovery metadata for merchant connector account
+    pub revenue_recovery: Option<RevenueRecoveryMetadata>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Revenue recovery metadata for merchant connector account
+pub struct RevenueRecoveryMetadata {
+    /// The maximum number of retries allowed for an invoice. This limit is set by the merchant for each `billing connector`. Once this limit is reached, no further retries will be attempted.
+    #[schema(value_type = u16, example = "15")]
+    pub max_retry_count: u16,
+    /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
+    #[schema(value_type = u16, example = "10")]
+    pub billing_connector_retry_threshold: u16,
+    /// Billing account reference id is payment gateway id at billing connector end.
+    /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
+    #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
+    pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
     Iban {
@@ -1070,6 +1142,10 @@ pub struct MerchantConnectorResponse {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1302,6 +1378,9 @@ impl MerchantConnectorListResponse {
             merchant_connector_id: self.merchant_connector_id.clone(),
         }
     }
+    pub fn get_connector_name(&self) -> String {
+        self.connector_name.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1357,6 +1436,9 @@ impl MerchantConnectorListResponse {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
         }
+    }
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
+        self.connector_name
     }
 }
 
@@ -1468,6 +1550,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub paze: Option<pii::SecretSerdeValue>,
+    /// This field contains the Google Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub google_pay: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1528,6 +1614,10 @@ pub struct MerchantConnectorUpdate {
 
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1600,6 +1690,20 @@ pub struct PaymentMethodsEnabled {
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
+}
+impl PaymentMethodsEnabled {
+    /// Get payment_method
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
+        Some(self.payment_method)
+    }
+    /// Get payment_method_types
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_type(
+        &self,
+    ) -> Option<&Vec<payment_methods::RequestPaymentMethodTypes>> {
+        self.payment_method_types.as_ref()
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
@@ -1859,6 +1963,10 @@ pub struct ProfileCreate {
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
@@ -1867,6 +1975,15 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -1985,6 +2102,12 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2114,6 +2237,10 @@ pub struct ProfileResponse {
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<i16>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
@@ -2122,6 +2249,15 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2246,6 +2382,12 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2377,6 +2519,15 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if 3ds challenge is forced
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2489,6 +2640,12 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2670,6 +2827,22 @@ pub struct PaymentLinkConfigRequest {
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Text for customizing message for card terms
+    pub custom_message_for_card_terms: Option<String>,
+    /// Custom background colour for payment link's handle confirm button
+    pub payment_button_colour: Option<String>,
+    /// Skip the status screen after payment completion
+    pub skip_status_screen: Option<bool>,
+    /// Custom text colour for payment link's handle confirm button
+    pub payment_button_text_colour: Option<String>,
+    /// Custom background colour for the payment link
+    pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2741,6 +2914,22 @@ pub struct PaymentLinkConfig {
     pub branding_visibility: Option<bool>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
+    /// Text for customizing message for card terms
+    pub custom_message_for_card_terms: Option<String>,
+    /// Custom background colour for payment link's handle confirm button
+    pub payment_button_colour: Option<String>,
+    /// Skip the status screen after payment completion
+    pub skip_status_screen: Option<bool>,
+    /// Custom text colour for payment link's handle confirm button
+    pub payment_button_text_colour: Option<String>,
+    /// Custom background colour for the payment link
+    pub background_colour: Option<String>,
+    /// SDK configuration rules
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Payment link configuration rules
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    /// Flag to enable the button only when the payment form is ready for submission
+    pub enable_button_only_on_form_ready: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

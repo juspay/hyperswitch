@@ -144,6 +144,8 @@ impl ConnectorCommon for Bambora {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -847,7 +849,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -858,8 +860,8 @@ lazy_static! {
         bambora_supported_payment_methods
     };
     static ref BAMBORA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Bambora is a leading online payment provider in Canada and United States."
-            .to_string(),
+        display_name: "Bambora",
+        description: "Bambora is a leading online payment provider in Canada and United States.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref BAMBORA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

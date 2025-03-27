@@ -156,6 +156,8 @@ impl ConnectorCommon for Worldpay {
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -392,7 +394,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                         network_txn_id: None,
                         connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..data.clone()
                 })
@@ -483,6 +485,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 
@@ -531,7 +535,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..data.clone()
         })
@@ -632,7 +636,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         network_txn_id: None,
                         connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..data.clone()
                 })

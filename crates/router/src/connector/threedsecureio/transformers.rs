@@ -4,6 +4,7 @@ use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
 use common_utils::date_time;
 use error_stack::ResultExt;
+use hyperswitch_connectors::utils::AddressDetailsData;
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, Secret};
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
 use crate::{
-    connector::utils::{get_card_details, to_connector_meta, AddressDetailsData, CardData},
+    connector::utils::{get_card_details, to_connector_meta, CardData},
     consts::{BASE64_ENGINE, NO_ERROR_MESSAGE},
     core::errors,
     types::{
@@ -123,6 +124,8 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
         };
@@ -204,6 +207,8 @@ impl
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 }
                 ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
@@ -214,6 +219,8 @@ impl
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 }
             },
@@ -693,7 +700,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         Ok(Self {
-            acct_number: router_data.request.card_holder_account_number.clone(),
+            acct_number: router_data.request.card.card_number.clone(),
             ds: None,
         })
     }

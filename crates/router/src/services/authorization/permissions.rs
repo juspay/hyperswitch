@@ -45,7 +45,7 @@ generate_permissions! {
         },
         ThreeDsDecisionManager: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Merchant, Profile]
         },
         SurchargeDecisionManager: {
             scopes: [Read, Write],
@@ -65,7 +65,7 @@ generate_permissions! {
         },
         WebhookEvent: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Profile, Merchant]
         },
         ReconToken: {
             scopes: [Read],

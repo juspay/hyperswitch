@@ -50,7 +50,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         run: |
@@ -128,7 +128,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "5b3ebdad-1067-421b-83e5-3ceb73c3eeeb.json.gpg"
+          S3_SOURCE_FILE_NAME: "61942d87-78d1-4a1b-b040-f40c83a4430c.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -165,14 +165,14 @@ jobs:
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.1.1
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
           features: postgres
@@ -180,7 +180,7 @@ jobs:
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -189,8 +189,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -346,14 +345,14 @@ jobs:
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.1.1
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
           features: postgres
@@ -361,14 +360,14 @@ jobs:
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: grcov
           checksum: true
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -377,8 +376,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}

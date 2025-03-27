@@ -389,7 +389,7 @@ impl
                             network_txn_id: None,
                             connector_response_reference_id: Some(processed.tx_id.clone()),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     }),
@@ -421,7 +421,7 @@ impl
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     }),
@@ -444,7 +444,8 @@ impl
                     reason: Some("METHOD_REQUIRED Flow is not currently supported for deutschebank 3ds payments".to_owned()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: None,issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             }),
@@ -514,6 +515,8 @@ fn get_error_response(error_code: String, error_reason: String, status_code: u16
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 
@@ -594,7 +597,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -645,7 +648,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -895,7 +898,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -984,7 +987,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -1224,8 +1227,21 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DeutschebankErrorResponse {
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct PaymentsErrorResponse {
     pub rc: String,
     pub message: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct AccessTokenErrorResponse {
+    pub cause: String,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum DeutschebankError {
+    PaymentsErrorResponse(PaymentsErrorResponse),
+    AccessTokenErrorResponse(AccessTokenErrorResponse),
 }

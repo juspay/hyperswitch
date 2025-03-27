@@ -129,6 +129,8 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -331,6 +333,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -463,6 +467,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -591,6 +597,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -744,6 +752,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -766,18 +776,15 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if let Some(split_payments) = &req.request.split_payments {
-            match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => {
-                    transformers::transform_headers_for_connect_platform(
-                        stripe_split_payment.charge_type.clone(),
-                        stripe_split_payment.transfer_account_id.clone(),
-                        &mut header,
-                    );
-                }
-            }
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
         }
         Ok(header)
     }
@@ -917,6 +924,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -943,26 +952,21 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if let Some(split_payments) = &req.request.split_payments {
-            match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => {
-                    if stripe_split_payment.charge_type
-                        == api::enums::PaymentChargeType::Stripe(
-                            api::enums::StripeChargeType::Direct,
-                        )
-                    {
-                        let mut customer_account_header = vec![(
-                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                            stripe_split_payment
-                                .transfer_account_id
-                                .clone()
-                                .into_masked(),
-                        )];
-                        header.append(&mut customer_account_header);
-                    }
-                }
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            if stripe_split_payment.charge_type
+                == api::enums::PaymentChargeType::Stripe(api::enums::StripeChargeType::Direct)
+            {
+                let mut customer_account_header = vec![(
+                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    stripe_split_payment
+                        .transfer_account_id
+                        .clone()
+                        .into_masked(),
+                )];
+                header.append(&mut customer_account_header);
             }
         }
         Ok(header)
@@ -1172,6 +1176,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1299,6 +1305,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1459,6 +1467,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1484,22 +1494,20 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if let Some(split_refunds) = req.request.split_refunds.as_ref() {
-            match split_refunds {
-                SplitRefundsRequest::StripeSplitRefund(ref stripe_split_refund) => {
-                    match &stripe_split_refund.charge_type {
-                        api::enums::PaymentChargeType::Stripe(stripe_charge) => {
-                            if stripe_charge == &api::enums::StripeChargeType::Direct {
-                                let mut customer_account_header = vec![(
-                                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                                    stripe_split_refund
-                                        .transfer_account_id
-                                        .clone()
-                                        .into_masked(),
-                                )];
-                                header.append(&mut customer_account_header);
-                            }
-                        }
+        if let Some(SplitRefundsRequest::StripeSplitRefund(ref stripe_split_refund)) =
+            req.request.split_refunds.as_ref()
+        {
+            match &stripe_split_refund.charge_type {
+                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                    if stripe_charge == &api::enums::StripeChargeType::Direct {
+                        let mut customer_account_header = vec![(
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            stripe_split_refund
+                                .transfer_account_id
+                                .clone()
+                                .into_masked(),
+                        )];
+                        header.append(&mut customer_account_header);
                     }
                 }
             }
@@ -1530,15 +1538,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req.request.currency,
         )?;
         let request_body = match req.request.split_refunds.as_ref() {
-            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
+            Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
+                Box::new(stripe::ChargeRefundRequest::try_from(req)?),
+            ),
+            _ => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
                 req,
                 refund_amount,
             ))?)),
-            Some(split_refunds) => match split_refunds {
-                SplitRefundsRequest::StripeSplitRefund(_) => RequestContent::FormUrlEncoded(
-                    Box::new(stripe::ChargeRefundRequest::try_from(req)?),
-                ),
-            },
         };
         Ok(request_body)
     }
@@ -1632,6 +1638,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1653,16 +1661,14 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if let Some(split_refunds) = req.request.split_refunds.as_ref() {
-            match split_refunds {
-                SplitRefundsRequest::StripeSplitRefund(ref stripe_refund) => {
-                    transformers::transform_headers_for_connect_platform(
-                        stripe_refund.charge_type.clone(),
-                        stripe_refund.transfer_account_id.clone(),
-                        &mut header,
-                    );
-                }
-            }
+        if let Some(SplitRefundsRequest::StripeSplitRefund(ref stripe_refund)) =
+            req.request.split_refunds.as_ref()
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_refund.charge_type.clone(),
+                stripe_refund.transfer_account_id.clone(),
+                &mut header,
+            );
         }
         Ok(header)
     }
@@ -1768,6 +1774,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1922,6 +1930,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2035,6 +2045,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2166,6 +2178,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }

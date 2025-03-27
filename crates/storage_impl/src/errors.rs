@@ -1,12 +1,13 @@
 pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
-use common_utils::errors::ErrorSwitch;
-use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
 
 use crate::store::errors::DatabaseError;
+pub type StorageResult<T> = error_stack::Result<T, StorageError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
+    #[error("Initialization Error")]
+    InitializationError,
     #[error("DatabaseError: {0:?}")]
     DatabaseError(error_stack::Report<DatabaseError>),
     #[error("ValueNotFound: {0}")]
@@ -38,56 +39,6 @@ pub enum StorageError {
     RedisError(error_stack::Report<RedisError>),
 }
 
-impl ErrorSwitch<DataStorageError> for StorageError {
-    fn switch(&self) -> DataStorageError {
-        self.into()
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<DataStorageError> for &StorageError {
-    fn into(self) -> DataStorageError {
-        match self {
-            StorageError::DatabaseError(i) => match i.current_context() {
-                DatabaseError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
-                // TODO: Update this error type to encompass & propagate the missing type (instead of generic `db value not found`)
-                DatabaseError::NotFound => {
-                    DataStorageError::ValueNotFound(String::from("db value not found"))
-                }
-                // TODO: Update this error type to encompass & propagate the duplicate type (instead of generic `db value not found`)
-                DatabaseError::UniqueViolation => DataStorageError::DuplicateValue {
-                    entity: "db entity",
-                    key: None,
-                },
-                err => DataStorageError::DatabaseError(error_stack::report!(*err)),
-            },
-            StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
-            StorageError::DuplicateValue { entity, key } => DataStorageError::DuplicateValue {
-                entity,
-                key: key.clone(),
-            },
-            StorageError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
-            StorageError::KVError => DataStorageError::KVError,
-            StorageError::SerializationFailed => DataStorageError::SerializationFailed,
-            StorageError::MockDbError => DataStorageError::MockDbError,
-            StorageError::KafkaError => DataStorageError::KafkaError,
-            StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
-            StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
-            StorageError::EncryptionError => DataStorageError::EncryptionError,
-            StorageError::DecryptionError => DataStorageError::DecryptionError,
-            StorageError::RedisError(i) => match i.current_context() {
-                // TODO: Update this error type to encompass & propagate the missing type (instead of generic `redis value not found`)
-                RedisError::NotFound => {
-                    DataStorageError::ValueNotFound("redis value not found".to_string())
-                }
-                RedisError::JsonSerializationFailed => DataStorageError::SerializationFailed,
-                RedisError::JsonDeserializationFailed => DataStorageError::DeserializationFailed,
-                i => DataStorageError::RedisError(format!("{:?}", i)),
-            },
-        }
-    }
-}
-
 impl From<error_stack::Report<RedisError>> for StorageError {
     fn from(err: error_stack::Report<RedisError>) -> Self {
         Self::RedisError(err)
@@ -111,6 +62,7 @@ impl StorageError {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
             Self::ValueNotFound(_) => true,
+            Self::RedisError(err) => matches!(err.current_context(), RedisError::NotFound),
             _ => false,
         }
     }
@@ -127,22 +79,22 @@ impl StorageError {
 
 pub trait RedisErrorExt {
     #[track_caller]
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError>;
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<StorageError>;
 }
 
 impl RedisErrorExt for error_stack::Report<RedisError> {
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<StorageError> {
         match self.current_context() {
-            RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
+            RedisError::NotFound => self.change_context(StorageError::ValueNotFound(format!(
                 "Data does not exist for key {key}",
             ))),
             RedisError::SetNxFailed | RedisError::SetAddMembersFailed => {
-                self.change_context(DataStorageError::DuplicateValue {
+                self.change_context(StorageError::DuplicateValue {
                     entity: "redis",
                     key: Some(key.to_string()),
                 })
             }
-            _ => self.change_context(DataStorageError::KVError),
+            _ => self.change_context(StorageError::KVError),
         }
     }
 }
@@ -302,11 +254,11 @@ pub enum HealthCheckGRPCServiceError {
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum RecoveryError {
     #[error("Failed to make a recovery payment")]
-    RecoveryPaymentFailed,
+    PaymentCallFailed,
     #[error("Encountered a Process Tracker Task Failure")]
     ProcessTrackerFailure,
     #[error("The encountered task is invalid")]
     InvalidTask,
-    #[error("The Intented task was not found")]
-    TaskNotFound,
+    #[error("The Intended data was not found")]
+    ValueNotFound,
 }

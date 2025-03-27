@@ -123,6 +123,8 @@ impl ConnectorCommon for Zsl {
             reason: Some(error_reason),
             attempt_status: Some(common_enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -466,9 +468,9 @@ lazy_static! {
     };
 
     static ref ZSL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "ZSL",
         description:
-            "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
-                .to_string(),
+            "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

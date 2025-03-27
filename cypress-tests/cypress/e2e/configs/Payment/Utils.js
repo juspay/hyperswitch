@@ -4,23 +4,27 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
-import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
+import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
+import { connectorDetails as HipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
@@ -32,19 +36,23 @@ const connectorDetails = {
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   checkout: checkoutConnectorDetails,
-  commons: CommonConnectorDetails,
+  commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
+  getnet: getnetConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  moneris: monerisConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
   xendit: xenditConnectorDetails,
   paypal: paypalConnectorDetails,
+  hipay: HipayConnectorDetails,
+  redsys: redsysConnectorDetails,
   stripe: stripeConnectorDetails,
   elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
@@ -307,3 +315,26 @@ export function updateBusinessProfile(
     profilePrefix
   );
 }
+
+export const CONNECTOR_LISTS = {
+  // Exclusion lists (skip these connectors)
+  EXCLUDE: {
+    CONNECTOR_AGNOSTIC_NTID: ["fiuu", "paypal"],
+    // Add more exclusion lists
+  },
+
+  // Inclusion lists (only run for these connectors)
+  INCLUDE: {
+    MANDATES_USING_NTID_PROXY: ["cybersource"],
+    // Add more inclusion lists
+  },
+};
+
+// Helper functions
+export const shouldExcludeConnector = (connectorId, list) => {
+  return list.includes(connectorId);
+};
+
+export const shouldIncludeConnector = (connectorId, list) => {
+  return !list.includes(connectorId);
+};

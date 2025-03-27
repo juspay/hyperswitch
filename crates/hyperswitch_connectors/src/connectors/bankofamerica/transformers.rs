@@ -1,8 +1,11 @@
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
-use common_utils::{consts, pii};
+use common_utils::{consts, ext_traits::OptionExt, pii};
 use hyperswitch_domain_models::{
-    payment_method_data::{ApplePayWalletData, GooglePayWalletData, PaymentMethodData, WalletData},
+    payment_method_data::{
+        ApplePayWalletData, GooglePayWalletData, PaymentMethodData, SamsungPayWalletData,
+        WalletData,
+    },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorAuthType,
         ConnectorResponseData, ErrorResponse, PaymentMethodToken, RouterData,
@@ -221,6 +224,7 @@ pub enum PaymentInformation {
     ApplePay(Box<ApplePayPaymentInformation>),
     ApplePayToken(Box<ApplePayTokenPaymentInformation>),
     MandatePayment(Box<MandatePaymentInformation>),
+    SamsungPay(Box<SamsungPayPaymentInformation>),
 }
 
 #[derive(Debug, Serialize)]
@@ -254,7 +258,11 @@ pub struct TokenizedCard {
 #[serde(rename_all = "camelCase")]
 pub struct FluidData {
     value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<String>,
 }
+
+pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAPP.PAYMENT";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -296,6 +304,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -430,7 +439,7 @@ impl<F, T>
                                     .unwrap_or(info_response.id),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                     },
                     connector_response,
@@ -510,17 +519,26 @@ fn build_bill_to(
         country: None,
         email: email.clone(),
     };
+
     Ok(address_details
         .and_then(|addr| {
-            addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.clone(),
-                last_name: addr.last_name.clone(),
-                address1: addr.line1.clone(),
-                locality: addr.city.clone(),
-                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
-                postal_code: addr.zip.clone(),
-                country: addr.country,
-                email,
+            addr.address.as_ref().map(|addr| {
+                let administrative_area = addr.to_state_code_as_optional().unwrap_or_else(|_| {
+                    addr.state
+                        .clone()
+                        .map(|state| Secret::new(format!("{:.20}", state.expose())))
+                });
+
+                BillTo {
+                    first_name: addr.first_name.clone(),
+                    last_name: addr.last_name.clone(),
+                    address1: addr.line1.clone(),
+                    locality: addr.city.clone(),
+                    administrative_area,
+                    postal_code: addr.zip.clone(),
+                    country: addr.country,
+                    email,
+                }
             })
         })
         .unwrap_or(default_address))
@@ -546,6 +564,7 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
 pub enum PaymentSolution {
     ApplePay,
     GooglePay,
+    SamsungPay,
 }
 
 impl From<PaymentSolution> for String {
@@ -553,6 +572,7 @@ impl From<PaymentSolution> for String {
         let payment_solution = match solution {
             PaymentSolution::ApplePay => "001",
             PaymentSolution::GooglePay => "012",
+            PaymentSolution::SamsungPay => "008",
         };
         payment_solution.to_string()
     }
@@ -562,6 +582,8 @@ impl From<PaymentSolution> for String {
 pub enum TransactionType {
     #[serde(rename = "1")]
     ApplePay,
+    #[serde(rename = "1")]
+    SamsungPay,
 }
 
 impl
@@ -813,6 +835,13 @@ impl
             hyperswitch_domain_models::payment_method_data::Card,
         ),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "BankOfAmerica",
+            })?
+        };
+
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
@@ -933,6 +962,27 @@ impl
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayPaymentInformation {
+    fluid_data: FluidData,
+    tokenized_card: SamsungPayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayFluidDataValue {
+    public_key_hash: Secret<String>,
+    version: String,
+    data: Secret<String>,
+}
+
 impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
     for BankOfAmericaPaymentsRequest
 {
@@ -962,6 +1012,12 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                                     PaymentMethodToken::PazeDecrypt(_) => Err(
                                         unimplemented_payment_method!("Paze", "Bank Of America"),
                                     )?,
+                                    PaymentMethodToken::GooglePayDecrypt(_) => {
+                                        Err(unimplemented_payment_method!(
+                                            "Google Pay",
+                                            "Bank Of America"
+                                        ))?
+                                    }
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
@@ -1019,10 +1075,14 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         WalletData::GooglePay(google_pay_data) => {
                             Self::try_from((item, google_pay_data))
                         }
+                        WalletData::SamsungPay(samsung_pay_data) => {
+                            Self::try_from((item, samsung_pay_data))
+                        }
 
                         WalletData::AliPayQr(_)
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
+                        | WalletData::AmazonPayRedirect(_)
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -1037,7 +1097,6 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::PaypalRedirect(_)
                         | WalletData::PaypalSdk(_)
                         | WalletData::Paze(_)
-                        | WalletData::SamsungPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
                         | WalletData::TouchNGoRedirect(_)
@@ -1089,6 +1148,96 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                 }
             }
         }
+    }
+}
+
+fn get_samsung_pay_fluid_data_value(
+    samsung_pay_token_data: &hyperswitch_domain_models::payment_method_data::SamsungPayTokenData,
+) -> Result<SamsungPayFluidDataValue, error_stack::Report<errors::ConnectorError>> {
+    let samsung_pay_header =
+        josekit::jwt::decode_header(samsung_pay_token_data.data.clone().peek())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to decode samsung pay header")?;
+
+    let samsung_pay_kid_optional = samsung_pay_header.claim("kid").and_then(|kid| kid.as_str());
+
+    let samsung_pay_fluid_data_value = SamsungPayFluidDataValue {
+        public_key_hash: Secret::new(
+            samsung_pay_kid_optional
+                .get_required_value("samsung pay public_key_hash")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ),
+        version: samsung_pay_token_data.version.clone(),
+        data: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_token_data.data.peek())),
+    };
+
+    Ok(samsung_pay_fluid_data_value)
+}
+
+use error_stack::ResultExt;
+
+impl
+    TryFrom<(
+        &BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>,
+        Box<SamsungPayWalletData>,
+    )> for BankOfAmericaPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, samsung_pay_data): (
+            &BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>,
+            Box<SamsungPayWalletData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+
+        let samsung_pay_fluid_data_value =
+            get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
+
+        let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize samsung pay fluid data")?;
+
+        let payment_information =
+            PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
+                fluid_data: FluidData {
+                    value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
+                    descriptor: Some(
+                        consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
+                    ),
+                },
+                tokenized_card: SamsungPayTokenizedCard {
+                    transaction_type: TransactionType::SamsungPay,
+                },
+            }));
+
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            Some(PaymentSolution::SamsungPay),
+            Some(samsung_pay_data.payment_credential.card_brand.to_string()),
+        ))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(convert_metadata_to_merchant_defined_info);
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            consumer_authentication_information: None,
+            merchant_defined_information,
+        })
     }
 }
 
@@ -1421,6 +1570,8 @@ fn map_error_response<F, T>(
         status_code: item.http_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
+        issuer_error_code: None,
+        issuer_error_message: None,
     });
 
     match transaction_status {
@@ -1462,10 +1613,10 @@ fn get_payment_response(
         enums::AttemptStatus,
         u16,
     ),
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
-        Some(error) => Err(error),
+        Some(error) => Err(Box::new(error)),
         None => {
             let mandate_reference =
                 info_response
@@ -1494,7 +1645,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         }
     }
@@ -1525,7 +1676,8 @@ impl<F>
                     info_response.status.clone(),
                     item.data.request.is_auto_capture()?,
                 ));
-                let response = get_payment_response((&info_response, status, item.http_code));
+                let response = get_payment_response((&info_response, status, item.http_code))
+                    .map_err(|err| *err);
                 let connector_response = match item.data.payment_method {
                     common_enums::PaymentMethod::Card => info_response
                         .processor_information
@@ -1624,7 +1776,8 @@ impl<F>
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = map_boa_attempt_status((info_response.status.clone(), true));
-                let response = get_payment_response((&info_response, status, item.http_code));
+                let response = get_payment_response((&info_response, status, item.http_code))
+                    .map_err(|err| *err);
                 Ok(Self {
                     status,
                     response,
@@ -1660,7 +1813,8 @@ impl<F>
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = map_boa_attempt_status((info_response.status.clone(), false));
-                let response = get_payment_response((&info_response, status, item.http_code));
+                let response = get_payment_response((&info_response, status, item.http_code))
+                    .map_err(|err| *err);
                 Ok(Self {
                     status,
                     response,
@@ -1792,7 +1946,7 @@ impl<F>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         connector_response,
                         ..item.data
@@ -1809,7 +1963,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -2220,6 +2374,8 @@ fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 
@@ -2236,6 +2392,13 @@ impl
             hyperswitch_domain_models::payment_method_data::Card,
         ),
     ) -> Result<Self, Self::Error> {
+        if item.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "BankOfAmerica",
+            })?
+        };
+
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
@@ -2279,6 +2442,10 @@ impl TryFrom<(&SetupMandateRouterData, ApplePayWalletData)> for BankOfAmericaPay
                 PaymentMethodToken::PazeDecrypt(_) => {
                     Err(unimplemented_payment_method!("Paze", "Bank Of America"))?
                 }
+                PaymentMethodToken::GooglePayDecrypt(_) => Err(unimplemented_payment_method!(
+                    "Google Pay",
+                    "Bank Of America"
+                ))?,
             },
             None => PaymentInformation::from(&apple_pay_data),
         };
@@ -2429,6 +2596,7 @@ impl From<&ApplePayWalletData> for PaymentInformation {
         Self::ApplePayToken(Box::new(ApplePayTokenPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(apple_pay_data.payment_data.clone()),
+                descriptor: None,
             },
             tokenized_card: ApplePayTokenizedCard {
                 transaction_type: TransactionType::ApplePay,
@@ -2444,6 +2612,7 @@ impl From<&GooglePayWalletData> for PaymentInformation {
                 value: Secret::from(
                     consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token.clone()),
                 ),
+                descriptor: None,
             },
         }))
     }
@@ -2486,6 +2655,8 @@ fn convert_to_error_response_from_error_info(
         status_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
+        issuer_error_code: None,
+        issuer_error_message: None,
     }
 }
 
