@@ -156,6 +156,7 @@ export const connectorDetails = {
         },
       },
     },
+    // The `error_code: "54"` and `error_message: "The referenced transaction does not meet the criteria for issuing a credit."` is expected because the transaction status needs to be `SettledSuccessfully` from the Authorize.net's end and `charged` from Hyperswitch's end but according to the latest code, as soon as the payment is successful, the transaction will get the status as `charged` from Hyperswitch's end, but to initiatte a refund, one needs to wait for 4 to 5 days.
     Refund: {
       Request: {
         amount: 6000,
