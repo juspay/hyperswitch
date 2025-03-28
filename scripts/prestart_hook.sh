@@ -3,7 +3,7 @@
 # Define the URL and parameters
 PLATFORM="docker"
 URL="https://hyperswitch.gateway.scarf.sh/$PLATFORM"
-VERSION="1.113.0"
+VERSION="unknown"
 STATUS="initiated"
 
 # Send the GET request
