@@ -2,7 +2,6 @@ use common_enums::enums;
 use serde::{Deserialize, Serialize};
 use masking::Secret;
 use common_utils::types::{StringMinorUnit};
-use hyperswitch_domain_models::payment_method_data::cards;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
