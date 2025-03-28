@@ -954,5 +954,5 @@ foreground_color = "#111326"                                                    
 primary_color = "#006DF9"                                                        # Primary color
 background_color = "#FFFFFF"                                                     # Email background color
 
-[additional_revenue_recovery_details_call]
-connectors_with_additional_revenue_recovery_details_call = "stripebilling" # List of connectors which has additional revenue recovery details api-call
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling" # List of billing connectors which has payment sync api call

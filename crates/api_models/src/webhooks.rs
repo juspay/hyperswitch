@@ -261,6 +261,50 @@ pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ObjectReferenceId {
+    pub fn get_connector_transaction_id_as_string(
+        self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        match self {
+            Self::PaymentId(
+                payments::PaymentIdType::ConnectorTransactionId(id)
+            ) => Ok(id),
+            Self::PaymentId(_)=>Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "ConnectorTransactionId variant of PaymentId is required but received otherr variant",
+                },
+            ),
+            Self::RefundId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received RefundId",
+                },
+            ),
+            Self::MandateId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received MandateId",
+                },
+            ),
+            Self::ExternalAuthenticationID(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received ExternalAuthenticationID",
+                },
+            ),
+            #[cfg(feature = "payouts")]
+            Self::PayoutId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received PayoutId",
+                },
+            ),
+            Self::InvoiceId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received InvoiceId",
+                },
+            )
+        }
+    }
+}
+
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
