@@ -31,7 +31,7 @@ pub struct RevenueRecoveryAttemptData {
     /// payment method of payment attempt.
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
-    pub payment_method_sub_type: Option<common_enums::PaymentMethodType>,
+    pub payment_method_sub_type: common_enums::PaymentMethodType,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors

@@ -11,6 +11,7 @@ license.workspace = true
 dummy_connector = []
 openapi = []
 payouts = []
+v2 = []
 
 [dependencies]
 diesel = { version = "2.2.3", features = ["postgres", "128-column-tables"] }
