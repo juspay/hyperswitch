@@ -33,7 +33,6 @@ pub struct PaymentIntent {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
     pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
@@ -290,7 +289,6 @@ pub struct PaymentIntentNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
     pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
