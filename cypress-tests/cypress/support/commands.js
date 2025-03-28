@@ -603,7 +603,7 @@ Cypress.Commands.add(
     profilePrefix = "profile",
     mcaPrefix = "merchantConnector"
   ) => {
-    const api_key = globalState.get("adminApiKey");
+    const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     const connector_id = globalState.get("connectorId");
     const merchant_id = globalState.get("merchantId");
@@ -768,7 +768,7 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
       "x-merchant-id": merchant_id,
     },
     failOnStatusCode: false,
@@ -813,7 +813,7 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
-    const api_key = globalState.get("adminApiKey");
+    const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     const connector_id = globalState.get("connectorId");
     const merchant_id = globalState.get("merchantId");
@@ -858,7 +858,7 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
       "X-Merchant-Id": merchant_id,
     },
     failOnStatusCode: false,
