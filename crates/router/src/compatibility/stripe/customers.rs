@@ -57,7 +57,10 @@ pub async fn customer_create(
         |state, auth: auth::AuthenticationData, req, _| {
             customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -101,7 +104,10 @@ pub async fn customer_retrieve(
                 customer_id,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -158,7 +164,10 @@ pub async fn customer_update(
                 auth.key_store,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -196,7 +205,10 @@ pub async fn customer_delete(
         |state, auth: auth::AuthenticationData, customer_id, _| {
             customers::delete_customer(state, auth.merchant_account, customer_id, auth.key_store)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -242,7 +254,10 @@ pub async fn list_customer_payment_method_api(
                 None,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await

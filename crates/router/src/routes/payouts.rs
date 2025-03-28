@@ -32,7 +32,10 @@ pub async fn payouts_create(
         |state, auth: auth::AuthenticationData, req, _| {
             payouts_create_core(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -69,7 +72,10 @@ pub async fn payouts_retrieve(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
             },
@@ -99,7 +105,10 @@ pub async fn payouts_update(
         |state, auth: auth::AuthenticationData, req, _| {
             payouts_update_core(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -158,7 +167,10 @@ pub async fn payouts_cancel(
         |state, auth: auth::AuthenticationData, req, _| {
             payouts_cancel_core(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -183,7 +195,10 @@ pub async fn payouts_fulfill(
         |state, auth: auth::AuthenticationData, req, _| {
             payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -209,7 +224,10 @@ pub async fn payouts_list(
             payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
             },
@@ -246,7 +264,10 @@ pub async fn payouts_list_profile(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
             },
@@ -277,7 +298,10 @@ pub async fn payouts_list_by_filter(
             payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
             },
@@ -314,7 +338,10 @@ pub async fn payouts_list_by_filter_profile(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
             },
@@ -345,7 +372,10 @@ pub async fn payouts_list_available_filters_for_merchant(
             payouts_list_available_filters_core(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
             },
@@ -381,7 +411,10 @@ pub async fn payouts_list_available_filters_for_profile(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
             },
