@@ -4403,6 +4403,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "common_types",
  "common_utils",
  "criterion",
  "euclid",
@@ -6959,6 +6960,7 @@ name = "scheduler"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "common_types",
  "common_utils",
  "diesel_models",
  "error-stack",

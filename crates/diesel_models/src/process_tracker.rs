@@ -1,4 +1,4 @@
-use common_enums::ApiVersion;
+pub use common_enums::{enums::ProcessTrackerRunner, ApiVersion};
 use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
@@ -194,30 +194,6 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
             },
         }
     }
-}
-
-#[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    strum::EnumString,
-    strum::Display,
-)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProcessTrackerRunner {
-    PaymentsSyncWorkflow,
-    RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow,
-    ApiKeyExpiryWorkflow,
-    OutgoingWebhookRetryWorkflow,
-    AttachPayoutAccountWorkflow,
-    PaymentMethodStatusUpdateWorkflow,
-    PassiveRecoveryWorkflow,
 }
 
 #[cfg(test)]

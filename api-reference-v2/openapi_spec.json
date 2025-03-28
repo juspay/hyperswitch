@@ -2960,6 +2960,62 @@
             "ephemeral_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Delete a saved payment method",
+        "description": "Delete a saved payment method from the given payment method session.",
+        "operationId": "Delete a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionDeleteSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
       }
     },
     "/v2/payment-method-session/:id/list-payment-methods": {
@@ -3205,6 +3261,56 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
+      "get": {
+        "tags": [
+          "Revenue Recovery"
+        ],
+        "summary": "Revenue Recovery - Retrieve",
+        "description": "Retrieve the Revenue Recovery Payment Info",
+        "operationId": "Retrieve Revenue Recovery Info",
+        "parameters": [
+          {
+            "name": "recovery_recovery_id",
+            "in": "path",
+            "description": "The payment intent id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenue Recovery Info Retrieved Successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueRecoveryResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4456,21 +4562,26 @@
           "gpayments",
           "ctp_mastercard",
           "unified_authentication_service",
-          "juspaythreedsserver"
+          "juspaythreedsserver",
+          "ctp_visa"
         ]
       },
       "AuthenticationDetails": {
         "type": "object",
         "required": [
-          "status",
-          "error"
+          "status"
         ],
         "properties": {
           "status": {
             "$ref": "#/components/schemas/IntentStatus"
           },
           "error": {
-            "$ref": "#/components/schemas/ErrorDetails"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5840,6 +5951,17 @@
                 "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer"
+            ],
+            "properties": {
+              "instant_bank_transfer": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6138,6 +6260,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer"
+            ],
+            "properties": {
+              "instant_bank_transfer": {
+                "type": "object"
               }
             }
           }
@@ -7623,6 +7756,7 @@
           "coingate",
           "cryptopay",
           "ctp_mastercard",
+          "ctp_visa",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -8316,6 +8450,9 @@
       },
       "CtpServiceDetails": {
         "type": "object",
+        "required": [
+          "provider"
+        ],
         "properties": {
           "merchant_transaction_id": {
             "type": "string",
@@ -8333,11 +8470,21 @@
             "nullable": true
           },
           "provider": {
+            "$ref": "#/components/schemas/CtpServiceProvider"
+          },
+          "encypted_payload": {
             "type": "string",
-            "description": "provider Eg: Visa, Mastercard",
+            "description": "Encrypted payload",
             "nullable": true
           }
         }
+      },
+      "CtpServiceProvider": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard"
+        ]
       },
       "Currency": {
         "type": "string",
@@ -15611,6 +15758,19 @@
           }
         }
       },
+      "PaymentMethodSessionDeleteSavedPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method_id"
+        ],
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "description": "The payment method id of the payment method to be updated",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
       "PaymentMethodSessionRequest": {
         "type": "object",
         "required": [
@@ -15895,6 +16055,7 @@
           "red_pagos",
           "samsung_pay",
           "sepa",
+          "sepa_bank_transfer",
           "sofort",
           "swish",
           "touch_n_go",
@@ -15916,7 +16077,8 @@
           "local_bank_transfer",
           "mifinity",
           "open_banking_pis",
-          "direct_carrier_billing"
+          "direct_carrier_billing",
+          "instant_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -18960,6 +19122,17 @@
         },
         "additionalProperties": false
       },
+      "ProcessTrackerStatus": {
+        "type": "string",
+        "enum": [
+          "processing",
+          "new",
+          "pending",
+          "process_started",
+          "finish",
+          "review"
+        ]
+      },
       "ProcessorPaymentToken": {
         "type": "object",
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
@@ -19177,6 +19350,19 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeRoutingId"
+              }
+            ],
+            "nullable": true
+          },
+          "is_debit_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if debit routing is enabled or not",
+            "nullable": true
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
             "nullable": true
@@ -19417,6 +19603,19 @@
           "is_clear_pan_retries_enabled": {
             "type": "boolean",
             "description": "Indicates if clear pan retries is enabled or not."
+          },
+          "is_debit_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if debit routing is enabled or not",
+            "nullable": true
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20442,6 +20641,39 @@
             "description": "Billing account reference id is payment gateway id at billing connector end.\nMerchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.",
             "example": "{ \"mca_vDSg5z6AxnisHq5dbJ6g\": \"stripe_123\", \"mca_vDSg5z6AumisHqh4x5m1\": \"adyen_123\" }",
             "minimum": 0
+          }
+        }
+      },
+      "RevenueRecoveryResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "business_status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "schedule_time_for_payment": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "schedule_time_for_psync": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProcessTrackerStatus"
+          },
+          "business_status": {
+            "type": "string"
           }
         }
       },

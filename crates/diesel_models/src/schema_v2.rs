@@ -217,6 +217,8 @@ diesel::table! {
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
+        is_debit_routing_enabled -> Bool,
+        merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         active_surcharge_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -796,6 +798,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Varchar,
         organization_name -> Nullable<Text>,
+        version -> ApiVersion,
     }
 }
 
