@@ -1916,6 +1916,28 @@ pub struct CustomerPaymentMethodsListResponse {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+//List Payment Method
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetTokenDataRequest {
+    /// Indicates the type of token to be fetched
+    pub token_type: api_enums::TokenDataType,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl common_utils::events::ApiEventMetric for GetTokenDataRequest {}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum TokenDataResponse {
+    NetworkTokenDataResponse(NetworkTokenDataResponse),
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl common_utils::events::ApiEventMetric for TokenDataResponse {}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDataResponse {
     /// The unique identifier of the payment method.
@@ -1965,9 +1987,6 @@ pub struct NetworkTokenDataResponse {
     /// ECI indicator of the card
     pub eci: Option<String>,
 }
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl common_utils::events::ApiEventMetric for NetworkTokenDataResponse {}
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Serialize, ToSchema)]

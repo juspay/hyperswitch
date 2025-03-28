@@ -16,7 +16,7 @@ use crate::payments::{PaymentListFilterConstraints, PaymentListResponseV2};
 use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
     payment_methods::{
-        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        self, GetTokenDataRequest, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
         PaymentMethodCollectLinkResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
         PaymentMethodListResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,

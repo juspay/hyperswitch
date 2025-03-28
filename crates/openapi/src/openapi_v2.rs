@@ -532,6 +532,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::NetworkTokenResponse,
         api_models::payment_methods::NetworkTokenDetailsPaymentMethod,
         api_models::payment_methods::NetworkTokenDataResponse,
+        api_models::payment_methods::TokenDataResponse,
         api_models::payment_methods::TokenizeCardRequest,
         api_models::payment_methods::TokenizeDataRequest,
         api_models::payment_methods::TokenizePaymentMethodRequest,

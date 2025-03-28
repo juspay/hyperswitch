@@ -630,20 +630,23 @@ pub async fn get_payment_method_token_data(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodId>,
+    json_payload: web::Json<api_models::payment_methods::GetTokenDataRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetPaymentMethodTokenData;
     let payment_method_id = path.into_inner();
+    let payload = json_payload.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth: auth::AuthenticationData, _, _| {
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
             payment_methods_routes::get_token_data_for_payment_method(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                req,
                 payment_method_id.clone(),
             )
         },
