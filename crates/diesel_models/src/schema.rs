@@ -223,6 +223,8 @@ diesel::table! {
         force_3ds_challenge -> Nullable<Bool>,
         #[max_length = 64]
         active_surcharge_algorithm_id -> Nullable<Varchar>,
+        is_debit_routing_enabled -> Bool,
+        merchant_business_country -> Nullable<CountryAlpha2>,
     }
 }
 
@@ -817,6 +819,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Nullable<Varchar>,
         organization_name -> Nullable<Text>,
+        version -> ApiVersion,
     }
 }
 

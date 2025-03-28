@@ -217,6 +217,8 @@ diesel::table! {
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
+        is_debit_routing_enabled -> Bool,
+        merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         active_surcharge_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -796,6 +798,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Varchar,
         organization_name -> Nullable<Text>,
+        version -> ApiVersion,
     }
 }
 
@@ -1164,11 +1167,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (merchant_id, refund_id) {
-        #[max_length = 64]
-        internal_reference_id -> Varchar,
-        #[max_length = 64]
-        refund_id -> Varchar,
+    refund (id) {
         #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -1204,8 +1203,6 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         updated_by -> Varchar,
-        #[max_length = 32]
-        merchant_connector_id -> Nullable<Varchar>,
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
@@ -1216,6 +1213,12 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         processor_refund_data -> Nullable<Text>,
         processor_transaction_data -> Nullable<Text>,
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        merchant_reference_id -> Varchar,
+        #[max_length = 64]
+        connector_id -> Nullable<Varchar>,
     }
 }
 

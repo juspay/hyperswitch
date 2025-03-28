@@ -185,7 +185,7 @@ impl RoutingAlgorithm {
                 dsl::algorithm_for,
             ))
             .filter(dsl::profile_id.eq(profile_id.to_owned()))
-            .filter(dsl::algorithm_type.eq(algorithm_type.to_owned()))
+            .filter(dsl::algorithm_type.eq(algorithm_type))
             .limit(limit)
             .offset(offset)
             .load_async::<(
