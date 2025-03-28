@@ -55,7 +55,7 @@ use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
-use masking::{PeekInterface, Secret};
+use masking::{ExposeOptionInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -1354,6 +1354,76 @@ pub async fn list_saved_payment_methods_for_customer(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn get_token_data_for_payment_method(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    request: payment_methods::GetTokenDataRequest,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResponse<api::TokenDataResponse> {
+    let key_manager_state = &(&state).into();
+
+    let db = &*state.store;
+
+    let payment_method = db
+        .find_payment_method(
+            key_manager_state,
+            &key_store,
+            &payment_method_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let token_data_response = match request.token_type {
+        common_enums::TokenDataType::NetworkToken => {
+            let network_token_requestor_ref_id = payment_method
+                .network_token_requestor_reference_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("NetworkTokenRequestorReferenceId is not present")?;
+
+            let network_token = network_tokenization::get_token_from_tokenization_service(
+                &state,
+                network_token_requestor_ref_id,
+                &payment_method,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to fetch network token data from tokenization service")?;
+
+            api::TokenDataResponse::NetworkTokenDataResponse(api::NetworkTokenDataResponse {
+                payment_method_id: payment_method_id.clone(),
+                network_token: network_token.network_token,
+                network_token_exp_month: network_token.network_token_exp_month,
+                network_token_exp_year: network_token.network_token_exp_year,
+                cryptogram: network_token.cryptogram,
+                card_issuer: network_token.card_issuer,
+                card_network: network_token.card_network,
+                card_type: network_token.card_type,
+                card_issuing_country: network_token.card_issuing_country,
+                bank_code: network_token.bank_code,
+                card_holder_name: network_token.card_holder_name,
+                nick_name: network_token.nick_name,
+                eci: network_token.eci,
+            })
+        }
+        common_enums::TokenDataType::SingleUseToken
+        | common_enums::TokenDataType::MultiUseToken => {
+            return Err(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token type not supported".to_string(),
+            }
+            .into());
+        }
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        token_data_response,
     ))
 }
 

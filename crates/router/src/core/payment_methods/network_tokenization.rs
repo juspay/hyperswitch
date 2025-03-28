@@ -575,6 +575,75 @@ pub async fn get_token_from_tokenization_service(
     Ok(network_token_data)
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn get_token_from_tokenization_service(
+    state: &routes::SessionState,
+    network_token_requestor_ref_id: String,
+    pm_data: &domain::PaymentMethod,
+) -> errors::RouterResult<domain::NetworkTokenData> {
+    let token_response =
+        if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
+            record_operation_time(
+                async {
+                    get_network_token(
+                state,
+                &pm_data.customer_id,
+                network_token_requestor_ref_id,
+                network_tokenization_service.get_inner(),
+            )
+            .await
+            .inspect_err(
+                |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Fetch network token failed")
+                },
+                &metrics::FETCH_NETWORK_TOKEN_TIME,
+                &[],
+            )
+            .await
+        } else {
+            Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+                .inspect_err(|err| {
+                    logger::error!(error=? err);
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+        }?;
+
+    let token_decrypted: api_payment_methods::CardDetailFromLocker = pm_data
+        .network_token_payment_method_data
+        .clone()
+        .map(|x| x.into_inner())
+        .and_then(|pmd| match pmd {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(token) => {
+                Some(api::CardDetailFromLocker::from(token))
+            }
+            _ => None,
+        })
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to obtain decrypted token object from db")?;
+
+    let network_token_data = domain::NetworkTokenData {
+        network_token: cards::NetworkToken::from(token_response.authentication_details.token),
+        cryptogram: Some(token_response.authentication_details.cryptogram),
+        network_token_exp_month: token_decrypted
+            .expiry_month
+            .unwrap_or(token_response.token_details.exp_month),
+        network_token_exp_year: token_decrypted
+            .expiry_year
+            .unwrap_or(token_response.token_details.exp_year),
+        card_holder_name: token_decrypted.card_holder_name,
+        nick_name: token_decrypted.nick_name,
+        card_issuer: None,
+        card_network: Some(token_response.network),
+        card_type: None,
+        card_issuing_country: None,
+        bank_code: None,
+        eci: None,
+    };
+    Ok(network_token_data)
+}
+
 #[cfg(feature = "v1")]
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
