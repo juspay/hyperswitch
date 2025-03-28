@@ -620,7 +620,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 storage_scheme,
             )
             .await?;
-
             (Some(token_data), payment_method_info)
         } else {
             (None, payment_method_info)
@@ -1850,6 +1849,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         shipping_details,
                         is_payment_processor_token_flow,
                         tax_details: None,
+                        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
                     })),
                     &m_key_store,
                     storage_scheme,
