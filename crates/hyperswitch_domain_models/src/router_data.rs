@@ -625,8 +625,8 @@ impl
                     issuer_error_code: _,
                     issuer_error_message: _,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
-
+                // Since its an Error from the connector we should set it as connectors's set status or Failure by default
+                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
                 let error_details = ErrorDetails {
                     code,
                     message,
