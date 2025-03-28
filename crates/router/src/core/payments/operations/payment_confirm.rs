@@ -149,7 +149,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ],
                 "confirm",
             )?;
-        }       
+        }
 
         let customer_details = helpers::get_customer_details_from_request(request);
 

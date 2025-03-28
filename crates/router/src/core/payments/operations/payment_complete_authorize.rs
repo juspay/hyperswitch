@@ -79,7 +79,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
-
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
             &[
