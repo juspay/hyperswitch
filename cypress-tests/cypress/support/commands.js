@@ -2382,13 +2382,19 @@ Cypress.Commands.add(
               "payment_method_id"
             ).to.include("pm_").and.to.not.be.null;
 
-            // Determine expected status based on payment status
-            const expectedStatus = [
+            let activeStatuses = [
               "succeeded",
-              "processing",
               "requires_capture",
               "partially_captured",
-            ].includes(response.body.status)
+            ];
+
+            // If capture method is manual, 'processing' status also means 'active'
+            // for the payment method's usability.
+            if (response.body.capture_method === "manual") {
+              activeStatuses.push("processing");
+            }
+
+            const expectedStatus = activeStatuses.includes(response.body.status)
               ? "active"
               : "inactive";
 
