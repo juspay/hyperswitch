@@ -346,7 +346,13 @@ function initializeEventListeners(paymentDetails) {
   var payNowButtonText = document.createElement("div");
   var payNowButtonText = document.getElementById('submit-button-text');
   if (payNowButtonText) {
-    payNowButtonText.textContent = paymentDetails.payment_button_text || translations.payNow;
+    if (paymentDetails.payment_button_text) {
+      payNowButtonText.textContent = paymentDetails.payment_button_text;
+    } else if (paymentDetails.amount === 0) {
+      payNowButtonText.textContent = translations.addPaymentMethod;
+    } else {
+      payNowButtonText.textContent = translations.payNow;
+    }
   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {
