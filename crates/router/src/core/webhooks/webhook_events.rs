@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
+use common_enums::{EventClass, EventType};
 use common_utils::{self, fp_utils};
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -64,6 +67,8 @@ pub async fn list_initial_delivery_attempts(
             created_before,
             limit,
             offset,
+            event_class,
+            event_type,
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -79,6 +84,12 @@ pub async fn list_initial_delivery_attempts(
                 _ => None,
             };
 
+            let event_class = event_class.unwrap_or(HashSet::new());
+            let mut event_type = event_type.unwrap_or(HashSet::new());
+            if !event_class.is_empty() {
+                event_type = validate_event_type(&event_class, &mut event_type).await?;
+            }
+          
             fp_utils::when(!created_after.zip(created_before).map(|(created_after,created_before)| created_after<=created_before).unwrap_or(true), || {
                 Err(errors::ApiErrorResponse::InvalidRequestData { message: "The `created_after` timestamp must be an earlier timestamp compared to the `created_before` timestamp".to_string() })
             })?;
@@ -114,6 +125,7 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    event_type,
                     &key_store,
                 )
                 .await,
@@ -124,6 +136,7 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    event_type,
                     &key_store,
                 )
                 .await,
@@ -376,4 +389,34 @@ async fn get_account_and_key_store(
             ))
         }
     }
+}
+
+async fn validate_event_type(
+    event_class: &HashSet<EventClass>,
+    event_type: &mut HashSet<EventType>,
+) -> Result<HashSet<EventType>, Report<errors::ApiErrorResponse>> {
+    let possible_event_types = event_class
+        .clone()
+        .into_iter()
+        .flat_map(EventClass::event_types)
+        .collect::<HashSet<_>>();
+
+    if event_type.is_empty() {
+        return Ok(possible_event_types);
+    }
+
+    event_class.clone().into_iter().for_each(|class| {
+        let valid_event_types = EventClass::event_types(class);
+        if event_type.is_disjoint(&valid_event_types) {
+            event_type.extend(valid_event_types);
+        }
+    });
+
+    if !event_type.is_subset(&possible_event_types) {
+        return Err(Report::new(errors::ApiErrorResponse::InvalidRequestData {
+            message: "`event_type` must be a subset of `event_class`".to_string(),
+        }));
+    }
+
+    Ok(event_type.clone())
 }
