@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.26.0-hotfix2
+
+### Refactors
+
+- **authentication:** Modify auth for profiles and mca routes to `ApiKeyAuthWithMerchantIdFromRoute` ([#7663](https://github.com/juspay/hyperswitch/pull/7663)) ([`ac7696d`](https://github.com/juspay/hyperswitch/commit/ac7696d0fd6f5446802c316090e557ab47f7fa24))
+
+**Full Changelog:** [`2025.03.26.0-hotfix1...2025.03.26.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.03.26.0-hotfix1...2025.03.26.0-hotfix2)
+
+
+- - -
+
 ## 2025.03.26.0-hotfix1
 
 ### Refactors
