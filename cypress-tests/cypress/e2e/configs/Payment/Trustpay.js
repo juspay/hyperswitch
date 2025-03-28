@@ -6,6 +6,7 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
+  nick_name: "Bank1",
   card_cvc: "123",
 };
 
@@ -14,6 +15,7 @@ const successfulThreeDSTestCardDetails = {
   card_exp_month: "03",
   card_exp_year: "2030",
   card_holder_name: "John Doe",
+  nick_name: "Bank1",
   card_cvc: "737",
 };
 

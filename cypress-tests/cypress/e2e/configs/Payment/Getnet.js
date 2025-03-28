@@ -4,6 +4,7 @@ const successfulNo3DSCardDetails = {
   card_exp_year: "2027",
   card_holder_name: "John Doe",
   card_cvc: "006",
+  nick_name: "Bank1",
   card_network: "Visa",
 };
 
