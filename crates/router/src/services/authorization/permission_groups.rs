@@ -167,11 +167,12 @@ pub static OPERATIONS: [Resource; 8] = [
 
 pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
 
-pub static WORKFLOWS: [Resource; 4] = [
+pub static WORKFLOWS: [Resource; 5] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
     Resource::Account,
+    Resource::RevenueRecovery,
 ];
 
 pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];

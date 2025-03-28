@@ -20,15 +20,14 @@ use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        admin,
-        passive_churn_recovery::{self as pcr, types},
-        payments,
+        admin, payments,
+        revenue_recovery::{self as pcr, types},
     },
     db::StorageInterface,
     errors::StorageError,
     types::{
         api::{self as api_types},
-        storage::passive_churn_recovery as pcr_storage_types,
+        storage::revenue_recovery as pcr_storage_types,
     },
 };
 use crate::{routes::SessionState, types::storage};

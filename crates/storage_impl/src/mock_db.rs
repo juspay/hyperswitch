@@ -6,13 +6,12 @@ use error_stack::ResultExt;
 use futures::lock::{Mutex, MutexGuard};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
-    errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use redis_interface::RedisSettings;
 
-use crate::redis::RedisStore;
+use crate::{errors::StorageError, redis::RedisStore};
 
 pub mod payment_attempt;
 pub mod payment_intent;
