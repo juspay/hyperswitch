@@ -10,7 +10,7 @@ pub fn generate_card_from_details(
     card_cvv: String,
 ) -> errors::RouterResult<domain::Card> {
     Ok(domain::Card {
-        secondary_card_networks: None,
+        supported_card_networks: None,
         card_number: card_number
             .parse::<cards::CardNumber>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
