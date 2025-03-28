@@ -2382,7 +2382,7 @@ Cypress.Commands.add(
               "payment_method_id"
             ).to.include("pm_").and.to.not.be.null;
 
-            let activeStatuses = [
+            const activeStatuses = [
               "succeeded",
               "requires_capture",
               "partially_captured",
