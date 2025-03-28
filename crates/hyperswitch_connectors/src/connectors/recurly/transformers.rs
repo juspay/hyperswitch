@@ -21,13 +21,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery::GetAdditionalRevenueRecoveryDetails,
-    router_flow_types::RecoveryRecordBack,
-    router_request_types::revenue_recovery::GetAdditionalRevenueRecoveryRequestData,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::GetAdditionalRevenueRecoveryResponseData,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::AdditionalRevenueRecoveryDetailsRouterData, types::RevenueRecoveryRecordBackRouterData,
+    router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    types as recovery_router_data_types,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -253,8 +250,8 @@ pub struct RecurlyErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RecurlyWebhookBody {
-    // transaction id
-    pub uuid: String,
+    // Transaction id
+    pub id: String,
     pub event_type: RecurlyPaymentEventType,
 }
 
@@ -280,7 +277,7 @@ impl RecurlyWebhookBody {
 pub enum RecurlyChargeStatus {
     #[serde(rename = "success")]
     Succeeded,
-    #[serde(rename = "failed")]
+    #[serde(rename = "declined")]
     Failed,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -304,7 +301,7 @@ pub enum RecurlyFundingTypes {
 pub struct RecurlyRecoveryDetailsData {
     pub amount: FloatMajorUnit,
     pub currency: common_enums::Currency,
-    pub uuid: String,
+    pub id: String,
     pub status_code: Option<String>,
     pub status_message: Option<String>,
     pub account: Account,
@@ -341,29 +338,29 @@ pub struct PaymentGateway {
 impl
     TryFrom<
         ResponseRouterData<
-            GetAdditionalRevenueRecoveryDetails,
-            RecurlyRecoveryDetailsData,
-            GetAdditionalRevenueRecoveryRequestData,
-            GetAdditionalRevenueRecoveryResponseData,
+        recovery_router_flows::BillingConnectorPaymentsSync,
+        RecurlyRecoveryDetailsData,
+        recovery_request_types::BillingConnectorPaymentsSyncRequest,
+        recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
-    > for AdditionalRevenueRecoveryDetailsRouterData
+    > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            GetAdditionalRevenueRecoveryDetails,
-            RecurlyRecoveryDetailsData,
-            GetAdditionalRevenueRecoveryRequestData,
-            GetAdditionalRevenueRecoveryResponseData,
+        recovery_router_flows::BillingConnectorPaymentsSync,
+        RecurlyRecoveryDetailsData,
+        recovery_request_types::BillingConnectorPaymentsSyncRequest,
+        recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(&item.response.invoice.id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let connector_transaction_id = Some(ConnectorTransactionId::from(item.response.uuid));
+        let connector_transaction_id = Some(ConnectorTransactionId::from(item.response.id));
 
         Ok(Self {
-            response: Ok(GetAdditionalRevenueRecoveryResponseData {
+            response: Ok(recovery_response_types::BillingConnectorPaymentsSyncResponse {
                 status: item.response.status.into(),
                 amount: utils::convert_back_amount_to_minor_units(
                     &FloatMajorUnitForConnector,
@@ -458,7 +455,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RecurlyRecordbackResponse {
+pub struct RecurlyRecordBackResponse {
     // Invoice id
     pub id: id_type::PaymentReferenceId,
 }
@@ -467,25 +464,25 @@ pub struct RecurlyRecordbackResponse {
 impl
     TryFrom<
         ResponseRouterData<
-            RecoveryRecordBack,
-            RecurlyRecordbackResponse,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::RecoveryRecordBack,
+        RecurlyRecordBackResponse,
+        recovery_request_types::RevenueRecoveryRecordBackRequest,
+        recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
-    > for RevenueRecoveryRecordBackRouterData
+    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            RecoveryRecordBack,
-            RecurlyRecordbackResponse,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::RecoveryRecordBack,
+        RecurlyRecordBackResponse,
+        recovery_request_types::RevenueRecoveryRecordBackRequest,
+        recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id = item.response.id;
         Ok(Self {
-            response: Ok(RevenueRecoveryRecordBackResponse {
+            response: Ok(recovery_response_types::RevenueRecoveryRecordBackResponse {
                 merchant_reference_id,
             }),
             ..item.data
