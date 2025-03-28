@@ -16675,7 +16675,7 @@
           "client_secret": {
             "type": "string",
             "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+            "example": "cs_0195b34da95d75239c6a4bf514458896"
           },
           "profile_id": {
             "type": "string",
