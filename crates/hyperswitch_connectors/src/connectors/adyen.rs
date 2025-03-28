@@ -167,6 +167,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::ApplePay
                 | PaymentMethodType::Credit
                 | PaymentMethodType::Debit
+                | PaymentMethodType::Card
                 | PaymentMethodType::GooglePay
                 | PaymentMethodType::MobilePay
                 | PaymentMethodType::PayBright

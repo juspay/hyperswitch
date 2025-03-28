@@ -132,6 +132,8 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
         match self.0 {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
+            #[cfg(feature = "v2")]
+            api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
             api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
             api_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),

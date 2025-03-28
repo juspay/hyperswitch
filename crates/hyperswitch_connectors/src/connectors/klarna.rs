@@ -576,6 +576,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::CimbVa
                         | common_enums::PaymentMethodType::ClassicReward
                         | common_enums::PaymentMethodType::Credit
+                        | common_enums::PaymentMethodType::Card
                         | common_enums::PaymentMethodType::CryptoCurrency
                         | common_enums::PaymentMethodType::Cashapp
                         | common_enums::PaymentMethodType::Dana
@@ -696,6 +697,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::CimbVa
                         | common_enums::PaymentMethodType::ClassicReward
                         | common_enums::PaymentMethodType::Credit
+                        | common_enums::PaymentMethodType::Card
                         | common_enums::PaymentMethodType::CryptoCurrency
                         | common_enums::PaymentMethodType::Cashapp
                         | common_enums::PaymentMethodType::Dana

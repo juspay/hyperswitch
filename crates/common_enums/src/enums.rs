@@ -1755,6 +1755,8 @@ pub enum PaymentMethodType {
     BcaBankTransfer,
     BniVa,
     BriVa,
+    #[cfg(feature = "v2")]
+    Card,
     CardRedirect,
     CimbVa,
     #[serde(rename = "classic")]
