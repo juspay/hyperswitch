@@ -3805,6 +3805,9 @@ type="Text"
 api_key="API Login ID"
 key1="API password"
 
+[ctp_visa]
+[ctp_visa.connector_auth.NoKey]
+
 [redsys]
 [[redsys.credit]]
 payment_method_type = "Mastercard"

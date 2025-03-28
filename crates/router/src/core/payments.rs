@@ -7690,6 +7690,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                     authentication_details.three_ds_requestor_url.clone(),
                     &merchant_connector_account,
                     &authentication_connector,
+                    payment_intent.payment_id,
                 )
                 .await?;
             let authentication = external_authentication_update_trackers(
