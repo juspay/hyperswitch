@@ -5560,7 +5560,7 @@ pub struct PaymentsResponse {
 
     /// It's a token used for client side verification.
     #[schema(value_type = String)]
-    pub client_secret: Option<common_utils::types::ClientSecret>,
+    pub client_secret: Option<Secret<String>>,
 
     /// Time when the payment was created
     #[schema(example = "2022-09-10T10:11:12Z")]

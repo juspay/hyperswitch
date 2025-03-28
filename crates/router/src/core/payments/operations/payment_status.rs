@@ -282,8 +282,6 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
-    // helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
-
     let payment_id = payment_attempt.payment_id.clone();
 
     currency = payment_attempt.currency.get_required_value("currency")?;

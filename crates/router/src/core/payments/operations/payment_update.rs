@@ -113,8 +113,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             "update",
         )?;
 
-        // helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
-
         payment_intent.order_details = request
             .get_order_details_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
