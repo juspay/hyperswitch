@@ -96,7 +96,7 @@ pub trait StorageInterface:
     + blocklist_lookup::BlocklistLookupInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + customers::CustomerInterface
+    + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
