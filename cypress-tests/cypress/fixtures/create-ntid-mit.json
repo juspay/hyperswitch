@@ -3,7 +3,7 @@
   "currency": "USD",
   "confirm": true,
   "payment_method": "card",
-  "return_url": "https://hyperswitch.io",
+  "return_url": "https://example.com",
   "email": "example@email.com",
   "recurring_details": {
     "type": "network_transaction_id_and_card_details",

@@ -3,7 +3,7 @@
   "currency": "USD",
   "confirm": true,
   "customer_id": "customer098765",
-  "return_url": "https://hyperswitch.io",
+  "return_url": "https://example.com",
   "recurring_details": {
     "type": "payment_method_id",
     "data": "{{payment_method_id}}"

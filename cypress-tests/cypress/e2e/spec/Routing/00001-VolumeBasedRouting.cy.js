@@ -154,7 +154,7 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("Handle bank redirect redirection", () => {
-      // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
+      // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
@@ -267,7 +267,7 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("Handle bank redirect redirection", () => {
-      // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
+      // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
