@@ -32,6 +32,7 @@ pub trait ConnectorV2:
     + api::ConnectorMandateRevokeV2
     + api::authentication_v2::ExternalAuthenticationV2
     + api::UnifiedAuthenticationServiceV2
+    + api::revenue_recovery_v2::RevenueRecoveryV2
 {
 }
 impl<
@@ -49,7 +50,8 @@ impl<
             + api::FraudCheckV2
             + api::ConnectorMandateRevokeV2
             + api::authentication_v2::ExternalAuthenticationV2
-            + api::UnifiedAuthenticationServiceV2,
+            + api::UnifiedAuthenticationServiceV2
+            + api::revenue_recovery_v2::RevenueRecoveryV2,
     > ConnectorV2 for T
 {
 }
