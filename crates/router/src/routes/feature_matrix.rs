@@ -131,8 +131,13 @@ fn build_payment_method_wise_feature_details(
                         )
                     });
 
-            let supported_countries =
-                payment_method_type_config.and_then(|config| config.country.clone());
+            let supported_countries = payment_method_type_config.and_then(|config| {
+                config.country.clone().map(|set| {
+                    set.into_iter()
+                        .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3)
+                        .collect::<std::collections::HashSet<_>>()
+                })
+            });
 
             let supported_currencies =
                 payment_method_type_config.and_then(|config| config.currency.clone());
@@ -140,6 +145,7 @@ fn build_payment_method_wise_feature_details(
             feature_matrix::SupportedPaymentMethod {
                 payment_method,
                 payment_method_type: *payment_method_type,
+                payment_method_type_display_name: payment_method_type.to_display_name(),
                 mandates: feature_metadata.mandates,
                 refunds: feature_metadata.refunds,
                 supported_capture_methods: feature_metadata.supported_capture_methods.clone(),
