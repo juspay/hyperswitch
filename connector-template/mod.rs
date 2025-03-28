@@ -169,57 +169,7 @@ impl
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     for {{project-name | downcase | pascal_case}}
 {
-    fn get_headers(
-        &self,
-        req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("build_request method".to_string()).into())
-    }
-
-    fn handle_response(
-        &self,
-        _data: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
-        _res: Response,
-    ) -> CustomResult<RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("handle_response method".to_string()).into())
-    }
-
-    fn get_error_response(
-        &self,
-        _res: Response,
-        _event_builder: Option<&mut ConnectorEvent>
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_error_response method".to_string()).into())
-    }
+    // Keeping empty implementation as in the original code
 }
 
 impl
