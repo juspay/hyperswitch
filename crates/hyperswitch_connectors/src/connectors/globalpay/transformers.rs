@@ -1,6 +1,7 @@
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::ParsingError,
+    pii,
     request::Method,
     types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -35,9 +36,8 @@ use super::{
 use crate::{
     types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        construct_captures_response_hashmap, to_connector_meta_from_secret, CardData,
-        ForeignTryFrom, MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _,
-        WalletData,
+        self, construct_captures_response_hashmap, CardData, ForeignTryFrom,
+        MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _, WalletData,
     },
 };
 
@@ -66,13 +66,23 @@ pub struct GlobalPayMeta {
     account_name: Secret<String>,
 }
 
+impl TryFrom<&Option<pii::SecretSerdeValue>> for GlobalPayMeta {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPaymentsRequest {
     type Error = Error;
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let metadata: GlobalPayMeta =
-            to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())?;
+        let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
         let (initiator, stored_credential, brand_reference) =
             get_mandate_details(item.router_data)?;
@@ -106,6 +116,7 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                 decoupled_challenge_return_url: None,
                 status_url: item.router_data.request.webhook_url.clone(),
                 three_ds_method_return_url: None,
+                cancel_url: get_return_url(item.router_data),
             }),
             authorization_mode: None,
             cashback_amount: None,
@@ -467,7 +478,14 @@ fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
         payment_method_data::PaymentMethodData::Wallet(
             payment_method_data::WalletData::PaypalRedirect(_),
-        ) => item.request.complete_authorize_url.clone(),
+        ) => {
+            // Return URL handling for PayPal via Globalpay:
+            // - PayPal inconsistency: Return URLs work with HTTP, but cancel URLs require HTTPS
+            // - Local development: When testing locally, expose your server via HTTPS and replace
+            //   the base URL with an HTTPS URL to ensure proper cancellation flow
+            // - Refer to commit 6499d429da87 for more information
+            item.request.complete_authorize_url.clone()
+        }
         _ => item.request.router_return_url.clone(),
     }
 }

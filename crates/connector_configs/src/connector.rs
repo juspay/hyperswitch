@@ -178,6 +178,7 @@ pub struct ConnectorConfig {
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
+    pub ctp_visa: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
@@ -191,6 +192,7 @@ pub struct ConnectorConfig {
     pub dlocal: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
+    // pub facilitapay: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
@@ -233,6 +235,7 @@ pub struct ConnectorConfig {
     pub recurly: Option<ConnectorTomlConfig>,
     pub riskified: Option<ConnectorTomlConfig>,
     pub rapyd: Option<ConnectorTomlConfig>,
+    pub redsys: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -305,6 +308,7 @@ impl ConnectorConfig {
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
             AuthenticationConnectors::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            AuthenticationConnectors::CtpVisa => Ok(connector_data.ctp_visa),
             AuthenticationConnectors::UnifiedAuthenticationService => {
                 Ok(connector_data.unified_authentication_service)
             }
@@ -353,6 +357,7 @@ impl ConnectorConfig {
             Connector::Coinbase => Ok(connector_data.coinbase),
             Connector::Coingate => Ok(connector_data.coingate),
             Connector::Cryptopay => Ok(connector_data.cryptopay),
+            Connector::CtpVisa => Ok(connector_data.ctp_visa),
             Connector::Cybersource => Ok(connector_data.cybersource),
             Connector::Iatapay => Ok(connector_data.iatapay),
             Connector::Itaubank => Ok(connector_data.itaubank),
@@ -364,6 +369,7 @@ impl ConnectorConfig {
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
+            // Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
@@ -403,6 +409,7 @@ impl ConnectorConfig {
             Connector::Razorpay => Ok(connector_data.razorpay),
             Connector::Rapyd => Ok(connector_data.rapyd),
             Connector::Recurly => Ok(connector_data.recurly),
+            Connector::Redsys => Ok(connector_data.redsys),
             Connector::Riskified => Ok(connector_data.riskified),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),

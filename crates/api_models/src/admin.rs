@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "v1")]
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -8,10 +10,7 @@ use common_utils::{
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v1")]
-use common_utils::{
-    crypto::OptionalEncryptableName, ext_traits::ValueExt,
-    types::AlwaysRequestExtendedAuthorization,
-};
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -206,13 +205,14 @@ pub struct MerchantAccountCreateWithoutOrgId {
 // The following struct is only used internally, so we can reuse the common
 // part of `create_merchant_account` without duplicating its code for v2
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct MerchantAccountCreate {
     pub merchant_name: Secret<common_utils::new_type::MerchantName>,
     pub merchant_details: Option<MerchantDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub organization_id: id_type::OrganizationId,
     /// Product Type of this merchant account
+    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -279,6 +279,8 @@ pub struct AuthenticationConnectorDetails {
     pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1983,6 +1985,14 @@ pub struct ProfileCreate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[nutype::nutype(
@@ -2107,6 +2117,14 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
@@ -2257,6 +2275,14 @@ pub struct ProfileResponse {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: bool,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v2")]
@@ -2387,6 +2413,14 @@ pub struct ProfileResponse {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: bool,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
@@ -2527,6 +2561,14 @@ pub struct ProfileUpdate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v2")]
@@ -2645,6 +2687,14 @@ pub struct ProfileUpdate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Indicates if debit routing is enabled or not
+    #[schema(value_type = Option<bool>)]
+    pub is_debit_routing_enabled: Option<bool>,
+
+    //Merchant country for the profile
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
