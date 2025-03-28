@@ -556,7 +556,6 @@ default_imp_for_complete_authorize!(
     connectors::Moneris,
     connectors::Multisafepay,
     connectors::Nomupay,
-    connectors::Noon,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Opayo,
