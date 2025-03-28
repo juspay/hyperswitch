@@ -22,6 +22,7 @@ v1 = []
 v2 = []
 customer_v2 = []
 payment_methods_v2 = []
+refunds_v2 = []
 crypto_openssl = ["dep:openssl"]
 
 [dependencies]

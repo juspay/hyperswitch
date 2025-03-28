@@ -12,6 +12,7 @@ use crate::{
     enums,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
@@ -61,7 +62,7 @@ pub struct RefundRequest {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundsCreateRequest {
@@ -81,7 +82,11 @@ pub struct RefundsCreateRequest {
         example = "ref_mbabizu24mvu3mela5njyhpit4",
         value_type = Option<String>,
     )]
-    pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = Option<String>)]
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the amount_captured of the payment
     #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
@@ -98,6 +103,10 @@ pub struct RefundsCreateRequest {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    #[serde(skip_serializing)]
+    // This will be populated internally, for logging api metric event.
+    pub global_refund_id: Option<common_utils::id_type::GlobalRefundId>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -159,8 +168,8 @@ pub struct RefundManualUpdateRequest {
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
-    #[default]
     Scheduled,
+    #[default]
     Instant,
 }
 
@@ -263,7 +272,7 @@ pub struct RefundResponse {
     pub updated_at: PrimitiveDateTime,
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe", value_type = Connector)]
-    pub connector: enums::Connector,
+    pub connector: String,
     /// The id of business profile for this refund
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
