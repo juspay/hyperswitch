@@ -232,6 +232,7 @@ impl PaymentAttemptInterface for MockDb {
             charges: None,
             issuer_error_code: None,
             issuer_error_message: None,
+            surcharge_algorithm_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

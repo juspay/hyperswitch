@@ -66,6 +66,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
 }
@@ -168,6 +169,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
 }
@@ -216,6 +218,7 @@ impl ProfileUpdateInternal {
             card_testing_secret_key,
             is_clear_pan_retries_enabled,
             force_3ds_challenge,
+            active_surcharge_algorithm_id,
             is_debit_routing_enabled,
             merchant_business_country,
         } = self;
@@ -289,6 +292,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
+            active_surcharge_algorithm_id: active_surcharge_algorithm_id
+                .or(source.active_surcharge_algorithm_id),
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
@@ -346,6 +351,7 @@ pub struct Profile {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: Option<bool>,
+    pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
@@ -601,6 +607,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
+            active_surcharge_algorithm_id: source.active_surcharge_algorithm_id,
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
