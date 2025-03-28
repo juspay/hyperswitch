@@ -1,12 +1,15 @@
 pub mod transformers;
 pub mod types;
 use api_models::payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest};
-use common_utils::{self, ext_traits::OptionExt, id_type, types::keymanager::KeyManagerState};
+use common_utils::{
+    self, errors::CustomResult, ext_traits::OptionExt, id_type, types::keymanager::KeyManagerState,
+};
 use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::ReverseConversion,
     errors::api_error_response,
+    merchant_connector_account,
     payments::{PaymentIntent, PaymentStatusData},
     ApiModelToDieselModelConvertor,
 };
@@ -35,6 +38,7 @@ pub async fn perform_execute_payment(
     pcr_data: &pcr::PcrPaymentData,
     _key_manager_state: &KeyManagerState,
     payment_intent: &PaymentIntent,
+    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
 
@@ -73,6 +77,7 @@ pub async fn perform_execute_payment(
                 execute_task_process,
                 pcr_data,
                 &mut pcr_metadata,
+                billing_mca,
             ))
             .await?;
         }

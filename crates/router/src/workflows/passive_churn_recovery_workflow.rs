@@ -1,7 +1,10 @@
 #[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::{
+    ext_traits::{StringExt, ValueExt},
+    id_type,
+};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -11,11 +14,14 @@ use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
+#[cfg(feature = "v2")]
+use storage_impl::errors as storage_errors;
 
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        passive_churn_recovery::{self as pcr},
+        admin,
+        passive_churn_recovery::{self as pcr, types},
         payments,
     },
     db::StorageInterface,
@@ -73,6 +79,23 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             None,
         )
         .await?;
+        let store = state.store.as_ref();
+
+        let billing_merchant_connector_account_id: id_type::MerchantConnectorAccountId =
+            payment_data
+                .payment_intent
+                .get_billing_merchant_connector_account_id()
+                .ok_or(errors::ProcessTrackerError::ERecoveryError(
+                    storage_errors::RecoveryError::BillingMerchantConnectorAccountIdNotFound.into(),
+                ))?;
+
+        let billing_mca = store
+            .find_merchant_connector_account_by_id(
+                key_manager_state,
+                &billing_merchant_connector_account_id,
+                &pcr_data.key_store,
+            )
+            .await?;
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
@@ -83,6 +106,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     &pcr_data,
                     key_manager_state,
                     &payment_data.payment_intent,
+                    &billing_mca,
                 ))
                 .await
             }
@@ -136,7 +160,7 @@ pub(crate) async fn extract_data_and_perform_action(
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let key = "pt_mapping_pcr_retries";
