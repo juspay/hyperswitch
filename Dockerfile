@@ -32,7 +32,6 @@ ENV RUST_BACKTRACE="short"
 
 COPY . .
 RUN cargo build \
-    --release \
     --no-default-features \
     --features release \
     --features ${VERSION_FEATURE_SET} \
@@ -45,6 +44,9 @@ FROM debian:bookworm
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
 ARG BIN_DIR=/local/bin
+
+# Copy this required fields config file
+COPY --from=builder ./config/payemnt_required_fields_v2.toml ${CONFIG_DIR}/payment_required_fields_v2.toml
 
 # RUN_ENV decides the corresponding config file to be used
 ARG RUN_ENV=sandbox
@@ -70,7 +72,7 @@ ENV TZ=Etc/UTC \
 
 RUN mkdir -p ${BIN_DIR}
 
-COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
+COPY --from=builder /router/target/debug/${BINARY} ${BIN_DIR}/${BINARY}
 
 # Create the 'app' user and group
 RUN useradd --user-group --system --no-create-home --no-log-init app
