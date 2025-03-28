@@ -250,7 +250,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createBusinessProfileTest",
   (createBusinessProfile, globalState, profilePrefix = "profile") => {
-    const apiKey = globalState.get("adminApiKey");
+    const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const connectorId = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
@@ -309,7 +309,7 @@ Cypress.Commands.add(
     updateBusinessProfileBody.always_collect_shipping_details_from_wallet_connector =
       always_collect_shipping_details_from_wallet_connector;
 
-    const apiKey = globalState.get("adminApiKey");
+    const apiKey = globalState.get("apiKey");
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
 
@@ -562,7 +562,7 @@ Cypress.Commands.add(
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            "api-key": globalState.get("adminApiKey"),
+            "api-key": globalState.get("apiKey"),
           },
           body: createConnectorBody,
           failOnStatusCode: false,
@@ -3554,7 +3554,7 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
       "X-Merchant-Id": merchantId,
     },
     failOnStatusCode: false,
