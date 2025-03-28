@@ -2157,8 +2157,8 @@ Cypress.Commands.add(
               );
 
               if (
-                typeof response.body.payment_method_id !== "undefined" ||
-                response.body.payment_method_id !== "null"
+                response.body?.payment_method_id &&
+                response.body.payment_method_id !== null
               ) {
                 expect(
                   response.body.payment_method_status,
@@ -2173,7 +2173,11 @@ Cypress.Commands.add(
                 globalState.get("customerId")
               );
               if (
-                ["succeeded", "requires_capture"].includes(response.body.status)
+                [
+                  "partially_captured",
+                  "requires_capture",
+                  "succeeded",
+                ].includes(response.body.status)
               ) {
                 expect(
                   response.body.payment_method_id,
