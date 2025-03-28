@@ -10,9 +10,9 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
-            PaymentDetails, ServiceSessionIds, TransactionDetails, UasAuthenticationRequestData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            AuthenticationInfo, PaymentDetails, ServiceSessionIds, TransactionDetails,
+            UasAuthenticationRequestData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         BrowserInformation,
     },
@@ -60,24 +60,32 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             }),
             payment_details: None,
         };
-        let currency = payment_data.payment_attempt.currency.ok_or(
-            ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
-            },
-        )?;
 
         let amount = payment_data.payment_attempt.net_amount.get_order_amount();
         let transaction_details = TransactionDetails {
             amount: Some(amount),
-            currency: Some(currency),
+            currency: payment_data.payment_attempt.currency,
             device_channel: None,
             message_category: None,
         };
 
+        let authentication_info = Some(AuthenticationInfo {
+            authentication_type: None,
+            authentication_reasons: None,
+            consent_received: false, // This is not relevant in this flow so keeping it as false
+            is_authenticated: false, // This is not relevant in this flow so keeping it as false
+            locale: None,
+            supported_card_brands: None,
+            encypted_payload: payment_data
+                .service_details
+                .as_ref()
+                .and_then(|details| details.encypted_payload.clone()),
+        });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
             payment_details: None,
+            authentication_info,
         })
     }
 
@@ -103,6 +111,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                 pre_authentication_data,
                 merchant_connector_account,
                 Some(authentication_id.to_owned()),
+                payment_data.payment_intent.payment_id.clone(),
             )?;
 
         utils::do_auth_connector_call(
@@ -144,6 +153,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                 post_authentication_data,
                 merchant_connector_account,
                 Some(authentication_id.clone()),
+                payment_data.payment_intent.payment_id.clone(),
             )?;
 
         utils::do_auth_connector_call(
@@ -215,6 +225,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             authentication_confirmation_data,
             merchant_connector_account,
             Some(authentication_id.clone()),
+            payment_data.payment_intent.payment_id.clone()
         )?;
 
         utils::do_auth_connector_call(
@@ -258,6 +269,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             service_details: None,
             transaction_details: None,
             payment_details,
+            authentication_info: None,
         })
     }
 
@@ -284,6 +296,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
                 pre_authentication_data,
                 merchant_connector_account,
                 Some(authentication_id.to_owned()),
+                payment_data.payment_intent.payment_id.clone(),
             )?;
 
         utils::do_auth_connector_call(
@@ -369,6 +382,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         three_ds_requestor_url: String,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
+        payment_id: common_utils::id_type::PaymentId,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService<F>>::get_authentication_request_data(
@@ -397,6 +411,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             authentication_data,
             merchant_connector_account,
             Some(authentication.authentication_id.to_owned()),
+            payment_id,
         )?;
 
         Box::pin(utils::do_auth_connector_call(
@@ -426,7 +441,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
-        _payment_data: &PaymentData<F>,
+        payment_data: &PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
@@ -445,6 +460,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             authentication_data,
             merchant_connector_account,
             authentication.map(|auth| auth.authentication_id),
+            payment_data.payment_intent.payment_id.clone(),
         )?;
 
         utils::do_auth_connector_call(

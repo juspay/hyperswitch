@@ -6694,7 +6694,8 @@
           "gpayments",
           "ctp_mastercard",
           "unified_authentication_service",
-          "juspaythreedsserver"
+          "juspaythreedsserver",
+          "ctp_visa"
         ]
       },
       "AuthenticationStatus": {
@@ -8063,6 +8064,17 @@
                 "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer"
+            ],
+            "properties": {
+              "instant_bank_transfer": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -8361,6 +8373,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer"
+            ],
+            "properties": {
+              "instant_bank_transfer": {
+                "type": "object"
               }
             }
           }
@@ -9805,6 +9828,7 @@
           "coingate",
           "cryptopay",
           "ctp_mastercard",
+          "ctp_visa",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -10527,6 +10551,9 @@
       },
       "CtpServiceDetails": {
         "type": "object",
+        "required": [
+          "provider"
+        ],
         "properties": {
           "merchant_transaction_id": {
             "type": "string",
@@ -10544,11 +10571,21 @@
             "nullable": true
           },
           "provider": {
+            "$ref": "#/components/schemas/CtpServiceProvider"
+          },
+          "encypted_payload": {
             "type": "string",
-            "description": "provider Eg: Visa, Mastercard",
+            "description": "Encrypted payload",
             "nullable": true
           }
         }
+      },
+      "CtpServiceProvider": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard"
+        ]
       },
       "Currency": {
         "type": "string",
@@ -18203,6 +18240,7 @@
           "red_pagos",
           "samsung_pay",
           "sepa",
+          "sepa_bank_transfer",
           "sofort",
           "swish",
           "touch_n_go",
@@ -18224,7 +18262,8 @@
           "local_bank_transfer",
           "mifinity",
           "open_banking_pis",
-          "direct_carrier_billing"
+          "direct_carrier_billing",
+          "instant_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -23633,6 +23672,19 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_debit_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if debit routing is enabled or not",
+            "nullable": true
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23897,6 +23949,19 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced"
+          },
+          "is_debit_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if debit routing is enabled or not",
+            "nullable": true
+          },
+          "merchant_business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },

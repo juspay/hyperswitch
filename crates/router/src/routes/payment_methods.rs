@@ -1369,3 +1369,46 @@ pub async fn payment_method_session_update_saved_payment_method(
     ))
     .await
 }
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdateSavedPaymentMethod))]
+pub async fn payment_method_session_delete_saved_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<
+        api_models::payment_methods::PaymentMethodSessionDeleteSavedPaymentMethod,
+    >,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionDeleteSavedPaymentMethod;
+    let payload = json_payload.into_inner();
+    let payment_method_session_id = path.into_inner();
+
+    let request = PaymentMethodsSessionGenericRequest {
+        payment_method_session_id: payment_method_session_id.clone(),
+        request: payload,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        request,
+        |state, auth: auth::AuthenticationData, request, _| {
+            payment_methods_routes::payment_methods_session_delete_payment_method(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                request.request.payment_method_id,
+                request.payment_method_session_id,
+            )
+        },
+        &auth::V2ClientAuth(
+            common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                payment_method_session_id,
+            ),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
