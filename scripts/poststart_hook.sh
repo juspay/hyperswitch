@@ -2,12 +2,11 @@
 
 # Configuration
 PLATFORM="docker"  # Change to "helm" or "cdk" as needed
-VERSION="1.113.0"
+VERSION="unknown"
 STATUS=""
 SERVER_HEALTH_URL="http://hyperswitch-server:8080/health"
 HYPERSWITCH_URL="http://hyperswitch-server:8080/health/ready"
 WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/$PLATFORM"
-
 
 # Fetch health status
 echo "Fetching app server health status..."
@@ -22,13 +21,14 @@ if [ "$HEALTH_RESPONSE" = "connection_error" ]; then
     exit 0
 fi
 
+#fetch hyperswitch version
+VERSION=$(curl --silent --output /dev/null --request GET --write-out '%header{x-hyperswitch-version}' "$HYPERSWITCH_URL" | sed 's/-.*//' | jq -sRr @uri)
+
 echo "Fetching Hyperswitch health status..."
 HEALTH_RESPONSE=$(curl -s "$HYPERSWITCH_URL")
 
-echo "Raw response: $HEALTH_RESPONSE"
-
 # Initialize parameters
-PARAMS="platform=$PLATFORM&version=$VERSION&status=$STATUS"
+PARAMS="version=$VERSION"
 
 # Check if the response contains an error
 if echo "$HEALTH_RESPONSE" | grep -q '"error"'; then
@@ -48,8 +48,6 @@ else
         PARAMS="$PARAMS&$key=$value"
     done
 fi
-
-echo "Final URL Parameters: $PARAMS"
 
 # Send GET request to the webhook
 curl -G "$WEBHOOK_URL?$PARAMS"

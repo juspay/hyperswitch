@@ -9,7 +9,7 @@ networks:
 services:
   ### Dependencies
   prestart-hook:
-    image: curlimages/curl:latest
+    image: curlimages/curl-base:latest
     container_name: prestart-hook
     entrypoint: ["/bin/sh", "-c", "chmod +x /prestart_hook.sh && /prestart_hook.sh"]
     volumes:
@@ -96,7 +96,7 @@ services:
       timeout: 5s
 
   poststart-hook:
-    image: alpine:latest
+    image: curlimages/curl-base:latest
     container_name: poststart-hook
     depends_on:
       hyperswitch-server:
