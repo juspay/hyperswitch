@@ -1200,7 +1200,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_guard_config,
                     card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                     is_clear_pan_retries_enabled: None,
-                    active_surcharge_algorithm_id: None,
+                    // active_surcharge_algorithm_id: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1248,7 +1248,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1294,7 +1294,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1340,7 +1340,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1386,7 +1386,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1432,7 +1432,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1478,7 +1478,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1524,7 +1524,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1570,7 +1570,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
-                active_surcharge_algorithm_id: None,
+                // active_surcharge_algorithm_id: None,
             },
         }
     }

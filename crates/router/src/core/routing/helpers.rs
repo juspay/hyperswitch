@@ -1601,7 +1601,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
-                algorithm_type: common_utils::consts::ROUTING,
+                algorithm_type: common_utils::consts::ALGORITHM_TYPE_ROUTING,
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
@@ -1618,7 +1618,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
-                algorithm_type: common_utils::consts::ROUTING,
+                algorithm_type: common_utils::consts::ALGORITHM_TYPE_ROUTING,
             }
         }
 

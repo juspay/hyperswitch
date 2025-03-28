@@ -853,7 +853,7 @@ impl Routing {
                             req,
                             payload,
                             TransactionType::Payment,
-                            common_utils::consts::ROUTING,
+                            common_utils::consts::ALGORITHM_TYPE_ROUTING,
                         )
                     })),
             )
@@ -901,7 +901,7 @@ impl Routing {
                             state,
                             req,
                             query,
-                            common_utils::consts::SURCHARGE,
+                            common_utils::consts::ALGORITHM_TYPE_SURCHARGE,
                         )
                     },
                 )),
@@ -920,8 +920,8 @@ impl Routing {
                             state,
                             req,
                             payload,
-                            &TransactionType::Payment,
-                            common_utils::consts::SURCHARGE,
+                            TransactionType::Payment,
+                            common_utils::consts::ALGORITHM_TYPE_SURCHARGE,
                         )
                     },
                 )),
@@ -970,7 +970,7 @@ impl Routing {
                                 req,
                                 payload,
                                 TransactionType::Payout,
-                                common_utils::consts::ROUTING,
+                                common_utils::consts::ALGORITHM_TYPE_ROUTING,
                             )
                         })),
                 )

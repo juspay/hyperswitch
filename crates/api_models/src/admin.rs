@@ -2542,6 +2542,7 @@ pub struct ProfileUpdate {
     pub force_3ds_challenge: Option<bool>,
 
     /// active surcharge config id
+    #[schema(value_type = Option<SurchargeRoutingId>)]
     pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 }
 

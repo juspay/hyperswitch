@@ -63,12 +63,14 @@ impl events::ApiEventMetric for SurchargeDecisionManagerRecord {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SurchargeRecord {
     pub name: String,
-    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub algorithm_id: common_utils::id_type::SurchargeRoutingId,
     pub merchant_surcharge_configs: MerchantSurchargeConfigs,
     pub algorithm: Program<SurchargeDecisionConfigs>,
     pub description: Option<String>,
-    pub created_at: i64,
-    pub modified_at: i64,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 impl events::ApiEventMetric for SurchargeRecord {

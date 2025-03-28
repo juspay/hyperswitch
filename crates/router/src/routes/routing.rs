@@ -762,7 +762,7 @@ pub async fn list_surcharge_decision_manager_configs(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
-            permission: Permission::ProfileSurchargeDecisionManagerWrite,
+            permission: Permission::ProfileSurchargeDecisionManagerRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -775,7 +775,7 @@ pub async fn add_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<api_models::surcharge_decision_configs::SurchargeDecisionManagerReq>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
     algorithm_type: enums::AlgorithmType,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerUpsertConfig;

@@ -117,7 +117,7 @@ impl RoutingAlgorithmUpdate {
             created_at: timestamp,
             modified_at: timestamp,
             algorithm_for: transaction_type,
-            algorithm_type: common_utils::consts::ROUTING,
+            algorithm_type: common_utils::consts::ALGORITHM_TYPE_ROUTING,
         };
         Self(algo)
     }
@@ -316,7 +316,7 @@ pub async fn create_routing_algorithm_under_profile(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: transaction_type.to_owned(),
-        algorithm_type: algorithm_type.to_owned(),
+        algorithm_type,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1560,7 +1560,7 @@ pub async fn contract_based_dynamic_routing_setup(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: common_enums::TransactionType::Payment,
-        algorithm_type: common_utils::consts::ROUTING,
+        algorithm_type: common_utils::consts::ALGORITHM_TYPE_ROUTING,
     };
 
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based

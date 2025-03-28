@@ -7,7 +7,6 @@ use api_models::{
         SurchargeDecisionManagerResponse, SurchargeRecord,
     },
 };
-use common_enums::AlgorithmType;
 use common_utils::{
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -21,7 +20,10 @@ use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
     services::api as service_api,
-    types::{domain, transformers::ForeignInto},
+    types::{
+        domain,
+        transformers::{ForeignInto, ForeignTryFrom},
+    },
 };
 
 #[cfg(feature = "v1")]
@@ -235,7 +237,7 @@ pub async fn list_surcharge_decision_configs(
     profile_id: Option<id_type::ProfileId>,
     limit: i64,
     offset: i64,
-    algorithm_type: AlgorithmType,
+    algorithm_type: enums::AlgorithmType,
 ) -> RouterResponse<RoutingKind> {
     let profile_id = profile_id.get_required_value("profile_id").change_context(
         errors::ApiErrorResponse::MissingRequiredField {
@@ -253,7 +255,8 @@ pub async fn list_surcharge_decision_configs(
             algorithm_type,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("Surcharge Details could not be found in DB")?;
 
     let result = records
         .into_iter()
@@ -271,8 +274,8 @@ pub async fn add_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     profile_id: Option<id_type::ProfileId>,
     request: SurchargeDecisionManagerReq,
-    transaction_type: &enums::TransactionType,
-    algorithm_type: AlgorithmType,
+    transaction_type: enums::TransactionType,
+    algorithm_type: enums::AlgorithmType,
 ) -> RouterResponse<SurchargeRecord> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -288,13 +291,9 @@ pub async fn add_surcharge_decision_config(
 
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
 
-    let profile_id = profile_id
-        .ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })?;
+    let profile_id = profile_id.ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
+        field_name: "profile_id",
+    })?;
 
     let business_profile = utils::validate_and_get_business_profile(
         db,
@@ -305,7 +304,9 @@ pub async fn add_surcharge_decision_config(
     )
     .await?
     .get_required_value("Profile")
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     utils::validate_profile_id_from_auth_layer(Some(profile_id.clone()), &business_profile)?;
 
@@ -321,23 +322,18 @@ pub async fn add_surcharge_decision_config(
         algorithm_data: serde_json::json!(surcharge_algorithm_data),
         created_at: timestamp,
         modified_at: timestamp,
-        algorithm_for: transaction_type.to_owned(),
-        algorithm_type: algorithm_type.to_owned(),
+        algorithm_for: transaction_type,
+        algorithm_type,
     };
     let record = db
         .insert_routing_algorithm(algo)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert surcharge decision config")?;
 
-    let new_record = SurchargeRecord {
-        name,
-        algorithm_id,
-        merchant_surcharge_configs: surcharge_algorithm_data.merchant_surcharge_configs,
-        algorithm: surcharge_algorithm_data.algorithm,
-        description: record.description,
-        created_at: record.created_at.assume_utc().unix_timestamp(),
-        modified_at: record.modified_at.assume_utc().unix_timestamp(),
-    };
+    let new_record = SurchargeRecord::foreign_try_from(record)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert record to SurchargeRecord")?;
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
@@ -378,20 +374,9 @@ pub async fn retrieve_surcharge_config(
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-        let record_data: SurchargeDecisionManagerConfig = record
-            .algorithm_data
-            .parse_value("SurchargeDecisionManagerConfig")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        final_response = SurchargeRecord {
-            name: record.name,
-            algorithm_id: active_algorithm_id,
-            merchant_surcharge_configs: record_data.merchant_surcharge_configs,
-            algorithm: record_data.algorithm,
-            description: record.description,
-            created_at: record.created_at.assume_utc().unix_timestamp(),
-            modified_at: record.modified_at.assume_utc().unix_timestamp(),
-        }
+        final_response = SurchargeRecord::foreign_try_from(record.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert record to SurchargeRecord")?;
     } else {
         return Err(report!(errors::ApiErrorResponse::ResourceIdNotFound)
             .attach_printable("Active surcharge algorithm ID not found"));
@@ -408,11 +393,8 @@ pub async fn link_surcharge_decision_config(
     auth_profile_id: Option<id_type::ProfileId>,
     algorithm_id: id_type::RoutingId,
 ) -> RouterResponse<SurchargeConfigResponse> {
-    let profile_id = auth_profile_id
-        .ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+    let profile_id =
+        auth_profile_id.ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
             field_name: "profile_id",
         })?;
 
@@ -454,30 +436,40 @@ pub async fn link_surcharge_decision_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update active surcharge algorithm ID")?;
 
-    let response = if let Some(active_surcharge_algorithm_id) =
-        updated_profile.active_surcharge_algorithm_id
-    {
-        let active_algorithm_id = active_surcharge_algorithm_id.0;
-
-        let record_data: SurchargeDecisionManagerConfig = record
-            .algorithm_data
-            .parse_value("SurchargeDecisionManagerConfig")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        SurchargeRecord {
-            name: record.name,
-            algorithm_id: active_algorithm_id,
-            merchant_surcharge_configs: record_data.merchant_surcharge_configs,
-            algorithm: record_data.algorithm,
-            description: record.description,
-            created_at: record.created_at.assume_utc().unix_timestamp(),
-            modified_at: record.modified_at.assume_utc().unix_timestamp(),
-        }
-    } else {
-        return Err(errors::ApiErrorResponse::ResourceIdNotFound)
-            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
-            .attach_printable("Active surcharge algorithm ID not found");
-    };
+    let response = updated_profile.active_surcharge_algorithm_id.map_or_else(
+        || {
+            Err(errors::ApiErrorResponse::ResourceIdNotFound)
+                .attach_printable("Active surcharge algorithm ID not found")
+        },
+        |_| {
+            SurchargeRecord::foreign_try_from(record.clone())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert record to SurchargeRecord")
+        },
+    )?;
 
     Ok(service_api::ApplicationResponse::Json(response))
+}
+
+impl ForeignTryFrom<diesel_models::routing_algorithm::RoutingAlgorithm> for SurchargeRecord {
+    type Error = error_stack::Report<common_utils::errors::ParsingError>;
+
+    fn foreign_try_from(
+        record: diesel_models::routing_algorithm::RoutingAlgorithm,
+    ) -> Result<Self, Self::Error> {
+        let algorithm_data: SurchargeDecisionManagerConfig = record
+            .algorithm_data
+            .parse_value("SurchargeDecisionManagerConfig")
+            .attach_printable("Failed to deserialise surcharge config")?;
+
+        Ok(Self {
+            name: record.name,
+            algorithm_id: SurchargeRoutingId(record.algorithm_id),
+            merchant_surcharge_configs: algorithm_data.merchant_surcharge_configs,
+            algorithm: algorithm_data.algorithm,
+            description: record.description,
+            created_at: record.created_at,
+            modified_at: record.modified_at,
+        })
+    }
 }
