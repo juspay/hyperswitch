@@ -724,7 +724,7 @@ Cypress.Commands.add(
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "api-key": globalState.get("adminApiKey"),
+            "api-key": globalState.get("apiKey"),
           },
           body: createConnectorBody,
           failOnStatusCode: false,
