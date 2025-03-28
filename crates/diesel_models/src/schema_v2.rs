@@ -796,6 +796,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Varchar,
         organization_name -> Nullable<Text>,
+        version -> ApiVersion,
     }
 }
 

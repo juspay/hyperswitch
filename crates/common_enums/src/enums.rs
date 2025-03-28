@@ -21,7 +21,8 @@ pub mod diesel_exports {
         DbDisputeStatus as DisputeStatus, DbFraudCheckStatus as FraudCheckStatus,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
+        DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
@@ -1930,6 +1931,26 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CtpServiceProvider {
+    Visa,
+    Mastercard,
 }
 
 #[derive(
@@ -6684,6 +6705,7 @@ pub enum AuthenticationConnectors {
     CtpMastercard,
     UnifiedAuthenticationService,
     Juspaythreedsserver,
+    CtpVisa,
 }
 
 impl AuthenticationConnectors {
@@ -6693,7 +6715,8 @@ impl AuthenticationConnectors {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
-            | Self::Juspaythreedsserver => false,
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa => false,
             Self::Gpayments => true,
         }
     }
@@ -6980,6 +7003,7 @@ pub enum Resource {
     ReconReports,
     RunRecon,
     ReconConfig,
+    RevenueRecovery,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -7817,6 +7841,60 @@ pub enum TriggeredBy {
     Internal,
     /// Denotes payment attempt is been created by external system.
     External,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ProcessTrackerStatus {
+    // Picked by the producer
+    Processing,
+    // State when the task is added
+    New,
+    // Send to retry
+    Pending,
+    // Picked by consumer
+    ProcessStarted,
+    // Finished by consumer
+    Finish,
+    // Review the task
+    Review,
+}
+
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProcessTrackerRunner {
+    PaymentsSyncWorkflow,
+    RefundWorkflowRouter,
+    DeleteTokenizeDataWorkflow,
+    ApiKeyExpiryWorkflow,
+    OutgoingWebhookRetryWorkflow,
+    AttachPayoutAccountWorkflow,
+    PaymentMethodStatusUpdateWorkflow,
+    PassiveRecoveryWorkflow,
 }
 
 #[derive(Debug)]

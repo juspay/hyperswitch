@@ -15,8 +15,8 @@ use crate::{
     db::StorageInterface,
     routes::{app::ReqState, metrics, SessionState},
     services::{self, connector_integration_interface},
-    types::{api, domain, storage::passive_churn_recovery as storage_churn_recovery},
-    workflows::passive_churn_recovery_workflow,
+    types::{api, domain, storage::revenue_recovery as storage_churn_recovery},
+    workflows::revenue_recovery as revenue_recovery_flow,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -466,22 +466,21 @@ impl RevenueRecoveryAttempt {
             .and_then(|feature_metadata| feature_metadata.get_retry_count())
             .unwrap_or(0);
 
-        let schedule_time =
-            passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments(
-                db,
-                &merchant_id,
-                (total_retry_count + 1).into(),
-            )
-            .await
-            .map_or_else(
-                || {
-                    Err(
-                        report!(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
-                            .attach_printable("Failed to get schedule time for pcr workflow"),
-                    )
-                },
-                Ok, // Simply returns `time` wrapped in `Ok`
-            )?;
+        let schedule_time = revenue_recovery_flow::get_schedule_time_to_retry_mit_payments(
+            db,
+            &merchant_id,
+            (total_retry_count + 1).into(),
+        )
+        .await
+        .map_or_else(
+            || {
+                Err(
+                    report!(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
+                        .attach_printable("Failed to get schedule time for pcr workflow"),
+                )
+            },
+            Ok, // Simply returns `time` wrapped in `Ok`
+        )?;
 
         let payment_attempt_id = payment_attempt_id
             .ok_or(report!(

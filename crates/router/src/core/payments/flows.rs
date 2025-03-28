@@ -632,6 +632,7 @@ default_imp_for_pre_processing_steps!(
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
+    connector::Stripe,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
@@ -1963,7 +1964,7 @@ fn handle_post_capture_response(
                 )),
                 _ => {
                     logger::error!(
-                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.", 
+                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.",
                         post_capture_router_data.response,
                         post_capture_router_data.status,
                     );

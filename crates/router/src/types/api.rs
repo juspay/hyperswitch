@@ -344,6 +344,9 @@ impl ConnectorData {
                 enums::Connector::CtpMastercard => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
                 }
+                enums::Connector::CtpVisa => Ok(ConnectorEnum::Old(Box::new(
+                    connector::UnifiedAuthenticationService::new(),
+                ))),
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
                 }
@@ -391,6 +394,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
+                // enums::Connector::Facilitapay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay)))
+                // }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
