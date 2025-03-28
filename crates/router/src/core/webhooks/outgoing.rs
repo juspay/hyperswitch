@@ -133,6 +133,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
+        is_overall_delivery_successful: Some(false),
     };
 
     let event_insert_result = state
@@ -312,7 +313,7 @@ async fn trigger_webhook_to_merchant(
             }
             Ok(response) => {
                 let status_code = response.status();
-                let _updated_event = update_event_in_storage(
+                let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
@@ -322,6 +323,14 @@ async fn trigger_webhook_to_merchant(
                 .await?;
 
                 if status_code.is_success() {
+                    update_overall_delivery_status_in_storage(
+                        state.clone(),
+                        merchant_key_store.clone(),
+                        &business_profile.merchant_id,
+                        updated_event,
+                    )
+                    .await?;
+
                     success_response_handler(
                         state.clone(),
                         &business_profile.merchant_id,
@@ -362,7 +371,7 @@ async fn trigger_webhook_to_merchant(
                 }
                 Ok(response) => {
                     let status_code = response.status();
-                    let _updated_event = update_event_in_storage(
+                    let updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
@@ -372,6 +381,14 @@ async fn trigger_webhook_to_merchant(
                     .await?;
 
                     if status_code.is_success() {
+                        update_overall_delivery_status_in_storage(
+                            state.clone(),
+                            merchant_key_store.clone(),
+                            &business_profile.merchant_id,
+                            updated_event,
+                        )
+                        .await?;
+
                         success_response_handler(
                             state.clone(),
                             &business_profile.merchant_id,
@@ -835,6 +852,44 @@ async fn update_event_in_storage(
         )
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+}
+
+async fn update_overall_delivery_status_in_storage(
+    state: SessionState,
+    merchant_key_store: domain::MerchantKeyStore,
+    merchant_id: &common_utils::id_type::MerchantId,
+    updated_event: domain::Event,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let key_manager_state = &(&state).into();
+
+    let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
+        is_overall_delivery_successful: true,
+    };
+
+    let initial_attempt_id = updated_event.initial_attempt_id.as_ref();
+    let delivery_attempt = updated_event.delivery_attempt;
+
+    if let Some((
+        initial_attempt_id,
+        enums::WebhookDeliveryAttempt::InitialAttempt
+        | enums::WebhookDeliveryAttempt::AutomaticRetry,
+    )) = initial_attempt_id.zip(delivery_attempt)
+    {
+        state
+            .store
+            .update_event_by_merchant_id_event_id(
+                key_manager_state,
+                merchant_id,
+                initial_attempt_id.as_str(),
+                update_overall_delivery_status,
+                &merchant_key_store,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+            .attach_printable("Failed to update initial delivery attempt")?;
+    }
+
+    Ok(())
 }
 
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
