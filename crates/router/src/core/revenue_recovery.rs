@@ -272,7 +272,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .find_process_by_id(&process_tracker_id_for_psync)
         .await
         .map_err(|e| {
-            logger::error!("Error while retreiving psync task : {:?}", e);
+            logger::error!("Error while retrieving psync task : {:?}", e);
         })
         .ok()
         .flatten();
