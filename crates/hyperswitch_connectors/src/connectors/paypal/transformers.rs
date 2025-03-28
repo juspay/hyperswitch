@@ -1117,6 +1117,13 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 )?;
 
                 let payment_source = match payment_method_type {
+                    #[cfg(feature = "v1")]
+                    enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit => Ok(Some(
+                        PaymentSourceItem::Card(CardRequest::CardVaultStruct(VaultStruct {
+                            vault_id: connector_mandate_id.into(),
+                        })),
+                    )),
+                    #[cfg(feature = "v2")]
                     enums::PaymentMethodType::Credit
                     | enums::PaymentMethodType::Debit
                     | enums::PaymentMethodType::Card => Ok(Some(PaymentSourceItem::Card(

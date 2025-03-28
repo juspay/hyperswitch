@@ -25,7 +25,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
         #[cfg(feature = "v2")]
-        api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Credit)),
+        api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
         api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
         api_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),
         api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),

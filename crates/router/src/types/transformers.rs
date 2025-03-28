@@ -524,9 +524,11 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Sepa
             | api_enums::PaymentMethodType::Bacs
             | api_enums::PaymentMethodType::Becs => Self::BankDebit,
-            api_enums::PaymentMethodType::Credit
-            | api_enums::PaymentMethodType::Debit
-            | api_enums::PaymentMethodType::Card => Self::Card,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Self::Card
+            }
+            #[cfg(feature = "v2")]
+            api_enums::PaymentMethodType::Card => Self::Card,
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
             api_enums::PaymentMethodType::Boleto
