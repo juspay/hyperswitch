@@ -155,12 +155,12 @@ pub async fn payments_create_intent(
         match env::which() {
             env::Env::Production => &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
-                is_platform_allowed: true,
+                is_platform_allowed: false,
             },
             _ => auth::auth_type(
                 &auth::V2ApiKeyAuth {
                     is_connected_allowed: false,
-                    is_platform_allowed: true,
+                    is_platform_allowed: false,
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
@@ -224,7 +224,7 @@ pub async fn payments_get_intent(
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
-            is_platform_allowed: true,
+            is_platform_allowed: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -266,12 +266,12 @@ pub async fn payments_create_and_confirm_intent(
         match env::which() {
             env::Env::Production => &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
-                is_platform_allowed: true,
+                is_platform_allowed: false,
             },
             _ => auth::auth_type(
                 &auth::V2ApiKeyAuth {
                     is_connected_allowed: false,
-                    is_platform_allowed: true,
+                    is_platform_allowed: false,
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
@@ -336,7 +336,7 @@ pub async fn payments_update_intent(
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
-            is_platform_allowed: true,
+            is_platform_allowed: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1337,7 +1337,7 @@ pub async fn payments_list(
         auth::auth_type(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
-                is_platform_allowed: true,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
@@ -2656,7 +2656,7 @@ pub async fn proxy_confirm_intent(
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
-            is_platform_allowed: true,
+            is_platform_allowed: false,
         },
         locking_action,
     ))
@@ -2730,7 +2730,7 @@ pub async fn payment_status(
         auth::auth_type(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
-                is_platform_allowed: true,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
@@ -2779,7 +2779,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
-            is_platform_allowed: true,
+            is_platform_allowed: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2901,7 +2901,7 @@ pub async fn payments_capture(
         auth::auth_type(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
-                is_platform_allowed: true,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,

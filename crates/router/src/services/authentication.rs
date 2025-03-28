@@ -1893,8 +1893,6 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // here also we can add the validation for granular control, v2 api key auth is same as ApiKeyAuth under v2 feature flag, that v2 feature flag auth we will be discarding
-
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
         let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
             get_platform_merchant_account(state, request_headers, merchant).await?
