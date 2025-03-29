@@ -1,7 +1,11 @@
 //! Common types to be used in payment methods
 
 use diesel::{
-    backend::Backend, deserialize, deserialize::FromSql, sql_types::Jsonb, AsExpression, Queryable,
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    sql_types::{Json, Jsonb},
+    AsExpression, Queryable,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -9,7 +13,7 @@ use utoipa::ToSchema;
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
 #[serde(deny_unknown_fields)]
-#[diesel(sql_type = Jsonb)]
+#[diesel(sql_type = Json)]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]

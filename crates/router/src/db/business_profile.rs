@@ -82,7 +82,7 @@ impl ProfileInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         business_profile
             .construct_new()
             .await
@@ -106,7 +106,7 @@ impl ProfileInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::Profile::find_by_profile_id(&conn, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -126,7 +126,7 @@ impl ProfileInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -147,7 +147,7 @@ impl ProfileInterface for Store {
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::Profile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -168,7 +168,7 @@ impl ProfileInterface for Store {
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         Conversion::convert(current_state)
             .await
             .change_context(errors::StorageError::EncryptionError)?
@@ -190,7 +190,7 @@ impl ProfileInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         storage::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -203,7 +203,7 @@ impl ProfileInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::Profile::list_profile_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
