@@ -582,7 +582,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successful3DSCardDetails,
         },
-        billing:billing_info,
+        billing: billing_info,
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
