@@ -67,15 +67,23 @@ impl fmt::Debug for AzureKeyVaultClient {
 
 impl AzureKeyVaultClient {
     /// Constructs a new Azure Key Vault client.
-    pub async fn new(config: &AzureKeyVaultConfig) -> Result<Self, AzureKeyVaultError> {
+    pub async fn new(config: &AzureKeyVaultConfig) -> CustomResult<Self, AzureKeyVaultError> {
         let credential = DefaultAzureCredential::new()
-            .map_err(|_| AzureKeyVaultError::AzureKeyVaultClientInitializationFailed)?;
+            .map_err(|error| {
+                logger::error!(azure_key_vault_error=?error, "Failed to create Azure default credential");
+                report!(AzureKeyVaultError::AzureKeyVaultClientInitializationFailed)
+                    .attach_printable(error)
+            })?;
+
+        let key_client =
+            KeyClient::new(&config.vault_url, credential.clone(), None).map_err(|error| {
+                logger::error!(azure_key_vault_error=?error, "Failed to create Azure key client");
+                report!(AzureKeyVaultError::AzureKeyVaultClientInitializationFailed)
+                    .attach_printable(error)
+            })?;
 
         Ok(Self {
-            inner_client: Arc::new(
-                KeyClient::new(&config.vault_url, credential.clone(), None)
-                    .map_err(|_| AzureKeyVaultError::AzureKeyVaultClientInitializationFailed)?,
-            ),
+            inner_client: Arc::new(key_client),
             key_name: config.key_name.clone(),
             version: config.version.clone(),
             algorithm: config
@@ -110,19 +118,23 @@ impl AzureKeyVaultClient {
                 decrypt_params
                     .clone()
                     .try_into()
-                    .map_err(|_| AzureKeyVaultError::KeyOperationsParameterTypeConversionFailed)?,
+                    .map_err(|error| {
+                        logger::error!(conversion_error=?error, "Failed to convert KeyOperationsParameters to RequestContent");
+                        report!(AzureKeyVaultError::KeyOperationsParameterTypeConversionFailed)
+                            .attach_printable(error)
+                    })?,
                 None
             )
             .await
             .inspect_err(|error| {
-                logger::error!(azure_key_vault_error=?error, "Failed to Azure Key Vault decrypt data");
+                logger::error!(azure_key_vault_error=?error, "Failed while making Azure Key Vault decrypt API call");
                 metrics::AZURE_KEY_VAULT_DECRYPTION_FAILURES.add(1, &[]);
             })
             .change_context(AzureKeyVaultError::DecryptionFailed)?
             .into_body()
             .await
             .inspect_err(|error| {
-                logger::error!(azure_key_vault_error=?error, "Failed to Azure Key Vault decrypt data");
+                logger::error!(azure_key_vault_error=?error, "Failed while parsing Azure Key Vault decrypt response");
                 metrics::AZURE_KEY_VAULT_DECRYPTION_FAILURES.add(1, &[]);
             })
             .change_context(AzureKeyVaultError::DecryptionFailed)?;
@@ -166,19 +178,23 @@ impl AzureKeyVaultClient {
                 encrypt_params
                     .clone()
                     .try_into()
-                    .map_err(|_| AzureKeyVaultError::KeyOperationsParameterTypeConversionFailed)?,
+                    .map_err(|error| {
+                        logger::error!(conversion_error=?error, "Failed to convert KeyOperationsParameters to RequestContent");
+                        report!(AzureKeyVaultError::KeyOperationsParameterTypeConversionFailed)
+                            .attach_printable(error)
+                    })?,
                 None
             )
             .await
             .inspect_err(|error| {
-                logger::error!(azure_key_vault_error=?error, "Failed to Azure Key Vault decrypt data");
+                logger::error!(azure_key_vault_error=?error, "Failed while making Azure Key Vault encrypt API call");
                 metrics::AZURE_KEY_VAULT_ENCRYPTION_FAILURES.add(1, &[]);
             })
             .change_context(AzureKeyVaultError::EncryptionFailed)?
             .into_body()
             .await
             .inspect_err(|error| {
-                logger::error!(azure_key_vault_error=?error, "Failed to Azure Key Vault decrypt data");
+                logger::error!(azure_key_vault_error=?error, "Failed while parsing Azure Key Vault encrypt response");
                 metrics::AZURE_KEY_VAULT_ENCRYPTION_FAILURES.add(1, &[]);
             })
             .change_context(AzureKeyVaultError::EncryptionFailed)?;
