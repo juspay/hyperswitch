@@ -1803,6 +1803,8 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
         Self::Card {
             authentication_data: None,
             payment_checks,
+            card_network: None,
+            domestic_network: None,
         }
     }
 }

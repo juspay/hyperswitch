@@ -1161,11 +1161,13 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 Ok(types::PaymentMethodTokenResult {
                     payment_method_token_result: payment_token_resp,
                     is_payment_method_tokenization_performed: true,
+                    connector_response: resp.connector_response.clone(),
                 })
             }
             _ => Ok(types::PaymentMethodTokenResult {
                 payment_method_token_result: Ok(None),
                 is_payment_method_tokenization_performed: false,
+                connector_response: None,
             }),
         }
     } else {
@@ -1173,6 +1175,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
         Ok(types::PaymentMethodTokenResult {
             payment_method_token_result: Ok(None),
             is_payment_method_tokenization_performed: false,
+            connector_response: None,
         })
     }
 }
@@ -1191,7 +1194,10 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
                         pm_token,
                     ))
                 });
-
+                if router_data.connector_response.is_none() {
+                    router_data.connector_response =
+                        payment_method_token_result.connector_response.clone();
+                }
                 true
             }
             Err(err) => {
