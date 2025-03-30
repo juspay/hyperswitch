@@ -121,7 +121,11 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                     Some(CardNetwork::Interac) => "interac".to_string(),
                     Some(CardNetwork::RuPay) => "rupay".to_string(),
                     Some(CardNetwork::Maestro) => "maestro".to_string(),
-                    None => "".to_string(),
+                    Some(CardNetwork::Star)
+                    | Some(CardNetwork::Accel)
+                    | Some(CardNetwork::Pulse)
+                    | Some(CardNetwork::Nyce)
+                    | None => "".to_string(),
                 },
                 amount: item.amount.clone(),
                 description: item
