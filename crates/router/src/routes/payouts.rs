@@ -127,8 +127,10 @@ pub async fn payouts_confirm(
     tracing::Span::current().record("payout_id", &payout_id);
     payload.payout_id = Some(payout_id);
     payload.confirm = Some(true);
+    let api_auth_config = auth::ApiKeyAuthConfig::default();
+
     let (auth_type, _auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };

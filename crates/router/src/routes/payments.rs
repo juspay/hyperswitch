@@ -432,8 +432,13 @@ pub async fn payments_retrieve(
 
     tracing::Span::current().record("flow", flow.to_string());
 
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -487,7 +492,13 @@ pub async fn payments_retrieve_with_gateway_creds(
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentRetrieveBodyWithCredentials>,
 ) -> impl Responder {
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
+    {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -565,8 +576,12 @@ pub async fn payments_update(
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
-
-    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
+    {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -688,8 +703,13 @@ pub async fn payments_confirm(
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -1191,11 +1211,19 @@ pub async fn payments_complete_authorize(
         ..Default::default()
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payment_confirm_req) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
+    let (auth_type, auth_flow) = match auth::check_client_secret_and_get_auth(
+        req.headers(),
+        &payment_confirm_req,
+        api_auth_config,
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(

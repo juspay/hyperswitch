@@ -34,10 +34,14 @@ pub async fn payment_link_retrieve(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkRetrieve;
     let payload = json_payload.into_inner();
-    let (auth_type, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-    };
+    let api_auth_config = auth::ApiKeyAuthConfig::default();
+
+    let (auth_type, _) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+        };
+
     api::server_wrap(
         flow,
         state,

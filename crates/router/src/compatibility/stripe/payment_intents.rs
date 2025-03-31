@@ -124,8 +124,13 @@ pub async fn payment_intents_retrieve(
         expand_captures: None,
     };
 
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -198,7 +203,14 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         merchant_connector_details: json_payload.merchant_connector_details.clone(),
         ..Default::default()
     };
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
+    {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -280,7 +292,13 @@ pub async fn payment_intents_update(
 
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
 
-    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
+    {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -365,8 +383,13 @@ pub async fn payment_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
 
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
@@ -518,7 +541,13 @@ pub async fn payment_intents_cancel(
     let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;
 
-    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+    let api_auth_config = auth::ApiKeyAuthConfig {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
+    {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
