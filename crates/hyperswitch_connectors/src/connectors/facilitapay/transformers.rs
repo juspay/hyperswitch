@@ -17,11 +17,16 @@ use crate::{
     utils::PaymentsAuthorizeRequestData,
 };
 
-//TODO: Fill the struct with respective fields
-pub struct FacilitapayRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
-}
+use super::{
+    requests::{
+        FacilitapayCard, FacilitapayPaymentsRequest, FacilitapayRefundRequest,
+        FacilitapayRouterData, FacilitapaySignInRequest, FacilitapayUserCredentials,
+    },
+    responses::{
+        FacilitapayErrorResponse, FacilitapayPaymentStatus, FacilitapayPaymentsResponse,
+        FacilitapaySignInResponse, RefundResponse, RefundStatus,
+    },
+};
 
 impl<T> From<(StringMinorUnit, T)> for FacilitapayRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
@@ -31,22 +36,6 @@ impl<T> From<(StringMinorUnit, T)> for FacilitapayRouterData<T> {
             router_data: item,
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct FacilitapayPaymentsRequest {
-    amount: StringMinorUnit,
-    card: FacilitapayCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct FacilitapayCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
 }
 
 impl TryFrom<&FacilitapayRouterData<&PaymentsAuthorizeRouterData>> for FacilitapayPaymentsRequest {
@@ -90,16 +79,6 @@ impl TryFrom<&ConnectorAuthType> for FacilitapayAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum FacilitapayPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
 impl From<FacilitapayPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: FacilitapayPaymentStatus) -> Self {
@@ -109,13 +88,6 @@ impl From<FacilitapayPaymentStatus> for common_enums::AttemptStatus {
             FacilitapayPaymentStatus::Processing => Self::Authorizing,
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FacilitapayPaymentsResponse {
-    status: FacilitapayPaymentStatus,
-    id: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, PaymentsResponseData>>
@@ -142,14 +114,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct FacilitapayRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
 impl<F> TryFrom<&FacilitapayRouterData<&RefundsRouterData<F>>> for FacilitapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &FacilitapayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
@@ -157,17 +121,6 @@ impl<F> TryFrom<&FacilitapayRouterData<&RefundsRouterData<F>>> for FacilitapayRe
             amount: item.amount.to_owned(),
         })
     }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
@@ -179,13 +132,6 @@ impl From<RefundStatus> for enums::RefundStatus {
             //TODO: Review mapping
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -216,13 +162,4 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
             ..item.data
         })
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FacilitapayErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }

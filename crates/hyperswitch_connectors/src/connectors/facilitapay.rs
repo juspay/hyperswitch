@@ -1,3 +1,5 @@
+mod requests;
+mod responses;
 pub mod transformers;
 
 use common_utils::{
@@ -37,6 +39,8 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
+use requests::{FacilitapayPaymentsRequest, FacilitapayRefundRequest, FacilitapayRouterData};
+use responses::{FacilitapayErrorResponse, FacilitapayPaymentsResponse, RefundResponse};
 use transformers as facilitapay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -98,10 +102,7 @@ impl ConnectorCommon for Facilitapay {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -129,7 +130,7 @@ impl ConnectorCommon for Facilitapay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: facilitapay::FacilitapayErrorResponse = res
+        let response: FacilitapayErrorResponse = res
             .response
             .parse_struct("FacilitapayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -197,9 +198,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = facilitapay::FacilitapayRouterData::from((amount, req));
-        let connector_req =
-            facilitapay::FacilitapayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = FacilitapayRouterData::from((amount, req));
+        let connector_req = FacilitapayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -231,7 +231,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: facilitapay::FacilitapayPaymentsResponse = res
+        let response: FacilitapayPaymentsResponse = res
             .response
             .parse_struct("Facilitapay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -295,7 +295,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fac
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: facilitapay::FacilitapayPaymentsResponse = res
+        let response: FacilitapayPaymentsResponse = res
             .response
             .parse_struct("facilitapay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -372,7 +372,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: facilitapay::FacilitapayPaymentsResponse = res
+        let response: FacilitapayPaymentsResponse = res
             .response
             .parse_struct("Facilitapay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -428,9 +428,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
             req.request.currency,
         )?;
 
-        let connector_router_data = facilitapay::FacilitapayRouterData::from((refund_amount, req));
-        let connector_req =
-            facilitapay::FacilitapayRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = FacilitapayRouterData::from((refund_amount, req));
+        let connector_req = FacilitapayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -459,7 +458,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: facilitapay::RefundResponse = res
+        let response: RefundResponse = res
             .response
             .parse_struct("facilitapay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -526,7 +525,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Facilitap
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: facilitapay::RefundResponse = res
+        let response: RefundResponse = res
             .response
             .parse_struct("facilitapay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
