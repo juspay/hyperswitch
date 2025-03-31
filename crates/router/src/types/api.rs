@@ -394,9 +394,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
-                // enums::Connector::Facilitapay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay)))
-                // }
+                enums::Connector::Facilitapay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
