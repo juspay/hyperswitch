@@ -15,14 +15,14 @@ use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        passive_churn_recovery::{self as pcr},
         payments,
+        revenue_recovery::{self as pcr},
     },
     db::StorageInterface,
     errors::StorageError,
     types::{
         api::{self as api_types},
-        storage::passive_churn_recovery as pcr_storage_types,
+        storage::revenue_recovery as pcr_storage_types,
     },
 };
 use crate::{routes::SessionState, types::storage};

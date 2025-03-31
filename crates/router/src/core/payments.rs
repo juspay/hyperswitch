@@ -4479,26 +4479,7 @@ where
     }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            domain::BankTransferData::AchBankTransfer { .. }
-            | domain::BankTransferData::MultibancoBankTransfer { .. }
-                if connector.connector_name == router_types::Connector::Stripe =>
-            {
-                if payment_data
-                    .get_payment_attempt()
-                    .preprocessing_step_id
-                    .is_none()
-                {
-                    (
-                        router_data.preprocessing_steps(state, connector).await?,
-                        false,
-                    )
-                } else {
-                    (router_data, should_continue_payment)
-                }
-            }
-            _ => (router_data, should_continue_payment),
-        },
+        Some(domain::PaymentMethodData::BankTransfer(_)) => (router_data, should_continue_payment),
         Some(domain::PaymentMethodData::Wallet(_)) => {
             if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
@@ -5986,7 +5967,7 @@ pub async fn add_process_sync_task(
         tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 
@@ -7709,6 +7690,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                     authentication_details.three_ds_requestor_url.clone(),
                     &merchant_connector_account,
                     &authentication_connector,
+                    payment_intent.payment_id,
                 )
                 .await?;
             let authentication = external_authentication_update_trackers(
