@@ -15,43 +15,37 @@ describe("Name Validation Test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context(
-    "Happy Case: [Valid Name]",
-    () => {
-      it("create-intent-call-test", () => {
-    
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "name_validation"
-        ]["HappyCase"]
+  context("Happy Case: [Valid Name]", () => {
+    it("create-intent-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "name_validation"
+      ]["HappyCase"];
 
-        console.log("cur_data", data);
+      console.log("cur_data", data);
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-      });
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
   });
 
-  context(
-    "Variant Case: [Invalid Name]",
-    () => {
-      it("create-intent-call-test", () => {
-    
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "name_validation"
-        ]["InvalidCase"]
+  context("Variant Case: [Invalid Name]", () => {
+    it("create-intent-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "name_validation"
+      ]["InvalidCase"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-      });
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
   });
 });

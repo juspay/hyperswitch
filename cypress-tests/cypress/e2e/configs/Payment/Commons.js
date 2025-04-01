@@ -1583,8 +1583,8 @@ export const connectorDetails = {
             zip: "94122",
             country: "US",
             first_name: "Sakil",
-            last_name: "L'Mostak"
-          }
+            last_name: "L'Mostak",
+          },
         },
       },
       Response: {
@@ -1605,8 +1605,8 @@ export const connectorDetails = {
             zip: "94122",
             country: "US",
             first_name: "S@k!l",
-            last_name: "M*st@k"
-          }
+            last_name: "M*st@k",
+          },
         },
       },
       Response: {
@@ -1614,11 +1614,12 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: invalid character found in card holder name: @ at line 1 column 542",
-            code: "IR_06"
-          }
+            message:
+              "Json deserialize error: invalid character found in card holder name: @ at line 1 column 542",
+            code: "IR_06",
+          },
         },
       },
     }),
-  }
+  },
 };
