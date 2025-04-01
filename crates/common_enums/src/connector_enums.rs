@@ -80,6 +80,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -216,6 +217,7 @@ pub enum Connector {
     Coingate,
     Cryptopay,
     CtpMastercard,
+    CtpVisa,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -223,6 +225,7 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -377,13 +380,14 @@ impl Connector {
             | Self::Cashtocode
             | Self::Chargebee
             | Self::Coinbase
-            |Self::Coingate
+            | Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Elavon
+            // | Self::Facilitapay
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -448,6 +452,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
             | Self::Datatrans => false,
@@ -532,6 +537,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dlocal => Self::Dlocal,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
+            // RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -591,6 +597,120 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+        }
+    }
+}
+
+impl TryFrom<Connector> for RoutableConnectors {
+    type Error = &'static str;
+
+    fn try_from(connector: Connector) -> Result<Self, Self::Error> {
+        match connector {
+            Connector::Adyenplatform => Ok(Self::Adyenplatform),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector1 => Ok(Self::DummyConnector1),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector2 => Ok(Self::DummyConnector2),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector3 => Ok(Self::DummyConnector3),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector4 => Ok(Self::DummyConnector4),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector5 => Ok(Self::DummyConnector5),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector6 => Ok(Self::DummyConnector6),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyConnector7 => Ok(Self::DummyConnector7),
+            Connector::Aci => Ok(Self::Aci),
+            Connector::Adyen => Ok(Self::Adyen),
+            Connector::Airwallex => Ok(Self::Airwallex),
+            Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
+            Connector::Bankofamerica => Ok(Self::Bankofamerica),
+            Connector::Billwerk => Ok(Self::Billwerk),
+            Connector::Bitpay => Ok(Self::Bitpay),
+            Connector::Bambora => Ok(Self::Bambora),
+            Connector::Bamboraapac => Ok(Self::Bamboraapac),
+            Connector::Bluesnap => Ok(Self::Bluesnap),
+            Connector::Boku => Ok(Self::Boku),
+            Connector::Braintree => Ok(Self::Braintree),
+            Connector::Cashtocode => Ok(Self::Cashtocode),
+            Connector::Chargebee => Ok(Self::Chargebee),
+            Connector::Checkout => Ok(Self::Checkout),
+            Connector::Coinbase => Ok(Self::Coinbase),
+            Connector::Coingate => Ok(Self::Coingate),
+            Connector::Cryptopay => Ok(Self::Cryptopay),
+            Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Datatrans => Ok(Self::Datatrans),
+            Connector::Deutschebank => Ok(Self::Deutschebank),
+            Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
+            Connector::Dlocal => Ok(Self::Dlocal),
+            Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Elavon => Ok(Self::Elavon),
+            // Connector::Facilitapay => Ok(Self::Facilitapay),
+            Connector::Fiserv => Ok(Self::Fiserv),
+            Connector::Fiservemea => Ok(Self::Fiservemea),
+            Connector::Fiuu => Ok(Self::Fiuu),
+            Connector::Forte => Ok(Self::Forte),
+            Connector::Globalpay => Ok(Self::Globalpay),
+            Connector::Globepay => Ok(Self::Globepay),
+            Connector::Gocardless => Ok(Self::Gocardless),
+            Connector::Helcim => Ok(Self::Helcim),
+            Connector::Iatapay => Ok(Self::Iatapay),
+            Connector::Itaubank => Ok(Self::Itaubank),
+            Connector::Jpmorgan => Ok(Self::Jpmorgan),
+            Connector::Klarna => Ok(Self::Klarna),
+            Connector::Mifinity => Ok(Self::Mifinity),
+            Connector::Mollie => Ok(Self::Mollie),
+            Connector::Moneris => Ok(Self::Moneris),
+            Connector::Multisafepay => Ok(Self::Multisafepay),
+            Connector::Nexinets => Ok(Self::Nexinets),
+            Connector::Nexixpay => Ok(Self::Nexixpay),
+            Connector::Nmi => Ok(Self::Nmi),
+            Connector::Nomupay => Ok(Self::Nomupay),
+            Connector::Noon => Ok(Self::Noon),
+            Connector::Novalnet => Ok(Self::Novalnet),
+            Connector::Nuvei => Ok(Self::Nuvei),
+            Connector::Opennode => Ok(Self::Opennode),
+            Connector::Paybox => Ok(Self::Paybox),
+            Connector::Payme => Ok(Self::Payme),
+            Connector::Payone => Ok(Self::Payone),
+            Connector::Paypal => Ok(Self::Paypal),
+            Connector::Paystack => Ok(Self::Paystack),
+            Connector::Payu => Ok(Self::Payu),
+            Connector::Placetopay => Ok(Self::Placetopay),
+            Connector::Powertranz => Ok(Self::Powertranz),
+            Connector::Prophetpay => Ok(Self::Prophetpay),
+            Connector::Rapyd => Ok(Self::Rapyd),
+            Connector::Razorpay => Ok(Self::Razorpay),
+            Connector::Riskified => Ok(Self::Riskified),
+            Connector::Shift4 => Ok(Self::Shift4),
+            Connector::Signifyd => Ok(Self::Signifyd),
+            Connector::Square => Ok(Self::Square),
+            Connector::Stax => Ok(Self::Stax),
+            Connector::Stripe => Ok(Self::Stripe),
+            Connector::Trustpay => Ok(Self::Trustpay),
+            Connector::Tsys => Ok(Self::Tsys),
+            Connector::Volt => Ok(Self::Volt),
+            Connector::Wellsfargo => Ok(Self::Wellsfargo),
+            Connector::Wise => Ok(Self::Wise),
+            Connector::Worldline => Ok(Self::Worldline),
+            Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Xendit => Ok(Self::Xendit),
+            Connector::Zen => Ok(Self::Zen),
+            Connector::Plaid => Ok(Self::Plaid),
+            Connector::Zsl => Ok(Self::Zsl),
+            Connector::Recurly => Ok(Self::Recurly),
+            Connector::Getnet => Ok(Self::Getnet),
+            Connector::Hipay => Ok(Self::Hipay),
+            Connector::Inespay => Ok(Self::Inespay),
+            Connector::Redsys => Ok(Self::Redsys),
+            Connector::CtpMastercard
+            | Connector::Gpayments
+            | Connector::Juspaythreedsserver
+            | Connector::Netcetera
+            | Connector::Taxjar
+            | Connector::Threedsecureio
+            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }

@@ -10,4 +10,4 @@ pub mod refund_router;
 
 pub mod tokenized_data;
 
-pub mod passive_churn_recovery_workflow;
+pub mod revenue_recovery;

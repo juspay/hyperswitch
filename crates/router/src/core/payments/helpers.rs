@@ -97,17 +97,6 @@ use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
-pub fn filter_mca_based_on_profile_and_connector_type(
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: &id_type::ProfileId,
-    connector_type: ConnectorType,
-) -> Vec<domain::MerchantConnectorAccount> {
-    merchant_connector_accounts
-        .into_iter()
-        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
-        .collect()
-}
-
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
@@ -1812,7 +1801,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: hyperswitch_domain_models::consts::API_VERSION,
+                        version: common_types::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -5431,9 +5420,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list =
-            filter_mca_based_on_profile_and_connector_type(
-                merchant_connector_account_list,
+        let profile_specific_merchant_connector_account_list = merchant_connector_account_list
+            .filter_based_on_profile_and_connector_type(
                 profile_id,
                 ConnectorType::PaymentProcessor,
             );
@@ -6817,14 +6805,16 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if *do_authorisation_confirmation {
-                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    if *do_authorisation_confirmation {
+                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+                    } else {
+                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    }
                 } else {
                     None
                 }
@@ -7349,11 +7339,11 @@ pub async fn validate_allowed_payment_method_types_request(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
 
-        let filtered_connector_accounts = filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            profile_id,
-            ConnectorType::PaymentProcessor,
-        );
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                profile_id,
+                ConnectorType::PaymentProcessor,
+            );
 
         let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
             .iter()
