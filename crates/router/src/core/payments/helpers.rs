@@ -5378,10 +5378,10 @@ pub async fn get_apple_pay_retryable_connectors<F, D>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &D,
     key_store: &domain::MerchantKeyStore,
-    pre_routing_connector_data_list: &[api::ConnectorData],
+    pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::Profile,
-) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
+) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
     D: payments::OperationSessionGetters<F> + Send,
@@ -5398,7 +5398,10 @@ where
         payment_data.get_creds_identifier(),
         key_store,
         profile_id,
-        &pre_decided_connector_data_first.connector_name.to_string(),
+        &pre_decided_connector_data_first
+            .connector_data
+            .connector_name
+            .to_string(),
         merchant_connector_id,
     )
     .await?;
@@ -5433,19 +5436,22 @@ where
                 merchant_connector_account.metadata.clone(),
                 Some(&merchant_connector_account.connector_name),
             )? {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &merchant_connector_account.connector_name.to_string(),
-                    api::GetToken::Connector,
-                    Some(merchant_connector_account.get_id()),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received")?;
+                let routing_data: api::ConnectorRoutingData =
+                    api::ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        &merchant_connector_account.connector_name.to_string(),
+                        api::GetToken::Connector,
+                        Some(merchant_connector_account.get_id()),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid connector name received")?
+                    .into();
 
                 if !connector_data_list.iter().any(|connector_details| {
-                    connector_details.merchant_connector_id == connector_data.merchant_connector_id
+                    connector_details.connector_data.merchant_connector_id
+                        == routing_data.connector_data.merchant_connector_id
                 }) {
-                    connector_data_list.push(connector_data)
+                    connector_data_list.push(routing_data)
                 }
             }
         }
@@ -5468,7 +5474,7 @@ where
         let mut routing_connector_data_list = Vec::new();
 
         pre_routing_connector_data_list.iter().for_each(|pre_val| {
-            routing_connector_data_list.push(pre_val.merchant_connector_id.clone())
+            routing_connector_data_list.push(pre_val.connector_data.merchant_connector_id.clone())
         });
 
         fallback_connetors_list.iter().for_each(|fallback_val| {
@@ -5489,7 +5495,7 @@ where
             .iter()
             .for_each(|merchant_connector_id| {
                 let connector_data = connector_data_list.iter().find(|connector_data| {
-                    *merchant_connector_id == connector_data.merchant_connector_id
+                    *merchant_connector_id == connector_data.connector_data.merchant_connector_id
                 });
                 if let Some(connector_data_details) = connector_data {
                     ordered_connector_data_list.push(connector_data_details.clone());

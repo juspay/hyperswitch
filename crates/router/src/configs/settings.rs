@@ -145,6 +145,12 @@ pub struct Settings<S: SecretState> {
 pub struct DebitRoutingConfig {
     pub network_fee: HashMap<enums::CardNetwork, NetworkProcessingData>,
     pub interchange_fee: NetworkInterchangeFee,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
     pub fraud_check_fee: f64,
 }
 

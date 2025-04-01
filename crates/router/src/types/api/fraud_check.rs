@@ -24,9 +24,15 @@ pub struct FraudCheckConnectorData {
     pub connector_name: enums::FrmConnectors,
 }
 pub enum ConnectorCallType {
-    PreDetermined(ConnectorData),
-    Retryable(Vec<ConnectorData>),
+    PreDetermined(ConnectorRoutingData),
+    Retryable(Vec<ConnectorRoutingData>),
     SessionMultiple(SessionConnectorDatas),
+}
+
+#[derive(Clone)]
+pub struct ConnectorRoutingData {
+    pub connector_data: ConnectorData,
+    pub local_networks: Option<Vec<enums::CardNetwork>>,
 }
 
 impl FraudCheckConnectorData {
