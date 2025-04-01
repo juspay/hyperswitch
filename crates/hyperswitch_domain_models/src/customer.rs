@@ -21,7 +21,7 @@ use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-use crate::{merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -113,7 +113,7 @@ impl Customer {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -217,7 +217,7 @@ impl super::behaviour::Conversion for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -323,7 +323,7 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
-            version: crate::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             status: self.status,
         })
     }
@@ -523,7 +523,7 @@ impl From<CustomerListConstraints> for DieselCustomerListConstraints {
 #[async_trait::async_trait]
 pub trait CustomerInterface
 where
-    Customer: super::behaviour::Conversion<
+    Customer: behaviour::Conversion<
         DstType = storage_types::Customer,
         NewDstType = storage_types::CustomerNew,
     >,
