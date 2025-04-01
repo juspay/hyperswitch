@@ -254,7 +254,7 @@ pub struct CardPayout {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
