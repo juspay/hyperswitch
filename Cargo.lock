@@ -3870,6 +3870,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "serde_repr",
  "serde_urlencoded",
  "serde_with",
  "sha1",
