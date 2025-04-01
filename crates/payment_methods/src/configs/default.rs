@@ -3216,37 +3216,45 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         ),
         (
             enums::PaymentMethodType::SepaBankTransfer,
-            connectors(vec![(
-                Connector::Stripe,
-                fields(
-                    vec![],
-                    vec![],
-                    vec![
-                        RequiredField::BillingEmail,
-                        RequiredField::BillingUserFirstName,
-                        RequiredField::BillingUserLastName,
-                        RequiredField::BillingAddressCountries(vec![
-                            "BE", "DE", "ES", "FR", "IE", "NL",
-                        ]),
-                    ],
+            connectors(vec![
+                (
+                    Connector::Stripe,
+                    fields(
+                        vec![],
+                        vec![],
+                        vec![
+                            RequiredField::BillingEmail,
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                            RequiredField::BillingAddressCountries(vec![
+                                "BE", "DE", "ES", "FR", "IE", "NL",
+                            ]),
+                        ],
+                    ),
                 ),
-            ),
-            (
-                Connector::Trustpay,
-                fields(
-                    vec![],
-                    vec![],
-                    vec![
-                        RequiredField::Email,
-                        RequiredField::BillingFirstName("billing_first_name", FieldType::UserBillingName),
-                        RequiredField::BillingLastName("billing_last_name", FieldType::UserBillingName),
-                        RequiredField::BillingAddressLine1,
-                        RequiredField::BillingAddressCity,
-                        RequiredField::BillingAddressZip,
-                        RequiredField::BillingAddressCountries(vec!["ALL"]),
-                    ],
+                (
+                    Connector::Trustpay,
+                    fields(
+                        vec![],
+                        vec![],
+                        vec![
+                            RequiredField::Email,
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingAddressLine1,
+                            RequiredField::BillingAddressCity,
+                            RequiredField::BillingAddressZip,
+                            RequiredField::BillingAddressCountries(vec!["ALL"]),
+                        ],
+                    ),
                 ),
-            )]),
+            ]),
         ),
         (
             enums::PaymentMethodType::InstantBankTransfer,
@@ -3257,8 +3265,14 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     vec![],
                     vec![
                         RequiredField::Email,
-                        RequiredField::BillingFirstName("billing_first_name", FieldType::UserBillingName),
-                        RequiredField::BillingLastName("billing_last_name", FieldType::UserBillingName),
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
