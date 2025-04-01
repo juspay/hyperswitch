@@ -8023,6 +8023,7 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
+    #[cfg(feature = "v2")]
     fn get_client_secret(&self) -> &Option<Secret<String>>;
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod>;
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds>;
@@ -8065,6 +8066,7 @@ pub trait OperationSessionGetters<F> {
 pub trait OperationSessionSetters<F> {
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
+    #[cfg(feature = "v2")]
     fn set_client_secret(&mut self, client_secret: Option<Secret<String>>);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
