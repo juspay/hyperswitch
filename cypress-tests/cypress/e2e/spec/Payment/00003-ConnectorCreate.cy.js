@@ -29,17 +29,17 @@ describe("Connector Account Create flow test", () => {
   it("Enable Connector Agnostic for Business Profile", () => {
     if (connector === "archipel") {
       cy.UpdateBusinessProfileTest(
-          fixtures.businessProfile.bpUpdate,
-          true, // is_connector_agnostic_enabled
-          false, // collect_billing_address_from_wallet_connector
-          false, // collect_shipping_address_from_wallet_connector
-          false, // always_collect_billing_address_from_wallet_connector
-          false, // always_collect_shipping_address_from_wallet_connector
-          globalState
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_enabled
+        false, // collect_billing_address_from_wallet_connector
+        false, // collect_shipping_address_from_wallet_connector
+        false, // always_collect_billing_address_from_wallet_connector
+        false, // always_collect_shipping_address_from_wallet_connector
+        globalState
       );
     } else {
       cy.log(
-          `Connector Agnostic not enabled for ${connector}. Skipping Business Profile update`
+        `Connector Agnostic not enabled for ${connector}. Skipping Business Profile update`
       );
     }
   });

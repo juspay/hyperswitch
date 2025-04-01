@@ -1,5 +1,6 @@
 // This file is the default. To override, add to connector.js
 import { getCustomExchange } from "./Modifiers";
+import State from "../../../utils/State.js";
 
 export const customerAcceptance = {
   acceptance_type: "offline",

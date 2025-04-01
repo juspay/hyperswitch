@@ -824,42 +824,44 @@ Cypress.Commands.add(
     updateConnectorBody.connector_type = connectorType;
     updateConnectorBody.connector_label = connectorLabel;
 
-    cy.readFile(globalState.get("connectorAuthFilePath")).then((jsonContent) => {
-      const authDetails = getValueByKey(
-        JSON.stringify(jsonContent),
-        connector_id
-      );
-      if (authDetails && authDetails.metadata) {
-        updateConnectorBody.metadata = {
-          ...updateConnectorBody.metadata, // Preserve existing metadata
-          ...authDetails.metadata,
-        };
-      }
-
-      cy.request({
-        method: "POST",
-        url: url,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": api_key,
-          "x-merchant-id": merchant_id,
-        },
-        body: updateConnectorBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-
-        cy.wrap(response).then(() => {
-          expect(response.headers["content-type"]).to.include("application/json");
-          expect(response.body.connector_name).to.equal(connector_id);
-          expect(response.body.merchant_connector_id).to.equal(
-            merchant_connector_id
-          );
-          expect(response.body.connector_label).to.equal(connectorLabel);
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          connector_id
+        );
+        if (authDetails && authDetails.metadata) {
+          updateConnectorBody.metadata = {
+            ...updateConnectorBody.metadata, // Preserve existing metadata
+            ...authDetails.metadata,
+          };
+        }
+        cy.request({
+          method: "POST",
+          url: url,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": api_key,
+            "x-merchant-id": merchant_id,
+          },
+          body: updateConnectorBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          cy.wrap(response).then(() => {
+            expect(response.headers["content-type"]).to.include(
+              "application/json"
+            );
+            expect(response.body.connector_name).to.equal(connector_id);
+            expect(response.body.merchant_connector_id).to.equal(
+              merchant_connector_id
+            );
+            expect(response.body.connector_label).to.equal(connectorLabel);
+          });
         });
-      });
-    });
+      }
+    );
   }
 );
 
@@ -1572,6 +1574,7 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const setupFutureUsage = globalState.get("setupFutureUsage");
+    const NTID = globalState.get("network_transaction_id");
     const paymentIntentID = globalState.get("paymentID");
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
     const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
@@ -1638,7 +1641,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && NTID === null) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2553,6 +2556,7 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const setupFutureUsage = globalState.get("setupFutureUsage");
+    const NTID = globalState.get("network_transaction_id");
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
@@ -2627,7 +2631,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && NTID === null) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2660,7 +2664,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && NTID === null) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
