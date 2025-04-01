@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -19,7 +19,6 @@ describe("Name Validation Test", () => {
     "Happy Case: [Valid Name]",
     () => {
       it("create-intent-call-test", () => {
-        let body = fixtures.createPaymentBody;
     
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "name_validation"
@@ -41,13 +40,10 @@ describe("Name Validation Test", () => {
     "Variant Case: [Invalid Name]",
     () => {
       it("create-intent-call-test", () => {
-        let body = fixtures.createPaymentBody;
     
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "name_validation"
         ]["InvalidCase"]
-
-        console.log("cur_data", data);
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
