@@ -19895,7 +19895,8 @@
         "type": "object",
         "description": "The Payment Service Provider Configuration for payment methods that are created using the payment method session",
         "required": [
-          "tokenization_type"
+          "tokenization_type",
+          "connector_id"
         ],
         "properties": {
           "tokenization_type": {
@@ -19903,8 +19904,7 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization",
-            "nullable": true
+            "description": "The merchant connector id to be used for tokenization"
           }
         }
       },
