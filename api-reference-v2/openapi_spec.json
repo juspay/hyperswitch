@@ -19905,7 +19905,8 @@
       "RefundsCreateRequest": {
         "type": "object",
         "required": [
-          "payment_id"
+          "payment_id",
+          "merchant_reference_id"
         ],
         "properties": {
           "payment_id": {
@@ -19917,11 +19918,10 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.",
+            "description": "Unique Identifier for the Refund given by the Merchant.",
             "example": "ref_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
+            "maxLength": 64,
+            "minLength": 1
           },
           "merchant_id": {
             "type": "string",
