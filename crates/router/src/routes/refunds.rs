@@ -72,24 +72,13 @@ pub async fn refunds_create(
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
 
-    let global_refund_id =
-        common_utils::id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
-    let mut refunds_create_payload = json_payload.into_inner();
-    refunds_create_payload.global_refund_id = Some(global_refund_id);
-
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        refunds_create_payload,
+        json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_create_core(
-                state,
-                auth.merchant_account,
-                auth.profile,
-                auth.key_store,
-                req,
-            )
+            refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),

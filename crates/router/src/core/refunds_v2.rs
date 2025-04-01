@@ -1,4 +1,6 @@
-use api_models::refunds::RefundErrorDetails;
+use std::str::FromStr;
+
+use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{
     id_type,
     types::{ConnectorTransactionId, MinorUnit},
@@ -32,7 +34,6 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundsCreateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -81,15 +82,19 @@ pub async fn refund_create_core(
     })?;
 
     payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
             &(&state).into(),
             &key_store,
             &req.payment_id,
-            merchant_id,
             merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
+    let global_refund_id =
+        common_utils::id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
+
+    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
     Box::pin(validate_and_create_refund(
         &state,
@@ -99,6 +104,7 @@ pub async fn refund_create_core(
         &payment_intent,
         amount,
         req,
+        global_refund_id,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -134,25 +140,22 @@ pub async fn trigger_refund_to_gateway(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;
 
-    let connector_name = mca.connector_name.to_string();
+    let connector_enum = mca.connector_name;
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        &connector_name,
+        &connector_enum.to_string(),
         api::GetToken::Connector,
         Some(mca_id.clone()),
     )?;
-
-    let currency = payment_intent.amount_details.currency;
 
     refunds_validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
     let mut router_data = core_utils::construct_refund_router_data(
         state,
-        &connector_name,
+        connector_enum,
         merchant_account,
         key_store,
-        (payment_attempt.get_total_amount(), currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -410,6 +413,7 @@ pub async fn validate_and_create_refund(
     payment_intent: &storage::PaymentIntent,
     refund_amount: MinorUnit,
     req: refunds::RefundsCreateRequest,
+    global_refund_id: common_utils::id_type::GlobalRefundId,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
@@ -421,12 +425,6 @@ pub async fn validate_and_create_refund(
         .merchant_id
         .as_ref()
         .map(|merchant_id| merchant_id != merchant_account.get_id());
-
-    let id = req
-        .global_refund_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Global refund id not found")?;
 
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
@@ -489,7 +487,7 @@ pub async fn validate_and_create_refund(
     let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_payment_id);
     let refund_create_req = storage::RefundNew {
-        id,
+        id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),
         external_reference_id: Some(merchant_reference_id.get_string_repr().to_string()),
         payment_id: req.payment_id,
@@ -586,6 +584,16 @@ impl ForeignTryFrom<storage::Refund> for api::RefundResponse {
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector id not found")?;
 
+        let connector_name = refund.connector;
+        let connector = Connector::from_str(&connector_name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+
         Ok(Self {
             payment_id: refund.payment_id,
             id: refund.id.clone(),
@@ -597,7 +605,7 @@ impl ForeignTryFrom<storage::Refund> for api::RefundResponse {
             metadata: refund.metadata,
             created_at: refund.created_at,
             updated_at: refund.modified_at,
-            connector: refund.connector,
+            connector,
             merchant_connector_id,
             merchant_reference_id: Some(refund.merchant_reference_id),
             error_details: Some(RefundErrorDetails {

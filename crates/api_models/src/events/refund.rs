@@ -26,13 +26,7 @@ impl ApiEventMetric for RefundRequest {
 #[cfg(feature = "v2")]
 impl ApiEventMetric for RefundsCreateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        let payment_id = self.payment_id.clone();
-        self.global_refund_id
-            .clone()
-            .map(|refund_id| ApiEventsType::Refund {
-                payment_id,
-                refund_id,
-            })
+        None
     }
 }
 

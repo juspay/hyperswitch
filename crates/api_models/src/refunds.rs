@@ -75,12 +75,12 @@ pub struct RefundsCreateRequest {
     )]
     pub payment_id: common_utils::id_type::GlobalPaymentId,
 
-    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.
+    /// Unique Identifier for the Refund given by the Merchant.
     #[schema(
-        max_length = 30,
-        min_length = 30,
+        max_length = 64,
+        min_length = 1,
         example = "ref_mbabizu24mvu3mela5njyhpit4",
-        value_type = Option<String>,
+        value_type = String,
     )]
     pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
 
@@ -103,10 +103,6 @@ pub struct RefundsCreateRequest {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
-
-    #[serde(skip_serializing)]
-    // This will be populated internally, for logging api metric event.
-    pub global_refund_id: Option<common_utils::id_type::GlobalRefundId>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -272,7 +268,7 @@ pub struct RefundResponse {
     pub updated_at: PrimitiveDateTime,
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe", value_type = Connector)]
-    pub connector: String,
+    pub connector: enums::Connector,
     /// The id of business profile for this refund
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,

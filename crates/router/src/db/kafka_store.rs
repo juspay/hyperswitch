@@ -1709,20 +1709,18 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v2")]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
-        merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
                 key_manager_state,
                 merchant_key_store,
                 payment_id,
-                merchant_id,
                 storage_scheme,
             )
             .await

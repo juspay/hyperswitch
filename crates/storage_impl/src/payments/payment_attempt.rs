@@ -218,19 +218,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         payment_id: &common_utils::id_type::GlobalPaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPaymentAttempt::find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
-            &conn,
-            payment_id,
-            merchant_id,
+        DieselPaymentAttempt::find_last_successful_or_partially_captured_attempt_by_payment_id(
+            &conn, payment_id,
         )
         .await
         .map_err(|er| {
@@ -1082,21 +1079,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         payment_id: &common_utils::id_type::GlobalPaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         // Ignoring storage scheme for v2 implementation
         self.router_store
-            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
                 key_manager_state,
                 merchant_key_store,
                 payment_id,
-                merchant_id,
                 storage_scheme,
             )
             .await

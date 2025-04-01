@@ -3,7 +3,7 @@ pub mod refunds_validator;
 
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
@@ -238,10 +238,9 @@ pub async fn construct_payout_router_data<'a, F>(
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a SessionState,
-    connector_name: &str,
+    connector_enum: Connector,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    money: (MinorUnit, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
@@ -253,7 +252,8 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let status = payment_attempt.status;
 
-    let (payment_amount, currency) = money;
+    let payment_amount = payment_attempt.get_total_amount();
+    let currency = payment_intent.amount_details.currency;
 
     let payment_method_type = payment_attempt.payment_method_type;
 
@@ -264,24 +264,16 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_account.get_id(),
         merchant_connector_account_id.get_string_repr(),
     ));
-    // TODO: derive this from deployment envs
-    let test_mode: Option<bool> = None;
 
     let supported_connector = &state
         .conf
         .multiple_api_version_supported_connectors
         .supported_connectors;
-    let connector_enum = api_models::enums::Connector::from_str(connector_name)
-        .change_context(errors::ConnectorError::InvalidConnectorName)
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
-        })
-        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_name}"))
+            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
             .await
             .map(|value| value.config)
             .ok()
@@ -330,7 +322,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
-        connector: connector_name.to_string(),
+        connector: connector_enum.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
         status,
@@ -385,7 +377,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
-        test_mode,
+        test_mode: None,
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,
@@ -469,7 +461,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .conf
         .multiple_api_version_supported_connectors
         .supported_connectors;
-    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+    let connector_enum = Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -1632,7 +1624,7 @@ pub async fn validate_and_get_business_profile(
 }
 
 fn connector_needs_business_sub_label(connector_name: &str) -> bool {
-    let connectors_list = [api_models::enums::Connector::Cybersource];
+    let connectors_list = [Connector::Cybersource];
     connectors_list
         .map(|connector| connector.to_string())
         .contains(&connector_name.to_string())
