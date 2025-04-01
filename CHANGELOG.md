@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.03.26.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] change ucaf_collection_indicator for mastercard payments via netcetera ([#7675](https://github.com/juspay/hyperswitch/pull/7675)) ([`6e8bff3`](https://github.com/juspay/hyperswitch/commit/6e8bff3fa4291fb824d3798d3dcef669aa66524f))
+
+**Full Changelog:** [`2025.03.26.0-hotfix2...2025.03.26.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.03.26.0-hotfix2...2025.03.26.0-hotfix3)
+
+
+- - -
+
 ## 2025.03.26.0-hotfix2
 
 ### Refactors
