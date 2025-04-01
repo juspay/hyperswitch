@@ -1,5 +1,5 @@
 use common_utils::{id_type, pii::REDACTED};
-use diesel_models::{customers::Customer, kv};
+use diesel_models::{customers, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::{
@@ -22,7 +22,7 @@ use crate::{
     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
 };
 
-impl KvStorePartition for Customer {}
+impl KvStorePartition for customers::Customer {}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
@@ -44,7 +44,11 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+                customers::Customer::find_optional_by_customer_id_merchant_id(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                ),
                 FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdCustomerId {
@@ -77,7 +81,11 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             state,
             key_store,
             storage_scheme,
-            Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+            customers::Customer::find_optional_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+            ),
             FindResourceBy::Id(
                 format!("cust_{}", customer_id.get_string_repr()),
                 PartitionKey::MerchantIdCustomerId {
@@ -104,7 +112,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                Customer::find_optional_by_merchant_id_merchant_reference_id(
+                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -152,7 +160,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             state,
             key_store,
             storage_scheme,
-            Customer::update_by_customer_id_merchant_id(
+            customers::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id.clone(),
                 merchant_id.clone(),
@@ -186,7 +194,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                Customer::find_by_merchant_reference_id_merchant_id(
+                customers::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -223,7 +231,11 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+                customers::Customer::find_by_customer_id_merchant_id(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                ),
                 FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdCustomerId {
@@ -315,7 +327,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, Customer>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -368,7 +380,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
                 state,
                 key_store,
                 storage_scheme,
-                Customer::find_by_global_id(&conn, id),
+                customers::Customer::find_by_global_id(&conn, id),
                 FindResourceBy::Id(
                     format!("cust_{}", id.get_string_repr()),
                     PartitionKey::GlobalId {
@@ -402,7 +414,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .await
             .change_context(StorageError::EncryptionError)?;
         let database_call =
-            Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -444,7 +456,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+                customers::Customer::find_optional_by_customer_id_merchant_id(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                ),
             )
             .await?;
         maybe_customer.map_or(Ok(None), |customer| {
@@ -471,7 +487,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         self.find_optional_resource(
             state,
             key_store,
-            Customer::find_optional_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+            customers::Customer::find_optional_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+            ),
         )
         .await
     }
@@ -491,7 +511,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                Customer::find_optional_by_merchant_id_merchant_reference_id(
+                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -524,7 +544,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            Customer::update_by_customer_id_merchant_id(
+            customers::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id.clone(),
@@ -549,7 +569,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+                customers::Customer::find_by_customer_id_merchant_id(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                ),
             )
             .await?;
         match customer.name {
@@ -573,7 +597,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                Customer::find_by_merchant_reference_id_merchant_id(
+                customers::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -600,7 +624,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         self.find_resources(
             state,
             key_store,
-            Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
         )
         .await
     }
@@ -630,7 +654,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
         let conn = pg_connection_write(self).await?;
-        Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+        customers::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
@@ -654,7 +678,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            Customer::update_by_id(&conn, id.clone(), customer_update.into()),
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update.into()),
         )
         .await
     }
@@ -671,7 +695,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
     ) -> CustomResult<DomainCustomer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: DomainCustomer = self
-            .call_database(state, key_store, Customer::find_by_global_id(&conn, id))
+            .call_database(
+                state,
+                key_store,
+                customers::Customer::find_by_global_id(&conn, id),
+            )
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,

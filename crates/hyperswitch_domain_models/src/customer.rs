@@ -21,7 +21,7 @@ use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-use crate::{merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -113,7 +113,7 @@ impl Customer {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -523,7 +523,7 @@ impl From<CustomerListConstraints> for DieselCustomerListConstraints {
 #[async_trait::async_trait]
 pub trait CustomerInterface
 where
-    Customer: super::behaviour::Conversion<
+    Customer: behaviour::Conversion<
         DstType = storage_types::Customer,
         NewDstType = storage_types::CustomerNew,
     >,
