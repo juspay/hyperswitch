@@ -4562,7 +4562,8 @@
           "gpayments",
           "ctp_mastercard",
           "unified_authentication_service",
-          "juspaythreedsserver"
+          "juspaythreedsserver",
+          "ctp_visa"
         ]
       },
       "AuthenticationDetails": {
@@ -7755,6 +7756,7 @@
           "coingate",
           "cryptopay",
           "ctp_mastercard",
+          "ctp_visa",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -8448,6 +8450,9 @@
       },
       "CtpServiceDetails": {
         "type": "object",
+        "required": [
+          "provider"
+        ],
         "properties": {
           "merchant_transaction_id": {
             "type": "string",
@@ -8465,11 +8470,21 @@
             "nullable": true
           },
           "provider": {
+            "$ref": "#/components/schemas/CtpServiceProvider"
+          },
+          "encypted_payload": {
             "type": "string",
-            "description": "provider Eg: Visa, Mastercard",
+            "description": "Encrypted payload",
             "nullable": true
           }
         }
+      },
+      "CtpServiceProvider": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard"
+        ]
       },
       "Currency": {
         "type": "string",
@@ -9551,7 +9566,6 @@
           "object_id",
           "event_type",
           "event_class",
-          "is_delivery_successful",
           "initial_attempt_id",
           "created"
         ],
@@ -9588,7 +9602,8 @@
           },
           "is_delivery_successful": {
             "type": "boolean",
-            "description": "Indicates whether the webhook delivery attempt was successful."
+            "description": "Indicates whether the webhook was ultimately delivered or not.",
+            "nullable": true
           },
           "initial_attempt_id": {
             "type": "string",
