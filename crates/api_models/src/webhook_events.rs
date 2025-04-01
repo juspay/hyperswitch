@@ -38,6 +38,8 @@ pub struct EventListConstraints {
     /// Filter events by their type.
     #[serde(default, with = "common_utils::custom_serde::json_string")]
     pub event_type: Option<HashSet<EventType>>,
+    /// Filter all events by `is_overall_delivery_successful` field of the event.
+    pub is_delivered: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -49,6 +51,7 @@ pub enum EventListConstraintsInternal {
         offset: Option<i64>,
         event_class: Option<HashSet<EventClass>>,
         event_type: Option<HashSet<EventType>>,
+        is_delivered: Option<bool>,
     },
     ObjectIdFilter {
         object_id: String,
@@ -80,8 +83,8 @@ pub struct EventListItemResponse {
     /// Specifies the class of event (the type of object: Payment, Refund, etc.)
     pub event_class: EventClass,
 
-    /// Indicates whether the webhook delivery attempt was successful.
-    pub is_delivery_successful: bool,
+    /// Indicates whether the webhook was ultimately delivered or not.
+    pub is_delivery_successful: Option<bool>,
 
     /// The identifier for the initial delivery attempt. This will be the same as `event_id` for
     /// the initial delivery attempt.

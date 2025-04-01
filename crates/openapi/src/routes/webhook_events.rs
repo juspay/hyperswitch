@@ -57,6 +57,11 @@
             description = "Only include events associated with the specified event type. \
                             Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit`, `offset`, `event_class` and `event_type` must be specified.."
         ),
+        (
+            "is_delivered" = Option<bool>,
+            Query,
+            description = "Only include Events which are ultimately delivered to the merchant."
+        ),
     ),
     responses(
         (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),

@@ -119,6 +119,9 @@ pub struct ConfigMetadata {
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
     pub merchant_configuration_id: Option<InputData>,
+    pub currency_id: Option<InputData>,
+    pub platform_id: Option<InputData>,
+    pub ledger_account_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -126,6 +129,7 @@ pub struct ConfigMetadata {
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
     pub paze: Option<Vec<InputData>>,
+    pub google_pay: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
