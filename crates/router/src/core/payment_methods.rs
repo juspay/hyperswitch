@@ -495,7 +495,7 @@ pub async fn add_payment_method_status_update_task(
         tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
@@ -780,7 +780,8 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name,
+                        card_holder_name: card.card_holder_name.clone().or(billing_name
+                            .map(common_utils::types::NameType::get_unchecked_from_secret)), // this is unchecked because billing name is coming from a checked type
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
                         card_network: card.card_network.clone(),
@@ -1550,7 +1551,7 @@ pub async fn create_payment_method_for_intent(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: domain::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 locker_fingerprint_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,

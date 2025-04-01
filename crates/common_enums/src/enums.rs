@@ -1939,6 +1939,26 @@ pub enum ScaExemptionType {
     Clone,
     Copy,
     Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CtpServiceProvider {
+    Visa,
+    Mastercard,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     Default,
     Eq,
     Hash,
@@ -6687,6 +6707,7 @@ pub enum AuthenticationConnectors {
     CtpMastercard,
     UnifiedAuthenticationService,
     Juspaythreedsserver,
+    CtpVisa,
 }
 
 impl AuthenticationConnectors {
@@ -6696,7 +6717,8 @@ impl AuthenticationConnectors {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
-            | Self::Juspaythreedsserver => false,
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa => false,
             Self::Gpayments => true,
         }
     }

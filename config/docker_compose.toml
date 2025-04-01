@@ -248,6 +248,7 @@ cards = [
     "coinbase",
     "coingate",
     "cryptopay",
+    "ctp_visa",
     "cybersource",
     "datatrans",
     "deutschebank",
