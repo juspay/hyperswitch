@@ -906,7 +906,8 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "payment_method_not_available",
-          error_message: "Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort",
+          error_message:
+            "Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort",
         },
       },
     },
