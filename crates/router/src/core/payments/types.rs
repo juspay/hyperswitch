@@ -377,16 +377,14 @@ impl SurchargeMetadata {
     #[instrument(skip_all)]
     pub async fn get_surcharge_id_from_redis(
         state: &SessionState,
-        surcharge_key: SurchargeKey,
-        merchant_id: &common_utils::id_type::MerchantId,
-        profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<Option<SurchargeRoutingId>, RedisError> {
+        payment_attempt_id: &str
+    ) -> CustomResult<SurchargeRoutingId, RedisError> {
         let redis_conn = state
             .store
             .get_redis_conn()
             .attach_printable("Failed to get redis connection")?;
-        let redis_key = merchant_id.get_surcharge_profile_level_key(profile_id.to_owned());
-        let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
+        let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
+        let value_key = "surcharge_algorithm_id".to_string();
         let result = redis_conn
             .get_hash_field_and_deserialize(
                 &redis_key.as_str().into(),

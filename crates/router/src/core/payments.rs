@@ -1412,12 +1412,10 @@ where
         let surcharge_algo_id = 
             match types::SurchargeMetadata::get_surcharge_id_from_redis(
                 state,
-                surcharge_key,
-                &payment_data.payment_attempt.merchant_id,
-                &payment_data.payment_attempt.profile_id,
+                &payment_data.payment_attempt.attempt_id,
             ).await
             {
-                Ok(surcharge_id) => surcharge_id,
+                Ok(surcharge_id) => Some(surcharge_id),
                 Err(err) if err.current_context() == &RedisError::NotFound => None,
                 Err(err) => {
                     Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
