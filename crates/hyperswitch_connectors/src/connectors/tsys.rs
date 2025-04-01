@@ -705,19 +705,17 @@ static TSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
     tsys_supported_payment_methods
 });
 
-static TSYS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static TSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Tsys",
     description: "TSYS, a Global Payments company, is the payment stack for the future, powered by unmatched expertise.",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-}
-});
+};
 
-static TSYS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
+static TSYS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Tsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*TSYS_CONNECTOR_INFO)
+        Some(&TSYS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -725,6 +723,6 @@ impl ConnectorSpecifications for Tsys {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*TSYS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&TSYS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

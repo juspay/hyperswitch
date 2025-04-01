@@ -869,19 +869,17 @@ static BILLWERK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         billwerk_supported_payment_methods
     });
 
-static BILLWERK_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static BILLWERK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Billwerk",
     description: "Billwerk+ Pay is an acquirer independent payment gateway that's easy to setup with more than 50 recurring and non-recurring payment methods.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-}
-});
+};
 
-static BILLWERK_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
+static BILLWERK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Billwerk {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*BILLWERK_CONNECTOR_INFO)
+        Some(&BILLWERK_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -889,6 +887,6 @@ impl ConnectorSpecifications for Billwerk {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*BILLWERK_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&BILLWERK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

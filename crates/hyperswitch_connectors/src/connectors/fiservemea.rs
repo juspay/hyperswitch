@@ -842,20 +842,17 @@ static FISERVEMEA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         fiservemea_supported_payment_methods
     });
 
-static FISERVEMEA_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static FISERVEMEA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Fiservemea",
     description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-}
-});
+};
 
-static FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Fiservemea {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*FISERVEMEA_CONNECTOR_INFO)
+        Some(&FISERVEMEA_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -863,6 +860,6 @@ impl ConnectorSpecifications for Fiservemea {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
