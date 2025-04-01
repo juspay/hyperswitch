@@ -658,7 +658,7 @@ pub struct NetworkTokenData {
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,
-    pub card_issuing_country: Option<String>,
+    pub card_issuing_country: Option<common_enums::CountryAlpha2>,
     pub bank_code: Option<String>,
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,

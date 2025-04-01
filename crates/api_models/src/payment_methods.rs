@@ -1971,7 +1971,7 @@ pub struct NetworkTokenDataResponse {
     pub card_type: Option<CardType>,
 
     /// Issuing country of the card
-    pub card_issuing_country: Option<String>,
+    pub card_issuing_country: Option<common_enums::CountryAlpha2>,
 
     /// Bank code of the card
     pub bank_code: Option<String>,

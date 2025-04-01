@@ -285,6 +285,10 @@ pub struct TokenResponse {
     pub authentication_details: AuthenticationDetails,
     pub network: api_enums::CardNetwork,
     pub token_details: TokenDetails,
+    pub eci: Option<String>,
+    pub card_type: Option<String>,
+    pub issuer: Option<String>,
+    pub nickname: Option<Secret<String>>,
 }
 
 #[cfg(all(

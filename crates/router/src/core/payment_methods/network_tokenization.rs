@@ -1,5 +1,7 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::fmt::Debug;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
 
 use api_models::payment_methods as api_payment_methods;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -633,13 +635,20 @@ pub async fn get_token_from_tokenization_service(
             .expiry_year
             .unwrap_or(token_response.token_details.exp_year),
         card_holder_name: token_decrypted.card_holder_name,
-        nick_name: token_decrypted.nick_name,
-        card_issuer: None,
+        nick_name: token_decrypted.nick_name.or(token_response.nickname),
+        card_issuer: token_decrypted.card_issuer.or(token_response.issuer),
         card_network: Some(token_response.network),
-        card_type: None,
-        card_issuing_country: None,
+        card_type: token_decrypted
+            .card_type
+            .or(token_response.card_type)
+            .as_ref()
+            .map(|c| api_payment_methods::CardType::from_str(c))
+            .transpose()
+            .ok()
+            .flatten(),
+        card_issuing_country: token_decrypted.issuer_country,
         bank_code: None,
-        eci: None,
+        eci: token_response.eci,
     };
     Ok(network_token_data)
 }

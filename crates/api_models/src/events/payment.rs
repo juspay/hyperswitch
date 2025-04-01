@@ -13,10 +13,13 @@ use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(feature = "v1")]
 use crate::payments::{PaymentListFilterConstraints, PaymentListResponseV2};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
+use crate::{
+    events,
+    payment_methods::{CustomerPaymentMethodsListResponse, GetTokenDataRequest},
+};
 use crate::{
     payment_methods::{
-        self, GetTokenDataRequest, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
         PaymentMethodCollectLinkResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
         PaymentMethodListResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
