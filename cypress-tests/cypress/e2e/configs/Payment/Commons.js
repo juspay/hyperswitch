@@ -1569,4 +1569,56 @@ export const connectorDetails = {
       },
     },
   },
+  name_validation: {
+    HappyCase: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Sakil",
+            last_name: "L'Mostak"
+          }
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    InvalidCase: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "S@k!l",
+            last_name: "M*st@k"
+          }
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: invalid character found in card holder name: @ at line 1 column 542",
+            code: "IR_06"
+          }
+        },
+      },
+    }),
+  }
 };
