@@ -28,7 +28,7 @@ ast_parser = ["dep:nom"]
 valued_jit = []
 dummy_connector = []
 payouts = []
-v2 = []
+v2 = ["common_enums/v2"]
 
 [dev-dependencies]
 criterion = "0.5"
