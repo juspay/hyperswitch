@@ -1,11 +1,3 @@
-use crate::utils::PayoutsData;
-use crate::{
-    types::PayoutsResponseRouterData,
-    utils::{
-        get_unimplemented_payment_method_error_message, CardData, CardIssuer, ErrorCodeAndMessage,
-        RouterData,
-    },
-};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
@@ -22,6 +14,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    types::PayoutsResponseRouterData,
+    utils::{
+        get_unimplemented_payment_method_error_message, CardData, CardIssuer, ErrorCodeAndMessage,
+        PayoutsData, RouterData,
+    },
+};
 #[cfg(feature = "payouts")]
 type Error = error_stack::Report<ConnectorError>;
 use serde_repr::{Deserialize_repr, Serialize_repr};
