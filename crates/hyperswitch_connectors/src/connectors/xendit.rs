@@ -951,19 +951,17 @@ static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     xendit_supported_payment_methods
 });
 
-static XENDIT_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Xendit",
     description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-}
-});
+};
 
-static XENDIT_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
+static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Xendit {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*XENDIT_CONNECTOR_INFO)
+        Some(&XENDIT_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -971,7 +969,7 @@ impl ConnectorSpecifications for Xendit {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*XENDIT_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&XENDIT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
 

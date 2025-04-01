@@ -1077,26 +1077,22 @@ static NOVALNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         novalnet_supported_payment_methods
     });
 
-static NOVALNET_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static NOVALNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Novalnet",
     description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-}
-});
+};
 
-static NOVALNET_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
-    vec![
-        enums::EventClass::Payments,
-        enums::EventClass::Refunds,
-        enums::EventClass::Disputes,
-        enums::EventClass::Mandates,
-    ]
-});
+static NOVALNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 4] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+    enums::EventClass::Mandates,
+];
 
 impl ConnectorSpecifications for Novalnet {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*NOVALNET_CONNECTOR_INFO)
+        Some(&NOVALNET_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1104,6 +1100,6 @@ impl ConnectorSpecifications for Novalnet {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*NOVALNET_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&NOVALNET_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

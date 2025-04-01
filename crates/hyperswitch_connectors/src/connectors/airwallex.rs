@@ -1165,25 +1165,21 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         airwallex_supported_payment_methods
     });
 
-static AIRWALLEX_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static AIRWALLEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Airwallex",
     description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-}
-});
+};
 
-static AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
-    vec![
-        enums::EventClass::Payments,
-        enums::EventClass::Refunds,
-        enums::EventClass::Disputes,
-    ]
-});
+static AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
 
 impl ConnectorSpecifications for Airwallex {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*AIRWALLEX_CONNECTOR_INFO)
+        Some(&AIRWALLEX_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1191,6 +1187,6 @@ impl ConnectorSpecifications for Airwallex {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

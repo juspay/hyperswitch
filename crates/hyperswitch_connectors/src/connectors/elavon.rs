@@ -643,19 +643,17 @@ static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     elavon_supported_payment_methods
 });
 
-static ELAVON_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
-    ConnectorInfo {
+static ELAVON_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Elavon",
     description: "Elavon, a wholly owned subsidiary of U.S. Bank, has been a global leader in payment processing for more than 30 years.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-}
-});
+};
 
-static ELAVON_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
+static ELAVON_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Elavon {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*ELAVON_CONNECTOR_INFO)
+        Some(&ELAVON_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -663,6 +661,6 @@ impl ConnectorSpecifications for Elavon {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*ELAVON_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&ELAVON_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
