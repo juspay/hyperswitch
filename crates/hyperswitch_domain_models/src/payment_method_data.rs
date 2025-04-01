@@ -88,8 +88,8 @@ pub struct Card {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -102,8 +102,8 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -116,8 +116,8 @@ pub struct CardDetail {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -413,7 +413,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
-        card_holder_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
     },
     Bizum {},
     Blik {
@@ -556,7 +556,7 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
@@ -568,25 +568,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<Secret<String>>,
-        bank_account_holder_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
 }
 
@@ -616,6 +616,7 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+    InstantBankTransfer {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -641,7 +642,7 @@ pub struct NetworkTokenData {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
     pub eci: Option<String>,
 }
 
@@ -1421,6 +1422,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
+            api_models::payments::BankTransferData::InstantBankTransfer {} => {
+                Self::InstantBankTransfer {}
+            }
         }
     }
 }
@@ -1452,6 +1456,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     bank_code: bank_code.map(MaskedBankAccount::from),
                 },
             )),
+            BankTransferData::InstantBankTransfer {} => Self::InstantBankTransfer {},
         }
     }
 }
@@ -1521,10 +1526,10 @@ pub struct TokenizedCardValue1 {
     pub card_number: String,
     pub exp_year: String,
     pub exp_month: String,
-    pub nickname: Option<String>,
+    pub nickname: Option<common_utils::types::NameType>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1702,6 +1707,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
+            Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
         }
     }
 }
@@ -1855,8 +1861,8 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),
-            card_holder_name: item.card_holder_name,
-            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name.map(From::from),
+            nick_name: item.nick_name.map(From::from),
             card_isin: None,
             card_issuer: item.card_issuer,
             card_network: item.card_network,

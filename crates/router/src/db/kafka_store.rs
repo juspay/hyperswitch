@@ -772,6 +772,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
@@ -782,6 +783,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                is_delivered,
                 merchant_key_store,
             )
             .await
@@ -829,6 +831,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
@@ -839,6 +842,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                is_delivered,
                 merchant_key_store,
             )
             .await
@@ -869,6 +873,7 @@ impl EventInterface for KafkaStore {
         profile_id: Option<id_type::ProfileId>,
         created_after: PrimitiveDateTime,
         created_before: PrimitiveDateTime,
+        is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
             .count_initial_events_by_constraints(
@@ -876,6 +881,7 @@ impl EventInterface for KafkaStore {
                 profile_id,
                 created_after,
                 created_before,
+                is_delivered,
             )
             .await
     }
@@ -1332,7 +1338,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
         self.diesel_store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 state,

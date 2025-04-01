@@ -204,6 +204,11 @@ pub fn mk_app(
                 .service(routes::WebhookEvents::server(state.clone()))
                 .service(routes::FeatureMatrix::server(state.clone()));
         }
+
+        #[cfg(feature = "v2")]
+        {
+            server_app = server_app.service(routes::ProcessTracker::server(state.clone()));
+        }
     }
 
     #[cfg(all(feature = "payouts", feature = "v1"))]
