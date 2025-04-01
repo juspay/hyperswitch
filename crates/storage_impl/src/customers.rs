@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii::REDACTED};
+use common_utils::{id_type, pii};
 use diesel_models::{customers, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
@@ -60,7 +60,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .await?;
 
         maybe_result.map_or(Ok(None), |customer: DomainCustomer| match customer.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(Some(customer)),
         })
     }
@@ -128,7 +128,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .await?;
 
         maybe_result.map_or(Ok(None), |customer: DomainCustomer| match customer.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(Some(customer)),
         })
     }
@@ -210,7 +210,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .await?;
 
         match result.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(result),
         }
     }
@@ -247,7 +247,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .await?;
 
         match result.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(result),
         }
     }
@@ -465,9 +465,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .await?;
         maybe_customer.map_or(Ok(None), |customer| {
             // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
-            // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
+            // `if customer.name.is_some_and(|ref name| name == pii::REDACTED) ...`
             match customer.name {
-                Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+                Some(ref name) if name.peek() == pii::REDACTED => {
+                    Err(StorageError::CustomerRedacted)?
+                }
                 _ => Ok(Some(customer)),
             }
         })
@@ -520,9 +522,11 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             .await?;
         maybe_customer.map_or(Ok(None), |customer| {
             // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
-            // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
+            // `if customer.name.is_some_and(|ref name| name == pii::REDACTED) ...`
             match customer.name {
-                Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+                Some(ref name) if name.peek() == pii::REDACTED => {
+                    Err(StorageError::CustomerRedacted)?
+                }
                 _ => Ok(Some(customer)),
             }
         })
@@ -577,7 +581,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             )
             .await?;
         match customer.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(customer),
         }
     }
@@ -605,7 +609,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             )
             .await?;
         match customer.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(customer),
         }
     }
@@ -702,7 +706,7 @@ impl<T: DatabaseStore> CustomerInterface for RouterStore<T> {
             )
             .await?;
         match customer.name {
-            Some(ref name) if name.peek() == REDACTED => Err(StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(customer),
         }
     }
