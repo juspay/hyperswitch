@@ -199,7 +199,7 @@ impl Action {
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
         billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let db: &dyn StorageInterface = &*state.store;
+        let db = &*state.store;
         match self {
             Self::SyncPayment(attempt_id) => {
                 core_pcr::insert_psync_pcr_task(
