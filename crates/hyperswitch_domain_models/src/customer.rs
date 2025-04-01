@@ -217,7 +217,7 @@ impl behaviour::Conversion for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
