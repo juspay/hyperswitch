@@ -1292,7 +1292,7 @@ impl
                         (
                             Some(Secret::new(authn_data.cavv.clone())),
                             None,
-                            Some("1".to_string()),
+                            Some("2".to_string()),
                         )
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
@@ -1301,7 +1301,7 @@ impl
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1375,17 +1375,21 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()
@@ -1457,17 +1461,21 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
-                    xid: authn_data.threeds_server_transaction_id.clone(),
+                    xid: None,
                     directory_server_transaction_id: authn_data
                         .ds_trans_id
                         .clone()

@@ -1,6 +1,9 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
@@ -12,8 +15,7 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        ConnectorTransactionId, ConnectorTransactionIdTrait, ExtendedAuthorizationAppliedBool,
-        MinorUnit, RequestExtendedAuthorizationBool,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
 use diesel_models::{
@@ -426,7 +428,7 @@ pub struct PaymentAttempt {
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -466,7 +468,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
         // TODO: check if we can fix this
-        Some(self.payment_method_subtype)
+        self.payment_method_subtype
     }
 
     #[cfg(feature = "v1")]
@@ -650,8 +652,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: None,
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1210,6 +1211,8 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        capture_before: Option<PrimitiveDateTime>,
+        extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
@@ -1484,6 +1487,8 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
@@ -1506,6 +1511,8 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
                 connector_mandate_detail,
                 charges,

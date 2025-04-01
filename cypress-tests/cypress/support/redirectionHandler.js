@@ -392,7 +392,10 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                 });
             });
           break;
-
+        case "redsys":
+          cy.get("div.autenticada").click();
+          cy.get('input[value="Enviar"]').click();
+          break;
         default:
           cy.wait(constants.WAIT_TIME);
       }
