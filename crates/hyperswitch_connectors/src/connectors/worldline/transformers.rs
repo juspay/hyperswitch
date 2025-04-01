@@ -472,11 +472,11 @@ impl From<hyperswitch_domain_models::address::AddressDetails> for BillingAddress
 impl From<hyperswitch_domain_models::address::AddressDetails> for Shipping {
     fn from(value: hyperswitch_domain_models::address::AddressDetails) -> Self {
         Self {
-            city: value.city,
+            city: value.city.clone(),
             country_code: value.country,
             name: Some(Name {
-                first_name: value.first_name,
-                surname: value.last_name,
+                first_name: value.first_name.map(From::from),
+                surname: value.last_name.map(From::from),
                 ..Default::default()
             }),
             state: value.state,
