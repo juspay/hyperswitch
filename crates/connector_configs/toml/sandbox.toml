@@ -784,6 +784,8 @@ api_secret="Password"
   payment_method_type = "apple_pay"
 [[bankofamerica.wallet]]
   payment_method_type = "google_pay"
+[[bankofamerica.wallet]]
+  payment_method_type = "samsung_pay"
 [bankofamerica.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"

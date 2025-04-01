@@ -550,7 +550,7 @@ credit = { currency = "USD" }
 debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
-
+samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
 credit = { currency = "USD,GBP,EUR,PLN" }
