@@ -19,14 +19,14 @@ use time::PrimitiveDateTime;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        passive_churn_recovery::{self as core_pcr},
         payments::{self, operations::Operation},
+        revenue_recovery::{self as core_pcr},
     },
     db::StorageInterface,
     logger,
     routes::SessionState,
     types::{api::payments as api_types, storage, transformers::ForeignInto},
-    workflows::passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments,
+    workflows::revenue_recovery::get_schedule_time_to_retry_mit_payments,
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
@@ -87,7 +87,7 @@ impl Decision {
         intent_status: enums::IntentStatus,
         called_connector: enums::PaymentConnectorTransmission,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
-        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         Ok(match (intent_status, called_connector, active_attempt_id) {
@@ -132,7 +132,7 @@ impl Action {
         merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
-        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
@@ -171,7 +171,7 @@ impl Action {
         state: &SessionState,
         payment_intent: &PaymentIntent,
         execute_task_process: &storage::ProcessTracker,
-        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -290,7 +290,7 @@ impl Action {
 async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+    pcr_data: &storage::revenue_recovery::PcrPaymentData,
     revenue_recovery: &PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
@@ -349,7 +349,7 @@ async fn call_proxy_api(
 pub async fn update_payment_intent_api(
     state: &SessionState,
     global_payment_id: id_type::GlobalPaymentId,
-    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+    pcr_data: &storage::revenue_recovery::PcrPaymentData,
     update_req: PaymentsUpdateIntentRequest,
 ) -> RouterResult<PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core

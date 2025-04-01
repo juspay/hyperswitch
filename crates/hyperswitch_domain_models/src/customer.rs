@@ -319,7 +319,7 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
-            version: crate::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             status: self.status,
         })
     }

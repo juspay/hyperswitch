@@ -476,6 +476,7 @@ diesel::table! {
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
         metadata -> Nullable<Jsonb>,
+        is_overall_delivery_successful -> Nullable<Bool>,
     }
 }
 
@@ -821,6 +822,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Nullable<Varchar>,
         organization_name -> Nullable<Text>,
+        version -> ApiVersion,
     }
 }
 
