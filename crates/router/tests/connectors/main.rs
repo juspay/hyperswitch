@@ -34,6 +34,7 @@ mod dlocal;
 mod dummyconnector;
 mod ebanx;
 mod elavon;
+mod facilitapay;
 mod fiserv;
 mod fiservemea;
 mod fiuu;
@@ -91,7 +92,6 @@ mod taxjar;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;
-
 mod utils;
 mod volt;
 mod wellsfargo;

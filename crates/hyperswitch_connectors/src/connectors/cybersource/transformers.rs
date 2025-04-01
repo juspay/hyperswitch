@@ -1175,8 +1175,8 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.remove_new_line(),
-                last_name: addr.last_name.remove_new_line(),
+                first_name: addr.first_name.clone().map(From::from),
+                last_name: addr.last_name.clone().map(From::from),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
                 administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
@@ -1292,7 +1292,7 @@ impl
                         (
                             Some(Secret::new(authn_data.cavv.clone())),
                             None,
-                            Some("1".to_string()),
+                            Some("2".to_string()),
                         )
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
@@ -1375,14 +1375,18 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
                     xid: None,
@@ -1457,14 +1461,18 @@ impl
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                let (ucaf_authentication_data, cavv) =
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (
+                            Some(Secret::new(authn_data.cavv.clone())),
+                            None,
+                            Some("2".to_string()),
+                        )
                     } else {
-                        (None, Some(authn_data.cavv.clone()))
+                        (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
-                    ucaf_collection_indicator: None,
+                    ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
                     xid: None,
@@ -1507,7 +1515,6 @@ impl
         let (first_name, last_name) = match paze_data.billing_address.name {
             Some(name) => {
                 let (first_name, last_name) = name
-                    .peek()
                     .split_once(' ')
                     .map(|(first, last)| (first.to_string(), last.to_string()))
                     .ok_or(errors::ConnectorError::MissingRequiredField {
