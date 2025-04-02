@@ -291,6 +291,16 @@ pub struct StripebillingWebhookObject {
     #[serde(rename = "amount_remaining")]
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
+    pub customer_address: Option<StripebillingCustomerAddress>,
+    pub attempt_count : u8,
+    
+}
+
+#[derive(Serialize,Deserialize,Debug)]
+pub struct StripebillingCustomerAddress {
+    pub city : Option<String>,
+    pub state : Option<String>,
+    pub country : Option<common_enums::CountryAlpha2>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
