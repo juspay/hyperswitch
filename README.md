@@ -102,7 +102,7 @@ Check out the [local setup guide][local-setup-guide] for a more details on setti
 Attaching to hyperswitch-control-center-1, hyperswitch-server-1, hyperswitch-web-1, migration_runner-1, pg-1, redis-standalone-1
 ```
 You've now setup Hyperswitch in your local machine. In order to verify that the server is up and running hit the health endpoint:
-```
+```shell
 curl --head --request GET 'http://localhost:8080/health'
 ```
 The expected response here is a `200 OK` status code. This indicates that the server and all of its dependent services are functioning correctly.
