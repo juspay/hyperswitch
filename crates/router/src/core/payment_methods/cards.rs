@@ -94,6 +94,7 @@ use crate::{
         defaults::{get_billing_required_fields, get_shipping_required_fields},
         settings,
     },
+    consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
@@ -118,8 +119,8 @@ use crate::{
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    consts as router_consts, core::payment_methods as pm_core, headers,
-    types::payment_methods as pm_types, utils::ConnectorResponseExt,
+    core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
+    utils::ConnectorResponseExt,
 };
 
 #[cfg(all(
@@ -204,7 +205,7 @@ pub async fn create_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: domain::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
@@ -827,7 +828,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: domain::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
@@ -2325,21 +2326,15 @@ pub fn validate_payment_method_update(
             })
         || card_updation_obj
             .card_holder_name
-            .map(|name| name.expose())
+            .map(String::from)
             .is_some_and(|new_card_holder_name| {
-                existing_card_data
-                    .card_holder_name
-                    .map(|name| name.expose())
-                    != Some(new_card_holder_name)
+                existing_card_data.card_holder_name.map(String::from) != Some(new_card_holder_name)
             })
         || card_updation_obj
             .nick_name
-            .map(|nick_name| nick_name.expose())
+            .map(String::from)
             .is_some_and(|new_nick_name| {
-                existing_card_data
-                    .nick_name
-                    .map(|nick_name| nick_name.expose())
-                    != Some(new_nick_name)
+                existing_card_data.nick_name.map(String::from) != Some(new_nick_name)
             })
 }
 
@@ -2572,7 +2567,7 @@ pub async fn add_card_hs(
             card_exp_year: card.card_exp_year.to_owned(),
             card_brand: card.card_network.as_ref().map(ToString::to_string),
             card_isin: None,
-            nick_name: card.nick_name.as_ref().map(Secret::peek).cloned(),
+            nick_name: card.nick_name.to_owned(),
         },
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
@@ -2995,8 +2990,12 @@ pub async fn mock_call_to_locker_hs(
             card_number: store_card_req.card.card_number.peek().to_string(),
             card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
             card_exp_month: store_card_req.card.card_exp_month.peek().to_string(),
-            name_on_card: store_card_req.card.name_on_card.to_owned().expose_option(),
-            nickname: store_card_req.card.nick_name.to_owned(),
+            name_on_card: store_card_req
+                .card
+                .name_on_card
+                .to_owned()
+                .map(String::from),
+            nickname: store_card_req.card.nick_name.to_owned().map(String::from),
             ..locker_mock_up
         },
         payment_methods::StoreLockerReq::LockerGeneric(store_generic_req) => {
@@ -3047,8 +3046,16 @@ pub async fn mock_get_card<'a>(
             .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
-        nickname: locker_mock_up.nickname,
+        name_on_card: locker_mock_up
+            .name_on_card
+            .map(common_utils::types::NameType::try_from)
+            .transpose()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+        nickname: locker_mock_up
+            .nickname
+            .map(common_utils::types::NameType::try_from)
+            .transpose()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
     };
@@ -3346,37 +3353,22 @@ pub async fn list_payment_methods(
 
     let profile_id = payment_intent
         .as_ref()
-        .map(|payment_intent| {
-            payment_intent
-                .profile_id
-                .clone()
-                .get_required_value("profile_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")
-        })
-        .transpose()?;
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        &key_store,
-        profile_id.as_ref(),
-        merchant_account.get_id(),
-    )
-    .await?;
-
-    let profile_id = profile_id
-        .clone()
+        .and_then(|payment_intent| payment_intent.profile_id.as_ref())
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Profile id not found".to_string(),
         })?;
+    let business_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
 
     // filter out payment connectors based on profile_id
-    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
-        all_mcas.clone(),
-        &profile_id,
-        ConnectorType::PaymentProcessor,
-    );
+    let filtered_mcas = all_mcas
+        .clone()
+        .filter_based_on_profile_and_connector_type(profile_id, ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -3535,21 +3527,11 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let routing_enabled_pms = HashSet::from([
-            api_enums::PaymentMethod::BankTransfer,
-            api_enums::PaymentMethod::BankDebit,
-            api_enums::PaymentMethod::BankRedirect,
-        ]);
+        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
-        let routing_enabled_pm_types = HashSet::from([
-            api_enums::PaymentMethodType::GooglePay,
-            api_enums::PaymentMethodType::ApplePay,
-            api_enums::PaymentMethodType::Klarna,
-            api_enums::PaymentMethodType::Paypal,
-            api_enums::PaymentMethodType::SamsungPay,
-        ]);
+        let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
-        let mut chosen = Vec::<api::SessionConnectorData>::new();
+        let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
             if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 || routing_enabled_pms.contains(&intermediate.payment_method)
@@ -3564,7 +3546,8 @@ pub async fn list_payment_methods(
                 .attach_printable("invalid connector name received")?;
 
                 chosen.push(api::SessionConnectorData {
-                    payment_method_type: intermediate.payment_method_type,
+                    payment_method_sub_type: intermediate.payment_method_type,
+                    payment_method_type: intermediate.payment_method,
                     connector: connector_data,
                     business_sub_label: None,
                 });
@@ -3579,10 +3562,14 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let result = routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error performing session flow routing")?;
+        let result = routing::perform_session_flow_routing(
+            sfr,
+            &business_profile,
+            &enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
             if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
@@ -3770,8 +3757,7 @@ pub async fn list_payment_methods(
     // Check for `use_billing_as_payment_method_billing` config under business_profile
     // If this is disabled, then the billing details in required fields will be empty and have to be collected by the customer
     let billing_address_for_calculating_required_fields = business_profile
-        .as_ref()
-        .and_then(|business_profile| business_profile.use_billing_as_payment_method_billing)
+        .use_billing_as_payment_method_billing
         .unwrap_or(true)
         .then_some(billing_address.as_ref())
         .flatten();
@@ -3845,7 +3831,7 @@ pub async fn list_payment_methods(
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
                                     payment_method,
                                     element.payment_experience.as_ref(),
-                                    business_profile.as_ref(),
+                                    &business_profile,
                                     required_fields_hs.clone(),
                                 );
 
@@ -4178,61 +4164,47 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
-    let merchant_surcharge_configs =
-        if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
-            .as_ref()
-            .zip(payment_intent)
-            .zip(business_profile.as_ref())
-            .map(|((pa, pi), bp)| (pa, pi, bp))
-        {
-            Box::pin(call_surcharge_decision_management(
-                state,
-                &merchant_account,
-                &key_store,
-                business_profile,
-                payment_attempt,
-                payment_intent,
-                billing_address,
-                &mut payment_method_responses,
-            ))
-            .await?
-        } else {
-            api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
-        };
+    let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
+        payment_attempt.as_ref().zip(payment_intent)
+    {
+        Box::pin(call_surcharge_decision_management(
+            state,
+            &merchant_account,
+            &key_store,
+            &business_profile,
+            payment_attempt,
+            payment_intent,
+            billing_address,
+            &mut payment_method_responses,
+        ))
+        .await?
+    } else {
+        api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
+    };
 
-    let collect_shipping_details_from_wallets =
-        business_profile.as_ref().and_then(|business_profile| {
-            if business_profile
-                .always_collect_shipping_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                business_profile.always_collect_shipping_details_from_wallet_connector
-            } else {
-                business_profile.collect_shipping_details_from_wallet_connector
-            }
-        });
+    let collect_shipping_details_from_wallets = if business_profile
+        .always_collect_shipping_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_shipping_details_from_wallet_connector
+    } else {
+        business_profile.collect_shipping_details_from_wallet_connector
+    };
 
-    let collect_billing_details_from_wallets =
-        business_profile.as_ref().and_then(|business_profile| {
-            if business_profile
-                .always_collect_billing_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                business_profile.always_collect_billing_details_from_wallet_connector
-            } else {
-                business_profile.collect_billing_details_from_wallet_connector
-            }
-        });
+    let collect_billing_details_from_wallets = if business_profile
+        .always_collect_billing_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_billing_details_from_wallet_connector
+    } else {
+        business_profile.collect_billing_details_from_wallet_connector
+    };
 
-    let is_tax_connector_enabled = business_profile
-        .as_ref()
-        .is_some_and(|business_profile| business_profile.get_is_tax_connector_enabled());
+    let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
-            redirect_url: business_profile
-                .as_ref()
-                .and_then(|business_profile| business_profile.return_url.clone()),
+            redirect_url: business_profile.return_url.clone(),
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
@@ -4273,10 +4245,15 @@ pub async fn list_payment_methods(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
     payment_method: api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
-    business_profile: Option<&Profile>,
+    business_profile: &Profile,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
 ) -> HashMap<String, RequiredFieldInfo> {
     match (payment_method, payment_experience_optional) {
@@ -4285,13 +4262,11 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
             api_enums::PaymentMethod::PayLater,
             Some(api_enums::PaymentExperience::InvokeSdkClient),
         ) => {
-            let always_send_billing_details = business_profile.and_then(|business_profile| {
-                business_profile.always_collect_billing_details_from_wallet_connector
-            });
+            let always_send_billing_details =
+                business_profile.always_collect_billing_details_from_wallet_connector;
 
-            let always_send_shipping_details = business_profile.and_then(|business_profile| {
-                business_profile.always_collect_shipping_details_from_wallet_connector
-            });
+            let always_send_shipping_details =
+                business_profile.always_collect_shipping_details_from_wallet_connector;
 
             if always_send_billing_details == Some(true) {
                 let billing_details = get_billing_required_fields();
@@ -5243,13 +5218,13 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-        let merchant_connector_accounts = domain::MerchantConnectorAccounts::new(mcas);
 
-        return Ok(merchant_connector_accounts
-            .is_merchant_connector_account_id_in_connector_mandate_details(
+        return Ok(
+            mcas.is_merchant_connector_account_id_in_connector_mandate_details(
                 profile_id.as_ref(),
                 &connector_mandate_details,
-            ));
+            ),
+        );
     }
     Ok(false)
 }
@@ -5707,16 +5682,12 @@ impl TempLockerCardSupport {
             .clone()
             .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card
-            .card_holder_name
-            .clone()
-            .expose_option()
-            .unwrap_or_default();
+        let card_holder_name = card.card_holder_name.clone();
         let value1 = payment_methods::mk_card_value1(
             card_number,
             card_exp_year,
             card_exp_month,
-            Some(card_holder_name),
+            card_holder_name,
             None,
             None,
             None,
@@ -6183,7 +6154,7 @@ pub async fn execute_payment_method_tokenization(
             &network_token_details,
             &customer.id,
             card_details.name_on_card.clone(),
-            card_details.nick_name.clone().map(Secret::new),
+            card_details.nick_name.clone(),
         )
         .await?;
     let builder = builder.set_stored_token_response(&store_token_resp);

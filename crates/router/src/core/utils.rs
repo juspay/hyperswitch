@@ -74,6 +74,8 @@ pub async fn construct_payout_router_data<'a, F>(
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    use common_utils::types::NameType;
+
     let merchant_connector_account = payout_data
         .merchant_connector_account
         .clone()
@@ -91,6 +93,16 @@ pub async fn construct_payout_router_data<'a, F>(
             number: a.phone_number.clone().map(Encryptable::into_inner),
             country_code: a.country_code.to_owned(),
         };
+        let first_name = a
+            .first_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .map(NameType::get_unchecked_from_secret); // this is unchecked because this value is fetched from db
+        let last_name = a
+            .last_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .map(NameType::get_unchecked_from_secret); // this is unchecked because this value is fetched from db
         let address_details = api_models::payments::AddressDetails {
             city: a.city.to_owned(),
             country: a.country.to_owned(),
@@ -98,8 +110,8 @@ pub async fn construct_payout_router_data<'a, F>(
             line2: a.line2.clone().map(Encryptable::into_inner),
             line3: a.line3.clone().map(Encryptable::into_inner),
             zip: a.zip.clone().map(Encryptable::into_inner),
-            first_name: a.first_name.clone().map(Encryptable::into_inner),
-            last_name: a.last_name.clone().map(Encryptable::into_inner),
+            first_name,
+            last_name,
             state: a.state.map(Encryptable::into_inner),
         };
 
@@ -388,6 +400,7 @@ pub async fn construct_refund_router_data<'a, F>(
             minor_payment_amount: payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
+            refund_connector_metadata: refund.metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,
@@ -1785,10 +1798,13 @@ impl<T, F, R> GetProfileId for (storage::Payouts, T, F, R) {
 }
 
 /// Filter Objects based on profile ids
-pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
+pub(super) fn filter_objects_based_on_profile_id_list<
+    T: GetProfileId,
+    U: IntoIterator<Item = T> + FromIterator<T>,
+>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
-    object_list: Vec<T>,
-) -> Vec<T> {
+    object_list: U,
+) -> U {
     if let Some(profile_id_list) = profile_id_list_auth_layer {
         let profile_ids_to_filter: HashSet<_> = profile_id_list.iter().collect();
         object_list

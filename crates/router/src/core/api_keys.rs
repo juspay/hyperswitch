@@ -230,7 +230,7 @@ pub async fn add_api_key_expiry_task(
         api_key_expiry_tracker,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct API key expiry process tracker task")?;

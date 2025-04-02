@@ -49,10 +49,11 @@ where
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        created_after: Option<time::PrimitiveDateTime>,
-        created_before: Option<time::PrimitiveDateTime>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -77,10 +78,11 @@ where
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        created_after: Option<time::PrimitiveDateTime>,
-        created_before: Option<time::PrimitiveDateTime>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -92,6 +94,15 @@ where
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
+
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -181,10 +192,11 @@ impl EventInterface for Store {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        created_after: Option<time::PrimitiveDateTime>,
-        created_before: Option<time::PrimitiveDateTime>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -195,6 +207,7 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
+            is_delivered,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -292,10 +305,11 @@ impl EventInterface for Store {
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        created_after: Option<time::PrimitiveDateTime>,
-        created_before: Option<time::PrimitiveDateTime>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -306,6 +320,7 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
+            is_delivered,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -350,6 +365,27 @@ impl EventInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::count_initial_attempts_by_constraints(
+            &conn,
+            merchant_id,
+            profile_id,
+            created_after,
+            created_before,
+            is_delivered,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -452,24 +488,20 @@ impl EventInterface for MockDb {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        created_after: Option<time::PrimitiveDateTime>,
-        created_before: Option<time::PrimitiveDateTime>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
-            let mut check = event.merchant_id == Some(merchant_id.to_owned())
-                && event.initial_attempt_id.as_ref() == Some(&event.event_id);
-
-            if let Some(created_after) = created_after {
-                check = check && (event.created_at >= created_after);
-            }
-
-            if let Some(created_before) = created_before {
-                check = check && (event.created_at <= created_before);
-            }
+            let check = event.merchant_id == Some(merchant_id.to_owned())
+                && event.initial_attempt_id.as_ref() == Some(&event.event_id)
+                && (event.created_at >= created_after)
+                && (event.created_at <= created_before)
+                && (event.is_overall_delivery_successful == is_delivered);
 
             check
         });
@@ -590,24 +622,20 @@ impl EventInterface for MockDb {
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        created_after: Option<time::PrimitiveDateTime>,
-        created_before: Option<time::PrimitiveDateTime>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
-            let mut check = event.business_profile_id == Some(profile_id.to_owned())
-                && event.initial_attempt_id.as_ref() == Some(&event.event_id);
-
-            if let Some(created_after) = created_after {
-                check = check && (event.created_at >= created_after);
-            }
-
-            if let Some(created_before) = created_before {
-                check = check && (event.created_at <= created_before);
-            }
+            let check = event.business_profile_id == Some(profile_id.to_owned())
+                && event.initial_attempt_id.as_ref() == Some(&event.event_id)
+                && (event.created_at >= created_after)
+                && (event.created_at <= created_before)
+                && (event.is_overall_delivery_successful == is_delivered);
 
             check
         });
@@ -680,6 +708,12 @@ impl EventInterface for MockDb {
                 event_to_update.is_webhook_notified = is_webhook_notified;
                 event_to_update.response = response.map(Into::into);
             }
+            domain::EventUpdate::OverallDeliveryStatusUpdate {
+                is_overall_delivery_successful,
+            } => {
+                event_to_update.is_overall_delivery_successful =
+                    Some(is_overall_delivery_successful)
+            }
         }
 
         event_to_update
@@ -691,6 +725,34 @@ impl EventInterface for MockDb {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+
+        let iter_events = locked_events.iter().filter(|event| {
+            let check = event.initial_attempt_id.as_ref() == Some(&event.event_id)
+                && (event.merchant_id == Some(merchant_id.to_owned()))
+                && (event.business_profile_id == profile_id)
+                && (event.created_at >= created_after)
+                && (event.created_at <= created_before)
+                && (event.is_overall_delivery_successful == is_delivered);
+
+            check
+        });
+
+        let events = iter_events.cloned().collect::<Vec<_>>();
+
+        i64::try_from(events.len())
+            .change_context(errors::StorageError::MockDbError)
+            .attach_printable("Failed to convert usize to i64")
     }
 }
 
@@ -803,6 +865,7 @@ mod tests {
                         )
                         .unwrap(),
                     }),
+                    is_overall_delivery_successful: Some(false),
                 },
                 &merchant_key_store,
             )

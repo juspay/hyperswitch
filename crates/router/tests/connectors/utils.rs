@@ -79,8 +79,12 @@ impl PaymentInfo {
                 None,
                 Some(hyperswitch_domain_models::address::Address {
                     address: Some(hyperswitch_domain_models::address::AddressDetails {
-                        first_name: Some(Secret::new("John".to_string())),
-                        last_name: Some(Secret::new("Doe".to_string())),
+                        first_name: Some(common_utils::types::NameType::get_unchecked(
+                            "John".to_string(),
+                        )),
+                        last_name: Some(common_utils::types::NameType::get_unchecked(
+                            "Doe".to_string(),
+                        )),
                         ..Default::default()
                     }),
                     phone: None,
@@ -400,6 +404,7 @@ pub trait ConnectorActions: Connector {
                 refund_amount: 100,
                 minor_refund_amount: MinorUnit::new(100),
                 connector_metadata: None,
+                refund_connector_metadata: None,
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
@@ -937,8 +942,11 @@ impl Default for CCardType {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: Some(Secret::new("nick_name".into())),
-            card_holder_name: Some(Secret::new("card holder name".into())),
+            nick_name: common_utils::types::NameType::try_from("nick_name".to_string()).ok(),
+            card_holder_name: common_utils::types::NameType::try_from(
+                "card holder name".to_string(),
+            )
+            .ok(),
         })
     }
 }
@@ -975,6 +983,7 @@ impl Default for PaymentAuthorizeType {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            request_extended_authorization: None,
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
@@ -1068,6 +1077,7 @@ impl Default for PaymentRefundType {
             minor_refund_amount: MinorUnit::new(100),
             webhook_url: None,
             connector_metadata: None,
+            refund_connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,

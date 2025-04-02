@@ -343,7 +343,7 @@ impl From<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for ShippingAddress {
                     .router_data
                     .get_optional_shipping()
                     .and_then(|inner_data| inner_data.address.as_ref())
-                    .and_then(|inner_data| inner_data.first_name.clone()),
+                    .and_then(|inner_data| inner_data.first_name.clone().map(From::from)),
             }),
         }
     }
@@ -358,7 +358,7 @@ impl From<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for ShippingA
                     .router_data
                     .get_optional_shipping()
                     .and_then(|inner_data| inner_data.address.as_ref())
-                    .and_then(|inner_data| inner_data.first_name.clone()),
+                    .and_then(|inner_data| inner_data.first_name.clone().map(From::from)),
             }),
         }
     }
@@ -1200,6 +1200,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::RedPagos
                     | enums::PaymentMethodType::SamsungPay
                     | enums::PaymentMethodType::Sepa
+                    | enums::PaymentMethodType::SepaBankTransfer
                     | enums::PaymentMethodType::Sofort
                     | enums::PaymentMethodType::Swish
                     | enums::PaymentMethodType::TouchNGo
@@ -1219,6 +1220,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Seicomart
                     | enums::PaymentMethodType::PayEasy
                     | enums::PaymentMethodType::LocalBankTransfer
+                    | enums::PaymentMethodType::InstantBankTransfer
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -1317,6 +1319,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),

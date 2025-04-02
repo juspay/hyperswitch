@@ -61,11 +61,13 @@ use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use rand::Rng;
 use regex::Regex;
 use router_env::logger;
 use serde::Deserialize;
 use serde_json::Value;
 use time::PrimitiveDateTime;
+use unicode_normalization::UnicodeNormalization;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
@@ -303,7 +305,7 @@ pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) ->
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
-    (0..length).map(|_| rand::Rng::gen(&mut rng)).collect()
+    (0..length).map(|_| Rng::gen(&mut rng)).collect()
 }
 
 pub(crate) fn missing_field_err(
@@ -551,7 +553,7 @@ impl<Flow, Request, Response> RouterData
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.first_name)
+                .and_then(|shipping_details| shipping_details.first_name.map(From::from))
         })
     }
 
@@ -560,7 +562,7 @@ impl<Flow, Request, Response> RouterData
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.last_name)
+                .and_then(|shipping_details| shipping_details.last_name.map(From::from))
         })
     }
 
@@ -669,7 +671,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.first_name.clone())
+                    .and_then(|billing_details| billing_details.first_name.map(From::from))
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.first_name",
@@ -692,7 +694,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.last_name.clone())
+                    .and_then(|billing_details| billing_details.last_name.map(From::from))
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.last_name",
@@ -875,7 +877,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.first_name)
+                    .and_then(|billing_details| billing_details.first_name.map(From::from))
             })
     }
 
@@ -886,7 +888,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.last_name)
+                    .and_then(|billing_details| billing_details.last_name.map(From::from))
             })
     }
 
@@ -1029,6 +1031,7 @@ pub enum CardIssuer {
 
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
@@ -1055,6 +1058,22 @@ impl CardData for Card {
                 .to_string(),
         ))
     }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
+    }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
     }
@@ -1132,6 +1151,7 @@ impl CardData for Card {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
@@ -1146,6 +1166,22 @@ impl CardData for CardDetailsForNetworkTransactionId {
                 .to_string(),
         ))
     }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
+    }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
     }
@@ -1223,6 +1259,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
@@ -1267,8 +1304,8 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
 });
 
 pub trait AddressDetailsData {
-    fn get_first_name(&self) -> Result<&Secret<String>, Error>;
-    fn get_last_name(&self) -> Result<&Secret<String>, Error>;
+    fn get_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_last_name(&self) -> Result<Secret<String>, Error>;
     fn get_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
@@ -1282,32 +1319,32 @@ pub trait AddressDetailsData {
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_line3(&self) -> Option<Secret<String>>;
     fn get_optional_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
+    fn get_optional_zip(&self) -> Option<Secret<String>>;
+    fn get_optional_state(&self) -> Option<Secret<String>>;
 }
 
 impl AddressDetailsData for AddressDetails {
-    fn get_first_name(&self) -> Result<&Secret<String>, Error> {
+    fn get_first_name(&self) -> Result<Secret<String>, Error> {
         self.first_name
-            .as_ref()
+            .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("address.first_name"))
     }
 
-    fn get_last_name(&self) -> Result<&Secret<String>, Error> {
+    fn get_last_name(&self) -> Result<Secret<String>, Error> {
         self.last_name
-            .as_ref()
+            .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("address.last_name"))
     }
 
     fn get_full_name(&self) -> Result<Secret<String>, Error> {
-        let first_name = self.get_first_name()?.peek().to_owned();
-        let last_name = self
-            .get_last_name()
-            .ok()
-            .cloned()
-            .unwrap_or(Secret::new("".to_string()));
-        let last_name = last_name.peek();
+        let first_name = self.get_first_name()?.expose();
+        let last_name = self.get_last_name().unwrap_or_default().expose();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();
         Ok(Secret::new(full_name))
     }
@@ -1500,15 +1537,24 @@ impl AddressDetailsData for AddressDetails {
     }
 
     fn get_optional_first_name(&self) -> Option<Secret<String>> {
-        self.first_name.clone()
+        self.first_name.clone().map(From::from)
     }
 
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
-        self.last_name.clone()
+        self.last_name.clone().map(From::from)
     }
 
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
         self.country
+    }
+    fn get_optional_line3(&self) -> Option<Secret<String>> {
+        self.line3.clone()
+    }
+    fn get_optional_zip(&self) -> Option<Secret<String>> {
+        self.zip.clone()
+    }
+    fn get_optional_state(&self) -> Option<Secret<String>> {
+        self.state.clone()
     }
 }
 
@@ -1799,6 +1845,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
                 .card_holder_name
                 .clone()
+                .map(From::from)
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "card_holder_name",
                 })?),
@@ -2088,6 +2135,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2145,6 +2194,16 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error> {
+        self.threeds_method_comp_ind
+            .clone()
+            .ok_or_else(missing_field_err("threeds_method_comp_ind"))
     }
 }
 pub trait AddressData {
@@ -5351,6 +5410,7 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5495,6 +5555,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer
+                }
+                payment_method_data::BankTransferData::InstantBankTransfer {} => {
+                    Self::InstantBankTransfer
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -5701,6 +5764,22 @@ impl CardData for api_models::payouts::CardPayout {
                 .to_string(),
         ))
     }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .expiry_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
+    }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
     }
@@ -5780,6 +5859,7 @@ impl CardData for api_models::payouts::CardPayout {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
@@ -5893,7 +5973,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         order_tax_amount: Some(MinorUnit::zero()),
         minor_amount: MinorUnit::new(0),
         statement_descriptor: None,
-        capture_method: None,
+        capture_method: data.request.capture_method,
         webhook_url: None,
         complete_authorize_url: None,
         browser_info: data.request.browser_info.clone(),
@@ -5906,6 +5986,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_method_type: None,
         customer_id: None,
         surcharge_details: None,
+        request_extended_authorization: None,
         request_incremental_authorization: data.request.request_incremental_authorization,
         metadata: None,
         authentication_data: None,
@@ -5975,4 +6056,20 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         authentication_id: data.authentication_id.clone(),
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
     }
+}
+
+pub fn generate_12_digit_number() -> u64 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(100_000_000_000..=999_999_999_999)
+}
+
+/// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.
+pub fn normalize_string(value: String) -> Result<String, regex::Error> {
+    let nfkd_value = value.nfkd().collect::<String>();
+    let lowercase_value = nfkd_value.to_lowercase();
+    static REGEX: std::sync::LazyLock<Result<Regex, regex::Error>> =
+        std::sync::LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
+    let regex = REGEX.as_ref().map_err(|e| e.clone())?;
+    let normalized = regex.replace_all(&lowercase_value, "").to_string();
+    Ok(normalized)
 }

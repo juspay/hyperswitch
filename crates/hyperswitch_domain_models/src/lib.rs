@@ -5,6 +5,7 @@ pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
+pub mod configs;
 pub mod co_badged_cards_info;
 pub mod consts;
 pub mod customer;
@@ -30,6 +31,7 @@ pub mod router_data_v2;
 pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
+pub mod routing;
 pub mod type_encryption;
 pub mod types;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

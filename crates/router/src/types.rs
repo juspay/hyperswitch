@@ -511,6 +511,11 @@ pub struct AddAccessTokenResult {
 pub struct PaymentMethodTokenResult {
     pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
     pub is_payment_method_tokenization_performed: bool,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct PspTokenResult {
+    pub token: Result<String, ErrorResponse>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -904,6 +909,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
             metadata: None,
+            request_extended_authorization: None,
             authentication_data: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
