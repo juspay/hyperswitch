@@ -155,8 +155,8 @@ services:
       - "9050:9050"
       - "9060:9060"
       - "5252:5252"
-      networks:
-        - router_net
+    networks:
+      - router_net
     depends_on:
       hyperswitch-server:
         condition: service_healthy
