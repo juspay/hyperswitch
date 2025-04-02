@@ -1,4 +1,6 @@
 //! Types that can be used in other crates
+
+#[cfg(feature = "keymanager")]
 pub mod keymanager;
 
 /// Enum for Authentication Level
