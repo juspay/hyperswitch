@@ -494,12 +494,21 @@ impl PaymentIntent {
     pub fn get_connector_customer_id_from_feature_metadata(&self) -> Option<String> {
         self.feature_metadata
             .as_ref()
-            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rrm| {
-                rrm.billing_connector_payment_details
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery_metadata| {
+                recovery_metadata
+                    .billing_connector_payment_details
                     .connector_customer_id
                     .clone()
             })
+    }
+
+    pub fn get_billing_merchant_connector_account_id(
+        &self,
+    ) -> Option<id_type::MerchantConnectorAccountId> {
+        self.feature_metadata.as_ref().and_then(|feature_metadata| {
+            feature_metadata.get_billing_merchant_connector_account_id()
+        })
     }
 
     fn get_request_incremental_authorization_value(

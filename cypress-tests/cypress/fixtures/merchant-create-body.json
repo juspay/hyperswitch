@@ -21,7 +21,7 @@
       "country": "US"
     }
   },
-  "return_url": "https://hyperswitch.io",
+  "return_url": "https://example.com",
   "webhook_details": {
     "webhook_version": "1.0.1",
     "webhook_username": "ekart_retail",

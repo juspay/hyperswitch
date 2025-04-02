@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors};
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -188,11 +188,11 @@ fn get_payer_name(
     let first_name = address
         .first_name
         .clone()
-        .map_or("".to_string(), |first_name| first_name.peek().to_string());
+        .map_or("".to_string(), String::from);
     let last_name = address
         .last_name
         .clone()
-        .map_or("".to_string(), |last_name| last_name.peek().to_string());
+        .map_or("".to_string(), String::from);
     let name: String = format!("{first_name} {last_name}").trim().to_string();
     if !name.is_empty() {
         Some(Secret::new(name))
