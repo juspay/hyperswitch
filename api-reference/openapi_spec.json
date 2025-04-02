@@ -5337,10 +5337,6 @@
                   "value": {
                     "created_after": "2023-01-01T00:00:00",
                     "created_before": "2023-01-31T23:59:59",
-                    "limit": 10,
-                    "offset": 0,
-                    "object_id": "{{object_id}}",
-                    "profile_id": "{{profile_id}}",
                     "event_classes": [
                       "payments",
                       "refunds"
@@ -5348,7 +5344,11 @@
                     "event_types": [
                       "payments_succeeded"
                     ],
-                    "is_delivered": true
+                    "is_delivered": true,
+                    "limit": 5,
+                    "object_id": "{{object_id}}",
+                    "offset": 0,
+                    "profile_id": "{{profile_id}}"
                   }
                 }
               }
@@ -5395,10 +5395,6 @@
                   "value": {
                     "created_after": "2023-01-01T00:00:00",
                     "created_before": "2023-01-31T23:59:59",
-                    "limit": 10,
-                    "offset": 0,
-                    "object_id": "{{object_id}}",
-                    "profile_id": "{{profile_id}}",
                     "event_classes": [
                       "payments",
                       "refunds"
@@ -5406,7 +5402,11 @@
                     "event_types": [
                       "payments_succeeded"
                     ],
-                    "is_delivered": true
+                    "is_delivered": true,
+                    "limit": 5,
+                    "object_id": "{{object_id}}",
+                    "offset": 0,
+                    "profile_id": "{{profile_id}}"
                   }
                 }
               }
@@ -11938,6 +11938,71 @@
           "mandates",
           "payouts"
         ]
+      },
+      "EventListConstraints": {
+        "type": "object",
+        "description": "The constraints to apply when filtering events.",
+        "properties": {
+          "created_after": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Filter events created after the specified time.",
+            "nullable": true
+          },
+          "created_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Filter events created before the specified time.",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Include at most the specified number of events.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Include events after the specified offset.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "object_id": {
+            "type": "string",
+            "description": "Filter all events associated with the specified object identifier (Payment Intent ID,\nRefund ID, etc.)",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Filter all events associated with the specified business profile ID.",
+            "nullable": true
+          },
+          "event_classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventClass"
+            },
+            "description": "Filter events by their class.",
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "event_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventType"
+            },
+            "description": "Filter events by their type.",
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "is_delivered": {
+            "type": "boolean",
+            "description": "Filter all events by `is_overall_delivery_successful` field of the event.",
+            "nullable": true
+          }
+        }
       },
       "EventListItemResponse": {
         "type": "object",
