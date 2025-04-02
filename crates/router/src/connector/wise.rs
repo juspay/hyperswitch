@@ -19,7 +19,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -113,6 +113,8 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 } else {
                     Ok(types::ErrorResponse {
@@ -122,6 +124,8 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
                     })
                 }
             }
@@ -132,6 +136,8 @@ impl ConnectorCommon for Wise {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
         }
     }
@@ -338,6 +344,8 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -748,3 +756,5 @@ impl api::IncomingWebhook for Wise {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Wise {}

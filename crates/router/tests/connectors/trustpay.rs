@@ -49,6 +49,10 @@ fn get_default_browser_info() -> BrowserInformation {
         accept_header: Some("*".to_string()),
         user_agent: Some("none".to_string()),
         ip_address: None,
+        os_type: None,
+        os_version: None,
+        device_model: None,
+        accept_language: Some("en".to_string()),
     }
 }
 
@@ -72,8 +76,12 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             None,
             Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(Secret::new("first".to_string())),
-                    last_name: Some(Secret::new("last".to_string())),
+                    first_name: Some(common_utils::types::NameType::get_unchecked(
+                        "first".to_string(),
+                    )),
+                    last_name: Some(common_utils::types::NameType::get_unchecked(
+                        "last".to_string(),
+                    )),
                     line1: Some(Secret::new("line1".to_string())),
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),

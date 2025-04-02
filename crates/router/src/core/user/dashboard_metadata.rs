@@ -1,15 +1,19 @@
+use std::str::FromStr;
+
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
+use common_enums::EntityType;
+use common_utils::pii;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
+use masking::PeekInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
@@ -17,6 +21,8 @@ use crate::{
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
@@ -32,6 +38,7 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -115,6 +122,7 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::OnboardingSurvey(req) => {
             Ok(types::MetaData::OnboardingSurvey(req))
         }
+        api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
     }
 }
 
@@ -143,6 +151,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
+        api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
     }
 }
 
@@ -225,6 +234,10 @@ fn into_response(
         DBEnum::OnboardingSurvey => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::OnboardingSurvey(resp))
+        }
+        DBEnum::ReconStatus => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::ReconStatus(resp))
         }
     }
 }
@@ -444,6 +457,11 @@ async fn insert_metadata(
             metadata
         }
         types::MetaData::ProdIntent(data) => {
+            if let Some(poc_email) = &data.poc_email {
+                let inner_poc_email = poc_email.peek().as_str();
+                pii::Email::from_str(inner_poc_email)
+                    .change_context(UserErrors::EmailParsingError)?;
+            }
             let mut metadata = utils::insert_user_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
@@ -476,10 +494,25 @@ async fn insert_metadata(
                     .expose();
 
                 if utils::is_prod_email_required(&data, user_email) {
-                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+                        state,
+                        &user,
+                        EntityType::Merchant,
+                    )
+                    .await?;
+
+                    let email_contents = email_types::BizEmailProd::new(
+                        state,
+                        data,
+                        theme.as_ref().map(|theme| theme.theme_id.clone()),
+                        theme
+                            .map(|theme| theme.email_config())
+                            .unwrap_or(state.conf.theme.email_config.clone()),
+                    )?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
+                            email_types::get_base_url(state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )
@@ -567,6 +600,30 @@ async fn insert_metadata(
             )
             .await
         }
+        types::MetaData::ReconStatus(data) => {
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key,
+                data.clone(),
+            )
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_merchant_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await;
+            }
+            metadata
+        }
     }
 }
 
@@ -605,6 +662,7 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
+#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,

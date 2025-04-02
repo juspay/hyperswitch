@@ -95,6 +95,10 @@ where
     fn peek(&self) -> &SecretValue {
         &self.inner_secret
     }
+
+    fn peek_mut(&mut self) -> &mut SecretValue {
+        &mut self.inner_secret
+    }
 }
 
 impl<SecretValue, MaskingStrategy> From<SecretValue> for Secret<SecretValue, MaskingStrategy>
@@ -154,5 +158,12 @@ where
 {
     fn default() -> Self {
         SecretValue::default().into()
+    }
+}
+
+// Required by base64-serde to serialize Secret of Vec<u8> which contains the base64 decoded value
+impl AsRef<[u8]> for Secret<Vec<u8>> {
+    fn as_ref(&self) -> &[u8] {
+        self.peek().as_slice()
     }
 }

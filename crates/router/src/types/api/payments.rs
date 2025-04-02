@@ -1,33 +1,42 @@
 #[cfg(feature = "v1")]
-pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
-    AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
-    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
-    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
-    PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
-    PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
-    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-    PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
-    VerifyResponse, WalletData,
+    PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2,
 };
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
-    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+    PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
+    PaymentsUpdateIntentRequest,
+};
+pub use api_models::{
+    feature_matrix::{
+        ConnectorFeatureMatrixResponse, FeatureMatrixListResponse, FeatureMatrixRequest,
+    },
+    payments::{
+        AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
+        CryptoData, CustomerAcceptance, CustomerDetails, CustomerDetailsResponse,
+        MandateAmountData, MandateData, MandateTransactionType, MandateType,
+        MandateValidationFields, NextActionType, OnlineMandate, OpenBankingSessionToken,
+        PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilters,
+        PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
+        PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+        PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse, PaymentsApproveRequest,
+        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+        UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    },
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent,
     PaymentGetIntent, PaymentMethodToken, PaymentUpdateIntent, PostProcessing, PostSessionTokens,
-    PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+    PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
@@ -126,14 +135,18 @@ mod payments_test {
             card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
-            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
+            card_holder_name: Some(common_utils::types::NameType::get_unchecked(
+                "JohnDoe".to_string(),
+            )),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: Some(masking::Secret::new("nick_name".into())),
+            nick_name: Some(common_utils::types::NameType::get_unchecked(
+                "nick_name".to_string(),
+            )),
         }
     }
 

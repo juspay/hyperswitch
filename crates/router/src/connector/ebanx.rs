@@ -15,7 +15,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
-    services::{ConnectorIntegration, ConnectorValidation},
+    services::{ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -124,6 +124,8 @@ impl ConnectorCommon for Ebanx {
             reason: response.message,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -466,3 +468,5 @@ impl api::IncomingWebhook for Ebanx {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Ebanx {}

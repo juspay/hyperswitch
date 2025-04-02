@@ -64,13 +64,7 @@ impl From<CustomerNew> for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Insertable,
-    router_derive::DebugAsDisplay,
-    serde::Deserialize,
-    serde::Serialize,
+    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
@@ -82,16 +76,16 @@ pub struct CustomerNew {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: DeleteStatus,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalCustomerId,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -164,16 +158,16 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: DeleteStatus,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalCustomerId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -242,8 +236,8 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
-    pub default_payment_method_id: Option<Option<String>>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
+    pub default_payment_method_id: Option<Option<common_utils::id_type::GlobalPaymentMethodId>>,
     pub updated_by: Option<String>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,

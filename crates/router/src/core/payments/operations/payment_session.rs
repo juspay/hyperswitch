@@ -31,7 +31,7 @@ type PaymentSessionOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsSessionRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
     for PaymentSession
 {
     #[instrument(skip_all)]
@@ -44,6 +44,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
     > {
@@ -66,6 +67,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
@@ -212,6 +215,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -227,7 +234,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
+    for PaymentSession
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -267,7 +276,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsSessionRequest, PaymentData<F>>
     for PaymentSession
 {
     #[instrument(skip_all)]
@@ -332,6 +341,7 @@ where
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionOperation<'b, F>,
         Option<domain::PaymentMethodData>,
@@ -341,7 +351,7 @@ where
         Ok((Box::new(self), None, None))
     }
 
-    /// Returns `Vec<SessionConnectorData>`
+    /// Returns `SessionConnectorDatas`
     /// Steps carried out in this function
     /// Get all the `merchant_connector_accounts` which are not disabled
     /// Filter out connectors which have `invoke_sdk_client` enabled in `payment_method_types`
@@ -378,11 +388,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            &profile_id,
-            common_enums::ConnectorType::PaymentProcessor,
-        );
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                &profile_id,
+                common_enums::ConnectorType::PaymentProcessor,
+            );
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();
@@ -427,7 +437,11 @@ where
                                 is_invoke_sdk_client && is_sent_in_request
                             })
                             .map(|payment_method_type| {
-                                (connector_account, payment_method_type.payment_method_type)
+                                (
+                                    connector_account,
+                                    payment_method_type.payment_method_type,
+                                    parsed_payment_methods_enabled.payment_method,
+                                )
                             })
                             .collect::<Vec<_>>()
                     })
@@ -435,10 +449,11 @@ where
                 connector_and_supporting_payment_method_type.extend(res);
             });
 
-        let mut session_connector_data =
-            Vec::with_capacity(connector_and_supporting_payment_method_type.len());
+        let mut session_connector_data = api::SessionConnectorDatas::with_capacity(
+            connector_and_supporting_payment_method_type.len(),
+        );
 
-        for (merchant_connector_account, payment_method_type) in
+        for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type
         {
             let connector_type = api::GetToken::from(payment_method_type);
@@ -457,6 +472,7 @@ where
                         payment_method_type,
                         connector_data,
                         merchant_connector_account.business_sub_label.clone(),
+                        payment_method,
                     );
                     session_connector_data.push(new_session_connector_data)
                 }

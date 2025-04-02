@@ -2,6 +2,7 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
 
 exporters:
   otlp:
@@ -9,8 +10,8 @@ exporters:
     tls:
       insecure: true
 
-  logging:
-    loglevel: debug
+  debug:
+    verbosity: detailed
 
   prometheus:
     endpoint: 0.0.0.0:8889
@@ -21,7 +22,7 @@ exporters:
 service:
   telemetry:
     logs:
-      level: debug
+      level: DEBUG
     metrics:
       level: detailed
       address: 0.0.0.0:8888

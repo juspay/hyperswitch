@@ -1,4 +1,4 @@
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Address {
@@ -23,10 +23,18 @@ impl Address {
                 .email
                 .clone()
                 .or(other.and_then(|other| other.email.clone())),
-            phone: self
-                .phone
-                .clone()
-                .or(other.and_then(|other| other.phone.clone())),
+            phone: {
+                self.phone
+                    .clone()
+                    .and_then(|phone_details| {
+                        if phone_details.number.is_some() {
+                            Some(phone_details)
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| other.and_then(|other| other.phone.clone()))
+            },
         }
     }
 }
@@ -40,8 +48,8 @@ pub struct AddressDetails {
     pub line3: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
+    pub first_name: Option<common_utils::types::NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
 }
 
 impl AddressDetails {
@@ -49,10 +57,10 @@ impl AddressDetails {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
                 "{} {}",
-                first_name.peek(),
-                last_name.peek()
+                String::from(first_name),
+                String::from(last_name)
             ))),
-            (Some(name), None) | (None, Some(name)) => Some(name.to_owned()),
+            (Some(name), None) | (None, Some(name)) => Some(Secret::from(name)),
             _ => None,
         }
     }
@@ -63,7 +71,7 @@ impl AddressDetails {
             let (first_name, last_name) = if self
                 .first_name
                 .as_ref()
-                .is_some_and(|first_name| !first_name.peek().trim().is_empty())
+                .is_some_and(|first_name| !first_name.trim().is_empty())
             {
                 (self.first_name.clone(), self.last_name.clone())
             } else {

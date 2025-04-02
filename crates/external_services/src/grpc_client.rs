@@ -7,6 +7,8 @@ pub mod health_check_client;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
+use common_utils::consts;
+#[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
@@ -16,6 +18,8 @@ use http_body_util::combinators::UnsyncBoxBody;
 use hyper::body::Bytes;
 #[cfg(feature = "dynamic_routing")]
 use hyper_util::client::legacy::connect::HttpConnector;
+#[cfg(feature = "dynamic_routing")]
+use router_env::logger;
 use serde;
 #[cfg(feature = "dynamic_routing")]
 use tonic::Status;
@@ -75,4 +79,62 @@ impl GrpcClientSettings {
             health_client,
         })
     }
+}
+
+/// Contains grpc headers
+#[derive(Debug)]
+pub struct GrpcHeaders {
+    /// Tenant id
+    pub tenant_id: String,
+    /// Request id
+    pub request_id: Option<String>,
+}
+
+#[cfg(feature = "dynamic_routing")]
+/// Trait to add necessary headers to the tonic Request
+pub(crate) trait AddHeaders {
+    /// Add necessary header fields to the tonic Request
+    fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders);
+}
+
+#[cfg(feature = "dynamic_routing")]
+impl<T> AddHeaders for tonic::Request<T> {
+    #[track_caller]
+    fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders) {
+        headers.tenant_id
+            .parse()
+            .map(|tenant_id| {
+                self
+                    .metadata_mut()
+                    .append(consts::TENANT_HEADER, tenant_id)
+            })
+            .inspect_err(
+                |err| logger::warn!(header_parse_error=?err,"invalid {} received",consts::TENANT_HEADER),
+            )
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| {
+                    self
+                        .metadata_mut()
+                        .append(consts::X_REQUEST_ID, request_id)
+                })
+                .inspect_err(
+                    |err| logger::warn!(header_parse_error=?err,"invalid {} received",consts::X_REQUEST_ID),
+                )
+                .ok();
+        });
+    }
+}
+
+#[cfg(feature = "dynamic_routing")]
+pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) -> tonic::Request<T> {
+    let mut request = tonic::Request::new(message);
+    request.add_headers_to_grpc_request(headers);
+
+    logger::info!(dynamic_routing_request=?request);
+
+    request
 }

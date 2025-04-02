@@ -9,7 +9,9 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
+    payments::payment_attempt::PaymentAttempt,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -28,7 +30,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorTransactionId, ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -39,6 +44,8 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::Mask;
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
 use transformers as nexinets;
 
 use crate::{
@@ -159,14 +166,17 @@ impl ConnectorCommon for Nexinets {
             reason: Some(connector_reason),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
 
 impl ConnectorValidation for Nexinets {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -737,4 +747,35 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     for Nexinets
 {
     // Not Implemented (R)
+}
+
+impl ConnectorSpecifications for Nexinets {}
+
+impl ConnectorTransactionId for Nexinets {
+    #[cfg(feature = "v1")]
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        let metadata =
+            Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
+        metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+    }
+
+    #[cfg(feature = "v2")]
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
+        let metadata = Self::connector_transaction_id(
+            self,
+            payment_attempt
+                .connector_metadata
+                .as_ref()
+                .map(|connector_metadata| connector_metadata.peek()),
+        );
+        metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+    }
 }

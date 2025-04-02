@@ -2,8 +2,6 @@
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-#[cfg(feature = "olap")]
-use common_utils::errors::ReportSwitchExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::keymanager::KeyManagerState,
@@ -34,7 +32,6 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{
     behaviour::Conversion,
-    errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -50,14 +47,16 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{RedisErrorExt, StorageError},
+    kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
-    DatabaseStore, KVRouterStore,
+    DatabaseStore,
 };
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
+    type Error = StorageError;
     #[cfg(feature = "v1")]
     async fn insert_payment_intent(
         &self,
@@ -162,6 +161,27 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 todo!("Implement payment intent insert for kv")
             }
         }
+    }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[instrument(skip_all)]
+    async fn get_filtered_payment_intents_attempt(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(PaymentIntent, Option<PaymentAttempt>)>, StorageError> {
+        self.router_store
+            .get_filtered_payment_intents_attempt(
+                state,
+                merchant_id,
+                constraints,
+                merchant_key_store,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(feature = "v1")]
@@ -412,7 +432,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -459,10 +479,54 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             )
             .await
     }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
+        self.router_store
+            .get_filtered_active_attempt_ids_for_total_count(
+                merchant_id,
+                constraints,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_merchant_reference_id_profile_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: &MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .find_payment_intent_by_merchant_reference_id_profile_id(
+                        state,
+                        merchant_reference_id,
+                        profile_id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => {
+                todo!()
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
+    type Error = StorageError;
     #[instrument(skip_all)]
     async fn insert_payment_intent(
         &self,
@@ -539,8 +603,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         let diesel_payment_intent_update =
-            diesel_models::PaymentIntentUpdateInternal::from(payment_intent);
-
+            diesel_models::PaymentIntentUpdateInternal::try_from(payment_intent)
+                .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
             .await
@@ -622,6 +686,39 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_intent_by_merchant_reference_id_profile_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: &MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let diesel_payment_intent = DieselPaymentIntent::find_by_merchant_reference_id_profile_id(
+            &conn,
+            merchant_reference_id,
+            profile_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?;
+        let merchant_id = diesel_payment_intent.merchant_id.clone();
+
+        PaymentIntent::convert_back(
+            state,
+            diesel_payment_intent,
+            merchant_key_store.key.get_inner(),
+            merchant_id.to_owned().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
+    }
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn filter_payment_intent_by_constraints(
@@ -632,10 +729,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        use common_utils::errors::ReportSwitchExt;
         use futures::{future::try_join_all, FutureExt};
 
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
@@ -770,7 +866,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn get_intent_status_with_count(
         &self,
@@ -778,7 +874,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         let mut query = <DieselPaymentIntent as HasTable>::table()
@@ -828,13 +924,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
         use crate::DataModelExt;
 
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
+            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .inner_join(
                 payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
             )
-            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(pa_dsl::merchant_id.eq(merchant_id.to_owned())) // Ensure merchant_ids match, as different merchants can share payment/attempt IDs.
             .into_boxed();
 
         query = match constraints {
@@ -984,6 +1081,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 if let Some(card_network) = &params.card_network {
                     query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
                 }
+
+                if let Some(card_discovery) = &params.card_discovery {
+                    query = query.filter(pa_dsl::card_discovery.eq_any(card_discovery.clone()));
+                }
+
                 query
             }
         };
@@ -1021,6 +1123,303 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[instrument(skip_all)]
+    async fn get_filtered_payment_intents_attempt(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PaymentIntentFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(PaymentIntent, Option<PaymentAttempt>)>, StorageError> {
+        use diesel::NullableExpressionMethods as _;
+        use futures::{future::try_join_all, FutureExt};
+
+        use crate::DataModelExt;
+
+        let conn = connection::pg_connection_read(self).await?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+        let mut query = DieselPaymentIntent::table()
+            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .left_join(
+                payment_attempt_schema::table
+                    .on(pi_dsl::active_attempt_id.eq(pa_dsl::id.nullable())),
+            )
+            // Filtering on merchant_id for payment_attempt is not required for v2 as payment_attempt_ids are globally unique
+            .into_boxed();
+
+        query = match constraints {
+            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
+                query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
+            }
+            PaymentIntentFetchConstraints::List(params) => {
+                query = match params.order {
+                    Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::amount.asc()),
+                    Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::amount.desc()),
+                    Order {
+                        on: SortOn::Created,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::created_at.asc()),
+                    Order {
+                        on: SortOn::Created,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::created_at.desc()),
+                };
+
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
+                }
+
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
+                }
+
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
+                    (None, Some(starting_after_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let starting_at = self
+                            .find_payment_intent_by_id(
+                                state,
+                                starting_after_id,
+                                merchant_key_store,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(pi_dsl::created_at.ge(starting_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at)),
+                    (None, Some(ending_before_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let ending_at = self
+                            .find_payment_intent_by_id(
+                                state,
+                                ending_before_id,
+                                merchant_key_store,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(pi_dsl::created_at.le(ending_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = query.offset(params.offset.into());
+
+                query = match params.amount_filter {
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.between(start, end)),
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: None,
+                    }) => query.filter(pi_dsl::amount.ge(start)),
+                    Some(AmountFilter {
+                        start_amount: None,
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.le(end)),
+                    _ => query,
+                };
+
+                query = match &params.currency {
+                    Some(currency) => query.filter(pi_dsl::currency.eq(*currency)),
+                    None => query,
+                };
+
+                query = match &params.connector {
+                    Some(connector) => query.filter(pa_dsl::connector.eq(*connector)),
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(pi_dsl::status.eq(*status)),
+                    None => query,
+                };
+
+                query = match &params.payment_method_type {
+                    Some(payment_method_type) => {
+                        query.filter(pa_dsl::payment_method_type_v2.eq(*payment_method_type))
+                    }
+                    None => query,
+                };
+
+                query = match &params.payment_method_subtype {
+                    Some(payment_method_subtype) => {
+                        query.filter(pa_dsl::payment_method_subtype.eq(*payment_method_subtype))
+                    }
+                    None => query,
+                };
+
+                query = match &params.authentication_type {
+                    Some(authentication_type) => {
+                        query.filter(pa_dsl::authentication_type.eq(*authentication_type))
+                    }
+                    None => query,
+                };
+
+                query = match &params.merchant_connector_id {
+                    Some(merchant_connector_id) => query
+                        .filter(pa_dsl::merchant_connector_id.eq(merchant_connector_id.clone())),
+                    None => query,
+                };
+
+                if let Some(card_network) = &params.card_network {
+                    query = query.filter(pa_dsl::card_network.eq(card_network.clone()));
+                }
+                query
+            }
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        query
+            .get_results_async::<(
+                DieselPaymentIntent,
+                Option<diesel_models::payment_attempt::PaymentAttempt>,
+            )>(conn)
+            .await
+            .change_context(StorageError::DecryptionError)
+            .async_and_then(|output| async {
+                try_join_all(output.into_iter().map(
+                    |(pi, pa): (_, Option<diesel_models::payment_attempt::PaymentAttempt>)| async {
+                        let payment_intent = PaymentIntent::convert_back(
+                            state,
+                            pi,
+                            merchant_key_store.key.get_inner(),
+                            merchant_id.to_owned().into(),
+                        );
+                        let payment_attempt = pa
+                            .async_map(|val| {
+                                PaymentAttempt::convert_back(
+                                    state,
+                                    val,
+                                    merchant_key_store.key.get_inner(),
+                                    merchant_id.to_owned().into(),
+                                )
+                            })
+                            .map(|val| val.transpose());
+
+                        let output = futures::try_join!(payment_intent, payment_attempt);
+                        output.change_context(StorageError::DecryptionError)
+                    },
+                ))
+                .await
+            })
+            .await
+            .change_context(StorageError::DecryptionError)
+    }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[instrument(skip_all)]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PaymentIntentFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+        let mut query = DieselPaymentIntent::table()
+            .select(pi_dsl::active_attempt_id)
+            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(pi_dsl::created_at.desc())
+            .into_boxed();
+
+        query = match constraints {
+            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
+                query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
+            }
+            PaymentIntentFetchConstraints::List(params) => {
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
+                }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match params.starting_at {
+                    Some(starting_at) => query.filter(pi_dsl::created_at.ge(starting_at)),
+                    None => query,
+                };
+
+                query = match params.ending_at {
+                    Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
+                    None => query,
+                };
+
+                query = match params.amount_filter {
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.between(start, end)),
+                    Some(AmountFilter {
+                        start_amount: Some(start),
+                        end_amount: None,
+                    }) => query.filter(pi_dsl::amount.ge(start)),
+                    Some(AmountFilter {
+                        start_amount: None,
+                        end_amount: Some(end),
+                    }) => query.filter(pi_dsl::amount.le(end)),
+                    _ => query,
+                };
+
+                query = match &params.currency {
+                    Some(currency) => query.filter(pi_dsl::currency.eq(*currency)),
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(pi_dsl::status.eq(*status)),
+                    None => query,
+                };
+
+                query
+            }
+        };
+
+        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
+            query.get_results_async::<Option<String>>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
+            .into()
+        })
+    }
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn get_filtered_active_attempt_ids_for_total_count(
@@ -1029,7 +1428,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)

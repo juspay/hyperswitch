@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
@@ -57,7 +58,16 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
@@ -102,6 +112,14 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
@@ -142,7 +160,16 @@ pub struct ProfileUpdateInternal {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "v1")]
@@ -182,7 +209,15 @@ impl ProfileUpdateInternal {
             is_network_tokenization_enabled,
             is_auto_retries_enabled,
             max_auto_retries_enabled,
+            always_request_extended_authorization,
             is_click_to_pay_enabled,
+            authentication_product_ids,
+            card_testing_guard_config,
+            card_testing_secret_key,
+            is_clear_pan_retries_enabled,
+            force_3ds_challenge,
+            is_debit_routing_enabled,
+            merchant_business_country,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -242,8 +277,21 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_network_tokenization_enabled),
             is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
+            always_request_extended_authorization: always_request_extended_authorization
+                .or(source.always_request_extended_authorization),
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
+            authentication_product_ids: authentication_product_ids
+                .or(source.authentication_product_ids),
+            card_testing_guard_config: card_testing_guard_config
+                .or(source.card_testing_guard_config),
+            card_testing_secret_key,
+            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
+                .unwrap_or(source.is_clear_pan_retries_enabled),
+            force_3ds_challenge,
+            is_debit_routing_enabled,
+            merchant_business_country: merchant_business_country
+                .or(source.merchant_business_country),
         }
     }
 }
@@ -285,20 +333,30 @@ pub struct Profile {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub version: common_enums::ApiVersion,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
+    pub is_auto_retries_enabled: Option<bool>,
+    pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
-    pub version: common_enums::ApiVersion,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
-    pub is_network_tokenization_enabled: bool,
-    pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
-    pub is_click_to_pay_enabled: bool,
 }
 
 impl Profile {
@@ -345,19 +403,27 @@ pub struct ProfileNew {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub version: common_enums::ApiVersion,
+    pub is_network_tokenization_enabled: bool,
+    pub is_auto_retries_enabled: Option<bool>,
+    pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
-    pub version: common_enums::ApiVersion,
-    pub is_network_tokenization_enabled: bool,
-    pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
-    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -390,17 +456,25 @@ pub struct ProfileUpdateInternal {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub is_network_tokenization_enabled: Option<bool>,
+    pub is_auto_retries_enabled: Option<bool>,
+    pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: Option<Encryption>,
+    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: Option<bool>,
-    pub is_network_tokenization_enabled: Option<bool>,
-    pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
-    pub is_click_to_pay_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -443,6 +517,13 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
+            authentication_product_ids,
+            three_ds_decision_manager_config,
+            card_testing_guard_config,
+            card_testing_secret_key,
+            is_clear_pan_retries_enabled,
+            is_debit_routing_enabled,
+            merchant_business_country,
         } = self;
         Profile {
             id: source.id,
@@ -507,8 +588,22 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_network_tokenization_enabled),
             is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
+            always_request_extended_authorization: None,
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
+            authentication_product_ids: authentication_product_ids
+                .or(source.authentication_product_ids),
+            three_ds_decision_manager_config: three_ds_decision_manager_config
+                .or(source.three_ds_decision_manager_config),
+            card_testing_guard_config: card_testing_guard_config
+                .or(source.card_testing_guard_config),
+            card_testing_secret_key: card_testing_secret_key.or(source.card_testing_secret_key),
+            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
+                .unwrap_or(source.is_clear_pan_retries_enabled),
+            force_3ds_challenge: None,
+            is_debit_routing_enabled,
+            merchant_business_country: merchant_business_country
+                .or(source.merchant_business_country),
         }
     }
 }
@@ -518,9 +613,24 @@ impl ProfileUpdateInternal {
 pub struct AuthenticationConnectorDetails {
     pub authentication_connectors: Vec<AuthenticationConnectors>,
     pub three_ds_requestor_url: String,
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct CardTestingGuardConfig {
+    pub is_card_ip_blocking_enabled: bool,
+    pub card_ip_blocking_threshold: i32,
+    pub is_guest_user_card_blocking_enabled: bool,
+    pub guest_user_card_blocking_threshold: i32,
+    pub is_customer_id_blocking_enabled: bool,
+    pub customer_id_blocking_threshold: i32,
+    pub card_testing_guard_expiry: i32,
+}
+
+common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
@@ -544,6 +654,7 @@ pub struct BusinessPaymentLinkConfig {
     pub default_config: Option<PaymentLinkConfigRequest>,
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     pub allowed_domains: Option<HashSet<String>>,
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -556,6 +667,24 @@ pub struct PaymentLinkConfigRequest {
     pub enabled_saved_payment_method: Option<bool>,
     pub hide_card_nickname_field: Option<bool>,
     pub show_card_form_by_default: Option<bool>,
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+    pub payment_button_text: Option<String>,
+    pub custom_message_for_card_terms: Option<String>,
+    pub payment_button_colour: Option<String>,
+    pub skip_status_screen: Option<bool>,
+    pub payment_button_text_colour: Option<String>,
+    pub background_colour: Option<String>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
+    pub enable_button_only_on_form_ready: Option<bool>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentLinkBackgroundImageConfig {
+    pub url: common_utils::types::Url,
+    pub position: Option<common_enums::ElementPosition>,
+    pub size: Option<common_enums::ElementSize>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);

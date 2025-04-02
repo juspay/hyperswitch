@@ -1,16 +1,61 @@
 //! definition of the new connector integration trait
+
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
 use masking::Maskable;
-use router_env::metrics::add_attributes;
 use serde_json::json;
 
 use crate::{
-    api::CaptureSyncMethod, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
+    api::{self, CaptureSyncMethod},
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    metrics, types, webhooks,
 };
+
+/// ConnectorV2 trait
+pub trait ConnectorV2:
+    Send
+    + api::refunds_v2::RefundV2
+    + api::payments_v2::PaymentV2
+    + api::ConnectorRedirectResponse
+    + webhooks::IncomingWebhook
+    + api::ConnectorAccessTokenV2
+    + api::disputes_v2::DisputeV2
+    + api::files_v2::FileUploadV2
+    + api::ConnectorTransactionId
+    + api::PayoutsV2
+    + api::ConnectorVerifyWebhookSourceV2
+    + api::FraudCheckV2
+    + api::ConnectorMandateRevokeV2
+    + api::authentication_v2::ExternalAuthenticationV2
+    + api::UnifiedAuthenticationServiceV2
+{
+}
+impl<
+        T: api::refunds_v2::RefundV2
+            + api::payments_v2::PaymentV2
+            + api::ConnectorRedirectResponse
+            + Send
+            + webhooks::IncomingWebhook
+            + api::ConnectorAccessTokenV2
+            + api::disputes_v2::DisputeV2
+            + api::files_v2::FileUploadV2
+            + api::ConnectorTransactionId
+            + api::PayoutsV2
+            + api::ConnectorVerifyWebhookSourceV2
+            + api::FraudCheckV2
+            + api::ConnectorMandateRevokeV2
+            + api::authentication_v2::ExternalAuthenticationV2
+            + api::UnifiedAuthenticationServiceV2,
+    > ConnectorV2 for T
+{
+}
+
+/// Alias for Box<&'static (dyn ConnectorV2 + Sync)>
+pub type BoxedConnectorV2 = Box<&'static (dyn ConnectorV2 + Sync)>;
 
 /// alias for Box of a type that implements trait ConnectorIntegrationV2
 pub type BoxedConnectorIntegrationV2<'a, Flow, ResourceCommonData, Req, Resp> =
@@ -40,7 +85,7 @@ where
 
 /// The new connector integration trait with an additional ResourceCommonData generic parameter
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
-    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + super::api::ConnectorCommon
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + api::ConnectorCommon
 {
     /// returns a vec of tuple of header key and value
     fn get_headers(
@@ -65,11 +110,8 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &add_attributes([("connector", self.id())]),
-        );
+        metrics::UNIMPLEMENTED_FLOW
+            .add(1, router_env::metric_attributes!(("connector", self.id())));
         Ok(String::new())
     }
 
@@ -162,6 +204,8 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 

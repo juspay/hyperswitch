@@ -18,7 +18,7 @@ pub struct CustomerRequest {
     pub merchant_id: id_type::MerchantId,
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
-    pub name: Option<Secret<String>>,
+    pub name: Option<common_utils::types::NameType>,
     /// The customer's email address
     #[schema(value_type = Option<String>, max_length = 255, example = "JonTest@test.com")]
     pub email: Option<pii::Email>,
@@ -71,6 +71,7 @@ impl CustomerRequest {
 /// The customer details
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CustomerRequest {
     /// The merchant identifier for the customer object.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -170,9 +171,20 @@ impl CustomerResponse {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct CustomerResponse {
+    /// Unique identifier for the customer
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub id: id_type::GlobalCustomerId,
     /// The identifier for the customer object
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_reference_id: Option<id_type::CustomerId>,
+    /// Connector specific customer reference ids
+    #[schema(value_type = Option<Object>, example = json!({"mca_hwySG2NtpzX0qr7toOy8": "cus_Rnm2pDKGyQi506"}))]
+    pub connector_customer_ids: Option<common_types::customers::ConnectorCustomerMap>,
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: crypto::OptionalEncryptableName,
@@ -204,65 +216,14 @@ pub struct CustomerResponse {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The identifier for the default payment method.
-    #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
-    pub default_payment_method_id: Option<String>,
-    /// Global id
-    pub id: String,
+    #[schema(value_type = Option<String>, max_length = 64, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl CustomerResponse {
     pub fn get_merchant_reference_id(&self) -> Option<id_type::CustomerId> {
         self.merchant_reference_id.clone()
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CustomerId {
-    pub customer_id: id_type::CustomerId,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl CustomerId {
-    pub fn get_merchant_reference_id(&self) -> id_type::CustomerId {
-        self.customer_id.clone()
-    }
-
-    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
-        Self { customer_id: cust }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct GlobalId {
-    pub id: String,
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl GlobalId {
-    pub fn new(id: String) -> Self {
-        Self { id }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CustomerId {
-    pub merchant_reference_id: id_type::CustomerId,
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl CustomerId {
-    pub fn get_merchant_reference_id(&self) -> id_type::CustomerId {
-        self.merchant_reference_id.clone()
-    }
-
-    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
-        Self {
-            merchant_reference_id: cust,
-        }
     }
 }
 
@@ -286,6 +247,14 @@ pub struct CustomerDeleteResponse {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct CustomerDeleteResponse {
+    /// Unique identifier for the customer
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub id: id_type::GlobalCustomerId,
     /// The identifier for the customer object
     #[schema(value_type = String, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_reference_id: Option<id_type::CustomerId>,
@@ -298,17 +267,12 @@ pub struct CustomerDeleteResponse {
     /// Whether payment methods deleted or not
     #[schema(example = false)]
     pub payment_methods_deleted: bool,
-    /// Global id
-    pub id: String,
 }
 
 /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CustomerUpdateRequest {
-    /// The identifier for the customer object
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
     /// The identifier for the Merchant Account
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     #[serde(skip)]
@@ -340,13 +304,6 @@ pub struct CustomerUpdateRequest {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerUpdateRequest {
-    pub fn get_merchant_reference_id(&self) -> Option<id_type::CustomerId> {
-        Some(
-            self.customer_id
-                .to_owned()
-                .unwrap_or_else(common_utils::generate_customer_id_of_default_length),
-        )
-    }
     pub fn get_address(&self) -> Option<payments::AddressDetails> {
         self.address.clone()
     }
@@ -354,6 +311,7 @@ impl CustomerUpdateRequest {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CustomerUpdateRequest {
     /// The merchant identifier for the customer object.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -385,8 +343,8 @@ pub struct CustomerUpdateRequest {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The unique identifier of the payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
-    pub default_payment_method_id: Option<String>,
+    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -404,15 +362,16 @@ impl CustomerUpdateRequest {
     }
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct UpdateCustomerId(String);
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[derive(Debug, Serialize)]
+pub struct CustomerUpdateRequestInternal {
+    pub customer_id: id_type::CustomerId,
+    pub request: CustomerUpdateRequest,
+}
 
-impl UpdateCustomerId {
-    pub fn get_global_id(&self) -> String {
-        self.0.clone()
-    }
-
-    pub fn new(id: String) -> Self {
-        Self(id)
-    }
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Serialize)]
+pub struct CustomerUpdateRequestInternal {
+    pub id: id_type::GlobalCustomerId,
+    pub request: CustomerUpdateRequest,
 }

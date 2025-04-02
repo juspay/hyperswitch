@@ -13,7 +13,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -133,6 +133,8 @@ impl ConnectorCommon for Plaid {
             reason: response.display_message,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -456,3 +458,5 @@ impl api::IncomingWebhook for Plaid {
         Err((errors::ConnectorError::WebhooksNotImplemented).into())
     }
 }
+
+impl ConnectorSpecifications for Plaid {}

@@ -79,11 +79,19 @@ crate::impl_try_from_cow_str_id_type!(PaymentReferenceId, "payment_reference_id"
 crate::impl_queryable_id_type!(PaymentReferenceId);
 crate::impl_to_sql_from_sql_id_type!(PaymentReferenceId);
 
+// This is implemented so that we can use payment id directly as attribute in metrics
 #[cfg(feature = "metrics")]
-/// This is implemented so that we can use payment id directly as attribute in metrics
 impl From<PaymentId> for router_env::opentelemetry::Value {
     fn from(val: PaymentId) -> Self {
-        let string_value = val.0 .0 .0;
-        Self::String(router_env::opentelemetry::StringValue::from(string_value))
+        Self::from(val.0 .0 .0)
+    }
+}
+
+impl std::str::FromStr for PaymentReferenceId {
+    type Err = error_stack::Report<ValidationError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cow_string = std::borrow::Cow::Owned(s.to_string());
+        Self::try_from(cow_string)
     }
 }

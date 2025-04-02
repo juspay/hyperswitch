@@ -133,8 +133,13 @@ impl DBOperation {
                         )
                         .await?,
                 )),
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
                 Updateable::RefundUpdate(a) => {
                     DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
+                }
+                #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+                Updateable::RefundUpdate(a) => {
+                    DBResult::Refund(Box::new(a.orig.update_with_id(conn, a.update_data).await?))
                 }
                 Updateable::AddressUpdate(a) => {
                     DBResult::Address(Box::new(a.orig.update(conn, a.update_data).await?))
@@ -179,7 +184,7 @@ impl DBOperation {
                 )),
                 #[cfg(all(feature = "v2", feature = "customer_v2"))]
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
-                    Customer::update_by_id(conn, cust.orig.id.clone(), cust.update_data).await?,
+                    Customer::update_by_id(conn, cust.orig.id, cust.update_data).await?,
                 )),
             },
         })
@@ -227,7 +232,7 @@ pub enum Insertable {
 pub enum Updateable {
     PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
     PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
-    RefundUpdate(RefundUpdateMems),
+    RefundUpdate(Box<RefundUpdateMems>),
     CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),

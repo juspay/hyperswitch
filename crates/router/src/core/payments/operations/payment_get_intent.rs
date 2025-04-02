@@ -10,6 +10,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations},
+        utils::ValidatePlatformMerchant,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
@@ -22,7 +23,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentGetIntent;
 
-impl<F: Send + Clone> Operation<F, PaymentsGetIntentRequest> for &PaymentGetIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsGetIntentRequest> for &PaymentGetIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -47,7 +48,7 @@ impl<F: Send + Clone> Operation<F, PaymentsGetIntentRequest> for &PaymentGetInte
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsGetIntentRequest> for PaymentGetIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsGetIntentRequest> for PaymentGetIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -76,7 +77,7 @@ type PaymentsGetIntentOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsGetIntentRequest, payments::PaymentIntentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetIntentRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetIntentRequest>
     for PaymentGetIntent
 {
     #[instrument(skip_all)]
@@ -89,6 +90,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -97,6 +99,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
             .find_payment_intent_by_id(key_manager_state, &request.id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        payment_intent
+            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
@@ -111,7 +116,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsGetIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsGetIntentRequest>
     for PaymentGetIntent
 {
     #[instrument(skip_all)]
@@ -137,7 +142,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsGetInten
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsGetIntentRequest, payments::PaymentIntentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, PaymentsGetIntentRequest, payments::PaymentIntentData<F>>
     for PaymentGetIntent
 {
     #[instrument(skip_all)]
@@ -155,7 +161,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsGetIntentRequest, payments::Pay
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsGetIntentRequest, payments::PaymentIntentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsGetIntentRequest, payments::PaymentIntentData<F>>
     for PaymentGetIntent
 {
     #[instrument(skip_all)]
@@ -184,6 +190,7 @@ impl<F: Clone + Send> Domain<F, PaymentsGetIntentRequest, payments::PaymentInten
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentsGetIntentOperation<'a, F>,
         Option<domain::PaymentMethodData>,

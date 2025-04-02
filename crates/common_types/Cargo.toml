@@ -1,0 +1,26 @@
+[package]
+name = "common_types"
+description = "Types shared across the request/response types and database types"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = []
+v1 = ["common_utils/v1"]
+v2 = ["common_utils/v2"]
+
+[dependencies]
+diesel = "2.2.3"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+strum = { version = "0.26", features = ["derive"] }
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
+
+common_enums = { version = "0.1.0", path = "../common_enums" }
+common_utils = { version = "0.1.0", path = "../common_utils"}
+euclid = { version = "0.1.0", path = "../euclid" }
+
+[lints]
+workspace = true

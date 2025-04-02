@@ -113,6 +113,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Giropay { .. }
                 | BankRedirectData::Ideal { .. }
@@ -235,22 +236,27 @@ impl TryFrom<&ConnectorAuthType> for VoltAuthType {
     }
 }
 
-impl From<VoltPaymentStatus> for enums::AttemptStatus {
-    fn from(item: VoltPaymentStatus) -> Self {
-        match item {
-            VoltPaymentStatus::Received | VoltPaymentStatus::Settled => Self::Charged,
-            VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => Self::Pending,
-            VoltPaymentStatus::NewPayment
-            | VoltPaymentStatus::BankRedirect
-            | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
-            VoltPaymentStatus::RefusedByBank
-            | VoltPaymentStatus::RefusedByRisk
-            | VoltPaymentStatus::NotReceived
-            | VoltPaymentStatus::ErrorAtBank
-            | VoltPaymentStatus::CancelledByUser
-            | VoltPaymentStatus::AbandonedByUser
-            | VoltPaymentStatus::Failed => Self::Failure,
+fn get_attempt_status(
+    (item, current_status): (VoltPaymentStatus, enums::AttemptStatus),
+) -> enums::AttemptStatus {
+    match item {
+        VoltPaymentStatus::Received | VoltPaymentStatus::Settled => enums::AttemptStatus::Charged,
+        VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => {
+            enums::AttemptStatus::Pending
         }
+        VoltPaymentStatus::NewPayment
+        | VoltPaymentStatus::BankRedirect
+        | VoltPaymentStatus::AwaitingCheckoutAuthorisation => {
+            enums::AttemptStatus::AuthenticationPending
+        }
+        VoltPaymentStatus::RefusedByBank
+        | VoltPaymentStatus::RefusedByRisk
+        | VoltPaymentStatus::NotReceived
+        | VoltPaymentStatus::ErrorAtBank
+        | VoltPaymentStatus::CancelledByUser
+        | VoltPaymentStatus::AbandonedByUser
+        | VoltPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        VoltPaymentStatus::Unknown => current_status,
     }
 }
 
@@ -284,7 +290,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -309,6 +315,7 @@ pub enum VoltPaymentStatus {
     AbandonedByUser,
     Failed,
     Settled,
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -335,7 +342,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         match item.response {
             VoltPaymentsResponseData::PsyncResponse(payment_response) => {
-                let status = enums::AttemptStatus::from(payment_response.status.clone());
+                let status =
+                    get_attempt_status((payment_response.status.clone(), item.data.status));
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
@@ -346,6 +354,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(payment_response.id),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -360,7 +370,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         })
                     },
                     ..item.data
@@ -387,6 +397,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(webhook_response.payment.clone()),
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -401,7 +413,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         })
                     },
                     ..item.data

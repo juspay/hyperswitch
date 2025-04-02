@@ -6,6 +6,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
+pub mod callback_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -28,8 +29,9 @@ pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
-pub mod payment_method;
+pub mod payment_method_session;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -38,18 +40,21 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+
+use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_utils::id_type;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+use hyperswitch_domain_models::{
+    payment_methods::PaymentMethodInterface,
+    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -95,6 +100,7 @@ pub trait StorageInterface:
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
+    + ephemeral_key::ClientSecretInterface
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface
@@ -103,15 +109,15 @@ pub trait StorageInterface:
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
-    + PaymentAttemptInterface
-    + PaymentIntentInterface
-    + payment_method::PaymentMethodInterface
+    + PaymentAttemptInterface<Error = StorageError>
+    + PaymentIntentInterface<Error = StorageError>
+    + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
-    + PayoutAttemptInterface
-    + PayoutsInterface
+    + PayoutAttemptInterface<Error = StorageError>
+    + PayoutsInterface<Error = StorageError>
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
@@ -121,17 +127,18 @@ pub trait StorageInterface:
     + RedisConnInterface
     + RequestIdStore
     + business_profile::ProfileInterface
-    + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
-    + role::RoleInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
+    + relay::RelayInterface
+    + user::theme::ThemeInterface
+    + payment_method_session::PaymentMethodsSessionInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -147,14 +154,26 @@ pub trait GlobalStorageInterface:
     + user::UserInterface
     + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
-    + user::theme::ThemeInterface
+    + role::RoleInterface
     + 'static
 {
 }
 
-pub trait CommonStorageInterface: StorageInterface + GlobalStorageInterface {
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send + Sync + dyn_clone::DynClone + OrganizationInterface + 'static
+{
+}
+
+pub trait CommonStorageInterface:
+    StorageInterface
+    + GlobalStorageInterface
+    + AccountsStorageInterface
+    + PaymentMethodsStorageInterface
+{
     fn get_storage_interface(&self) -> Box<dyn StorageInterface>;
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface>;
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -191,6 +210,8 @@ impl StorageInterface for Store {
 #[async_trait::async_trait]
 impl GlobalStorageInterface for Store {}
 
+impl AccountsStorageInterface for Store {}
+
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
@@ -205,11 +226,17 @@ impl StorageInterface for MockDb {
 #[async_trait::async_trait]
 impl GlobalStorageInterface for MockDb {}
 
+impl AccountsStorageInterface for MockDb {}
+
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -219,6 +246,9 @@ impl CommonStorageInterface for Store {
         Box::new(self.clone())
     }
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -260,6 +290,7 @@ where
 
 dyn_clone::clone_trait_object!(StorageInterface);
 dyn_clone::clone_trait_object!(GlobalStorageInterface);
+dyn_clone::clone_trait_object!(AccountsStorageInterface);
 
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {

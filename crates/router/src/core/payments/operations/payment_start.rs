@@ -30,7 +30,9 @@ type PaymentSessionOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -41,6 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
     > {
@@ -64,6 +67,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // TODO (#7195): Add platform merchant account validation once Merchant ID auth is solved
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
@@ -197,6 +202,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -212,7 +221,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -233,7 +242,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<F>>
     for PaymentStart
 {
     #[instrument(skip_all)]
@@ -304,6 +313,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -324,6 +334,7 @@ where
                 customer,
                 storage_scheme,
                 business_profile,
+                should_retry_with_pan,
             ))
             .await
         } else {

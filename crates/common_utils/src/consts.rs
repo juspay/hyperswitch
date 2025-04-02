@@ -142,3 +142,37 @@ pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 /// The number of bytes allocated for the hashed connector transaction ID.
 /// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
 pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
+
+/// Apple Pay validation url
+pub const APPLEPAY_VALIDATION_URL: &str =
+    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
+
+/// Request ID
+pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// Default Tenant ID for the `Global` tenant
+pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
+
+/// Default status of Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_THRESHOLD: i32 = 3;
+
+/// Default status of Guest User Card Blocking
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card Blocking for Guest Users
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD: i32 = 10;
+
+/// Default status of Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
+
+/// Default Card Testing Guard Redis Expiry in seconds
+pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// SOAP 1.1 Envelope Namespace
+pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";

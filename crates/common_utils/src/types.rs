@@ -6,13 +6,16 @@ pub mod authentication;
 /// Enum for Theme Lineage
 pub mod theme;
 
+/// types that are wrappers around primitive types
+pub mod primitive_wrappers;
+
 use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    ops::{Add, Mul, Sub},
+    ops::{Add, Deref, Mul, Sub},
     primitive::i64,
-    str::FromStr,
+    str::{FromStr, SplitWhitespace},
 };
 
 use common_enums::enums;
@@ -26,6 +29,11 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
+pub use primitive_wrappers::bool_wrappers::{
+    AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
+    RequestExtendedAuthorizationBool,
+};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -41,6 +49,7 @@ use crate::{
         self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
+    ext_traits::ConfigExt,
     fp_utils::when,
 };
 
@@ -199,6 +208,11 @@ impl SemanticVersion {
     /// returns major version number
     pub fn get_major(&self) -> u64 {
         self.0.major
+    }
+
+    /// returns minor version number
+    pub fn get_minor(&self) -> u64 {
+        self.0.minor
     }
     /// Constructs new SemanticVersion instance
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
@@ -1088,6 +1102,11 @@ pub(crate) enum LengthStringError {
     MinLengthViolated(u16),
 }
 
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> masking::SerializableSecret
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+}
+
 impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_LENGTH> {
     /// Generates new [MerchantReferenceId] from the given input string
     pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthStringError> {
@@ -1111,6 +1130,22 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_
     }
 }
 
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Display
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Default
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn default() -> Self {
+        Self(String::default())
+    }
+}
+
 impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 {
@@ -1120,6 +1155,13 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     {
         let deserialized_string = String::deserialize(deserializer)?;
         Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deref for LengthString<MAX_LENGTH, MIN_LENGTH> {
+    type Target = String;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -1351,6 +1393,173 @@ where
     }
 }
 
+#[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
+/// NewType for validating Names
+pub struct NameType(masking::Secret<LengthString<256, 0>>);
+
+impl TryFrom<String> for NameType {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(card_holder_name: String) -> Result<Self, Self::Error> {
+        for char in card_holder_name.chars() {
+            validate_character_in_card_holder_name(char)?;
+        }
+        let valid_length_name =
+            LengthString::<256, 0>::from(card_holder_name.into()).map_err(|_| {
+                report!(ValidationError::InvalidValue {
+                    message: "invalid length for name".to_string()
+                })
+            })?;
+        Ok(Self(masking::Secret::new(valid_length_name)))
+    }
+}
+
+impl TryFrom<masking::Secret<String>> for NameType {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(masked_card_holder_name: masking::Secret<String>) -> Result<Self, Self::Error> {
+        Self::try_from(masked_card_holder_name.expose())
+    }
+}
+
+impl NameType {
+    /// This function is used to create NameType from a string without any validation
+    pub fn get_unchecked(card_holder_name: String) -> Self {
+        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
+            card_holder_name,
+        )))
+    }
+
+    /// This function is used to create NameType from a secret of string without any validation
+    pub fn get_unchecked_from_secret(card_holder_name: masking::Secret<String>) -> Self {
+        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
+            card_holder_name.expose(),
+        )))
+    }
+
+    /// Trim the name
+    pub fn trim(&self) -> Self {
+        let value = self.0.peek().trim().to_string();
+        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
+            value,
+        )))
+    }
+
+    /// Check if the string is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.peek().is_empty()
+    }
+
+    /// Split the string by whitespace
+    pub fn split_whitespace(&self) -> SplitWhitespace<'_> {
+        self.0.peek().split_whitespace()
+    }
+
+    /// Split once at the first occurrence of the given character
+    pub fn split_once(&self, delimiter: char) -> Option<(&str, &str)> {
+        self.0.peek().split_once(delimiter)
+    }
+
+    /// Split once at the last occurrence of the given character
+    pub fn rsplit_once(&self, delimiter: char) -> Option<(&str, &str)> {
+        self.0.peek().rsplit_once(delimiter)
+    }
+}
+
+impl From<NameType> for String {
+    fn from(card_holder_name: NameType) -> Self {
+        (*(card_holder_name.0.peek())).to_string()
+    }
+}
+
+impl From<&NameType> for String {
+    fn from(card_holder_name: &NameType) -> Self {
+        (*(card_holder_name.0.peek())).to_string()
+    }
+}
+
+impl FromStr for NameType {
+    type Err = error_stack::Report<ValidationError>;
+
+    fn from_str(card_number: &str) -> Result<Self, Self::Err> {
+        Self::try_from(card_number.to_string())
+    }
+}
+
+impl From<NameType> for masking::Secret<String> {
+    fn from(card_holder_name: NameType) -> Self {
+        Self::new(card_holder_name.0.peek().to_string())
+    }
+}
+
+impl From<&NameType> for masking::Secret<String> {
+    fn from(card_holder_name: &NameType) -> Self {
+        Self::new(card_holder_name.0.peek().to_string())
+    }
+}
+
+fn validate_character_in_card_holder_name(
+    character: char,
+) -> Result<(), error_stack::Report<ValidationError>> {
+    if character.is_alphabetic()
+        || character == ' '
+        || character == '.'
+        || character == '-'
+        || character == '\''
+        || character == '~'
+        || character == '`'
+    {
+        Ok(())
+    } else {
+        Err(report!(ValidationError::InvalidValue {
+            message: format!("invalid character found in card holder name: {}", character)
+        }))
+    }
+}
+
+impl<'de> Deserialize<'de> for NameType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let card_holder_name = String::deserialize(deserializer)?;
+        card_holder_name
+            .try_into()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl ConfigExt for NameType {
+    fn is_empty_after_trim(&self) -> bool {
+        self.trim().is_empty()
+    }
+}
+
+#[cfg(test)]
+mod name_type_test {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    #[test]
+    fn test_card_holder_name() {
+        let valid_name = "Sakil Mostak".to_string();
+        // no panic
+        let card_holder_name = NameType::try_from("Sakil Mostak".to_string()).unwrap();
+
+        // will panic on unwrap
+        let invalid_card_holder_name = NameType::try_from("$@k!l M*$t@k".to_string());
+
+        assert_eq!(String::from(card_holder_name.clone()), valid_name);
+        assert!(invalid_card_holder_name.is_err());
+
+        let serialized = serde_json::to_string(&card_holder_name).unwrap();
+        assert_eq!(&serialized, "\"Sakil Mostak\"");
+
+        let derialized = serde_json::from_str::<NameType>(&serialized).unwrap();
+        assert_eq!(String::from(derialized), valid_name);
+
+        let invalid_deserialization = serde_json::from_str::<NameType>("$@k!l M*$t@k");
+        assert!(invalid_deserialization.is_err());
+    }
+}
+
 #[cfg(feature = "v2")]
 /// Browser information to be used for 3DS 2.0
 // If any of the field is PII, then we can make them as secret
@@ -1399,6 +1608,18 @@ pub struct BrowserInformation {
 
     /// User-agent of the browser
     pub user_agent: Option<String>,
+
+    /// The os type of the client device
+    pub os_type: Option<String>,
+
+    /// The os version of the client device
+    pub os_version: Option<String>,
+
+    /// The device model of the client
+    pub device_model: Option<String>,
+
+    /// Accept-language of the browser
+    pub accept_language: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1408,7 +1629,7 @@ crate::impl_to_sql_from_sql_json!(BrowserInformation);
 /// In case connector's use an identifier whose length exceeds 128 characters,
 /// the hash value of such identifiers will be stored as connector_transaction_id.
 /// The actual connector's identifier will be stored in a separate column -
-/// connector_transaction_data or something with a similar name.
+/// processor_transaction_data or something with a similar name.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub enum ConnectorTransactionId {
@@ -1426,7 +1647,7 @@ impl ConnectorTransactionId {
         }
     }
 
-    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and connector_transaction_data
+    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and processor_transaction_data
     pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
         let txn_id = Self::from(src.clone());
         match txn_id {
@@ -1444,10 +1665,10 @@ impl ConnectorTransactionId {
             (Self::TxnId(id), _) => Ok(id),
             (Self::HashedData(_), Some(id)) => Ok(id),
             (Self::HashedData(id), None) => Err(report!(ValidationError::InvalidValue {
-                message: "connector_transaction_data is empty for HashedData variant".to_string(),
+                message: "processor_transaction_data is empty for HashedData variant".to_string(),
             })
             .attach_printable(format!(
-                "connector_transaction_data is empty for connector_transaction_id {}",
+                "processor_transaction_data is empty for connector_transaction_id {}",
                 id
             ))),
         }

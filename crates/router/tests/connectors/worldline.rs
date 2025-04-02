@@ -48,8 +48,12 @@ impl WorldlineTest {
                 Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
-                        first_name: Some(Secret::new(String::from("John"))),
-                        last_name: Some(Secret::new(String::from("Dough"))),
+                        first_name: Some(common_utils::types::NameType::get_unchecked(
+                            String::from("John"),
+                        )),
+                        last_name: Some(common_utils::types::NameType::get_unchecked(
+                            String::from("Dough"),
+                        )),
                         ..Default::default()
                     }),
                     phone: None,
@@ -82,7 +86,12 @@ impl WorldlineTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(Secret::new("nick_name".into())),
+                nick_name: Some(common_utils::types::NameType::get_unchecked(
+                    "nick_name".to_string(),
+                )),
+                card_holder_name: Some(common_utils::types::NameType::get_unchecked(
+                    "card holder name".to_string(),
+                )),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

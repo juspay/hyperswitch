@@ -17,7 +17,6 @@ use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
-    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -134,6 +133,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
+        is_overall_delivery_successful: Some(false),
     };
 
     let event_insert_result = state
@@ -292,12 +292,8 @@ async fn trigger_webhook_to_merchant(
         .await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            business_profile.merchant_id.get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, business_profile.merchant_id.clone())),
     );
     logger::debug!(outgoing_webhook_response=?response);
 
@@ -317,7 +313,7 @@ async fn trigger_webhook_to_merchant(
             }
             Ok(response) => {
                 let status_code = response.status();
-                let _updated_event = update_event_in_storage(
+                let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
@@ -327,6 +323,14 @@ async fn trigger_webhook_to_merchant(
                 .await?;
 
                 if status_code.is_success() {
+                    update_overall_delivery_status_in_storage(
+                        state.clone(),
+                        merchant_key_store.clone(),
+                        &business_profile.merchant_id,
+                        updated_event,
+                    )
+                    .await?;
+
                     success_response_handler(
                         state.clone(),
                         &business_profile.merchant_id,
@@ -367,7 +371,7 @@ async fn trigger_webhook_to_merchant(
                 }
                 Ok(response) => {
                     let status_code = response.status();
-                    let _updated_event = update_event_in_storage(
+                    let updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
@@ -377,6 +381,14 @@ async fn trigger_webhook_to_merchant(
                     .await?;
 
                     if status_code.is_success() {
+                        update_overall_delivery_status_in_storage(
+                            state.clone(),
+                            merchant_key_store.clone(),
+                            &business_profile.merchant_id,
+                            updated_event,
+                        )
+                        .await?;
+
                         success_response_handler(
                             state.clone(),
                             &business_profile.merchant_id,
@@ -504,6 +516,7 @@ async fn raise_webhooks_analytics_event(
     });
 
     let webhook_event = OutgoingWebhookEvent::new(
+        state.tenant.tenant_id.clone(),
         merchant_id,
         event_id,
         event.event_type,
@@ -557,25 +570,20 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        common_types::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 
+    let attributes = router_env::metric_attributes!(("flow", "OutgoingWebhookRetry"));
     match db.insert_process(process_tracker_entry).await {
         Ok(process_tracker) => {
-            crate::routes::metrics::TASKS_ADDED_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("flow", "OutgoingWebhookRetry")]),
-            );
+            crate::routes::metrics::TASKS_ADDED_COUNT.add(1, attributes);
             Ok(process_tracker)
         }
         Err(error) => {
-            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("flow", "OutgoingWebhookRetry")]),
-            );
+            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(1, attributes);
             Err(error)
         }
     }
@@ -846,14 +854,48 @@ async fn update_event_in_storage(
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
 
+async fn update_overall_delivery_status_in_storage(
+    state: SessionState,
+    merchant_key_store: domain::MerchantKeyStore,
+    merchant_id: &common_utils::id_type::MerchantId,
+    updated_event: domain::Event,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let key_manager_state = &(&state).into();
+
+    let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
+        is_overall_delivery_successful: true,
+    };
+
+    let initial_attempt_id = updated_event.initial_attempt_id.as_ref();
+    let delivery_attempt = updated_event.delivery_attempt;
+
+    if let Some((
+        initial_attempt_id,
+        enums::WebhookDeliveryAttempt::InitialAttempt
+        | enums::WebhookDeliveryAttempt::AutomaticRetry,
+    )) = initial_attempt_id.zip(delivery_attempt)
+    {
+        state
+            .store
+            .update_event_by_merchant_id_event_id(
+                key_manager_state,
+                merchant_id,
+                initial_attempt_id.as_str(),
+                update_overall_delivery_status,
+                &merchant_key_store,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+            .attach_printable("Failed to update initial delivery attempt")?;
+    }
+
+    Ok(())
+}
+
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
     metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_id.get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
     )
 }
 
@@ -887,12 +929,8 @@ async fn error_response_handler(
     schedule_webhook_retry: ScheduleWebhookRetry,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_id.get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
     );
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);

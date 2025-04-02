@@ -29,7 +29,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request::Mask, ConnectorValidation},
+    services::{self, request::Mask, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -99,6 +99,8 @@ impl ConnectorCommon for Adyenplatform {
             reason: response.detail,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -461,3 +463,5 @@ impl api::IncomingWebhook for Adyenplatform {
         }
     }
 }
+
+impl ConnectorSpecifications for Adyenplatform {}

@@ -3,7 +3,7 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 
 use crate::{
     configs::settings,
@@ -160,9 +160,8 @@ pub async fn create_api_key(
     );
 
     metrics::API_KEY_CREATED.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("merchant", merchant_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("merchant", merchant_id.clone())),
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
@@ -229,7 +228,9 @@ pub async fn add_api_key_expiry_task(
         API_KEY_EXPIRY_RUNNER,
         [API_KEY_EXPIRY_TAG],
         api_key_expiry_tracker,
+        None,
         schedule_time,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct API key expiry process tracker task")?;
@@ -244,11 +245,7 @@ pub async fn add_api_key_expiry_task(
                 api_key.key_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("flow", "ApiKeyExpiry")]),
-    );
+    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ApiKeyExpiry")));
 
     Ok(())
 }
@@ -456,7 +453,7 @@ pub async fn revoke_api_key(
         );
     }
 
-    metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::API_KEY_REVOKED.add(1, &[]);
 
     #[cfg(feature = "email")]
     {

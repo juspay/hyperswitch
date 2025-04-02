@@ -71,6 +71,7 @@ pub enum PayLaterType {
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
     GooglePay,
+    AmazonPay,
     ApplePay,
     Paypal,
     AliPay,
@@ -146,6 +147,7 @@ pub enum BankRedirectType {
     Giropay,
     Ideal,
     Sofort,
+    Eft,
     Eps,
     BancontactCard,
     Blik,
@@ -199,7 +201,7 @@ pub enum OpenBankingType {
 pub enum BankTransferType {
     Multibanco,
     Ach,
-    Sepa,
+    SepaBankTransfer,
     Bacs,
     BcaBankTransfer,
     BniVa,
@@ -211,6 +213,7 @@ pub enum BankTransferType {
     Pix,
     Pse,
     LocalBankTransfer,
+    InstantBankTransfer,
 }
 
 #[derive(

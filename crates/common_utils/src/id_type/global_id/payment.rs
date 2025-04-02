@@ -1,12 +1,15 @@
+use common_enums::enums;
 use error_stack::ResultExt;
 
 use crate::{errors, generate_id_with_default_len, generate_time_ordered_id_without_prefix, types};
 
 crate::global_id_type!(
     GlobalPaymentId,
-    "A global id that can be used to identify a payment
-    The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`
-    example - cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p"
+    "A global id that can be used to identify a payment.
+
+The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
+
+Example: `cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 );
 
 // Database related implementations so that this field can be used directly in the database tables
@@ -28,6 +31,15 @@ impl GlobalPaymentId {
     /// Generate a new ClientId from self
     pub fn generate_client_secret(&self) -> types::ClientSecret {
         types::ClientSecret::new(self.clone(), generate_time_ordered_id_without_prefix())
+    }
+
+    /// Generate the id for revenue recovery Execute PT workflow
+    pub fn get_execute_revenue_recovery_id(
+        &self,
+        task: &str,
+        runner: enums::ProcessTrackerRunner,
+    ) -> String {
+        format!("{task}_{runner}_{}", self.get_string_repr())
     }
 }
 
@@ -64,6 +76,15 @@ impl GlobalAttemptId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+
+    /// Generate the id for Revenue Recovery Psync PT workflow
+    pub fn get_psync_revenue_recovery_id(
+        &self,
+        task: &str,
+        runner: enums::ProcessTrackerRunner,
+    ) -> String {
+        format!("{runner}_{task}_{}", self.get_string_repr())
     }
 }
 

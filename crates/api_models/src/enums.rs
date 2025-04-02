@@ -48,10 +48,22 @@ pub enum PayoutConnectors {
     Adyenplatform,
     Cybersource,
     Ebanx,
+    Nomupay,
     Payone,
     Paypal,
     Stripe,
     Wise,
+}
+
+#[cfg(feature = "v2")]
+/// Whether active attempt is to be set/unset
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum UpdateActiveAttempt {
+    /// Request to set the active attempt id
+    #[schema(value_type = Option<String>)]
+    Set(common_utils::id_type::GlobalAttemptId),
+    /// To unset the active attempt id
+    Unset,
 }
 
 #[cfg(feature = "payouts")]
@@ -62,6 +74,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -78,6 +91,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -95,6 +109,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
@@ -145,6 +160,12 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
+#[derive(Clone, Debug, serde::Serialize, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingConnectors {
+    Chargebee,
+}
+
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
@@ -190,6 +211,7 @@ pub enum FieldType {
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserCardNetwork,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
@@ -211,6 +233,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
     UserBankAccountNumber,
@@ -223,6 +246,9 @@ pub enum FieldType {
     UserCpf,
     UserCnpj,
     UserIban,
+    UserBsbNumber,
+    UserBankSortCode,
+    UserBankRoutingNumber,
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
@@ -398,50 +424,9 @@ pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
     TaxConnectors::from_str(connector_name).ok()
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-    Hash,
-)]
-pub enum PaymentChargeType {
-    #[serde(untagged)]
-    Stripe(StripeChargeType),
+pub fn convert_billing_connector(connector_name: &str) -> Option<BillingConnectors> {
+    BillingConnectors::from_str(connector_name).ok()
 }
-
-impl Default for PaymentChargeType {
-    fn default() -> Self {
-        Self::Stripe(StripeChargeType::default())
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Hash,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum StripeChargeType {
-    #[default]
-    Direct,
-    Destination,
-}
-
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()

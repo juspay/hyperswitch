@@ -31,3 +31,11 @@ impl FromStr for ProfileId {
         Self::try_from(cow_string)
     }
 }
+
+// This is implemented so that we can use profile id directly as attribute in metrics
+#[cfg(feature = "metrics")]
+impl From<ProfileId> for router_env::opentelemetry::Value {
+    fn from(val: ProfileId) -> Self {
+        Self::from(val.0 .0 .0)
+    }
+}

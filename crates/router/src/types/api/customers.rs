@@ -1,9 +1,7 @@
 use api_models::customers;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub use api_models::customers::GlobalId;
 pub use api_models::customers::{
-    CustomerDeleteResponse, CustomerId, CustomerListRequest, CustomerRequest,
-    CustomerUpdateRequest, UpdateCustomerId,
+    CustomerDeleteResponse, CustomerListRequest, CustomerRequest, CustomerUpdateRequest,
+    CustomerUpdateRequestInternal,
 };
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use hyperswitch_domain_models::customer;
@@ -50,7 +48,9 @@ impl ForeignFrom<(domain::Customer, Option<payments::AddressDetails>)> for Custo
 impl ForeignFrom<customer::Customer> for CustomerResponse {
     fn foreign_from(cust: domain::Customer) -> Self {
         customers::CustomerResponse {
+            id: cust.id,
             merchant_reference_id: cust.merchant_reference_id,
+            connector_customer_ids: cust.connector_customer,
             name: cust.name,
             email: cust.email,
             phone: cust.phone,
@@ -61,7 +61,6 @@ impl ForeignFrom<customer::Customer> for CustomerResponse {
             default_billing_address: None,
             default_shipping_address: None,
             default_payment_method_id: cust.default_payment_method_id,
-            id: cust.id,
         }
         .into()
     }

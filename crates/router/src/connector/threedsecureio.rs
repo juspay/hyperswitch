@@ -15,7 +15,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -122,6 +122,8 @@ impl ConnectorCommon for Threedsecureio {
                     reason: response.error_description,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Err(err) => {
@@ -530,3 +532,5 @@ impl
     > for Threedsecureio
 {
 }
+
+impl ConnectorSpecifications for Threedsecureio {}

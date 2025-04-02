@@ -28,7 +28,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_CODE,
     errors,
@@ -38,7 +41,7 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Mask, PeekInterface, Secret, WithType};
 use ring::hmac;
-use router_env::{logger, metrics::add_attributes};
+use router_env::logger;
 use time::OffsetDateTime;
 use transformers as boku;
 
@@ -160,6 +163,8 @@ impl ConnectorCommon for Boku {
                     reason: response.reason,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 })
             }
             Err(_) => get_xml_deserialized(res, event_builder),
@@ -168,9 +173,10 @@ impl ConnectorCommon for Boku {
 }
 
 impl ConnectorValidation for Boku {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -678,11 +684,8 @@ fn get_xml_deserialized(
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", "boku")]),
-    );
+    metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", "boku")));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -704,7 +707,11 @@ fn get_xml_deserialized(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
 }
+
+impl ConnectorSpecifications for Boku {}

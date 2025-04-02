@@ -175,6 +175,8 @@ impl<F, T>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(payment_response.id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             let redirection_data = item
@@ -194,7 +196,7 @@ impl<F, T>
                     .custom_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
         match amount_captured_in_minor_units {

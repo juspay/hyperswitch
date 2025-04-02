@@ -16,7 +16,6 @@ use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
     logger,
-    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -48,7 +47,7 @@ pub enum TaskType {
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    ex_rates: &ExchangeRates,
+    ex_rates: &Option<ExchangeRates>,
     auth: &AuthInfo,
     req: GetRefundMetricRequest,
 ) -> AnalyticsResult<RefundsMetricsResponse<RefundMetricsBucketResponse>> {
@@ -121,14 +120,14 @@ pub async fn get_metrics(
         match task_type {
             TaskType::MetricTask(metric, data) => {
                 let data = data?;
-                let attributes = &add_attributes([
+                let attributes = router_env::metric_attributes!(
                     ("metric_type", metric.to_string()),
                     ("source", pool.to_string()),
-                ]);
+                );
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 
@@ -168,13 +167,13 @@ pub async fn get_metrics(
             }
             TaskType::DistributionTask(distribution, data) => {
                 let data = data?;
-                let attributes = &add_attributes([
+                let attributes = router_env::metric_attributes!(
                     ("distribution_type", distribution.to_string()),
                     ("source", pool.to_string()),
-                ]);
+                );
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 
@@ -218,22 +217,25 @@ pub async fn get_metrics(
                 total += total_count;
             }
             if let Some(amount) = collected_values.refund_processed_amount {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.refund_processed_amount_in_usd = amount_in_usd;
                 total_refund_processed_amount += amount;
                 total_refund_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
@@ -262,7 +264,11 @@ pub async fn get_metrics(
         meta_data: [RefundsAnalyticsMetadata {
             total_refund_success_rate,
             total_refund_processed_amount: Some(total_refund_processed_amount),
-            total_refund_processed_amount_in_usd: Some(total_refund_processed_amount_in_usd),
+            total_refund_processed_amount_in_usd: if ex_rates.is_some() {
+                Some(total_refund_processed_amount_in_usd)
+            } else {
+                None
+            },
             total_refund_processed_count: Some(total_refund_processed_count),
             total_refund_reason_count: Some(total_refund_reason_count),
             total_refund_error_message_count: Some(total_refund_error_message_count),

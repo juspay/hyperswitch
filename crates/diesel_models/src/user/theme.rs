@@ -1,5 +1,8 @@
 use common_enums::EntityType;
-use common_utils::{date_time, id_type, types::theme::ThemeLineage};
+use common_utils::{
+    date_time, id_type,
+    types::theme::{EmailThemeConfig, ThemeLineage},
+};
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -17,6 +20,11 @@ pub struct Theme {
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
     pub theme_name: String,
+    pub email_primary_color: String,
+    pub email_foreground_color: String,
+    pub email_background_color: String,
+    pub email_entity_name: String,
+    pub email_entity_logo_url: String,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -31,10 +39,20 @@ pub struct ThemeNew {
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
     pub theme_name: String,
+    pub email_primary_color: String,
+    pub email_foreground_color: String,
+    pub email_background_color: String,
+    pub email_entity_name: String,
+    pub email_entity_logo_url: String,
 }
 
 impl ThemeNew {
-    pub fn new(theme_id: String, theme_name: String, lineage: ThemeLineage) -> Self {
+    pub fn new(
+        theme_id: String,
+        theme_name: String,
+        lineage: ThemeLineage,
+        email_config: EmailThemeConfig,
+    ) -> Self {
         let now = date_time::now();
 
         Self {
@@ -47,6 +65,23 @@ impl ThemeNew {
             entity_type: lineage.entity_type(),
             created_at: now,
             last_modified_at: now,
+            email_primary_color: email_config.primary_color,
+            email_foreground_color: email_config.foreground_color,
+            email_background_color: email_config.background_color,
+            email_entity_name: email_config.entity_name,
+            email_entity_logo_url: email_config.entity_logo_url,
+        }
+    }
+}
+
+impl Theme {
+    pub fn email_config(&self) -> EmailThemeConfig {
+        EmailThemeConfig {
+            primary_color: self.email_primary_color.clone(),
+            foreground_color: self.email_foreground_color.clone(),
+            background_color: self.email_background_color.clone(),
+            entity_name: self.email_entity_name.clone(),
+            entity_logo_url: self.email_entity_logo_url.clone(),
         }
     }
 }
