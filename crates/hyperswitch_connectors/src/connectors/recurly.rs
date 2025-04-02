@@ -7,6 +7,13 @@ use common_utils::{
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    revenue_recovery, router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    types as recovery_router_data_types,
+};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -24,14 +31,6 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
-};
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery as recovery_router_flows,
-    router_request_types::revenue_recovery as recovery_request_types,
-    router_response_types::revenue_recovery as recovery_response_types,
-    types as recovery_router_data_types,
-    revenue_recovery
 };
 use hyperswitch_interfaces::{
     api::{
@@ -106,7 +105,6 @@ impl api::PaymentToken for Recurly {}
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::BillingConnectorPaymentsSyncIntegration for Recurly {}
-
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Recurly
@@ -593,9 +591,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Recurly {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
-    recovery_router_flows::BillingConnectorPaymentsSync,
-    recovery_request_types::BillingConnectorPaymentsSyncRequest,
-    recovery_response_types::BillingConnectorPaymentsSyncResponse,
+        recovery_router_flows::BillingConnectorPaymentsSync,
+        recovery_request_types::BillingConnectorPaymentsSyncRequest,
+        recovery_response_types::BillingConnectorPaymentsSyncResponse,
     > for Recurly
 {
     fn get_headers(
@@ -645,7 +643,10 @@ impl
         data: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<recovery_router_data_types::BillingConnectorPaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<
+        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
+        errors::ConnectorError,
+    > {
         let response: RecurlyRecoveryDetailsData = res
             .response
             .parse_struct::<RecurlyRecoveryDetailsData>("RecurlyRecoveryDetailsData")
@@ -654,11 +655,13 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        recovery_router_data_types::BillingConnectorPaymentsSyncRouterData::try_from(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+        )
     }
 
     fn get_error_response(
@@ -668,15 +671,14 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
-    recovery_router_flows::RecoveryRecordBack,
-    recovery_request_types::RevenueRecoveryRecordBackRequest,
-    recovery_response_types::RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::RecoveryRecordBack,
+        recovery_request_types::RevenueRecoveryRecordBackRequest,
+        recovery_response_types::RevenueRecoveryRecordBackResponse,
     > for Recurly
 {
     fn get_headers(
@@ -739,7 +741,10 @@ impl
         data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<recovery_router_data_types::RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
+    ) -> CustomResult<
+        recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        errors::ConnectorError,
+    > {
         let response: recurly::RecurlyRecordBackResponse = res
             .response
             .parse_struct("recurly RecurlyRecordBackResponse")

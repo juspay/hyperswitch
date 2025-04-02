@@ -113,7 +113,7 @@ impl TryFrom<&ConnectorAuthType> for RecurlyAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq,Copy)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum RecurlyPaymentStatus {
     Succeeded,
@@ -183,7 +183,7 @@ impl<F> TryFrom<&RecurlyRouterData<&RefundsRouterData<F>>> for RecurlyRefundRequ
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone,Copy)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone, Copy)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -255,7 +255,7 @@ pub struct RecurlyWebhookBody {
     pub event_type: RecurlyPaymentEventType,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum RecurlyPaymentEventType {
     #[serde(rename = "succeeded")]
     PaymentSucceeded,
@@ -272,22 +272,21 @@ impl RecurlyWebhookBody {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum RecurlyChargeStatus {
     #[serde(rename = "success")]
     Succeeded,
     #[serde(rename = "declined")]
     Failed,
 }
-#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum RecurlyFundingTypes {
     Credit,
     Debit,
 }
 
-
-#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum RecurlyPaymentObject {
     CreditCard,
@@ -335,20 +334,20 @@ pub struct PaymentGateway {
 impl
     TryFrom<
         ResponseRouterData<
-        recovery_router_flows::BillingConnectorPaymentsSync,
-        RecurlyRecoveryDetailsData,
-        recovery_request_types::BillingConnectorPaymentsSyncRequest,
-        recovery_response_types::BillingConnectorPaymentsSyncResponse,
+            recovery_router_flows::BillingConnectorPaymentsSync,
+            RecurlyRecoveryDetailsData,
+            recovery_request_types::BillingConnectorPaymentsSyncRequest,
+            recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-        recovery_router_flows::BillingConnectorPaymentsSync,
-        RecurlyRecoveryDetailsData,
-        recovery_request_types::BillingConnectorPaymentsSyncRequest,
-        recovery_response_types::BillingConnectorPaymentsSyncResponse,
+            recovery_router_flows::BillingConnectorPaymentsSync,
+            RecurlyRecoveryDetailsData,
+            recovery_request_types::BillingConnectorPaymentsSyncRequest,
+            recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id =
@@ -357,27 +356,31 @@ impl
         let connector_transaction_id = Some(ConnectorTransactionId::from(item.response.id));
 
         Ok(Self {
-            response: Ok(recovery_response_types::BillingConnectorPaymentsSyncResponse {
-                status: item.response.status.into(),
-                amount: utils::convert_back_amount_to_minor_units(
-                    &FloatMajorUnitForConnector,
-                    item.response.amount,
-                    item.response.currency,
-                )?,
-                currency: item.response.currency,
-                merchant_reference_id,
-                connector_account_reference_id: item.response.payment_gateway.id,
-                connector_transaction_id,
-                error_code: item.response.status_code,
-                error_message: item.response.status_message,
-                processor_payment_method_token: item.response.payment_method.gateway_token,
-                connector_customer_id: item.response.account.id,
-                transaction_created_at: Some(item.response.created_at),
-                payment_method_sub_type: common_enums::PaymentMethodType::from(
-                    item.response.payment_method.funding_source,
-                ),
-                payment_method_type: common_enums::PaymentMethod::from(item.response.payment_method.object),
-            }),
+            response: Ok(
+                recovery_response_types::BillingConnectorPaymentsSyncResponse {
+                    status: item.response.status.into(),
+                    amount: utils::convert_back_amount_to_minor_units(
+                        &FloatMajorUnitForConnector,
+                        item.response.amount,
+                        item.response.currency,
+                    )?,
+                    currency: item.response.currency,
+                    merchant_reference_id,
+                    connector_account_reference_id: item.response.payment_gateway.id,
+                    connector_transaction_id,
+                    error_code: item.response.status_code,
+                    error_message: item.response.status_message,
+                    processor_payment_method_token: item.response.payment_method.gateway_token,
+                    connector_customer_id: item.response.account.id,
+                    transaction_created_at: Some(item.response.created_at),
+                    payment_method_sub_type: common_enums::PaymentMethodType::from(
+                        item.response.payment_method.funding_source,
+                    ),
+                    payment_method_type: common_enums::PaymentMethod::from(
+                        item.response.payment_method.object,
+                    ),
+                },
+            ),
             ..item.data
         })
     }
@@ -466,20 +469,20 @@ pub struct RecurlyRecordBackResponse {
 impl
     TryFrom<
         ResponseRouterData<
-        recovery_router_flows::RecoveryRecordBack,
-        RecurlyRecordBackResponse,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_router_flows::RecoveryRecordBack,
+            RecurlyRecordBackResponse,
+            recovery_request_types::RevenueRecoveryRecordBackRequest,
+            recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
     > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-        recovery_router_flows::RecoveryRecordBack,
-        RecurlyRecordBackResponse,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_router_flows::RecoveryRecordBack,
+            RecurlyRecordBackResponse,
+            recovery_request_types::RevenueRecoveryRecordBackRequest,
+            recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id = item.response.id;
