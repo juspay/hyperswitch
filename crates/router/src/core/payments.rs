@@ -6024,7 +6024,7 @@ pub async fn add_process_sync_task(
         tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 
@@ -7933,6 +7933,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                     authentication_details.three_ds_requestor_url.clone(),
                     &merchant_connector_account,
                     &authentication_connector,
+                    payment_intent.payment_id,
                 )
                 .await?;
             let authentication = external_authentication_update_trackers(

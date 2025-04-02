@@ -135,10 +135,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             bank_code: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.bank_code.clone()),
-            nick_name: card_from_locker
-                .nick_name
-                .as_ref()
-                .map(|nick_name| Secret::new(nick_name.clone())),
+            nick_name: card_from_locker.nick_name.clone(),
             card_holder_name: card_from_locker.name_on_card.clone(),
             card_issuer: optional_card_info
                 .as_ref()

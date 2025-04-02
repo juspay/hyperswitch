@@ -530,8 +530,8 @@ fn build_bill_to(
                 });
 
                 BillTo {
-                    first_name: addr.first_name.clone(),
-                    last_name: addr.last_name.clone(),
+                    first_name: addr.first_name.clone().map(From::from),
+                    last_name: addr.last_name.clone().map(From::from),
                     address1: addr.line1.clone(),
                     locality: addr.city.clone(),
                     administrative_area,
@@ -1756,6 +1756,8 @@ fn convert_to_additional_payment_method_connector_response(
     AdditionalPaymentMethodConnectorResponse::Card {
         authentication_data,
         payment_checks,
+        card_network: None,
+        domestic_network: None,
     }
 }
 

@@ -1,12 +1,19 @@
 use std::collections::HashMap;
 
 use common_enums::{enums, CardNetwork};
-use common_utils::{request::Method, types::StringMajorUnit};
+use common_utils::{
+    pii::{self},
+    request::Method,
+    types::StringMajorUnit,
+};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::{BrowserInformation, PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -26,7 +33,7 @@ use crate::{
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     unimplemented_payment_method,
-    utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData as _},
+    utils::{self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub struct HipayRouterData<T> {
@@ -52,6 +59,20 @@ pub enum Operation {
     Cancel,
 }
 #[derive(Debug, Serialize, Deserialize)]
+pub struct HipayBrowserInfo {
+    java_enabled: Option<bool>,
+    javascript_enabled: Option<bool>,
+    ipaddr: Option<std::net::IpAddr>,
+    http_accept: String,
+    http_user_agent: Option<String>,
+    language: Option<String>,
+    color_depth: Option<u8>,
+    screen_height: Option<u32>,
+    screen_width: Option<u32>,
+    timezone: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct HipayPaymentsRequest {
     operation: Operation,
     authentication_indicator: u8,
@@ -66,12 +87,53 @@ pub struct HipayPaymentsRequest {
     cancel_url: Option<String>,
     accept_url: Option<String>,
     notify_url: Option<String>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    three_ds_data: Option<ThreeDSPaymentData>,
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreeDSPaymentData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firstname: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub streetaddress: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zipcode: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_info: Option<HipayBrowserInfo>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HipayMaintenanceRequest {
     operation: Operation,
     currency: Option<enums::Currency>,
     amount: Option<StringMajorUnit>,
+}
+impl From<BrowserInformation> for HipayBrowserInfo {
+    fn from(browser_info: BrowserInformation) -> Self {
+        Self {
+            java_enabled: browser_info.java_enabled,
+            javascript_enabled: browser_info.java_script_enabled,
+            ipaddr: browser_info.ip_address,
+            http_accept: "*/*".to_string(),
+            http_user_agent: browser_info.user_agent,
+            language: browser_info.language,
+            color_depth: browser_info.color_depth,
+            screen_height: browser_info.screen_height,
+            screen_width: browser_info.screen_width,
+            timezone: browser_info.time_zone,
+        }
+    }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -84,48 +146,70 @@ pub struct HiPayTokenRequest {
 }
 impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(item: &HipayRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let (domestic_card_network, domestic_network) = item
+            .router_data
+            .connector_response
+            .clone()
+            .and_then(|response| match response.additional_payment_method_data {
+                Some(AdditionalPaymentMethodConnectorResponse::Card {
+                    card_network,
+                    domestic_network,
+                    ..
+                }) => Some((card_network, domestic_network)),
+                _ => None,
+            })
+            .unwrap_or_default();
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Ok(Self {
-                operation: match item.router_data.request.is_auto_capture()? {
-                    true => Operation::Sale,
-                    false => Operation::Authorization,
+                operation: if item.router_data.request.is_auto_capture()? {
+                    Operation::Sale
+                } else {
+                    Operation::Authorization
                 },
-                authentication_indicator: match item.router_data.is_three_ds() {
-                    true => 2,
-                    false => 0,
-                },
+                authentication_indicator: if item.router_data.is_three_ds() { 2 } else { 0 },
                 cardtoken: match item.router_data.get_payment_method_token()? {
                     PaymentMethodToken::Token(token) => token,
                     PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Apple Pay", "Hipay"))?
+                        return Err(unimplemented_payment_method!("Apple Pay", "Hipay").into());
                     }
                     PaymentMethodToken::PazeDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Paze", "Hipay"))?
+                        return Err(unimplemented_payment_method!("Paze", "Hipay").into());
                     }
                     PaymentMethodToken::GooglePayDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Google Pay", "Hipay"))?
+                        return Err(unimplemented_payment_method!("Google Pay", "Hipay").into());
                     }
                 },
                 orderid: item.router_data.connector_request_reference_id.clone(),
                 currency: item.router_data.request.currency,
-                payment_product: match req_card.card_network {
-                    Some(CardNetwork::Visa) => "visa".to_string(),
-                    Some(CardNetwork::Mastercard) => "mastercard".to_string(),
-                    Some(CardNetwork::AmericanExpress) => "american-express".to_string(),
-                    Some(CardNetwork::JCB) => "jcb".to_string(),
-                    Some(CardNetwork::DinersClub) => "diners".to_string(),
-                    Some(CardNetwork::Discover) => "discover".to_string(),
-                    Some(CardNetwork::CartesBancaires) => "cb".to_string(),
-                    Some(CardNetwork::UnionPay) => "unionpay".to_string(),
-                    Some(CardNetwork::Interac) => "interac".to_string(),
-                    Some(CardNetwork::RuPay) => "rupay".to_string(),
-                    Some(CardNetwork::Maestro) => "maestro".to_string(),
-                    Some(CardNetwork::Star)
-                    | Some(CardNetwork::Accel)
-                    | Some(CardNetwork::Pulse)
-                    | Some(CardNetwork::Nyce)
-                    | None => "".to_string(),
+                payment_product: match (domestic_network, domestic_card_network.as_deref()) {
+                    (Some(domestic), _) => domestic,
+                    (None, Some("VISA")) => "visa".to_string(),
+                    (None, Some("MASTERCARD")) => "mastercard".to_string(),
+                    (None, Some("MAESTRO")) => "maestro".to_string(),
+                    (None, Some("AMERICAN EXPRESS")) => "american-express".to_string(),
+                    (None, Some("CB")) => "cb".to_string(),
+                    (None, Some("BCMC")) => "bcmc".to_string(),
+                    (None, _) => match req_card.card_network {
+                        Some(CardNetwork::Visa) => "visa".to_string(),
+                        Some(CardNetwork::Mastercard) => "mastercard".to_string(),
+                        Some(CardNetwork::AmericanExpress) => "american-express".to_string(),
+                        Some(CardNetwork::JCB) => "jcb".to_string(),
+                        Some(CardNetwork::DinersClub) => "diners".to_string(),
+                        Some(CardNetwork::Discover) => "discover".to_string(),
+                        Some(CardNetwork::CartesBancaires) => "cb".to_string(),
+                        Some(CardNetwork::UnionPay) => "unionpay".to_string(),
+                        Some(CardNetwork::Interac) => "interac".to_string(),
+                        Some(CardNetwork::RuPay) => "rupay".to_string(),
+                        Some(CardNetwork::Maestro) => "maestro".to_string(),
+                        Some(CardNetwork::Star)
+                        | Some(CardNetwork::Accel)
+                        | Some(CardNetwork::Pulse)
+                        | Some(CardNetwork::Nyce)
+                        | None => "".to_string(),
+                    },
                 },
                 amount: item.amount.clone(),
                 description: item
@@ -138,6 +222,28 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                 cancel_url: item.router_data.request.router_return_url.clone(),
                 accept_url: item.router_data.request.router_return_url.clone(),
                 notify_url: item.router_data.request.router_return_url.clone(),
+                three_ds_data: if item.router_data.is_three_ds() {
+                    let billing_address = item.router_data.get_billing_address()?;
+                    Some(ThreeDSPaymentData {
+                        firstname: billing_address.get_optional_first_name(),
+                        lastname: billing_address.get_optional_last_name(),
+                        email: Some(
+                            item.router_data
+                                .get_billing_email()
+                                .or(item.router_data.request.get_email())?,
+                        ),
+                        city: billing_address.get_optional_city(),
+                        streetaddress: billing_address.get_optional_line1(),
+                        zipcode: billing_address.get_optional_zip(),
+                        state: billing_address.get_optional_state(),
+                        country: billing_address.get_optional_country(),
+                        browser_info: Some(HipayBrowserInfo::from(
+                            item.router_data.request.get_browser_info()?,
+                        )),
+                    })
+                } else {
+                    None
+                },
             }),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -164,6 +270,19 @@ impl TryFrom<&TokenizationRouterData> for HiPayTokenRequest {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HipayTokenResponse {
     token: Secret<String>,
+    brand: String,
+    domestic_network: Option<String>,
+}
+
+impl From<&HipayTokenResponse> for AdditionalPaymentMethodConnectorResponse {
+    fn from(hipay_token_response: &HipayTokenResponse) -> Self {
+        Self::Card {
+            authentication_data: None,
+            payment_checks: None,
+            card_network: Some(hipay_token_response.brand.clone()),
+            domestic_network: hipay_token_response.domestic_network.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -182,8 +301,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, HipayTokenResponse, T, PaymentsResponse
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::TokenizationResponse {
-                token: item.response.token.expose().clone(),
+                token: item.response.token.clone().expose(),
             }),
+            connector_response: Some(ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::from(&item.response),
+            )),
             ..item.data
         })
     }
@@ -241,9 +363,20 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let status = common_enums::AttemptStatus::from(item.response.status);
+        let response = if status == enums::AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: NO_ERROR_CODE.to_string(),
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_reference),
+                status_code: item.http_code,
+                issuer_error_code: None,
+                issuer_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_reference,
                 ),
@@ -261,7 +394,11 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
-            }),
+            })
+        };
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -525,7 +662,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<HipayMaintenanceResponse<HipayPaym
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Reason {
     reason: Option<String>,
-    code: Option<u8>,
+    code: Option<u64>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
