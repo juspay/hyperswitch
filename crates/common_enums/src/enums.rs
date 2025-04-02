@@ -1843,6 +1843,110 @@ impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
         matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
     }
+    pub fn to_display_name(&self) -> String {
+        let display_name = match self {
+            Self::Ach => "ACH Direct Debit",
+            Self::Bacs => "BACS Direct Debit",
+            Self::Affirm => "Affirm",
+            Self::AfterpayClearpay => "Afterpay Clearpay",
+            Self::Alfamart => "Alfamart",
+            Self::AliPay => "Alipay",
+            Self::AliPayHk => "AlipayHK",
+            Self::Alma => "Alma",
+            Self::AmazonPay => "Amazon Pay",
+            Self::ApplePay => "Apple Pay",
+            Self::Atome => "Atome",
+            Self::BancontactCard => "Bancontact Card",
+            Self::Becs => "BECS Direct Debit",
+            Self::Benefit => "Benefit",
+            Self::Bizum => "Bizum",
+            Self::Blik => "BLIK",
+            Self::Boleto => "Boleto Bancário",
+            Self::BcaBankTransfer => "BCA Bank Transfer",
+            Self::BniVa => "BNI Virtual Account",
+            Self::BriVa => "BRI Virtual Account",
+            Self::CardRedirect => "Card Redirect",
+            Self::CimbVa => "CIMB Virtual Account",
+            Self::ClassicReward => "Classic Reward",
+            Self::Credit => "Credit Card",
+            Self::CryptoCurrency => "Crypto",
+            Self::Cashapp => "Cash App",
+            Self::Dana => "DANA",
+            Self::DanamonVa => "Danamon Virtual Account",
+            Self::Debit => "Debit Card",
+            Self::DuitNow => "DuitNow",
+            Self::Efecty => "Efecty",
+            Self::Eft => "EFT",
+            Self::Eps => "EPS",
+            Self::Fps => "FPS",
+            Self::Evoucher => "Evoucher",
+            Self::Giropay => "Giropay",
+            Self::Givex => "Givex",
+            Self::GooglePay => "Google Pay",
+            Self::GoPay => "GoPay",
+            Self::Gcash => "GCash",
+            Self::Ideal => "iDEAL",
+            Self::Interac => "Interac",
+            Self::Indomaret => "Indomaret",
+            Self::InstantBankTransfer => "Instant Bank Transfer",
+            Self::Klarna => "Klarna",
+            Self::KakaoPay => "KakaoPay",
+            Self::LocalBankRedirect => "Local Bank Redirect",
+            Self::MandiriVa => "Mandiri Virtual Account",
+            Self::Knet => "KNET",
+            Self::MbWay => "MB WAY",
+            Self::MobilePay => "MobilePay",
+            Self::Momo => "MoMo",
+            Self::MomoAtm => "MoMo ATM",
+            Self::Multibanco => "Multibanco",
+            Self::OnlineBankingThailand => "Online Banking Thailand",
+            Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic",
+            Self::OnlineBankingFinland => "Online Banking Finland",
+            Self::OnlineBankingFpx => "Online Banking FPX",
+            Self::OnlineBankingPoland => "Online Banking Poland",
+            Self::OnlineBankingSlovakia => "Online Banking Slovakia",
+            Self::Oxxo => "OXXO",
+            Self::PagoEfectivo => "PagoEfectivo",
+            Self::PermataBankTransfer => "Permata Bank Transfer",
+            Self::OpenBankingUk => "Open Banking UK",
+            Self::PayBright => "PayBright",
+            Self::Paypal => "PayPal",
+            Self::Paze => "Paze",
+            Self::Pix => "Pix",
+            Self::PaySafeCard => "PaySafeCard",
+            Self::Przelewy24 => "Przelewy24",
+            Self::PromptPay => "PromptPay",
+            Self::Pse => "PSE",
+            Self::RedCompra => "RedCompra",
+            Self::RedPagos => "RedPagos",
+            Self::SamsungPay => "Samsung Pay",
+            Self::Sepa => "SEPA Direct Debit",
+            Self::SepaBankTransfer => "SEPA Bank Transfer",
+            Self::Sofort => "Sofort",
+            Self::Swish => "Swish",
+            Self::TouchNGo => "Touch 'n Go",
+            Self::Trustly => "Trustly",
+            Self::Twint => "TWINT",
+            Self::UpiCollect => "UPI Collect",
+            Self::UpiIntent => "UPI Intent",
+            Self::Vipps => "Vipps",
+            Self::VietQr => "VietQR",
+            Self::Venmo => "Venmo",
+            Self::Walley => "Walley",
+            Self::WeChatPay => "WeChat Pay",
+            Self::SevenEleven => "7-Eleven",
+            Self::Lawson => "Lawson",
+            Self::MiniStop => "Mini Stop",
+            Self::FamilyMart => "FamilyMart",
+            Self::Seicomart => "Seicomart",
+            Self::PayEasy => "PayEasy",
+            Self::LocalBankTransfer => "Local Bank Transfer",
+            Self::Mifinity => "MiFinity",
+            Self::OpenBankingPIS => "Open Banking PIS",
+            Self::DirectCarrierBilling => "Direct Carrier Billing",
+        };
+        display_name.to_string()
+    }
 }
 
 impl masking::SerializableSecret for PaymentMethodType {}
@@ -1932,6 +2036,26 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CtpServiceProvider {
+    Visa,
+    Mastercard,
 }
 
 #[derive(
@@ -2277,7 +2401,7 @@ pub enum RequestIncrementalAuthorization {
     Default,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, strum::Display,)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
 #[rustfmt::skip]
 pub enum CountryAlpha3 {
     AFG, ALA, ALB, DZA, ASM, AND, AGO, AIA, ATA, ATG, ARG, ARM, ABW, AUS, AUT,
@@ -6742,6 +6866,7 @@ pub enum AuthenticationConnectors {
     CtpMastercard,
     UnifiedAuthenticationService,
     Juspaythreedsserver,
+    CtpVisa,
 }
 
 impl AuthenticationConnectors {
@@ -6751,7 +6876,8 @@ impl AuthenticationConnectors {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
-            | Self::Juspaythreedsserver => false,
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa => false,
             Self::Gpayments => true,
         }
     }

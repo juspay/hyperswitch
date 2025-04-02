@@ -261,4 +261,8 @@ pub enum RecoveryError {
     InvalidTask,
     #[error("The Intended data was not found")]
     ValueNotFound,
+    #[error("Failed to update billing connector")]
+    RecordBackToBillingConnectorFailed,
+    #[error("Failed to fetch billing connector account id")]
+    BillingMerchantConnectorAccountIdNotFound,
 }

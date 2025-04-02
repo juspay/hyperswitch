@@ -217,6 +217,7 @@ pub enum Connector {
     Coingate,
     Cryptopay,
     CtpMastercard,
+    CtpVisa,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -451,6 +452,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
             | Self::Datatrans => false,
@@ -707,7 +709,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
-            | Connector::Threedsecureio => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Threedsecureio
+            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }

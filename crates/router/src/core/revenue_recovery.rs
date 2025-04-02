@@ -1,8 +1,12 @@
 pub mod transformers;
 pub mod types;
-use api_models::{payments::PaymentsRetrieveRequest, process_tracker::revenue_recovery};
+use api_models::{
+    payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest},
+    process_tracker::revenue_recovery,
+};
 use common_utils::{
     self,
+    errors::CustomResult,
     ext_traits::{OptionExt, ValueExt},
     id_type,
     types::keymanager::KeyManagerState,
@@ -11,6 +15,9 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
+    behaviour::ReverseConversion,
+    errors::api_error_response,
+    merchant_connector_account,
     payments::{PaymentIntent, PaymentStatusData},
     ApiModelToDieselModelConvertor,
 };
@@ -42,6 +49,7 @@ pub async fn perform_execute_payment(
     pcr_data: &pcr::PcrPaymentData,
     _key_manager_state: &KeyManagerState,
     payment_intent: &PaymentIntent,
+    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
@@ -80,6 +88,7 @@ pub async fn perform_execute_payment(
                 execute_task_process,
                 pcr_data,
                 &mut pcr_metadata,
+                billing_mca,
             ))
             .await?;
         }
@@ -163,7 +172,7 @@ async fn insert_psync_pcr_task(
         psync_workflow_tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
@@ -263,7 +272,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .find_process_by_id(&process_tracker_id_for_psync)
         .await
         .map_err(|e| {
-            logger::error!("Error while retreiving psync task : {:?}", e);
+            logger::error!("Error while retrieving psync task : {:?}", e);
         })
         .ok()
         .flatten();

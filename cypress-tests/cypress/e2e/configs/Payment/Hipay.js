@@ -7,6 +7,25 @@ const successfulNo3DSCardDetails = {
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
+
+const billing_info = {
+  address: {
+    line1: "1467",
+    line2: "CA",
+    line3: "CA",
+    city: "Florence",
+    state: "Tuscany",
+    zip: "12345",
+    country: "IT",
+    first_name: "Max",
+    last_name: "Mustermann",
+  },
+  email: "mauro.morandi@nexi.it",
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
 const successful3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "06",
@@ -40,24 +59,7 @@ export const connectorDetails = {
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Florence",
-            state: "Tuscany",
-            zip: "12345",
-            country: "IT",
-            first_name: "Max",
-            last_name: "Mustermann",
-          },
-          email: "mauro.morandi@nexi.it",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        billing: billing_info,
       },
       Response: {
         status: 200,
@@ -560,9 +562,7 @@ export const connectorDetails = {
           card: successful3DSCardDetails,
         },
         currency: "EUR",
-        billing: {
-          email: "mauro.morandi@nexi.it",
-        },
+        billing: billing_info,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -582,9 +582,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successful3DSCardDetails,
         },
-        billing: {
-          email: "mauro.morandi@nexi.it",
-        },
+        billing: billing_info,
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
