@@ -1929,9 +1929,17 @@ impl common_utils::events::ApiEventMetric for GetTokenDataRequest {}
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Serialize, ToSchema)]
-#[serde(untagged)]
-pub enum TokenDataResponse {
-    NetworkTokenDataResponse(NetworkTokenDataResponse),
+pub struct TokenDataResponse {
+    /// The unique identifier of the payment method.
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+
+    /// token type of the payment method
+    #[schema(value_type = TokenDataType)]
+    pub token_type: api_enums::TokenDataType,
+
+    /// token details of the payment method
+    pub token_details: TokenDetailsResponse,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1939,11 +1947,14 @@ impl common_utils::events::ApiEventMetric for TokenDataResponse {}
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct NetworkTokenDataResponse {
-    /// The unique identifier of the payment method.
-    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
-    pub payment_method_id: id_type::GlobalPaymentMethodId,
+#[serde(untagged)]
+pub enum TokenDetailsResponse {
+    NetworkTokenDetails(NetworkTokenDetailsResponse),
+}
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenDetailsResponse {
     /// Network token generated against the Card Number
     #[schema(value_type = String)]
     pub network_token: cards::NetworkToken,
@@ -1971,6 +1982,7 @@ pub struct NetworkTokenDataResponse {
     pub card_type: Option<CardType>,
 
     /// Issuing country of the card
+    #[schema(value_type = Option<CountryAlpha2>)]
     pub card_issuing_country: Option<common_enums::CountryAlpha2>,
 
     /// Bank code of the card

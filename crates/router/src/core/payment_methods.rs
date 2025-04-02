@@ -50,12 +50,14 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
     feature = "customer_v2"
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
-use masking::{ExposeOptionInterface, PeekInterface, Secret};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::{payment_method_data, payment_methods as domain_payment_methods};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::ExposeOptionInterface;
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -1380,7 +1382,22 @@ pub async fn get_token_data_for_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token_data_response = match request.token_type {
+    let token_data_response =
+        generate_token_data_response(&state, request, &payment_method).await?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        token_data_response,
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn generate_token_data_response(
+    state: &SessionState,
+    request: payment_methods::GetTokenDataRequest,
+    payment_method: &domain_payment_methods::PaymentMethod,
+) -> RouterResult<api::TokenDataResponse> {
+    let token_details = match request.token_type {
         common_enums::TokenDataType::NetworkToken => {
             let network_token_requestor_ref_id = payment_method
                 .network_token_requestor_reference_id
@@ -1389,16 +1406,15 @@ pub async fn get_token_data_for_payment_method(
                 .attach_printable("NetworkTokenRequestorReferenceId is not present")?;
 
             let network_token = network_tokenization::get_token_from_tokenization_service(
-                &state,
+                state,
                 network_token_requestor_ref_id,
-                &payment_method,
+                payment_method,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to fetch network token data from tokenization service")?;
 
-            api::TokenDataResponse::NetworkTokenDataResponse(api::NetworkTokenDataResponse {
-                payment_method_id: payment_method_id.clone(),
+            api::TokenDetailsResponse::NetworkTokenDetails(api::NetworkTokenDetailsResponse {
                 network_token: network_token.network_token,
                 network_token_exp_month: network_token.network_token_exp_month,
                 network_token_exp_year: network_token.network_token_exp_year,
@@ -1422,9 +1438,11 @@ pub async fn get_token_data_for_payment_method(
         }
     };
 
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        token_data_response,
-    ))
+    Ok(api::TokenDataResponse {
+        payment_method_id: payment_method.id.clone(),
+        token_type: request.token_type,
+        token_details,
+    })
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]

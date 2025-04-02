@@ -26713,6 +26713,15 @@
           }
         }
       },
+      "TokenDataType": {
+        "type": "string",
+        "description": "The type of token data to fetch for get-token endpoint",
+        "enum": [
+          "single_use_token",
+          "multi_use_token",
+          "network_token"
+        ]
+      },
       "TokenizeCardRequest": {
         "type": "object",
         "required": [
