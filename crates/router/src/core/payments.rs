@@ -6182,48 +6182,54 @@ where
     let mut debit_routing_output = None;
     let mut is_debit_routing_performed = true;
 
-    if business_profile.is_debit_routing_enabled {
-        logger::info!("Debit routing is enabled for the profile");
 
-        let debit_routing_config = state.conf.debit_routing_config.clone();
-        let debit_routing_supported_connectors = state.conf.debit_routing_config.supported_connectors.clone();
 
-        if should_perform_debit_routing_for_the_flow(operation, payment_data, &debit_routing_config) {
-            let is_debit_routable_connector_present_in_profile =
-                co_badged_cards_info::check_for_debit_routing_connector_in_profile(state, business_profile.get_id(), payment_data).await?;
+    if let Some(acquirer_country) = business_profile.merchant_business_country {
+        if business_profile.is_debit_routing_enabled {
+            logger::info!("Debit routing is enabled for the profile");
 
-            if is_debit_routable_connector_present_in_profile {
-                    logger::debug!("Debit routable connector is configured for the profile");
+            let debit_routing_config = state.conf.debit_routing_config.clone();
+            let debit_routing_supported_connectors = state.conf.debit_routing_config.supported_connectors.clone();
 
-                if let Some(call_connector_type) = connector.clone() {
-                    debit_routing_output = match call_connector_type {
-                        ConnectorCallType::PreDetermined(connector_data) => {
-                            logger::info!("Performing debit routing for PreDetermined connector");
-                            handle_pre_determined_connector(
-                                state,
-                                &debit_routing_config,
-                                debit_routing_supported_connectors,
-                                &connector_data,
-                                key_store,
-                                payment_data,
-                            ).await
-                        },
-                        ConnectorCallType::Retryable(connector_data) => {
-                            logger::info!("Performing debit routing for Retryable connector");
-                            handle_retryable_connector(
-                                state,
-                                &debit_routing_config,
-                                debit_routing_supported_connectors,
-                                connector_data,
-                                key_store,
-                                payment_data,
-                            ).await
-                        },
-                        ConnectorCallType::SessionMultiple(session_connector_data) => {
-                            logger::info!("SessionMultiple connector type is not supported for debit routing");
-                            Some(ConnectorCallType::SessionMultiple(session_connector_data))
-                        },
-                    };
+            if should_perform_debit_routing_for_the_flow(operation, payment_data, &debit_routing_config) {
+                let is_debit_routable_connector_present_in_profile =
+                    co_badged_cards_info::check_for_debit_routing_connector_in_profile(state, business_profile.get_id(), payment_data).await?;
+
+                if is_debit_routable_connector_present_in_profile {
+                        logger::debug!("Debit routable connector is configured for the profile");
+
+                    if let Some(call_connector_type) = connector.clone() {
+                        debit_routing_output = match call_connector_type {
+                            ConnectorCallType::PreDetermined(connector_data) => {
+                                logger::info!("Performing debit routing for PreDetermined connector");
+                                handle_pre_determined_connector(
+                                    state,
+                                    &debit_routing_config,
+                                    debit_routing_supported_connectors,
+                                    &connector_data,
+                                    key_store,
+                                    payment_data,
+                                    acquirer_country,
+                                ).await
+                            },
+                            ConnectorCallType::Retryable(connector_data) => {
+                                logger::info!("Performing debit routing for Retryable connector");
+                                handle_retryable_connector(
+                                    state,
+                                    &debit_routing_config,
+                                    debit_routing_supported_connectors,
+                                    connector_data,
+                                    key_store,
+                                    payment_data,
+                                    acquirer_country,
+                                ).await
+                            },
+                            ConnectorCallType::SessionMultiple(session_connector_data) => {
+                                logger::info!("SessionMultiple connector type is not supported for debit routing");
+                                Some(ConnectorCallType::SessionMultiple(session_connector_data))
+                            },
+                        };
+                    }
                 }
             }
         }
@@ -6245,6 +6251,7 @@ async fn handle_pre_determined_connector<F, D>(
     connector_data: &api::ConnectorRoutingData,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
+    acquirer_country: enums::CountryAlpha2,
 ) -> Option<ConnectorCallType>
 where
     F: Send + Clone,
@@ -6252,7 +6259,7 @@ where
 {
     if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
         logger::debug!("Chosen connector is supported for debit routing");
-        let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data).await?;
+        let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data, acquirer_country).await?;
         
         if let Some(local_networks) = get_connector_supported_debit_networks(
             debit_routing_config, 
@@ -6275,6 +6282,7 @@ async fn handle_retryable_connector<F, D>(
     connector_data_list: Vec<api::ConnectorRoutingData>,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
+    acquirer_country: enums::CountryAlpha2,
 ) -> Option<ConnectorCallType>
 where
     F: Send + Clone,
@@ -6284,7 +6292,7 @@ where
 
     for connector_data in connector_data_list {
         if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
-            let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data).await?;
+            let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data, acquirer_country).await?;
             
             if let Some(local_networks) = get_connector_supported_debit_networks(
                 debit_routing_config,

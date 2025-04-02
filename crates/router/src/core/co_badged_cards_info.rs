@@ -69,6 +69,22 @@ impl CoBadgedCardInfoList {
         Ok(has_same_issuer)
     }
 
+    pub fn is_local_transaction(
+        &self,
+        acquirer_country: enums::CountryAlpha2,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        logger::debug!("Validating if the transaction is local or international");
+
+        let first_element = self
+            .0
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The filtered co-badged card info list is empty")?;
+
+        let issuer_country = first_element.country;
+        Ok(acquirer_country == issuer_country)
+    }
+
     pub fn extract_networks(&self) -> Vec<enums::CardNetwork> {
         self.0
             .iter()
@@ -76,32 +92,22 @@ impl CoBadgedCardInfoList {
             .collect()
     }
 
-    pub fn is_regulated(&self) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let first_element = self
-            .0
-            .first()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("The filtered co-badged card info list is empty")?;
-        Ok(first_element.regulated)
-    }
-
-    pub fn get_regulated_name(&self) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-        let first_element = self
-            .0
-            .first()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("The filtered co-badged card info list is empty")?;
-        Ok(first_element.regulated_name.clone())
-    }
-
     pub fn get_co_badged_cards_info_response(
         &self,
     ) -> CustomResult<CoBadgedCardInfoResponse, errors::ApiErrorResponse> {
         logger::debug!("Constructing co-badged card info response");
+
+        let first_element = self
+            .0
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("The filtered co-badged card info list is empty")?;
+
         Ok(CoBadgedCardInfoResponse {
             card_networks: self.extract_networks(),
-            regulated: self.is_regulated()?,
-            regulated_name: self.get_regulated_name()?,
+            issuer_country: first_element.country,
+            regulated: first_element.regulated,
+            regulated_name: first_element.regulated_name.clone(),
         })
     }
 }
@@ -111,6 +117,7 @@ pub async fn get_co_badged_cards_info(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
+    acquirer_country: enums::CountryAlpha2,
 ) -> CustomResult<Option<CoBadgedCardInfoResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
@@ -144,13 +151,25 @@ pub async fn get_co_badged_cards_info(
             logger::debug!("co-badged card info record retrieved successfully");
             let co_badged_card_infos_list = CoBadgedCardInfoList(co_badged_card_infos);
 
-            co_badged_card_infos_list
+            let filtered_list_optional = co_badged_card_infos_list
                 .is_valid_length()
                 .then(|| co_badged_card_infos_list.filter_cards())
                 .and_then(|filtered_co_badged_card_infos_list| {
                     filtered_co_badged_card_infos_list
                         .is_valid_length()
-                        .then_some(Ok(filtered_co_badged_card_infos_list))
+                        .then_some(filtered_co_badged_card_infos_list)
+                });
+
+            filtered_list_optional
+                .and_then(|filtered_list| {
+                    filtered_list
+                        .is_local_transaction(acquirer_country)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to check if the transaction is local or international",
+                        )
+                        .map(|is_local_transaction| is_local_transaction.then_some(filtered_list))
+                        .transpose()
                 })
                 .transpose()
         }
@@ -321,6 +340,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<F: Clone, D: OperationSessionG
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
+    acquirer_country: enums::CountryAlpha2,
 ) -> Option<Vec<enums::CardNetwork>> {
     logger::debug!("Fetching sorted card networks based on their respective network fees");
 
@@ -333,7 +353,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<F: Clone, D: OperationSessionG
         payment_method_data_optional
     {
         let co_badged_card_info =
-            get_co_badged_cards_info(state, key_store, card.card_number.clone())
+            get_co_badged_cards_info(state, key_store, card.card_number.clone(), acquirer_country)
                 .await
                 .map_err(|error| {
                     logger::warn!(?error, "Failed to calculate total fees per network");
