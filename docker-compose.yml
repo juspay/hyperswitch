@@ -149,15 +149,14 @@ services:
 
   ### Web Client
   hyperswitch-web:
+    image: docker.juspay.io/juspaydotin/hyperswitch-web:latest
+    pull_policy: always
     ports:
       - "9050:9050"
       - "9060:9060"
       - "5252:5252"
-    networks:
-      - router_net
-    build:
-      context: ./docker
-      dockerfile: web.Dockerfile
+      networks:
+        - router_net
     depends_on:
       hyperswitch-server:
         condition: service_healthy
