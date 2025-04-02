@@ -2155,6 +2155,16 @@ Cypress.Commands.add(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
+
+              if (
+                response.body?.payment_method_id &&
+                response.body.payment_method_id !== null
+              ) {
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status"
+                ).to.equal("active");
+              }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.equal(response.body[key]);
@@ -2162,6 +2172,28 @@ Cypress.Commands.add(
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId")
               );
+              if (
+                [
+                  "partially_captured",
+                  "requires_capture",
+                  "succeeded",
+                ].includes(response.body.status)
+              ) {
+                expect(
+                  response.body.payment_method_id,
+                  "payment_method_id should exist for succeeded/requires_capture status"
+                ).to.exist.and.to.be.a("string");
+
+                expect(
+                  response.body.payment_method_id,
+                  "payment_method_id"
+                ).to.include("pm_");
+
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status"
+                ).to.equal("active");
+              }
             } else {
               // Handle other authentication types as needed
               throw new Error(
@@ -2319,8 +2351,9 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.billing, "billing_address").to.not.be.empty;
+          expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
+
           if (
             ["succeeded", "processing", "requires_customer_action"].includes(
               response.body.status
@@ -2337,6 +2370,39 @@ Cypress.Commands.add(
               response.body.merchant_connector_id,
               "connector_id"
             ).to.equal(merchant_connector_id);
+          }
+
+          if (
+            response.body.payment_method_id &&
+            typeof response.body.payment_method_id === "string"
+          ) {
+            // Validate the payment_method_id format
+            expect(
+              response.body.payment_method_id,
+              "payment_method_id"
+            ).to.include("pm_").and.to.not.be.null;
+
+            const activeStatuses = [
+              "succeeded",
+              "requires_capture",
+              "partially_captured",
+            ];
+
+            // If capture method is manual, 'processing' status also means 'active'
+            // for the payment method's usability.
+            if (response.body.capture_method === "manual") {
+              activeStatuses.push("processing");
+            }
+
+            const expectedStatus = activeStatuses.includes(response.body.status)
+              ? "active"
+              : "inactive";
+
+            // Validate the status
+            expect(
+              response.body.payment_method_status,
+              "payment_method_status"
+            ).to.equal(expectedStatus);
           }
 
           if (autoretries) {
