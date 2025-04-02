@@ -107,7 +107,7 @@ curl --head --request GET 'http://localhost:8080/health'
 ```
 The expected response here is a `200 OK` status code. This indicates that the server and all of its dependent services are functioning correctly.
 Now, you can access the Control Center in your browser at `http://localhost:9000`.
-The next step is to configure a connector with the Hyperswitch Control Centre and try a payment.
+The next step is to configure a connector with the Hyperswitch Control Center and try a payment.
 
 ### 2. Deployment on cloud
 
