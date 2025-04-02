@@ -10,7 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -38,9 +38,15 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
-use requests::{FacilitapayPaymentsRequest, FacilitapayRefundRequest, FacilitapayRouterData};
-use responses::{FacilitapayErrorResponse, FacilitapayPaymentsResponse, RefundResponse};
+use masking::PeekInterface;
+use requests::{
+    FacilitapayAuthRequest, FacilitapayPaymentsRequest, FacilitapayRefundRequest,
+    FacilitapayRouterData,
+};
+use responses::{
+    FacilitapayAuthResponse, FacilitapayErrorResponse, FacilitapayPaymentsResponse,
+    FacilitapayRefundResponse,
+};
 use transformers as facilitapay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -86,12 +92,24 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        // let access_token =
+        //     req.access_token
+        //         .clone()
+        //         .ok_or(errors::ConnectorError::MissingRequiredField {
+        //             field_name: "access_token",
+        //         })?;
+
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            // (
+            //     headers::AUTHORIZATION.to_string(),
+            //     format!("Bearer {}", access_token.token.peek()).into(),
+            // ),
+        ];
+
         Ok(header)
     }
 }
@@ -113,18 +131,6 @@ impl ConnectorCommon for Facilitapay {
         connectors.facilitapay.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = facilitapay::FacilitapayAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
-    }
-
     fn build_error_response(
         &self,
         res: Response,
@@ -141,8 +147,10 @@ impl ConnectorCommon for Facilitapay {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
-            message: response.message,
-            reason: response.reason,
+            message: response
+                .message
+                .unwrap_or("Something went wrong".to_string()),
+            reason: Some(response.error),
             attempt_status: None,
             connector_transaction_id: None,
             issuer_error_code: None,
@@ -159,7 +167,91 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Facilitapay {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Facilitapay {
+    fn get_headers(
+        &self,
+        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string().into(),
+        )])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "sign_in"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let auth_type = facilitapay::FacilitapayAuthType::try_from(&req.connector_auth_type)?;
+        let connector_req = FacilitapayAuthRequest::try_from(&auth_type)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        errors::ConnectorError,
+    > {
+        let response: FacilitapayAuthResponse = res
+            .response
+            .parse_struct("FacilitapayAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Facilitapay
@@ -182,9 +274,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "transactions"))
     }
 
     fn get_request_body(
@@ -458,9 +550,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: RefundResponse = res
+        let response: FacilitapayRefundResponse = res
             .response
-            .parse_struct("facilitapay RefundResponse")
+            .parse_struct("FacilitapayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -512,9 +604,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Facilitap
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -525,7 +614,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Facilitap
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: RefundResponse = res
+        let response: FacilitapayRefundResponse = res
             .response
             .parse_struct("facilitapay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

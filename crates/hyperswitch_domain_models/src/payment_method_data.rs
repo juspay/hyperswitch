@@ -611,6 +611,10 @@ pub enum BankTransferData {
         cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
         cnpj: Option<Secret<String>>,
+        /// Source bank account UUID
+        from_bank_account_id: Option<Secret<String>>,
+        /// Destination bank account UUID.
+        to_bank_account_id: Option<Secret<String>>,
     },
     Pse {},
     LocalBankTransfer {
@@ -1415,9 +1419,19 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Self::MandiriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::Pix { pix_key, cpf, cnpj } => {
-                Self::Pix { pix_key, cpf, cnpj }
-            }
+            api_models::payments::BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                from_bank_account_id,
+                to_bank_account_id,
+            } => Self::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                from_bank_account_id,
+                to_bank_account_id,
+            },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
@@ -1443,11 +1457,19 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
             BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
-            BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
+            BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                from_bank_account_id,
+                to_bank_account_id,
+            } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
+                    from_bank_account_id: from_bank_account_id.map(MaskedBankAccount::from),
+                    to_bank_account_id: to_bank_account_id.map(MaskedBankAccount::from),
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},

@@ -3392,6 +3392,14 @@ pub enum BankTransferData {
         /// CNPJ is a Brazilian company tax identification number
         #[schema(value_type = Option<String>, example = "74469027417312")]
         cnpj: Option<Secret<String>>,
+
+        /// Source bank account number
+        #[schema(value_type = Option<String>, example = "8b2812f0-d6c8-4073-97bb-9fa964d08bc5")]
+        from_bank_account_id: Option<Secret<String>>,
+
+        /// Destination bank account number
+        #[schema(value_type = Option<String>, example = "9b95f84e-de61-460b-a14b-f23b4e71c97b")]
+        to_bank_account_id: Option<Secret<String>>,
     },
     Pse {},
     LocalBankTransfer {
