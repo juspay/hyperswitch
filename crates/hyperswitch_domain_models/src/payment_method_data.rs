@@ -6,6 +6,8 @@ use api_models::{
     },
 };
 use common_enums::enums as api_enums;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     id_type,
     new_type::{
@@ -16,7 +18,6 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -88,8 +89,8 @@ pub struct Card {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -102,8 +103,8 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -116,8 +117,8 @@ pub struct CardDetail {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -413,7 +414,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
-        card_holder_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
     },
     Bizum {},
     Blik {
@@ -556,7 +557,7 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
@@ -568,25 +569,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<Secret<String>>,
-        bank_account_holder_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
 }
 
@@ -642,7 +643,7 @@ pub struct NetworkTokenData {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
+    pub nick_name: Option<common_utils::types::NameType>,
     pub eci: Option<String>,
 }
 
@@ -686,6 +687,40 @@ pub enum MobilePaymentData {
         /// Unique user identifier
         client_uid: Option<String>,
     },
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn try_from(value: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
+        match value {
+            payment_methods::PaymentMethodCreateData::Card(payment_methods::CardDetail {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc,
+                card_issuer,
+                card_network,
+                card_type,
+                card_issuing_country,
+                nick_name,
+                card_holder_name,
+            }) => Ok(Self::Card(Card {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc: card_cvc.get_required_value("card_cvc")?,
+                card_issuer,
+                card_network,
+                card_type: card_type.map(|card_type| card_type.to_string()),
+                card_issuing_country: card_issuing_country.map(|country| country.to_string()),
+                bank_code: None,
+                nick_name,
+                card_holder_name,
+            })),
+        }
+    }
 }
 
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
@@ -1526,10 +1561,10 @@ pub struct TokenizedCardValue1 {
     pub card_number: String,
     pub exp_year: String,
     pub exp_month: String,
-    pub nickname: Option<String>,
+    pub nickname: Option<common_utils::types::NameType>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1861,8 +1896,8 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),
-            card_holder_name: item.card_holder_name,
-            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name.map(From::from),
+            nick_name: item.nick_name.map(From::from),
             card_isin: None,
             card_issuer: item.card_issuer,
             card_network: item.card_network,
@@ -1891,6 +1926,26 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SingleUsePaymentMethodToken {
+    pub token: Secret<String>,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl SingleUsePaymentMethodToken {
+    pub fn get_single_use_token_from_payment_method_token(
+        token: Secret<String>,
+        mca_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
+        Self {
+            token,
+            merchant_connector_id: mca_id,
+        }
+    }
+}
+
 impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetailsPaymentMethod) -> Self {
         Self {
@@ -1906,5 +1961,21 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SingleUseTokenKey(String);
+
+#[cfg(feature = "v2")]
+impl SingleUseTokenKey {
+    pub fn store_key(payment_method_id: &id_type::GlobalPaymentMethodId) -> Self {
+        let new_token = format!("single_use_token_{}", payment_method_id.get_string_repr());
+        Self(new_token)
+    }
+
+    pub fn get_store_key(&self) -> &str {
+        &self.0
     }
 }

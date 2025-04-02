@@ -499,7 +499,7 @@ pub async fn connector_create(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
@@ -598,7 +598,7 @@ pub async fn connector_retrieve(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be ProfileConnectorRead, but since this API responds with
@@ -716,7 +716,7 @@ pub async fn connector_list(
         merchant_id.to_owned(),
         |state, _auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorRead,
@@ -769,7 +769,7 @@ pub async fn connector_list_profile(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ProfileConnectorRead,
@@ -830,7 +830,7 @@ pub async fn connector_update(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
