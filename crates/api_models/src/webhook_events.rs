@@ -32,12 +32,12 @@ pub struct EventListConstraints {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 
     /// Filter events by their class.
-    #[serde(default, with = "common_utils::custom_serde::json_string")]
-    pub event_class: Option<HashSet<EventClass>>,
+    #[serde(default)]
+    pub event_classes: Option<HashSet<EventClass>>,
 
     /// Filter events by their type.
-    #[serde(default, with = "common_utils::custom_serde::json_string")]
-    pub event_type: Option<HashSet<EventType>>,
+    #[serde(default)]
+    pub event_types: Option<HashSet<EventType>>,
     /// Filter all events by `is_overall_delivery_successful` field of the event.
     pub is_delivered: Option<bool>,
 }
@@ -49,8 +49,8 @@ pub enum EventListConstraintsInternal {
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_class: Option<HashSet<EventClass>>,
-        event_type: Option<HashSet<EventType>>,
+        event_classes: Option<HashSet<EventClass>>,
+        event_types: Option<HashSet<EventType>>,
         is_delivered: Option<bool>,
     },
     ObjectIdFilter {

@@ -1383,6 +1383,7 @@ pub enum EventClass {
 }
 
 impl EventClass {
+    #[inline]
     pub fn event_types(self) -> HashSet<EventType> {
         match self {
             Self::Payments => HashSet::from([
@@ -1435,6 +1436,7 @@ impl EventClass {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+// Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
 pub enum EventType {
     /// Authorize + Capture success
     PaymentSucceeded,

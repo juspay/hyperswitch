@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use common_enums::EventType;
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -56,7 +55,7 @@ where
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_type: HashSet<EventType>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
@@ -86,7 +85,7 @@ where
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_type: HashSet<EventType>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
@@ -106,6 +105,7 @@ where
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError>;
 }
@@ -201,7 +201,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_type: HashSet<EventType>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -213,7 +213,7 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
-            event_type,
+            event_types,
             is_delivered,
         )
         .await
@@ -316,7 +316,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_type: HashSet<EventType>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -328,7 +328,7 @@ impl EventInterface for Store {
             created_before,
             limit,
             offset,
-            event_type,
+            event_types,
             is_delivered,
         )
         .await
@@ -382,6 +382,7 @@ impl EventInterface for Store {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -391,6 +392,7 @@ impl EventInterface for Store {
             profile_id,
             created_after,
             created_before,
+            event_types,
             is_delivered,
         )
         .await
@@ -501,7 +503,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_type: HashSet<EventType>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -511,11 +513,8 @@ impl EventInterface for MockDb {
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered);
-
-            if !event_type.is_empty() {
-                check = check && event_type.contains(&event.event_type);
-            }
 
             check
         });
@@ -640,7 +639,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
-        event_type: HashSet<EventType>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -650,11 +649,8 @@ impl EventInterface for MockDb {
                 && event.initial_attempt_id.as_ref() == Some(&event.event_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered);
-
-            if !event_type.is_empty() {
-                check = check && event_type.contains(&event.event_type);
-            }
 
             check
         });
@@ -752,6 +748,7 @@ impl EventInterface for MockDb {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -762,6 +759,7 @@ impl EventInterface for MockDb {
                 && (event.business_profile_id == profile_id)
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered);
 
             check
