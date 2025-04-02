@@ -97,7 +97,7 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
-    pub secondary_fingerprint_id : Option<String>,
+    pub secondary_fingerprint_id: Option<String>,
 }
 
 impl PaymentMethod {
@@ -186,7 +186,7 @@ pub struct PaymentMethodNew {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
-    pub secondary_fingerprint_id : Option<String>,
+    pub secondary_fingerprint_id: Option<String>,
 }
 
 impl PaymentMethodNew {
@@ -299,7 +299,7 @@ pub enum PaymentMethodUpdate {
         network_token_payment_method_data: Option<Encryption>,
         locker_fingerprint_id: Option<String>,
         connector_mandate_details: Option<CommonMandateReference>,
-        secondary_fingerprint_id : Option<String>,
+        secondary_fingerprint_id: Option<String>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<CommonMandateReference>,
@@ -335,7 +335,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
     locker_fingerprint_id: Option<String>,
-    secondary_fingerprint_id : Option<String>,
+    secondary_fingerprint_id: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -801,7 +801,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
-                secondary_fingerprint_id: None
+                secondary_fingerprint_id: None,
             },
             PaymentMethodUpdate::GenericUpdate {
                 payment_method_data,
