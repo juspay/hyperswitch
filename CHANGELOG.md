@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix6
+
+### Bug Fixes
+
+- Web-docker pull from docker hub ([#7701](https://github.com/juspay/hyperswitch/pull/7701)) ([`6ea54d7`](https://github.com/juspay/hyperswitch/commit/6ea54d76e1035976071de03a7dde006523ab2d8e))
+
+- - -
+
 ## 2025.02.10.0-hotfix5
 
 ### Miscellaneous Tasks
