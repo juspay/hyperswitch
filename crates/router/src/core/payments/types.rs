@@ -2,7 +2,10 @@ use std::{collections::HashMap, num::TryFromIntError};
 
 use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
-    errors::CustomResult, ext_traits::{Encode, OptionExt}, id_type::SurchargeRoutingId, types::{self as common_types, ConnectorTransactionIdTrait}
+    errors::CustomResult,
+    ext_traits::{Encode, OptionExt},
+    id_type::SurchargeRoutingId,
+    types::{self as common_types, ConnectorTransactionIdTrait},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
@@ -377,7 +380,7 @@ impl SurchargeMetadata {
     #[instrument(skip_all)]
     pub async fn get_surcharge_id_from_redis(
         state: &SessionState,
-        payment_attempt_id: &str
+        payment_attempt_id: &str,
     ) -> CustomResult<SurchargeRoutingId, RedisError> {
         let redis_conn = state
             .store

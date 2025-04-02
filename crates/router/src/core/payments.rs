@@ -1409,20 +1409,19 @@ where
             .net_amount
             .set_surcharge_details(calculated_surcharge_details);
 
-        let surcharge_algo_id = 
-            match types::SurchargeMetadata::get_surcharge_id_from_redis(
-                state,
-                &payment_data.payment_attempt.attempt_id,
-            ).await
-            {
-                Ok(surcharge_id) => Some(surcharge_id),
-                Err(err) if err.current_context() == &RedisError::NotFound => None,
-                Err(err) => {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch surcharge algorithm id from redis")?
-                }
-            };
-        
+        let surcharge_algo_id = match types::SurchargeMetadata::get_surcharge_id_from_redis(
+            state,
+            &payment_data.payment_attempt.attempt_id,
+        )
+        .await
+        {
+            Ok(surcharge_id) => Some(surcharge_id),
+            Err(err) if err.current_context() == &RedisError::NotFound => None,
+            Err(err) => Err(err)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch surcharge algorithm id from redis")?,
+        };
+
         payment_data.payment_attempt.surcharge_algorithm_id = surcharge_algo_id;
     } else {
         let surcharge_details =

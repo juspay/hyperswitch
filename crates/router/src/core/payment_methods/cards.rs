@@ -4331,7 +4331,7 @@ pub async fn call_surcharge_decision_management(
     use super::surcharge_decision_configs::perform_surcharge_decision_management_for_payment_method_list_profile_level;
 
     #[cfg(feature = "v1")]
-    let (surcharge_results, merchant_surcharge_configs) = 
+    let (surcharge_results, merchant_surcharge_configs) =
         if let Some(surcharge_algo_id) = &business_profile.active_surcharge_algorithm_id {
             perform_surcharge_decision_management_for_payment_method_list_profile_level(
                 &state,
@@ -4346,14 +4346,14 @@ pub async fn call_surcharge_decision_management(
             .attach_printable("error performing surcharge decision operation")?
         } else {
             let routing_ref = merchant_account
-                        .routing_algorithm
-                        .clone()
-                        .map(|val| val.parse_value("routing algorithm"))
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Could not decode the routing algorithm")?
-                        .unwrap_or_default();
-            
+                .routing_algorithm
+                .clone()
+                .map(|val| val.parse_value("routing algorithm"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode the routing algorithm")?
+                .unwrap_or_default();
+
             perform_surcharge_decision_management_for_payment_method_list(
                 &state,
                 routing_ref,
@@ -4407,7 +4407,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     use super::surcharge_decision_configs::perform_surcharge_decision_management_for_saved_cards_profile_level;
 
     #[cfg(feature = "v1")]
-    let surcharge_results = 
+    let surcharge_results =
         if let Some(surcharge_algo_id) = &business_profile.active_surcharge_algorithm_id {
             perform_surcharge_decision_management_for_saved_cards_profile_level(
                 state,
@@ -4421,14 +4421,14 @@ pub async fn call_surcharge_decision_management_for_saved_card(
             .attach_printable("error performing surcharge decisio operation")?
         } else {
             let routing_ref = merchant_account
-                        .routing_algorithm
-                        .clone()
-                        .map(|val| val.parse_value("routing algorithm"))
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Could not decode the routing algorithm")?
-                        .unwrap_or_default();
-            
+                .routing_algorithm
+                .clone()
+                .map(|val| val.parse_value("routing algorithm"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode the routing algorithm")?
+                .unwrap_or_default();
+
             perform_surcharge_decision_management_for_saved_cards(
                 state,
                 routing_ref,

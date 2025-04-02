@@ -1166,8 +1166,7 @@ impl PaymentAttemptUpdate {
             charges: charges.or(source.charges),
             issuer_error_code: issuer_error_code.or(source.issuer_error_code),
             issuer_error_message: issuer_error_message.or(source.issuer_error_message),
-            surcharge_algorithm_id: surcharge_algorithm_id
-                .or(source.surcharge_algorithm_id),
+            surcharge_algorithm_id: surcharge_algorithm_id.or(source.surcharge_algorithm_id),
             ..source
         }
     }
