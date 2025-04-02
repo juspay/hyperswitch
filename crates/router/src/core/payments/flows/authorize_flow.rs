@@ -342,8 +342,25 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         self.payment_method,
                         self.request.payment_method_type,
                     )
+                    .map(|response| {
+                        logger::debug!(
+                            "{} supports {:?} capture for payment_method_type {:?}",
+                            connector.connector_name,
+                            self.request.capture_method,
+                            self.request.payment_method_type
+                        );
+                        response
+                    })
+                    .map_err(|err| {
+                        logger::debug!(
+                            "{} does not supports {:?} capture for payment_method_type {:?}",
+                            connector.connector_name,
+                            self.request.capture_method,
+                            self.request.payment_method_type
+                        );
+                        err
+                    })
                     .to_payment_failed_response()?;
-
                 if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
                 ) {

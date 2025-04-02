@@ -135,12 +135,15 @@ impl MultipleCaptureData {
     ) -> storage_enums::AttemptStatus {
         let total_captured_amount = self.get_total_charged_amount();
         if authorized_amount == total_captured_amount {
+            logger::debug!(multiple_partial_captures = "total_amount_captured({total_captured_amount}) is equal to total_authorized_amount({authorized_amount})");
             return storage_enums::AttemptStatus::Charged;
         }
         let status_count_map = self.get_status_count();
         if status_count_map.get(&storage_enums::CaptureStatus::Charged) > Some(&0) {
+            logger::debug!(multiple_partial_captures = "total_amount_captured({total_captured_amount}) is less than total_authorized_amount({authorized_amount})");
             storage_enums::AttemptStatus::PartialChargedAndChargeable
         } else {
+            logger::debug!(multiple_partial_captures = "All captures are in pending state");
             storage_enums::AttemptStatus::CaptureInitiated
         }
     }

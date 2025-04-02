@@ -32,6 +32,7 @@ use hyperswitch_domain_models::{
 use masking::{Deserialize, ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use router_env::logger;
 use serde::Serializer;
 use time::PrimitiveDateTime;
 
@@ -179,8 +180,10 @@ where
                     types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
+                    logger::debug!("captured_amount is equal to total_capturable_amount");
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
+                    logger::debug!("captured_amount is less than total_capturable_amount");
                     enums::AttemptStatus::PartialCharged
                 } else {
                     self.status
