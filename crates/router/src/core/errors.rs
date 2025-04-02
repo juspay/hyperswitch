@@ -498,6 +498,6 @@ pub enum RevenueRecoveryError {
     ProcessTrackerCreationError,
     #[error("Failed to get the response from process tracker")]
     ProcessTrackerResponseError,
-    #[error("Billing connector payments sync call failed")]
+    #[error("Billing connector psync call failed")]
     BillingConnectorPaymentsSyncFailed,
 }

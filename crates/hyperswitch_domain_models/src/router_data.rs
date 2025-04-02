@@ -315,7 +315,7 @@ pub struct PazeDynamicData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
-    pub name: Option<Secret<String>>,
+    pub name: Option<common_utils::types::NameType>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -388,6 +388,10 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         authentication_data: Option<serde_json::Value>,
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
+        /// Card Network returned by the processor
+        card_network: Option<String>,
+        /// Domestic(Co-Branded) Card network returned by the processor
+        domestic_network: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,

@@ -4,12 +4,6 @@ use std::collections::HashSet;
 
 use router_env::once_cell::sync::Lazy;
 
-#[cfg(feature = "v1")]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
-
-#[cfg(feature = "v2")]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
-
 pub static ROUTING_ENABLED_PAYMENT_METHODS: Lazy<HashSet<common_enums::PaymentMethod>> =
     Lazy::new(|| {
         let mut set = HashSet::new();
