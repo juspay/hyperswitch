@@ -6817,7 +6817,13 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    if *do_authorisation_confirmation {
+                    let should_do_uas_confirmation_call = payment_data
+                        .service_details
+                        .as_ref()
+                        .map(|details| details.is_network_confirmation_call_required())
+                        .unwrap_or(true);
+
+                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
                         Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
                     } else {
                         Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
