@@ -734,8 +734,8 @@ impl
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
                 .map(|address| BillTo {
-                    first_name: address.first_name.clone(),
-                    last_name: address.last_name.clone(),
+                    first_name: address.first_name.clone().map(From::from),
+                    last_name: address.last_name.clone().map(From::from),
                     address: address.line1.clone(),
                     city: address.city.clone(),
                     state: address.state.clone(),
@@ -871,8 +871,8 @@ impl
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
                 .map(|address| BillTo {
-                    first_name: address.first_name.clone(),
-                    last_name: address.last_name.clone(),
+                    first_name: address.first_name.clone().map(From::from),
+                    last_name: address.last_name.clone().map(From::from),
                     address: address.line1.clone(),
                     city: address.city.clone(),
                     state: address.state.clone(),
@@ -945,8 +945,8 @@ impl
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
                 .map(|address| BillTo {
-                    first_name: address.first_name.clone(),
-                    last_name: address.last_name.clone(),
+                    first_name: address.first_name.clone().map(From::from),
+                    last_name: address.last_name.clone().map(From::from),
                     address: address.line1.clone(),
                     city: address.city.clone(),
                     state: address.state.clone(),
@@ -1562,6 +1562,7 @@ pub enum RSyncStatus {
     RefundPendingSettlement,
     Declined,
     GeneralError,
+    Voided,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1615,7 +1616,9 @@ impl From<RSyncStatus> for enums::RefundStatus {
         match transaction_status {
             RSyncStatus::RefundSettledSuccessfully => Self::Success,
             RSyncStatus::RefundPendingSettlement => Self::Pending,
-            RSyncStatus::Declined | RSyncStatus::GeneralError => Self::Failure,
+            RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
+                Self::Failure
+            }
         }
     }
 }

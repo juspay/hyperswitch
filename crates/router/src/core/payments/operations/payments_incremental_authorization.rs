@@ -179,6 +179,7 @@ impl<F: Send + Clone + Sync>
             service_details: None,
             card_testing_guard_data: None,
             vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

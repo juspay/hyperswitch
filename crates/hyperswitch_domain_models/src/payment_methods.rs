@@ -25,7 +25,6 @@ use crate::{
     type_encryption::OptionalEncryptableJsonType,
 };
 use crate::{
-    errors,
     mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
@@ -703,6 +702,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
 
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
+    type Error;
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
@@ -713,7 +713,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_payment_method(
@@ -722,7 +722,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -734,7 +734,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -747,7 +747,7 @@ pub trait PaymentMethodInterface {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     // Need to fix this once we start moving to v2 for payment method
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -757,7 +757,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -773,7 +773,7 @@ pub trait PaymentMethodInterface {
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     #[allow(clippy::too_many_arguments)]
@@ -786,7 +786,7 @@ pub trait PaymentMethodInterface {
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -797,13 +797,13 @@ pub trait PaymentMethodInterface {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
-    ) -> CustomResult<i64, errors::StorageError>;
+    ) -> CustomResult<i64, Self::Error>;
 
     async fn get_payment_method_count_by_merchant_id_status(
         &self,
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
-    ) -> CustomResult<i64, errors::StorageError>;
+    ) -> CustomResult<i64, Self::Error>;
 
     async fn insert_payment_method(
         &self,
@@ -811,7 +811,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     async fn update_payment_method(
         &self,
@@ -820,7 +820,7 @@ pub trait PaymentMethodInterface {
         payment_method: PaymentMethod,
         payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     async fn delete_payment_method(
@@ -828,7 +828,7 @@ pub trait PaymentMethodInterface {
         state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     async fn find_payment_method_by_fingerprint_id(
@@ -836,7 +836,7 @@ pub trait PaymentMethodInterface {
         state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -848,7 +848,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
-    ) -> CustomResult<PaymentMethod, errors::StorageError>;
+    ) -> CustomResult<PaymentMethod, Self::Error>;
 }
 
 #[cfg(feature = "v2")]

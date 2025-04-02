@@ -63,3 +63,8 @@ ALTER TABLE payment_methods
     ADD COLUMN IF NOT EXISTS locker_fingerprint_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS payment_method_type_v2 VARCHAR(64),
     ADD COLUMN IF NOT EXISTS payment_method_subtype VARCHAR(64);
+
+ALTER TABLE refund
+    ADD COLUMN IF NOT EXISTS id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS merchant_reference_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS connector_id VARCHAR(64);

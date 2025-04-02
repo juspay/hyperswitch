@@ -206,10 +206,19 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CustomerBody {
+    email: pii::Email,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegularTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     channel: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_details: Option<CustomerBody>,
+    order_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -218,6 +227,9 @@ pub struct VaultTransactionBody {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
     vault_payment_method_after_transacting: TransactionTiming,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_details: Option<CustomerBody>,
+    order_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -257,6 +269,8 @@ impl
                 amount: item.amount.to_owned(),
                 merchant_account_id: metadata.merchant_account_id,
                 channel: CHANNEL_CODE.to_string(),
+                customer_details: None,
+                order_id: item.router_data.connector_request_reference_id.clone(),
             }),
         );
         Ok(Self {
@@ -864,6 +878,8 @@ pub struct DataResponse {
 pub struct RefundInputData {
     amount: StringMajorUnit,
     merchant_account_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<String>,
 }
 #[derive(Serialize, Debug, Clone)]
 struct IdFilter {
@@ -917,6 +933,7 @@ impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundR
                 refund: RefundInputData {
                     amount: item.amount,
                     merchant_account_id: metadata.merchant_account_id,
+                    order_id: item.router_data.refund_id.clone(),
                 },
             },
         };
@@ -1745,6 +1762,12 @@ impl
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: "ALWAYS".to_string(),
                     },
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         } else {
@@ -1757,6 +1780,12 @@ impl
                     amount: item.amount.to_owned(),
                     merchant_account_id: metadata.merchant_account_id,
                     channel: CHANNEL_CODE.to_string(),
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         };
@@ -1844,6 +1873,12 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     vault_payment_method_after_transacting: TransactionTiming {
                         when: "ALWAYS".to_string(),
                     },
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         } else {
@@ -1856,6 +1891,12 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     amount: item.amount.to_owned(),
                     merchant_account_id: metadata.merchant_account_id,
                     channel: CHANNEL_CODE.to_string(),
+                    customer_details: item
+                        .router_data
+                        .get_billing_email()
+                        .ok()
+                        .map(|email| CustomerBody { email }),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                 }),
             )
         };
