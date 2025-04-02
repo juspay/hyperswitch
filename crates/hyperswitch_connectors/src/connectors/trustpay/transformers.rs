@@ -321,7 +321,7 @@ fn get_card_request_data(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .and_then(|address| address.last_name.clone().map(From::from));
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -374,7 +374,7 @@ fn get_debtor_info(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .and_then(|address| address.last_name.clone().map(From::from));
     Ok(match pm {
         TrustpayPaymentMethod::Blik => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),
@@ -400,7 +400,7 @@ fn get_bank_transfer_debtor_info(
     Ok(match pm {
         TrustpayBankTransferPaymentMethod::SepaCreditTransfer
         | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
-            name: get_full_name(params.billing_first_name, billing_last_name),
+            name: get_full_name(params.billing_first_name, billing_last_name.map(From::from)),
             email: item.request.get_email()?,
         }),
     })
@@ -781,7 +781,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data) =
-            get_trustpay_response(item.response, item.http_code)?;
+            get_trustpay_response(item.response, item.http_code, item.data.status)?;
         Ok(Self {
             status,
             response: error.map_or_else(|| Ok(payment_response_data), Err),
@@ -874,6 +874,7 @@ fn handle_bank_redirects_response(
 fn handle_bank_redirects_error_response(
     response: ErrorResponseBankRedirect,
     status_code: u16,
+    previous_attempt_status: enums::AttemptStatus,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -882,14 +883,18 @@ fn handle_bank_redirects_error_response(
     ),
     errors::ConnectorError,
 > {
-    let status = enums::AttemptStatus::AuthorizationFailed;
+    let status = if matches!(response.payment_result_info.result_code, 1132014 | 1132005) {
+        previous_attempt_status
+    } else {
+        enums::AttemptStatus::AuthorizationFailed
+    };
     let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
         // message vary for the same code, so relying on code alone as it is unique
         message: response.payment_result_info.result_code.to_string(),
         reason: response.payment_result_info.additional_info,
         status_code,
-        attempt_status: None,
+        attempt_status: Some(status),
         connector_transaction_id: None,
         issuer_error_code: None,
         issuer_error_message: None,
@@ -1023,6 +1028,7 @@ pub fn handle_webhook_response(
 pub fn get_trustpay_response(
     response: TrustpayPaymentsResponse,
     status_code: u16,
+    previous_attempt_status: enums::AttemptStatus,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -1042,7 +1048,7 @@ pub fn get_trustpay_response(
             handle_bank_redirects_sync_response(*response, status_code)
         }
         TrustpayPaymentsResponse::BankRedirectError(response) => {
-            handle_bank_redirects_error_response(*response, status_code)
+            handle_bank_redirects_error_response(*response, status_code, previous_attempt_status)
         }
         TrustpayPaymentsResponse::WebhookResponse(response) => {
             handle_webhook_response(*response, status_code)

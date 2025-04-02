@@ -140,7 +140,7 @@ pub struct Product {
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "snake_case")]
 pub struct Destination {
-    pub full_name: Secret<String>,
+    pub full_name: common_utils::types::NameType,
     pub organization: Option<String>,
     pub email: Option<Email>,
     pub address: Address,

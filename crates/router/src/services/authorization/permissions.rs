@@ -95,6 +95,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Merchant]
         },
+        RevenueRecovery: {
+            scopes: [Read],
+            entities: [Profile]
+        }
     ]
 }
 
@@ -109,6 +113,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> &'stati
         (Resource::ApiKey, _) => "Api Keys",
         (Resource::Connector, _) => "Payment Processors, Payout Processors, Fraud & Risk Managers",
         (Resource::Routing, _) => "Routing",
+        (Resource::RevenueRecovery, _) => "Revenue Recovery",
         (Resource::ThreeDsDecisionManager, _) => "3DS Decision Manager",
         (Resource::SurchargeDecisionManager, _) => "Surcharge Decision Manager",
         (Resource::Analytics, _) => "Analytics",

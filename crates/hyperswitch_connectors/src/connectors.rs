@@ -24,6 +24,7 @@ pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
 pub mod elavon;
+pub mod facilitapay;
 pub mod fiserv;
 pub mod fiservemea;
 pub mod fiuu;
@@ -92,18 +93,18 @@ pub use self::{
     checkout::Checkout, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
     ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, getnet::Getnet,
-    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, helcim::Helcim, hipay::Hipay,
-    iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
-    juspaythreedsserver::Juspaythreedsserver, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
-    moneris::Moneris, multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi,
-    nomupay::Nomupay, noon::Noon, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo,
-    opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme, payone::Payone,
-    paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
-    shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
-    thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
-    unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
+    getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
+    jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
+    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
+    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon,
+    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
+    payeezy::Payeezy, payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu,
+    placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd,
+    razorpay::Razorpay, recurly::Recurly, redsys::Redsys, shift4::Shift4, square::Square,
+    stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay,
+    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,
 };
