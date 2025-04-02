@@ -284,7 +284,7 @@ impl<T: DatabaseStore> CustomerInterface for KVRouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, Customer>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
             self,
             storage_scheme,
             Op::Insert,
