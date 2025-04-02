@@ -763,6 +763,21 @@ describe("Corner cases", () => {
       }
     });
 
+    it("Create new payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
     it("Create new refund", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
