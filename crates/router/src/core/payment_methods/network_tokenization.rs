@@ -364,8 +364,8 @@ pub async fn make_card_network_tokenization_request(
         card_network: Some(resp.card_brand),
         card_type: card.card_type.clone(),
         card_issuing_country: card.card_issuing_country,
-        card_holder_name: card.card_holder_name.clone(),
-        nick_name: card.nick_name.clone(),
+        card_holder_name: card.card_holder_name.clone().map(From::from),
+        nick_name: card.nick_name.clone().map(From::from),
     };
     Ok((network_token_details, network_token_req_ref_id))
 }
