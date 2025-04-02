@@ -258,7 +258,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
                     payment_data_type: None,
                     encrypted_src_card_details: None,
                     card_expiry_date: card.card_exp_year.clone(),
-                    cardholder_name: card.card_holder_name.clone(),
+                    cardholder_name: card.card_holder_name.clone().map(From::from),
                     card_token_number: card.card_cvc.clone(),
                     account_type: card.card_network.clone(),
                 })
