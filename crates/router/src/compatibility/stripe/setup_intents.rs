@@ -112,7 +112,7 @@ pub async fn setup_intents_retrieve(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) =
@@ -194,7 +194,7 @@ pub async fn setup_intents_update(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) =
@@ -277,7 +277,7 @@ pub async fn setup_intents_confirm(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) =

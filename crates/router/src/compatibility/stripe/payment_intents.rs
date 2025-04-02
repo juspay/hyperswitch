@@ -126,7 +126,7 @@ pub async fn payment_intents_retrieve(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) =
@@ -206,7 +206,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
@@ -294,7 +294,7 @@ pub async fn payment_intents_update(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
@@ -385,7 +385,7 @@ pub async fn payment_intents_confirm(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) =
@@ -543,7 +543,7 @@ pub async fn payment_intents_cancel(
 
     let api_auth_config = auth::ApiKeyAuthConfig {
         is_connected_allowed: false,
-        is_platform_allowed: true,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth_config)
