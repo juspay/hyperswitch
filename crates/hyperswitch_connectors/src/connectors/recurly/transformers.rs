@@ -113,7 +113,7 @@ impl TryFrom<&ConnectorAuthType> for RecurlyAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq,Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum RecurlyPaymentStatus {
     Succeeded,
@@ -183,7 +183,7 @@ impl<F> TryFrom<&RecurlyRouterData<&RefundsRouterData<F>>> for RecurlyRefundRequ
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone,Copy)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -251,11 +251,11 @@ pub struct RecurlyErrorResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RecurlyWebhookBody {
     // Transaction id
-    pub id: String,
+    pub uuid: String,
     pub event_type: RecurlyPaymentEventType,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
 pub enum RecurlyPaymentEventType {
     #[serde(rename = "succeeded")]
     PaymentSucceeded,
@@ -272,29 +272,25 @@ impl RecurlyWebhookBody {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
 pub enum RecurlyChargeStatus {
     #[serde(rename = "success")]
     Succeeded,
     #[serde(rename = "declined")]
     Failed,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename = "snake_case")]
+#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
+#[serde(rename_all = "snake_case")]
 pub enum RecurlyFundingTypes {
-    #[serde(rename = "credit")]
     Credit,
-    #[serde(rename = "debit")]
     Debit,
-    #[serde(rename = "prepaid")]
-    Prepaid,
-    #[serde(rename = "unknown")]
-    Unknown,
-    #[serde(rename = "deferred_debit")]
-    DeferredDebit,
-    #[serde(rename = "charge")]
-    Charge,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone,Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum RecurlyPaymentObject {
+    CreditCard,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -317,6 +313,7 @@ pub struct RecurlyRecoveryDetailsData {
 pub struct PaymentMethod {
     pub gateway_token: String,
     pub funding_source: RecurlyFundingTypes,
+    pub object: RecurlyPaymentObject,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -379,7 +376,7 @@ impl
                 payment_method_sub_type: common_enums::PaymentMethodType::from(
                     item.response.payment_method.funding_source,
                 ),
-                payment_method_type: common_enums::PaymentMethod::Card,
+                payment_method_type: common_enums::PaymentMethod::from(item.response.payment_method.object),
             }),
             ..item.data
         })
@@ -399,11 +396,16 @@ impl From<RecurlyChargeStatus> for enums::AttemptStatus {
 impl From<RecurlyFundingTypes> for common_enums::PaymentMethodType {
     fn from(funding: RecurlyFundingTypes) -> Self {
         match funding {
-            RecurlyFundingTypes::Credit | RecurlyFundingTypes::Charge => Self::Credit,
-            RecurlyFundingTypes::Debit
-            | RecurlyFundingTypes::Prepaid
-            | RecurlyFundingTypes::DeferredDebit
-            | RecurlyFundingTypes::Unknown => Self::Debit,
+            RecurlyFundingTypes::Credit => Self::Credit,
+            RecurlyFundingTypes::Debit => Self::Debit,
+        }
+    }
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl From<RecurlyPaymentObject> for common_enums::PaymentMethod {
+    fn from(funding: RecurlyPaymentObject) -> Self {
+        match funding {
+            RecurlyPaymentObject::CreditCard => Self::Card,
         }
     }
 }

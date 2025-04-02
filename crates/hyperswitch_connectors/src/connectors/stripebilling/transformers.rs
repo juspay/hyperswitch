@@ -37,11 +37,6 @@ pub mod auth_headers {
     pub const STRIPE_VERSION: &str = "2022-11-15";
 }
 
-pub mod auth_headers {
-    pub const STRIPE_API_VERSION: &str = "stripe-version";
-    pub const STRIPE_VERSION: &str = "2022-11-15";
-}
-
 //TODO: Fill the struct with respective fields
 pub struct StripebillingRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.

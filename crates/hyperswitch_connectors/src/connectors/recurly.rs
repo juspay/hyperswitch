@@ -615,9 +615,9 @@ impl
         req: &recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let transaction_id = &req.request.billing_connector_psync_id;
+        let transaction_uuid = &req.request.billing_connector_psync_id;
         Ok(format!(
-            "{}/transactions/{transaction_id}",
+            "{}/transactions/uuid-{transaction_uuid}",
             self.base_url(connectors),
         ))
     }
@@ -811,7 +811,7 @@ impl webhooks::IncomingWebhook for Recurly {
         let webhook = RecurlyWebhookBody::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.id),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.uuid),
         ))
     }
 
