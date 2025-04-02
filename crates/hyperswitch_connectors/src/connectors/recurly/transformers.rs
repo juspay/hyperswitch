@@ -250,7 +250,7 @@ pub struct RecurlyErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RecurlyWebhookBody {
-    // Transaction id
+    // Transaction uuid
     pub uuid: String,
     pub event_type: RecurlyPaymentEventType,
 }
