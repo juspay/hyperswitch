@@ -1555,6 +1555,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
+                secondary_fingerprint_id: None,
             },
             storage_scheme,
         )
@@ -1665,6 +1666,7 @@ pub async fn create_pm_additional_data_update(
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         connector_mandate_details: connector_mandate_details_update,
         locker_fingerprint_id: vault_fingerprint_id,
+        secondary_fingerprint_id: None,
     };
 
     Ok(pm_update)
@@ -1688,18 +1690,6 @@ pub async fn vault_payment_method(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get fingerprint_id from vault")?;
-
-
-    let seconday_payment_method_data = match pmd {
-        domain::PaymentMethodVaultingData::Card(card) => card.card_number.get_card_no(),
-        domain::PaymentMethodVaultingData::NetworkToken(network_token) => None,
-    };
-
-    // get fingerprint_id for secondary id/ card number
-    let fingerprint_id_from_vault_for_seconday_id = vault::get_fingerprint_id_from_vault( state, &seconday_payment_method_data.clone(), customer_id.get_string_repr().to_owned() )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault")?;
 
     // throw back error if payment method is duplicated
     when(

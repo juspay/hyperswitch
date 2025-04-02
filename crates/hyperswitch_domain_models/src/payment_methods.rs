@@ -121,6 +121,7 @@ pub struct PaymentMethod {
     #[encrypt(ty = Value)]
     pub network_token_payment_method_data:
         Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
+    pub secondary_fingerprint_id: Option<String>,
 }
 
 impl PaymentMethod {
@@ -459,6 +460,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            secondary_fingerprint_id: self.secondary_fingerprint_id,
         })
     }
 
@@ -551,6 +553,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .network_token_requestor_reference_id,
                 network_token_locker_id: storage_model.network_token_locker_id,
                 network_token_payment_method_data,
+                secondary_fingerprint_id: storage_model.secondary_fingerprint_id,
             })
         }
         .await
@@ -587,6 +590,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            secondary_fingerprint_id: self.secondary_fingerprint_id,
         })
     }
 }

@@ -1038,6 +1038,8 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 64]
+        secondary_fingerprint_id -> Nullable<Varchar>,
     }
 }
 
