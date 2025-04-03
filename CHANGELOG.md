@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.02.0-hotfix1
+
+### Refactors
+
+- **core:** Made provider field in ctp_service_details backward compatible ([#7714](https://github.com/juspay/hyperswitch/pull/7714)) ([`7c9aa2b`](https://github.com/juspay/hyperswitch/commit/7c9aa2bfb9827cf9847fdd4a61fb1f92ccb0fd4d))
+
+### Revert
+
+- Implement `NameType` for name validation ([#6734](https://github.com/juspay/hyperswitch/pull/6734)) ([#7718](https://github.com/juspay/hyperswitch/pull/7718)) ([`0e55510`](https://github.com/juspay/hyperswitch/commit/0e55510bb3c23a2d9db7b7d31fca396b384da5e7))
+
+**Full Changelog:** [`2025.04.02.0...2025.04.02.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.04.02.0...2025.04.02.0-hotfix1)
+
+
+- - -
+
 ## 2025.04.02.0
 
 ### Features
