@@ -101,6 +101,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -131,6 +132,7 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -148,7 +150,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_data: payment_method_data_3ds,
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -166,6 +168,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -262,6 +265,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -279,6 +283,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -295,6 +300,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -311,6 +317,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -336,6 +343,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -372,6 +380,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -389,6 +398,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -406,6 +416,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -433,6 +444,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -494,6 +506,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -511,6 +524,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -528,6 +542,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -545,6 +560,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -563,6 +579,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
