@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use api_models::user::dashboard_metadata::{
-    self as api, GetMultipleMetaDataPayload, ProdIntentWithProductType,
-};
+use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 #[cfg(feature = "email")]
 use common_enums::EntityType;
 use common_utils::pii;
@@ -463,34 +461,6 @@ async fn insert_metadata(
                 pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
-            let key_manager_state = &(state).into();
-            let merchant_key_store = state
-                .store
-                .get_merchant_key_store_by_merchant_id(
-                    key_manager_state,
-                    &user.merchant_id.clone(),
-                    &state.store.get_master_key().to_vec().into(),
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
-            let merchant_account = state
-                .store
-                .find_merchant_account_by_merchant_id(
-                    key_manager_state,
-                    &user.merchant_id.clone(),
-                    &merchant_key_store,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to retrieve merchant account by merchant_id")?;
-            // The product type field in the merchant account table is nullable, and if the corresponding value is null, the default orchestration product type is considered.
-            let product_type = merchant_account.product_type.unwrap_or_default();
-
-            let data_value = ProdIntentWithProductType {
-                prod_intent: data.clone(),
-                product_type,
-            };
 
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
@@ -498,7 +468,7 @@ async fn insert_metadata(
                 user.merchant_id.clone(),
                 user.org_id.clone(),
                 metadata_key,
-                data_value.clone(),
+                data.clone(),
             )
             .await;
 
@@ -509,7 +479,7 @@ async fn insert_metadata(
                     user.merchant_id.clone(),
                     user.org_id.clone(),
                     metadata_key,
-                    data_value.clone(),
+                    data.clone(),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError);
@@ -532,7 +502,7 @@ async fn insert_metadata(
                     .await?;
                     let email_contents = email_types::BizEmailProd::new(
                         state,
-                        data_value,
+                        data,
                         theme.as_ref().map(|theme| theme.theme_id.clone()),
                         theme
                             .map(|theme| theme.email_config())
