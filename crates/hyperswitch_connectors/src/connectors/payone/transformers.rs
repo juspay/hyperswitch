@@ -1,27 +1,33 @@
 #[cfg(feature = "payouts")]
+use crate::utils::CardData as _;
+use crate::utils::{
+    get_unimplemented_payment_method_error_message, CardIssuer, ErrorCodeAndMessage,
+};
+#[cfg(feature = "payouts")]
+use crate::{
+    types::PayoutsResponseRouterData,
+    utils::{PayoutsData, RouterData},
+};
+#[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use cards::CardNumber;
+#[cfg(feature = "payouts")]
 use common_enums::{PayoutStatus, PayoutType};
-use common_utils::{ext_traits::OptionExt, transformers::ForeignFrom, types::MinorUnit};
+use common_utils::types::MinorUnit;
+#[cfg(feature = "payouts")]
+use common_utils::{ext_traits::OptionExt, transformers::ForeignFrom};
 #[cfg(feature = "payouts")]
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_data::ConnectorAuthType,
     router_flow_types::PoFulfill,
     types::{PayoutsResponseData, PayoutsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    types::PayoutsResponseRouterData,
-    utils::{
-        get_unimplemented_payment_method_error_message, CardData, CardIssuer, ErrorCodeAndMessage,
-        PayoutsData, RouterData,
-    },
-};
 #[cfg(feature = "payouts")]
 type Error = error_stack::Report<ConnectorError>;
 use serde_repr::{Deserialize_repr, Serialize_repr};

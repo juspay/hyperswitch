@@ -4,20 +4,24 @@ use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+use common_utils::{consts::BASE64_ENGINE, errors::CustomResult, ext_traits::BytesExt};
 #[cfg(feature = "payouts")]
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use common_utils::{
-    consts::BASE64_ENGINE,
-    errors::CustomResult,
-    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::RouterData,
+    router_flow_types::PoFulfill,
+    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
+};
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, PoFulfill, RSync,
-        Session, SetupMandate, Void,
+        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, RSync, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -25,22 +29,27 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
 };
 use hyperswitch_interfaces::{
     api::{
         ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorSpecifications, ConnectorValidation, CurrencyUnit, MandateSetup, Payment,
         PaymentAuthorize, PaymentCapture, PaymentSession, PaymentSync, PaymentToken, PaymentVoid,
-        PayoutFulfill, Payouts, Refund, RefundExecute, RefundSync,
+        Refund, RefundExecute, RefundSync,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
-    types::{PayoutFulfillType, Response},
+    types::Response,
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::{
+    api::{PayoutFulfill, Payouts},
+    types::PayoutFulfillType,
+};
+
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::hmac;
 #[cfg(feature = "payouts")]
@@ -49,12 +58,13 @@ use router_env::{instrument, tracing};
 use self::transformers as payone;
 use crate::{
     constants::headers::AUTHORIZATION,
-    types::ResponseRouterData,
     utils::{
-        convert_amount, get_error_code_error_message_based_on_priority, ConnectorErrorType,
+        get_error_code_error_message_based_on_priority, ConnectorErrorType,
         ConnectorErrorTypeMapping,
     },
 };
+#[cfg(feature = "payouts")]
+use crate::{types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Payone {
@@ -262,6 +272,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payone {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payone {}
+#[cfg(feature = "payouts")]
 impl Payouts for Payone {}
 
 #[cfg(feature = "payouts")]
