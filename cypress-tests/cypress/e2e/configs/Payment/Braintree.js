@@ -294,5 +294,24 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            code: "IR_00",
+            message: "Setup Mandate flow for Braintree is not implemented",
+          },
+        },
+      },
+    },
   },
 };
