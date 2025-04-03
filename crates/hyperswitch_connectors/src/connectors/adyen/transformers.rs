@@ -5851,12 +5851,15 @@ impl
 }
 
 impl AdditionalData {
+    // Split merchant advice code into at most 2 parts and get the first part and trim spaces,
+    // Return the first part as a String.
     pub fn extract_network_advice_code(&self) -> Option<String> {
         self.merchant_advice_code.as_ref().and_then(|code| {
-            let mut parts = code.splitn(2, ':'); // Split into at most 2 parts
-            let first_part = parts.next()?.trim(); // Get the first part and trim spaces
-            parts.next()?; // Ensure there is a second part (meaning ':' was present)
-            Some(first_part.to_string()) // Return the first part as a String
+            let mut parts = code.splitn(2, ':');
+            let first_part = parts.next()?.trim();
+            // Ensure there is a second part (meaning ':' was present).
+            parts.next()?;
+            Some(first_part.to_string())
         })
     }
 }
