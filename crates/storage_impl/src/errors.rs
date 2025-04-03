@@ -65,7 +65,7 @@ impl From<error_stack::Report<DatabaseError>> for StorageError {
                 entity: "db entity",
                 key: None,
             },
-            err => Self::DatabaseError(error_stack::report!(*err)),
+            _ => Self::DatabaseError(err),
         }
     }
 }
