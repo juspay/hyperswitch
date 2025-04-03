@@ -509,9 +509,7 @@ export const connectorDetails = {
           card: successful3DSCardDetails,
         },
         currency: "EUR",
-        billing: {
-          email: "mauro.morandi@nexi.it",
-        },
+        billing: billingAddress,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -531,9 +529,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successful3DSCardDetails,
         },
-        billing: {
-          email: "mauro.morandi@nexi.it",
-        },
+        billing: billingAddress,
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",

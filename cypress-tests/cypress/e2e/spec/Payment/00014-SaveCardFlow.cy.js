@@ -183,6 +183,14 @@ describe("Card - SaveCard payment flow test", () => {
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
       });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
     }
   );
 
@@ -275,6 +283,14 @@ describe("Card - SaveCard payment flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PartialCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -403,6 +419,14 @@ describe("Card - SaveCard payment flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
