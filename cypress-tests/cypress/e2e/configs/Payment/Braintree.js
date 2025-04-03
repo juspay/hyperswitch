@@ -14,7 +14,7 @@ const successful3DSCardDetails = {
   card_exp_year: "30",
   card_holder_name: "Juspay Hyperswitch",
   card_cvc: "737",
-}
+};
 
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
