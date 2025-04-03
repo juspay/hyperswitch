@@ -352,7 +352,7 @@ pub struct ErrorDetails {
     pub network_advice_code: Option<String>,
     /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
     pub network_decline_code: Option<String>,
-    /// A short string indicating how to proceed with an network error if they provide one.
+    /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
 }
 
