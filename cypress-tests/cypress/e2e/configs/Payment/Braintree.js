@@ -1,9 +1,21 @@
+import { customerAcceptance } from "./Commons";
+
 const successfulCardDetails = {
   card_number: "4009348888881881",
   card_exp_month: "10",
   card_exp_year: "30",
   card_holder_name: "Juspay Hyperswitch",
   card_cvc: "737",
+};
+
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
 };
 
 export const connectorDetails = {
@@ -179,6 +191,22 @@ export const connectorDetails = {
           status: "failed",
           error_message:
             "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
