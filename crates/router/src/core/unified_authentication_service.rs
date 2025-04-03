@@ -233,7 +233,8 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             authentication_confirmation_router_data,
         )
-        .await?;
+        .await
+        .ok(); // marking this as .ok() since this is not a required step at our end for completing the transaction
 
         Ok(())
     }
