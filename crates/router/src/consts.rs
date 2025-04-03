@@ -235,3 +235,12 @@ pub(crate) const SENDER_ID: &[u8] = b"Google";
 
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
+
+/// Default payment intent id
+pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
+
+/// Default payment attempt id
+pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
+
+// Default payment method storing TTL in redis in seconds
+pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day

@@ -14,7 +14,7 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    revenue_recovery::RecoveryRecordBack, GetAdditionalRevenueRecoveryDetails,
+    BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -138,6 +138,7 @@ pub trait Feature<F, T> {
         Ok(types::PaymentMethodTokenResult {
             payment_method_token_result: Ok(None),
             is_payment_method_tokenization_performed: false,
+            connector_response: None,
         })
     }
 
@@ -1978,52 +1979,6 @@ fn handle_post_capture_response(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_revenue_recovery_record_back {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::RevenueRecoveryRecordBack for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                RecoveryRecordBack,
-                types::RevenueRecoveryRecordBackRequest,
-                types::RevenueRecoveryRecordBackResponse,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegration<
-        RecoveryRecordBack,
-        types::RevenueRecoveryRecordBackRequest,
-        types::RevenueRecoveryRecordBackResponse,
-    > for connector::DummyConnector<T>
-{
-}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_revenue_recovery_record_back!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
-    connector::Plaid,
-    connector::Riskified,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
 macro_rules! default_imp_for_revenue_recovery {
     ($($path:ident::$connector:ident),*) => {
         $(  impl api::RevenueRecovery for $path::$connector {}
@@ -2051,37 +2006,80 @@ default_imp_for_revenue_recovery! {
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_additional_revenue_recovery_call {
+macro_rules! default_imp_for_billing_connector_payment_sync {
     ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::AdditionalRevenueRecovery for $path::$connector {}
+        $(  impl api::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                GetAdditionalRevenueRecoveryDetails,
-                types::GetAdditionalRevenueRecoveryRequestData,
-                types::GetAdditionalRevenueRecoveryResponseData,
+                BillingConnectorPaymentsSync,
+                types::BillingConnectorPaymentsSyncRequest,
+                types::BillingConnectorPaymentsSyncResponse,
         > for $path::$connector
         {}
     )*
     };
 }
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::AdditionalRevenueRecovery for connector::DummyConnector<T> {}
+impl<const T: u8> api::BillingConnectorPaymentsSyncIntegration for connector::DummyConnector<T> {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        GetAdditionalRevenueRecoveryDetails,
-        types::GetAdditionalRevenueRecoveryRequestData,
-        types::GetAdditionalRevenueRecoveryResponseData,
+        BillingConnectorPaymentsSync,
+        types::BillingConnectorPaymentsSyncRequest,
+        types::BillingConnectorPaymentsSyncResponse,
     > for connector::DummyConnector<T>
 {
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_additional_revenue_recovery_call!(
+default_imp_for_billing_connector_payment_sync!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+macro_rules! default_imp_for_revenue_recovery_record_back {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::RevenueRecoveryRecordBack for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                RecoveryRecordBack,
+                types::RevenueRecoveryRecordBackRequest,
+                types::RevenueRecoveryRecordBackResponse,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        RecoveryRecordBack,
+        types::RevenueRecoveryRecordBackRequest,
+        types::RevenueRecoveryRecordBackResponse,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+default_imp_for_revenue_recovery_record_back!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
