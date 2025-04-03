@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.03.0
+
+### Features
+
+- **connector:** Add recovery support for stripebilling ([#7461](https://github.com/juspay/hyperswitch/pull/7461)) ([`cfe2269`](https://github.com/juspay/hyperswitch/commit/cfe226943dc5b473e88b7830c54ac73a943ba04b))
+- **process_tracker:** Invoke record back flow in PCR workflow [V2] ([#7660](https://github.com/juspay/hyperswitch/pull/7660)) ([`40174b3`](https://github.com/juspay/hyperswitch/commit/40174b3c62afb0e93af56ea87cd2adf952bbfa17))
+
+### Bug Fixes
+
+- **connector:**
+  - [WISE] Changed error status to string ([#7468](https://github.com/juspay/hyperswitch/pull/7468)) ([`fa7971f`](https://github.com/juspay/hyperswitch/commit/fa7971f56db0f0469326eee885ca83c52c631fec))
+  - [JPMORGAN, PAYU, DIGITALVIRGO, BITPAY, HELCIM, PAYBOX] Replaced lazystatic macros with LazyLock ([#7524](https://github.com/juspay/hyperswitch/pull/7524)) ([`fcbd863`](https://github.com/juspay/hyperswitch/commit/fcbd863bc79b424fc5ed1a0c23069cb9b9b9154c))
+
+### Refactors
+
+- **openapi:** Update authentication for profiles and mca openapi ([#7678](https://github.com/juspay/hyperswitch/pull/7678)) ([`7358b3a`](https://github.com/juspay/hyperswitch/commit/7358b3a3b99c92fde065f71ee8a8cd527089d6be))
+
+**Full Changelog:** [`2025.04.02.0...2025.04.03.0`](https://github.com/juspay/hyperswitch/compare/2025.04.02.0...2025.04.03.0)
+
+
+- - -
+
 ## 2025.04.02.0
 
 ### Features
