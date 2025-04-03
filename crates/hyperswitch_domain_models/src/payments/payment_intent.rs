@@ -1561,7 +1561,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at,
             last_synced,
             setup_future_usage,
-            client_secret,
             active_attempt_id,
             order_details,
             allowed_payment_method_types,
@@ -1611,7 +1610,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at,
             last_synced,
             setup_future_usage: Some(setup_future_usage),
-            client_secret,
             active_attempt_id,
             order_details: order_details.map(|order_details| {
                 order_details
@@ -1760,7 +1758,6 @@ impl behaviour::Conversion for PaymentIntent {
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
-                client_secret: storage_model.client_secret,
                 active_attempt_id: storage_model.active_attempt_id,
                 order_details: storage_model.order_details.map(|order_details| {
                     order_details
@@ -1836,7 +1833,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at: self.modified_at,
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
-            client_secret: self.client_secret,
             active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self

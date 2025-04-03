@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::keymanager::ToEncryptable,
+    types::{authentication, keymanager::ToEncryptable},
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -158,9 +158,19 @@ impl<F: Send + Clone + Sync>
             })
             .attach_printable("failed while inserting new payment intent")?;
 
+        let client_secret = helpers::create_client_secret(
+            state,
+            merchant_account.get_id(),
+            authentication::ResourceId::Payment(payment_id.clone()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create client secret")?;
+
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            client_secret: Some(client_secret.secret),
             sessions_token: vec![],
         };
 

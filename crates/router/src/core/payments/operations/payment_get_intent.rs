@@ -106,6 +106,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            // todo : add a way to fetch client secret if required
+            client_secret: None,
             sessions_token: vec![],
         };
 
