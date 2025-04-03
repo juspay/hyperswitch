@@ -33,7 +33,7 @@
     ),
     tag = "Profile",
     operation_id = "Create A Profile",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn profile_create() {}
 
@@ -65,7 +65,7 @@ pub async fn profile_create() {}
     ),
     tag = "Profile",
     operation_id = "Update a Profile",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn profile_update() {}
 
@@ -86,7 +86,7 @@ pub async fn profile_update() {}
     ),
     tag = "Profile",
     operation_id = "Retrieve a Profile",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn profile_retrieve() {}
 

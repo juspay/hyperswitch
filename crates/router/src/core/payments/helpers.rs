@@ -128,11 +128,11 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 first_name: address
                                     .address
                                     .as_ref()
-                                    .and_then(|a| a.first_name.clone()),
+                                    .and_then(|a| a.first_name.clone().map(From::from)),
                                 last_name: address
                                     .address
                                     .as_ref()
-                                    .and_then(|a| a.last_name.clone()),
+                                    .and_then(|a| a.last_name.clone().map(From::from)),
                                 zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                                 phone_number: address
                                     .phone
@@ -341,8 +341,14 @@ pub async fn get_domain_address(
                         line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                         line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                         state: address.address.as_ref().and_then(|a| a.state.clone()),
-                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
+                        first_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|a| a.first_name.clone().map(From::from)),
+                        last_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|a| a.last_name.clone().map(From::from)),
                         zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                         phone_number: address
                             .phone
@@ -1801,7 +1807,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: hyperswitch_domain_models::consts::API_VERSION,
+                        version: common_types::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -1880,7 +1886,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
 
             if let Some(name) = name_on_card.clone() {
-                if !name.peek().is_empty() {
+                if !name.is_empty() {
                     is_card_updated = true;
                     updated_card.nick_name = name_on_card;
                 }
@@ -2272,7 +2278,7 @@ pub async fn fetch_card_details_from_locker(
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
     let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.clone().expose().is_empty() {
+        if name.is_empty() {
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
                 .or(Some(name))
@@ -2294,7 +2300,7 @@ pub async fn fetch_card_details_from_locker(
             .card_cvc
             .unwrap_or_default(),
         card_issuer: None,
-        nick_name: card.nick_name.map(masking::Secret::new),
+        nick_name: card.nick_name,
         card_network: card
             .card_brand
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
@@ -2352,7 +2358,7 @@ pub async fn fetch_network_token_details_from_locker(
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
-        nick_name: token_data.nick_name.map(masking::Secret::new),
+        nick_name: token_data.nick_name,
         card_issuer: None,
         card_network,
         card_type: None,
@@ -2399,7 +2405,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+            nick_name: card_details_from_locker.nick_name,
             card_holder_name: card_details_from_locker.name_on_card.clone(),
         };
 
@@ -6544,6 +6550,7 @@ pub fn add_connector_response_to_additional_payment_data(
             AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
+                ..
             },
         ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
             api_models::payments::AdditionalCardInfo {

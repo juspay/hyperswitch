@@ -315,7 +315,7 @@ pub struct PazeDynamicData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
-    pub name: Option<Secret<String>>,
+    pub name: Option<common_utils::types::NameType>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -388,6 +388,10 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         authentication_data: Option<serde_json::Value>,
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
+        /// Card Network returned by the processor
+        card_network: Option<String>,
+        /// Domestic(Co-Branded) Card network returned by the processor
+        domestic_network: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
@@ -527,10 +531,17 @@ impl
                 feature_metadata: updated_feature_metadata,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
-                status: error
-                    .attempt_status
-                    .map(common_enums::IntentStatus::from)
-                    .unwrap_or(common_enums::IntentStatus::Failed),
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) =>status,
+                        None => match error.status_code {
+                            500..=511 => common_enums::enums::AttemptStatus::Pending,
+                            _ => common_enums::enums::AttemptStatus::Failure,
+                        }
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
                 feature_metadata: updated_feature_metadata,
@@ -625,8 +636,15 @@ impl
                     issuer_error_code: _,
                     issuer_error_message: _,
                 } = error_response.clone();
-                // Since its an Error from the connector we should set it as connectors's set status or Failure by default
-                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
+
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::enums::AttemptStatus::Pending,
+                        _ => common_enums::enums::AttemptStatus::Failure,
+                    }
+                };
                 let error_details = ErrorDetails {
                     code,
                     message,
@@ -965,10 +983,17 @@ impl
                 updated_by: storage_scheme.to_string(),
             },
             Err(ref error) => PaymentIntentUpdate::SyncUpdate {
-                status: error
-                    .attempt_status
-                    .map(common_enums::IntentStatus::from)
-                    .unwrap_or(common_enums::IntentStatus::Failed),
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) =>status,
+                        None => match error.status_code {
+                            200..=299 => common_enums::enums::AttemptStatus::Failure,
+                            _ => self.status,
+                        }
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
@@ -1042,7 +1067,14 @@ impl
                     issuer_error_message: _,
                 } = error_response.clone();
 
-                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        200..=299 => common_enums::enums::AttemptStatus::Failure,
+                        _ => self.status,
+                    }
+                };
 
                 let error_details = ErrorDetails {
                     code,

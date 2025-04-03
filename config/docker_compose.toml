@@ -248,6 +248,7 @@ cards = [
     "coinbase",
     "coingate",
     "cryptopay",
+    "ctp_visa",
     "cybersource",
     "datatrans",
     "deutschebank",
@@ -325,8 +326,8 @@ connectors_with_delayed_session_response = "trustpay,payme"
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 
-[additional_revenue_recovery_details_call]
-connectors_with_additional_revenue_recovery_details_call = "stripebilling"
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
