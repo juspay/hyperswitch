@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::{keymanager::ToEncryptable,authentication},
+    types::{authentication, keymanager::ToEncryptable},
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
