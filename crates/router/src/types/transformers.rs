@@ -1657,7 +1657,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
-            client_secret: None,
         })
     }
 }

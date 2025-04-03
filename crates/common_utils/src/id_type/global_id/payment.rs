@@ -26,11 +26,6 @@ impl GlobalPaymentId {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
         Self(global_id)
     }
-
-    /// Generate a new ClientId from self
-    pub fn generate_client_secret(&self) -> types::ClientSecret {
-        types::ClientSecret::new(self.clone(), generate_time_ordered_id_without_prefix())
-    }
 }
 
 // TODO: refactor the macro to include this id use case as well

@@ -1088,10 +1088,5 @@ impl PaymentUpdate {
             .statement_descriptor_suffix
             .clone()
             .map(|i| payment_intent.statement_descriptor_suffix.replace(i));
-
-        // request
-        //     .client_secret
-        //     .clone()
-        //     .map(|i| payment_intent.client_secret.replace(i));
     }
 }

@@ -674,7 +674,6 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
-    pub client_secret: Option<common_utils::types::ClientSecret>,
 }
 
 impl HeaderPayload {
