@@ -227,6 +227,9 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
             status: data.status,
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: Some(data.payment_method_sub_type),
+            network_advice_code: None, 
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }

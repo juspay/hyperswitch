@@ -368,8 +368,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_reference),
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
