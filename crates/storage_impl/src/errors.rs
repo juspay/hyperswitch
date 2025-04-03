@@ -84,7 +84,8 @@ impl StorageError {
         match self {
             Self::DatabaseError(err) => {
                 matches!(err.current_context(), DatabaseError::UniqueViolation,)
-            }
+            },
+            Self::DuplicateValue { .. } => true,
             _ => false,
         }
     }
