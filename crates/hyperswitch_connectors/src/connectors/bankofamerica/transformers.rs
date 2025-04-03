@@ -1752,6 +1752,8 @@ fn convert_to_additional_payment_method_connector_response(
     AdditionalPaymentMethodConnectorResponse::Card {
         authentication_data,
         payment_checks,
+        card_network: None,
+        domestic_network: None,
     }
 }
 

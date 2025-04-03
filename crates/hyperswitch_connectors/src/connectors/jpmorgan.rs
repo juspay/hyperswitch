@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -40,7 +42,6 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 use masking::{Mask, Maskable, PeekInterface};
 use transformers::{self as jpmorgan, JpmorganErrorResponse};
 
@@ -812,9 +813,8 @@ impl webhooks::IncomingWebhook for Jpmorgan {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
-
-lazy_static! {
-    static ref JPMORGAN_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
@@ -835,7 +835,7 @@ lazy_static! {
         jpmorgan_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::NotSupported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -848,14 +848,13 @@ lazy_static! {
                         }
                     }),
                 ),
-
             },
         );
 
         jpmorgan_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::NotSupported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -868,27 +867,24 @@ lazy_static! {
                         }
                     }),
                 ),
-
             },
         );
 
         jpmorgan_supported_payment_methods
-    };
+    });
 
-    static ref JPMORGAN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+static JPMORGAN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Jpmorgan",
         description:
             "J.P. Morgan is a global financial services firm and investment bank, offering banking, asset management, and payment processing solutions",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 
-    static ref JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
-}
+static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Jpmorgan {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*JPMORGAN_CONNECTOR_INFO)
+        Some(&JPMORGAN_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -896,6 +892,6 @@ impl ConnectorSpecifications for Jpmorgan {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*JPMORGAN_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&JPMORGAN_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
