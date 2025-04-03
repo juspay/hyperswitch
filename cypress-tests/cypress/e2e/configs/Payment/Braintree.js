@@ -436,9 +436,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      // Configs: {
-      //   TRIGGER_SKIP: true,
-      // },
       Request: {
         payment_method: "card",
         payment_method_data: {
