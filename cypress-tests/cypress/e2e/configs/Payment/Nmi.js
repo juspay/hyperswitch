@@ -3,7 +3,7 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "08",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
-  nick_name: "Bank1",
+  nick_name: "Bank",
   card_cvc: "999",
 };
 
@@ -12,7 +12,7 @@ const successfulThreeDSTestCardDetails = {
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
-  nick_name: "Bank1",
+  nick_name: "Bank",
   card_cvc: "999",
 };
 

@@ -11,7 +11,7 @@ const cardDetailsWithoutNickName = {
 
 const successfulNo3DSCardDetails = {
   ...cardDetailsWithoutNickName,
-  nick_name: "Bank1",
+  nick_name: "Bank",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -19,7 +19,7 @@ const successfulThreeDSTestCardDetails = {
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "Joseph Doe",
-  nick_name: "Bank1",
+  nick_name: "Bank",
   card_cvc: "737",
 };
 
@@ -28,7 +28,7 @@ const failedNo3DSCardDetails = {
   card_exp_month: "01",
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
-  nick_name: "Bank1",
+  nick_name: "Bank",
   card_cvc: "123",
 };
 

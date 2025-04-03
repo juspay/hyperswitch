@@ -3,7 +3,7 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "10",
   card_exp_year: "2027",
   card_holder_name: "John Doe",
-  nick_name: "Bank1",
+  nick_name: "Bank",
   card_cvc: "123",
 };
 

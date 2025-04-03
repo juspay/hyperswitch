@@ -8,7 +8,7 @@ const cardDetailsWithoutNickName = {
 
 const successfulNo3DSCardDetails = {
   ...cardDetailsWithoutNickName,
-  nick_name: "Bank1",
+  nick_name: "Bank",
 };
 
 const billingDetails = {
