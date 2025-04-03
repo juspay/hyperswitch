@@ -4088,9 +4088,18 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    #[cfg(feature = "v1")]
     pub fn get_connector_name(&self) -> Option<String> {
         match self {
             Self::DbVal(db_val) => Some(db_val.connector_name.to_string()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_connector_name(&self) -> Option<api_enums::Connector> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.connector_name),
             Self::CacheVal(_) => None,
         }
     }
@@ -5207,6 +5216,33 @@ pub fn validate_customer_access(
     Ok(())
 }
 
+#[cfg(feature = "v2")]
+pub fn is_apple_pay_simplified_flow(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+    connector_name: Option<api_enums::Connector>,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
+    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
+        .map_err(|error| {
+            logger::info!(
+                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
+                connector_name,
+                error
+            )
+        })
+        .ok();
+
+    // return true only if the apple flow type is simplified
+    Ok(matches!(
+        option_apple_pay_metadata,
+        Some(
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
+            )
+        )
+    ))
+}
+
+#[cfg(feature = "v1")]
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
@@ -5378,6 +5414,125 @@ pub fn get_applepay_metadata(
         })
 }
 
+#[cfg(all(feature = "retry", feature = "v2"))]
+pub async fn get_apple_pay_retryable_connectors<F, D>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &D,
+    key_store: &domain::MerchantKeyStore,
+    pre_routing_connector_data_list: &[api::ConnectorData],
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    business_profile: domain::Profile,
+) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
+where
+    F: Send + Clone,
+    D: payments::OperationSessionGetters<F> + Send,
+{
+    let profile_id = business_profile.get_id();
+
+    let pre_decided_connector_data_first = pre_routing_connector_data_list
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+    let merchant_connector_account_type = get_merchant_connector_account(
+        state,
+        merchant_account.get_id(),
+        payment_data.get_creds_identifier(),
+        key_store,
+        profile_id,
+        &pre_decided_connector_data_first.connector_name.to_string(),
+        merchant_connector_id,
+    )
+    .await?;
+
+    let connector_data_list = if is_apple_pay_simplified_flow(
+        merchant_connector_account_type.get_metadata(),
+        merchant_connector_account_type.get_connector_name(),
+    )? {
+        let merchant_connector_account_list = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &state.into(),
+                merchant_account.get_id(),
+                false,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+        let profile_specific_merchant_connector_account_list = merchant_connector_account_list
+            .filter_based_on_profile_and_connector_type(
+                profile_id,
+                ConnectorType::PaymentProcessor,
+            );
+
+        let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
+
+        for merchant_connector_account in profile_specific_merchant_connector_account_list {
+            if is_apple_pay_simplified_flow(
+                merchant_connector_account.metadata.clone(),
+                Some(merchant_connector_account.connector_name),
+            )? {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &merchant_connector_account.connector_name.to_string(),
+                    api::GetToken::Connector,
+                    Some(merchant_connector_account.get_id()),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
+
+                if !connector_data_list.iter().any(|connector_details| {
+                    connector_details.merchant_connector_id == connector_data.merchant_connector_id
+                }) {
+                    connector_data_list.push(connector_data)
+                }
+            }
+        }
+
+        let fallback_connetors_list = core_admin::ProfileWrapper::new(business_profile)
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        let mut routing_connector_data_list = Vec::new();
+
+        pre_routing_connector_data_list.iter().for_each(|pre_val| {
+            routing_connector_data_list.push(pre_val.merchant_connector_id.clone())
+        });
+
+        fallback_connetors_list.iter().for_each(|fallback_val| {
+            routing_connector_data_list
+                .iter()
+                .all(|val| *val != fallback_val.merchant_connector_id)
+                .then(|| {
+                    routing_connector_data_list.push(fallback_val.merchant_connector_id.clone())
+                });
+        });
+
+        // connector_data_list is the list of connectors for which Apple Pay simplified flow is configured.
+        // This list is arranged in the same order as the merchant's connectors routingconfiguration.
+
+        let mut ordered_connector_data_list = Vec::new();
+
+        routing_connector_data_list
+            .iter()
+            .for_each(|merchant_connector_id| {
+                let connector_data = connector_data_list.iter().find(|connector_data| {
+                    *merchant_connector_id == connector_data.merchant_connector_id
+                });
+                if let Some(connector_data_details) = connector_data {
+                    ordered_connector_data_list.push(connector_data_details.clone());
+                }
+            });
+
+        Some(ordered_connector_data_list)
+    } else {
+        None
+    };
+    Ok(connector_data_list)
+}
+
 #[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
@@ -5464,12 +5619,6 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
-
-        #[cfg(feature = "v2")]
-        let fallback_connetors_list = core_admin::ProfileWrapper::new(business_profile)
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         let mut routing_connector_data_list = Vec::new();
 
@@ -7009,6 +7158,38 @@ pub async fn config_skip_saving_wallet_at_connector(
             None
         }
     })
+}
+
+// TODO: PaymentAttempt::get_payment_method_type() should not return an option
+#[cfg(feature = "v2")]
+pub async fn override_setup_future_usage_to_on_session<F, D>(
+    db: &dyn StorageInterface,
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
+{
+    if payment_data.get_payment_intent().setup_future_usage == enums::FutureUsage::OffSession {
+        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
+            db,
+            &payment_data.get_payment_intent().merchant_id,
+        )
+        .await?;
+
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) =
+                payment_data.get_payment_attempt().get_payment_method_type()
+            {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data
+                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                }
+            }
+        };
+    };
+    Ok(())
 }
 
 #[cfg(feature = "v1")]

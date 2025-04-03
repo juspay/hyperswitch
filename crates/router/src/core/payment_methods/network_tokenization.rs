@@ -19,7 +19,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
+use hyperswitch_domain_models::payment_method_data::{NetworkTokenDetails, PaymentMethodsData};
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 
@@ -575,7 +575,73 @@ pub async fn get_token_from_tokenization_service(
     Ok(network_token_data)
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn do_status_check_for_network_token(
+    state: &routes::SessionState,
+    payment_method_info: &domain::PaymentMethod,
+) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), errors::ApiErrorResponse> {
+    let network_token_data_decrypted = payment_method_info
+        .network_token_payment_method_data
+        .clone()
+        .map(|x| x.into_inner())
+        .and_then(|pmd| match pmd {
+            PaymentMethodsData::Card(token) => Some(token.to_card_details_from_locker()),
+            _ => None,
+        });
+    let network_token_requestor_reference_id = payment_method_info
+        .network_token_requestor_reference_id
+        .clone();
+    if network_token_data_decrypted
+        .and_then(|token_data| token_data.expiry_month.zip(token_data.expiry_year))
+        .and_then(|(exp_month, exp_year)| helpers::validate_card_expiry(&exp_month, &exp_year).ok())
+        .is_none()
+    {
+        if let Some(ref_id) = network_token_requestor_reference_id {
+            if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
+                let (token_exp_month, token_exp_year) = record_operation_time(
+                    async {
+                        check_token_status_with_tokenization_service(
+                            state,
+                            &payment_method_info.customer_id.clone(),
+                            ref_id,
+                            network_tokenization_service.get_inner(),
+                        )
+                        .await
+                        .inspect_err(
+                            |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Check network token status with tokenization service failed",
+                        )
+                    },
+                    &metrics::CHECK_NETWORK_TOKEN_STATUS_TIME,
+
+                    &[],
+                )
+                .await?;
+                Ok((token_exp_month, token_exp_year))
+            } else {
+                Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .inspect_err(|_| {
+                        logger::error!("Network Tokenization Service not configured");
+                    })
+            }
+        } else {
+            Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Check network token status failed")?
+        }
+    } else {
+        Ok((None, None))
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     payment_method_info: &domain::PaymentMethod,
