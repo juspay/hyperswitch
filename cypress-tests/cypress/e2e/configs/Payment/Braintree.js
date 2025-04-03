@@ -8,6 +8,16 @@ const successfulCardDetails = {
   card_cvc: "737",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -224,6 +234,47 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
