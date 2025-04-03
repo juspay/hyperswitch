@@ -1760,7 +1760,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -1805,7 +1805,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       }
@@ -1859,7 +1859,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -1940,7 +1940,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3122,7 +3122,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3211,7 +3211,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3276,7 +3276,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -9893,6 +9893,7 @@
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "taxjar",
           "threedsecureio",
           "trustpay",
@@ -25443,6 +25444,7 @@
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "trustpay",
           "tsys",
           "volt",
