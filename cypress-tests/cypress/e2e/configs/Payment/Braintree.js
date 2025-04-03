@@ -36,6 +36,42 @@ const multiUseMandateData = {
   },
 };
 
+const payment_method_data_no3ds_response = {
+  card: {
+    last4: "1881",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "PT BANK HSBC INDONESIA",
+    card_issuing_country: "INDONESIA",
+    card_isin: "400934",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_3ds_response = {
+  card: {
+    last4: "7777",
+    card_type: "DEBIT",
+    card_network: "Visa",
+    card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "401200",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Juspay Hyperswitch",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -112,6 +148,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
