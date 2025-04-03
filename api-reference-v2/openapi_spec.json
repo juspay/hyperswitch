@@ -19530,6 +19530,18 @@
             "example": false,
             "nullable": true
           },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "nullable": true
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true,
+            "minimum": 0
+          },
           "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
             "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
