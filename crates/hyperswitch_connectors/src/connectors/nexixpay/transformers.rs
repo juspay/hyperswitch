@@ -25,10 +25,7 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    errors,
-};
+use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -316,7 +313,7 @@ pub fn get_error_response(
     ErrorResponse {
         status_code,
         code: NO_ERROR_CODE.to_string(),
-        message: NO_ERROR_MESSAGE.to_string(),
+        message: operation_result.to_string(),
         reason: Some(operation_result.to_string()),
         attempt_status: None,
         connector_transaction_id: None,
