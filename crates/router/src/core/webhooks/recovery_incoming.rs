@@ -612,32 +612,32 @@ impl RevenueRecoveryAttempt {
                 // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
                 let payment_merchant_connector_account = invoice_transaction_details
                     .find_payment_merchant_connector_account(
-                        &state,
-                        &key_store,
-                        &billing_connector_account,
+                        state,
+                        key_store,
+                        billing_connector_account,
                     )
                     .await?;
 
                 let (payment_attempt, updated_payment_intent) = invoice_transaction_details
                     .get_payment_attempt(
-                        &state,
-                        &req_state,
-                        &merchant_account,
-                        &business_profile,
-                        &key_store,
-                        &payment_intent,
+                        state,
+                        req_state,
+                        merchant_account,
+                        business_profile,
+                        key_store,
+                        payment_intent,
                     )
                     .await
                     .transpose()
                     .async_unwrap_or_else(|| async {
                         invoice_transaction_details
                             .record_payment_attempt(
-                                &state,
-                                &req_state,
-                                &merchant_account,
-                                &business_profile,
-                                &key_store,
-                                &payment_intent,
+                                state,
+                                req_state,
+                                merchant_account,
+                                business_profile,
+                                key_store,
+                                payment_intent,
                                 &billing_connector_account.id,
                                 payment_merchant_connector_account,
                             )
