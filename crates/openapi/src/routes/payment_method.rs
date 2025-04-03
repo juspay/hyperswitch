@@ -326,7 +326,7 @@ pub async fn payment_method_delete_api() {}
 ///
 /// List the payment methods saved for a customer
 #[utoipa::path(
-    delete,
+    get,
     path = "/v2/customers/{id}/saved-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the customer"),
@@ -443,6 +443,35 @@ pub fn payment_method_session_list_payment_methods() {}
     security(("ephemeral_key" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method() {}
+
+/// Payment Method Session - Delete a saved payment method
+///
+/// Delete a saved payment method from the given payment method session.
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    delete,
+    path = "/v2/payment-method-session/:id",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+    ),
+    request_body(
+        content = PaymentMethodSessionDeleteSavedPaymentMethod,
+            examples(( "Update the card holder name" = (
+                value =json!( {
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3",
+                }
+            )
+        )))
+    ),
+    responses(
+        (status = 200, description = "The payment method has been updated successfully", body = PaymentMethodDeleteResponse),
+        (status = 404, description = "The request is invalid")
+    ),
+    tag = "Payment Method Session",
+    operation_id = "Delete a saved payment method",
+    security(("ephemeral_key" = []))
+)]
+pub fn payment_method_session_delete_saved_payment_method() {}
 
 /// Card network tokenization - Create using raw card data
 ///

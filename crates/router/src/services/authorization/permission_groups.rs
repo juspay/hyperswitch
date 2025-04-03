@@ -167,11 +167,12 @@ pub static OPERATIONS: [Resource; 8] = [
 
 pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
 
-pub static WORKFLOWS: [Resource; 4] = [
+pub static WORKFLOWS: [Resource; 5] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
     Resource::Account,
+    Resource::RevenueRecovery,
 ];
 
 pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];
@@ -180,7 +181,7 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON_OPS: [Resource; 7] = [
+pub static RECON_OPS: [Resource; 8] = [
     Resource::ReconToken,
     Resource::ReconFiles,
     Resource::ReconUpload,
@@ -188,10 +189,12 @@ pub static RECON_OPS: [Resource; 7] = [
     Resource::ReconConfig,
     Resource::ReconAndSettlementAnalytics,
     Resource::ReconReports,
+    Resource::Account,
 ];
 
-pub static RECON_REPORTS: [Resource; 3] = [
+pub static RECON_REPORTS: [Resource; 4] = [
     Resource::ReconToken,
     Resource::ReconAndSettlementAnalytics,
     Resource::ReconReports,
+    Resource::Account,
 ];

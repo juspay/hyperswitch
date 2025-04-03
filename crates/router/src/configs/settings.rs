@@ -96,7 +96,7 @@ pub struct Settings<S: SecretState> {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
-    // pub additional_revenue_recovery_details_call: GetAdditionalRevenueRecoveryDetailsCall,
+    pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -409,10 +409,9 @@ pub struct PaymentLink {
 pub struct ForexApi {
     pub api_key: Secret<String>,
     pub fallback_api_key: Secret<String>,
-    /// in s
-    pub call_delay: i64,
-    /// in s
-    pub redis_lock_timeout: u64,
+    pub data_expiration_delay_in_seconds: u32,
+    pub redis_lock_timeout_in_seconds: u32,
+    pub redis_ttl_in_seconds: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -849,9 +848,9 @@ pub struct WebhookSourceVerificationCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct GetAdditionalRevenueRecoveryDetailsCall {
+pub struct BillingConnectorPaymentsSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connectors_with_additional_revenue_recovery_details_call: HashSet<enums::Connector>,
+    pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

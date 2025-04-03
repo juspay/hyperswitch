@@ -705,6 +705,8 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             None
@@ -757,6 +759,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         } else {
             None

@@ -3,6 +3,8 @@ use common_enums::enums as common_enums;
 use common_utils::{id_type, types as util_types};
 use time::PrimitiveDateTime;
 
+use crate::router_response_types::revenue_recovery::BillingConnectorPaymentsSyncResponse;
+
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
@@ -31,7 +33,7 @@ pub struct RevenueRecoveryAttemptData {
     /// payment method of payment attempt.
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
-    pub payment_method_sub_type: common_enums::PaymentMethodType,
+    pub payment_method_sub_type: Option<common_enums::PaymentMethodType>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -61,7 +63,6 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
-
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
@@ -75,10 +76,11 @@ pub struct RecoveryPaymentAttempt {
 }
 
 impl RecoveryPaymentAttempt {
-    pub fn get_attempt_triggered_by(self) -> Option<common_enums::TriggeredBy> {
-        self.feature_metadata.and_then(|metadata| {
+    pub fn get_attempt_triggered_by(&self) -> Option<common_enums::TriggeredBy> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
             metadata
                 .revenue_recovery
+                .as_ref()
                 .map(|recovery| recovery.attempt_triggered_by)
         })
     }
@@ -187,6 +189,36 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+        }
+    }
+}
+
+impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryInvoiceData {
+    fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
+        Self {
+            amount: data.amount,
+            currency: data.currency,
+            merchant_reference_id: data.merchant_reference_id.clone(),
+        }
+    }
+}
+
+impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData {
+    fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
+        Self {
+            amount: data.amount,
+            currency: data.currency,
+            merchant_reference_id: data.merchant_reference_id.clone(),
+            connector_transaction_id: data.connector_transaction_id.clone(),
+            error_code: data.error_code.clone(),
+            error_message: data.error_message.clone(),
+            processor_payment_method_token: data.processor_payment_method_token.clone(),
+            connector_customer_id: data.connector_customer_id.clone(),
+            connector_account_reference_id: data.connector_account_reference_id.clone(),
+            transaction_created_at: data.transaction_created_at,
+            status: data.status,
+            payment_method_type: data.payment_method_type,
+            payment_method_sub_type: Some(data.payment_method_sub_type),
         }
     }
 }

@@ -10,9 +10,8 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::{
-    api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage},
-    StorageError as DataStorageError,
+pub use hyperswitch_domain_models::errors::api_error_response::{
+    ApiErrorResponse, ErrorType, NotImplementedMessage,
 };
 pub use hyperswitch_interfaces::errors::ConnectorError;
 pub use redis_interface::errors::RedisError;
@@ -446,6 +445,12 @@ pub enum NetworkTokenizationError {
     NetworkTokenizationServiceNotConfigured,
     #[error("Failed while calling Network Token Service API")]
     ApiError,
+    #[error("Network Tokenization is not enabled for profile")]
+    NetworkTokenizationNotEnabledForProfile,
+    #[error("Network Tokenization is not supported for {message}")]
+    NotSupported { message: String },
+    #[error("Failed to encrypt the NetworkToken payment method details")]
+    NetworkTokenDetailsEncryptionFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -475,6 +480,8 @@ pub enum RevenueRecoveryError {
     PaymentIntentFetchFailed,
     #[error("Failed to fetch payment attempt")]
     PaymentAttemptFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptIdNotFound,
     #[error("Failed to get revenue recovery invoice webhook")]
     InvoiceWebhookProcessingFailed,
     #[error("Failed to get revenue recovery invoice transaction")]
@@ -483,6 +490,14 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
-    #[error("Payment merchant connector account not found using acccount reference id")]
+    #[error("Payment merchant connector account not found using account reference id")]
     PaymentMerchantConnectorAccountNotFound,
+    #[error("Failed to fetch primitive date_time")]
+    ScheduleTimeFetchFailed,
+    #[error("Failed to create process tracker")]
+    ProcessTrackerCreationError,
+    #[error("Failed to get the response from process tracker")]
+    ProcessTrackerResponseError,
+    #[error("Billing connector psync call failed")]
+    BillingConnectorPaymentsSyncFailed,
 }

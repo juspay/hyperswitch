@@ -11,6 +11,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    configs::Connectors,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -36,7 +37,6 @@ use hyperswitch_interfaces::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
-    configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
@@ -135,6 +135,8 @@ impl ConnectorCommon for Coinbase {
             reason: response.error.code,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -434,10 +436,9 @@ impl webhooks::IncomingWebhook for Coinbase {
 
 lazy_static! {
     static ref COINBASE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name:
-            "Coinbase is a place for people and businesses to buy, sell, and manage crypto.",
+        display_name: "Coinbase",
         description:
-            "Square is the largest business technology platform serving all kinds of businesses.",
+            "Coinbase is a place for people and businesses to buy, sell, and manage crypto.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref COINBASE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {

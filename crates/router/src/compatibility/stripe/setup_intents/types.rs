@@ -96,7 +96,9 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: Some(masking::Secret::new("stripe_cust".to_owned())),
+            card_holder_name: Some(common_utils::types::NameType::get_unchecked(String::from(
+                "Stripe_cust",
+            ))), // this is unchecked because valid input is being provided
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
@@ -392,6 +394,9 @@ pub enum StripeNextAction {
     CollectOtp {
         consent_data_required: payments::MobilePaymentConsent,
     },
+    InvokeHiddenIframe {
+        iframe_data: payments::IframeData,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -456,6 +461,9 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::CollectOtp {
             consent_data_required,
         },
+        payments::NextActionData::InvokeHiddenIframe { iframe_data } => {
+            StripeNextAction::InvokeHiddenIframe { iframe_data }
+        }
     })
 }
 

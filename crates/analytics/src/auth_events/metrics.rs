@@ -41,9 +41,11 @@ pub struct AuthEventMetricRow {
     pub count: Option<i64>,
     pub authentication_status: Option<DBEnumWrapper<storage_enums::AuthenticationStatus>>,
     pub trans_status: Option<DBEnumWrapper<storage_enums::TransactionStatus>>,
+    pub authentication_type: Option<DBEnumWrapper<storage_enums::DecoupledAuthenticationType>>,
     pub error_message: Option<String>,
     pub authentication_connector: Option<DBEnumWrapper<storage_enums::AuthenticationConnectors>>,
     pub message_version: Option<String>,
+    pub acs_reference_number: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

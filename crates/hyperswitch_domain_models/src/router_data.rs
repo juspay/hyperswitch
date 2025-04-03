@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_types::primitive_wrappers;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -314,7 +315,7 @@ pub struct PazeDynamicData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
-    pub name: Option<Secret<String>>,
+    pub name: Option<common_utils::types::NameType>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -361,6 +362,7 @@ pub struct PaymentMethodBalance {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+    extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
 }
 
 impl ConnectorResponseData {
@@ -369,7 +371,13 @@ impl ConnectorResponseData {
     ) -> Self {
         Self {
             additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
         }
+    }
+    pub fn get_extended_authorization_response_data(
+        &self,
+    ) -> Option<&ExtendedAuthorizationResponseData> {
+        self.extended_authorization_response_data.as_ref()
     }
 }
 
@@ -380,10 +388,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         authentication_data: Option<serde_json::Value>,
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
+        /// Card Network returned by the processor
+        card_network: Option<String>,
+        /// Domestic(Co-Branded) Card network returned by the processor
+        domestic_network: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExtendedAuthorizationResponseData {
+    pub extended_authentication_applied:
+        Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -399,6 +418,8 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -410,6 +431,8 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -423,6 +446,8 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         }
     }
 }
@@ -475,12 +500,26 @@ impl
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
         let status = payment_data.payment_attempt.status.is_terminal_status();
-        let updated_feature_metadata = payment_data
-            .payment_intent
-            .set_payment_connector_transmission(
-                payment_data.payment_intent.feature_metadata.clone(),
-                status,
-            );
+        let updated_feature_metadata =
+            payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(|mut feature_metadata| {
+                    if let Some(ref mut payment_revenue_recovery_metadata) =
+                        feature_metadata.payment_revenue_recovery_metadata
+                    {
+                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
+                            .response
+                            .is_ok()
+                        {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                        } else {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
+                        };
+                    }
+                    Box::new(feature_metadata)
+                });
 
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -587,6 +626,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -784,6 +825,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -999,8 +1042,11 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
 
                 let error_details = ErrorDetails {
                     code,
@@ -1241,6 +1287,8 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    issuer_error_code: _,
+                    issuer_error_message: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 

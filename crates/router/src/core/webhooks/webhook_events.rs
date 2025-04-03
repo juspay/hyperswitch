@@ -1,3 +1,4 @@
+use common_utils::{self, fp_utils};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -11,6 +12,7 @@ use crate::{
 };
 
 const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
+const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS: i64 = 90;
 
 #[derive(Debug)]
 enum MerchantAccountOrProfile {
@@ -22,16 +24,21 @@ enum MerchantAccountOrProfile {
 pub async fn list_initial_delivery_attempts(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    constraints: api::webhook_events::EventListConstraints,
-) -> RouterResponse<Vec<api::webhook_events::EventListItemResponse>> {
-    let profile_id = constraints.profile_id.clone();
-    let constraints =
-        api::webhook_events::EventListConstraintsInternal::foreign_try_from(constraints)?;
+    api_constraints: api::webhook_events::EventListConstraints,
+) -> RouterResponse<api::webhook_events::TotalEventsResponse> {
+    let profile_id = api_constraints.profile_id.clone();
+    let constraints = api::webhook_events::EventListConstraintsInternal::foreign_try_from(
+        api_constraints.clone(),
+    )?;
 
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let (account, key_store) =
-        get_account_and_key_store(state.clone(), merchant_id, profile_id).await?;
+        get_account_and_key_store(state.clone(), merchant_id.clone(), profile_id.clone()).await?;
+
+    let now = common_utils::date_time::now();
+    let events_list_begin_time =
+        (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let events = match constraints {
         api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
@@ -57,6 +64,7 @@ pub async fn list_initial_delivery_attempts(
             created_before,
             limit,
             offset,
+            is_delivered
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -72,6 +80,33 @@ pub async fn list_initial_delivery_attempts(
                 _ => None,
             };
 
+            fp_utils::when(!created_after.zip(created_before).map(|(created_after,created_before)| created_after<=created_before).unwrap_or(true), || {
+                Err(errors::ApiErrorResponse::InvalidRequestData { message: "The `created_after` timestamp must be an earlier timestamp compared to the `created_before` timestamp".to_string() })
+            })?;
+
+            let created_after = match created_after {
+                Some(created_after) => {
+                    if created_after < events_list_begin_time {
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("`created_after` must be a timestamp within the past {INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS} days.") })
+                    }else{
+                        Ok(created_after)
+                    }
+                },
+                None => Ok(events_list_begin_time)
+            }?;
+
+            let created_before = match created_before{
+                Some(created_before) => {
+                    if created_before < events_list_begin_time{
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("`created_before` must be a timestamp within the past {INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS} days.") })
+                    }
+                    else{
+                        Ok(created_before)
+                    }
+                },
+                None => Ok(now)
+            }?;
+
             match account {
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_constraints(key_manager_state,
@@ -80,6 +115,7 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    is_delivered,
                     &key_store,
                 )
                 .await,
@@ -90,6 +126,7 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    is_delivered,
                     &key_store,
                 )
                 .await,
@@ -99,11 +136,32 @@ pub async fn list_initial_delivery_attempts(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to list events with specified constraints")?;
 
+    let events = events
+        .into_iter()
+        .map(api::webhook_events::EventListItemResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let created_after = api_constraints
+        .created_after
+        .unwrap_or(events_list_begin_time);
+    let created_before = api_constraints.created_before.unwrap_or(now);
+
+    let is_delivered = api_constraints.is_delivered;
+
+    let total_count = store
+        .count_initial_events_by_constraints(
+            &merchant_id,
+            profile_id,
+            created_after,
+            created_before,
+            is_delivered,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get total events count")?;
+
     Ok(ApplicationResponse::Json(
-        events
-            .into_iter()
-            .map(api::webhook_events::EventListItemResponse::try_from)
-            .collect::<Result<Vec<_>, _>>()?,
+        api::webhook_events::TotalEventsResponse::new(total_count, events),
     ))
 }
 
@@ -217,6 +275,7 @@ pub async fn retry_delivery_attempt(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
+        is_overall_delivery_successful: Some(false),
     };
 
     let event = store

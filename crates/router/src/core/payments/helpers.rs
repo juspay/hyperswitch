@@ -97,17 +97,6 @@ use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
-pub fn filter_mca_based_on_profile_and_connector_type(
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: &id_type::ProfileId,
-    connector_type: ConnectorType,
-) -> Vec<domain::MerchantConnectorAccount> {
-    merchant_connector_accounts
-        .into_iter()
-        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
-        .collect()
-}
-
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
@@ -139,11 +128,11 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 first_name: address
                                     .address
                                     .as_ref()
-                                    .and_then(|a| a.first_name.clone()),
+                                    .and_then(|a| a.first_name.clone().map(From::from)),
                                 last_name: address
                                     .address
                                     .as_ref()
-                                    .and_then(|a| a.last_name.clone()),
+                                    .and_then(|a| a.last_name.clone().map(From::from)),
                                 zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                                 phone_number: address
                                     .phone
@@ -352,8 +341,14 @@ pub async fn get_domain_address(
                         line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                         line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                         state: address.address.as_ref().and_then(|a| a.state.clone()),
-                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
+                        first_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|a| a.first_name.clone().map(From::from)),
+                        last_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|a| a.last_name.clone().map(From::from)),
                         zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                         phone_number: address
                             .phone
@@ -1262,13 +1257,18 @@ pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
     connector_name: impl std::fmt::Display,
+    creds_identifier: Option<&str>,
 ) -> String {
+    let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
+        format!("/{}", creds_identifier)
+    });
     format!(
-        "{}/payments/{}/{}/redirect/complete/{}",
+        "{}/payments/{}/{}/redirect/complete/{}{}",
         router_base_url,
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
-        connector_name
+        connector_name,
+        creds_identifier
     )
 }
 
@@ -1807,7 +1807,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: hyperswitch_domain_models::consts::API_VERSION,
+                        version: common_types::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -1886,7 +1886,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
 
             if let Some(name) = name_on_card.clone() {
-                if !name.peek().is_empty() {
+                if !name.is_empty() {
                     is_card_updated = true;
                     updated_card.nick_name = name_on_card;
                 }
@@ -2278,7 +2278,7 @@ pub async fn fetch_card_details_from_locker(
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
     let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.clone().expose().is_empty() {
+        if name.is_empty() {
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
                 .or(Some(name))
@@ -2300,7 +2300,7 @@ pub async fn fetch_card_details_from_locker(
             .card_cvc
             .unwrap_or_default(),
         card_issuer: None,
-        nick_name: card.nick_name.map(masking::Secret::new),
+        nick_name: card.nick_name,
         card_network: card
             .card_brand
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
@@ -2358,7 +2358,7 @@ pub async fn fetch_network_token_details_from_locker(
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
-        nick_name: token_data.nick_name.map(masking::Secret::new),
+        nick_name: token_data.nick_name,
         card_issuer: None,
         card_network,
         card_type: None,
@@ -2405,7 +2405,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+            nick_name: card_details_from_locker.nick_name,
             card_holder_name: card_details_from_locker.name_on_card.clone(),
         };
 
@@ -3018,7 +3018,7 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Ach
-                | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::SepaBankTransfer
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Multibanco
                 | api_enums::PaymentMethodType::Pix
@@ -3031,6 +3031,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::DanamonVa
                 | api_enums::PaymentMethodType::MandiriVa
                 | api_enums::PaymentMethodType::LocalBankTransfer
+                | api_enums::PaymentMethodType::InstantBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
@@ -3125,7 +3126,7 @@ pub(super) async fn filter_by_constraints(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
-) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
+) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
         .filter_payment_intent_by_constraints(
@@ -5425,9 +5426,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list =
-            filter_mca_based_on_profile_and_connector_type(
-                merchant_connector_account_list,
+        let profile_specific_merchant_connector_account_list = merchant_connector_account_list
+            .filter_based_on_profile_and_connector_type(
                 profile_id,
                 ConnectorType::PaymentProcessor,
             );
@@ -6550,6 +6550,7 @@ pub fn add_connector_response_to_additional_payment_data(
             AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
+                ..
             },
         ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
             api_models::payments::AdditionalCardInfo {
@@ -6811,14 +6812,22 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if *do_authorisation_confirmation {
-                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    let should_do_uas_confirmation_call = payment_data
+                        .service_details
+                        .as_ref()
+                        .map(|details| details.is_network_confirmation_call_required())
+                        .unwrap_or(true);
+
+                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
+                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+                    } else {
+                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    }
                 } else {
                     None
                 }
@@ -7343,11 +7352,11 @@ pub async fn validate_allowed_payment_method_types_request(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
 
-        let filtered_connector_accounts = filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            profile_id,
-            ConnectorType::PaymentProcessor,
-        );
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                profile_id,
+                ConnectorType::PaymentProcessor,
+            );
 
         let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
             .iter()

@@ -218,6 +218,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             service_details: None,
             card_testing_guard_data: None,
             vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -350,7 +351,7 @@ where
         Ok((Box::new(self), None, None))
     }
 
-    /// Returns `Vec<SessionConnectorData>`
+    /// Returns `SessionConnectorDatas`
     /// Steps carried out in this function
     /// Get all the `merchant_connector_accounts` which are not disabled
     /// Filter out connectors which have `invoke_sdk_client` enabled in `payment_method_types`
@@ -387,11 +388,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            &profile_id,
-            common_enums::ConnectorType::PaymentProcessor,
-        );
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                &profile_id,
+                common_enums::ConnectorType::PaymentProcessor,
+            );
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();
@@ -436,7 +437,11 @@ where
                                 is_invoke_sdk_client && is_sent_in_request
                             })
                             .map(|payment_method_type| {
-                                (connector_account, payment_method_type.payment_method_type)
+                                (
+                                    connector_account,
+                                    payment_method_type.payment_method_type,
+                                    parsed_payment_methods_enabled.payment_method,
+                                )
                             })
                             .collect::<Vec<_>>()
                     })
@@ -444,10 +449,11 @@ where
                 connector_and_supporting_payment_method_type.extend(res);
             });
 
-        let mut session_connector_data =
-            Vec::with_capacity(connector_and_supporting_payment_method_type.len());
+        let mut session_connector_data = api::SessionConnectorDatas::with_capacity(
+            connector_and_supporting_payment_method_type.len(),
+        );
 
-        for (merchant_connector_account, payment_method_type) in
+        for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type
         {
             let connector_type = api::GetToken::from(payment_method_type);
@@ -466,6 +472,7 @@ where
                         payment_method_type,
                         connector_data,
                         merchant_connector_account.business_sub_label.clone(),
+                        payment_method,
                     );
                     session_connector_data.push(new_session_connector_data)
                 }

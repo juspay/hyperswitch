@@ -126,6 +126,8 @@ impl ConnectorCommon for Klarna {
             reason,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -623,6 +625,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::SepaBankTransfer
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
                         | common_enums::PaymentMethodType::TouchNGo
@@ -637,6 +640,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::SevenEleven
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransfer
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -741,6 +745,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::SepaBankTransfer
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
                         | common_enums::PaymentMethodType::TouchNGo
@@ -755,6 +760,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::SevenEleven
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransfer
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
