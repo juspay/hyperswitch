@@ -2060,6 +2060,12 @@ pub struct ProfileCreate {
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
+    /// Indicates if is_auto_retries_enabled is enabled or not.
+    pub is_auto_retries_enabled: Option<bool>,
+
+    /// Maximum number of auto retries allowed for a payment
+    pub max_auto_retries_enabled: Option<u8>,
+
     /// A boolean value to indicate if customer billing details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]

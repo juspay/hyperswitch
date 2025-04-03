@@ -696,7 +696,7 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-#[cfg(feature = "v1")]
+// #[cfg(feature = "v1")]
 pub async fn get_merchant_config_for_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -714,6 +714,17 @@ pub async fn get_merchant_config_for_gsm(
             false
         }
     }
+}
+
+#[cfg(feature = "v2")]
+pub async fn config_should_call_gsm(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile: &domain::Profile,
+) -> bool {
+    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let profile_config_gsm = profile.is_auto_retries_enabled;
+    merchant_config_gsm || profile_config_gsm.unwrap_or(false)
 }
 
 #[cfg(feature = "v1")]

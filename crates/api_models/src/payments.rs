@@ -1737,6 +1737,7 @@ pub struct NetworkTokenWithNTIRef {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
+    // todo: change to GlobalPaymentMethodId in v2
     payment_method_id: Option<String>,
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<pii::SecretSerdeValue>,

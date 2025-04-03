@@ -6306,6 +6306,69 @@ where
     Ok(decided_connector)
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn connector_selection<F, D>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    request_straight_through: Option<serde_json::Value>,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<ConnectorCallType>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
+        request_straight_through
+            .map(|val| val.parse_value("RoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid straight through routing rules format")?;
+
+    let mut routing_data = storage::RoutingData {
+        routed_through: payment_data.get_payment_attempt().connector.clone(),
+
+        merchant_connector_id: payment_data
+            .get_payment_attempt()
+            .merchant_connector_id
+            .clone(),
+
+        algorithm: request_straight_through.clone(),
+        routing_info: payment_data
+            .get_payment_intent()
+            .prerouting_algorithm
+            .clone()
+            .unwrap_or(storage::PaymentRoutingInfo {
+                algorithm: None,
+                pre_routing_results: None,
+            }),
+    };
+
+    let decided_connector = decide_connector(
+        state.clone(),
+        merchant_account,
+        business_profile,
+        key_store,
+        payment_data,
+        request_straight_through,
+        &mut routing_data,
+        eligible_connectors,
+        mandate_type,
+    )
+    .await?;
+
+    payment_data.set_connector_in_payment_attempt(routing_data.routed_through);
+
+    payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
+    payment_data.set_prerouting_algorithm_in_payment_intent(routing_data.routing_info);
+
+    Ok(decided_connector)
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
 pub async fn decide_connector<F, D>(
@@ -6323,7 +6386,280 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    todo!()
+    // If the connector was already decided previously, use the same connector
+    // This is in case of flows like payments_sync, payments_cancel where the successive operations
+    // with the connector have to be made using the same connector account.
+    if let Some(ref connector_name) = payment_data.get_payment_attempt().connector {
+        // Connector was already decided previously, use the same connector
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+            payment_data
+                .get_payment_attempt()
+                .merchant_connector_id
+                .clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received in 'routed_through'")?;
+
+        routing_data.routed_through = Some(connector_name.clone());
+        return Ok(ConnectorCallType::PreDetermined(connector_data));
+    }
+
+    if let Some(mandate_connector_details) = payment_data.get_mandate_connector().as_ref() {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &mandate_connector_details.connector,
+            api::GetToken::Connector,
+            mandate_connector_details.merchant_connector_id.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received in 'routed_through'")?;
+
+        routing_data.routed_through = Some(mandate_connector_details.connector.clone());
+
+        routing_data
+            .merchant_connector_id
+            .clone_from(&mandate_connector_details.merchant_connector_id);
+
+        return Ok(ConnectorCallType::PreDetermined(connector_data));
+    }
+
+    // let storage_pm_type = payment_data.get_payment_attempt().payment_method_subtype;
+
+    if let Some((pre_routing_results, storage_pm_type)) =
+        routing_data.routing_info.pre_routing_results.as_ref().zip(
+            payment_data
+                .get_payment_attempt()
+                .payment_method_subtype
+                .as_ref(),
+        )
+    {
+        if let (Some(routable_connector_choice), None) = (
+            pre_routing_results.get(storage_pm_type),
+            &payment_data.get_token_data(),
+        ) {
+            let routable_connector_list = match routable_connector_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    vec![routable_connector.clone()]
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.clone()
+                }
+            };
+
+            let mut pre_routing_connector_data_list = vec![];
+
+            let first_routable_connector = routable_connector_list
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            routing_data.routed_through = Some(first_routable_connector.connector.to_string());
+
+            routing_data
+                .merchant_connector_id
+                .clone_from(&first_routable_connector.merchant_connector_id);
+
+            for connector_choice in routable_connector_list.clone() {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector_choice.connector.to_string(),
+                    api::GetToken::Connector,
+                    connector_choice.merchant_connector_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
+
+                pre_routing_connector_data_list.push(connector_data);
+            }
+
+            #[cfg(feature = "retry")]
+            let should_do_retry = retry::config_should_call_gsm(
+                &*state.store,
+                merchant_account.get_id(),
+                business_profile,
+            )
+            .await;
+
+            #[cfg(feature = "retry")]
+            if payment_data.get_payment_attempt().payment_method_subtype
+                == Some(storage_enums::PaymentMethodType::ApplePay)
+                && should_do_retry
+            {
+                let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
+                    &state,
+                    merchant_account,
+                    payment_data,
+                    key_store,
+                    &pre_routing_connector_data_list,
+                    first_routable_connector
+                        .merchant_connector_id
+                        .clone()
+                        .as_ref(),
+                    business_profile.clone(),
+                )
+                .await?;
+
+                if let Some(connector_data_list) = retryable_connector_data {
+                    if connector_data_list.len() > 1 {
+                        logger::info!("Constructed apple pay retryable connector list");
+                        return Ok(ConnectorCallType::Retryable(connector_data_list));
+                    }
+                }
+            }
+
+            let first_pre_routing_connector_data_list = pre_routing_connector_data_list
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+
+            return Ok(ConnectorCallType::PreDetermined(
+                first_pre_routing_connector_data_list.clone(),
+            ));
+        }
+    }
+
+    if let Some(routing_algorithm) = request_straight_through {
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            &routing_algorithm,
+            payment_data.get_creds_identifier(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
+
+        if check_eligibility {
+            let transaction_data = core_routing::PaymentsDslInput::new(
+                payment_data.get_setup_mandate(),
+                payment_data.get_payment_attempt(),
+                payment_data.get_payment_intent(),
+                payment_data.get_payment_method_data(),
+                payment_data.get_address(),
+                payment_data.get_recurring_details(),
+                payment_data.get_currency(),
+            );
+
+            connectors = routing::perform_eligibility_analysis_with_fallback(
+                &state.clone(),
+                key_store,
+                connectors,
+                &TransactionData::Payment(transaction_data),
+                eligible_connectors,
+                business_profile,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
+        }
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    conn.merchant_connector_id.clone(),
+                )
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        return decide_multiplex_connector_for_normal_or_recurring_payment(
+            &state,
+            payment_data,
+            routing_data,
+            connector_data,
+            mandate_type,
+            business_profile.is_connector_agnostic_mit_enabled,
+            business_profile.is_network_tokenization_enabled,
+        )
+        .await;
+    }
+
+    if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            routing_algorithm,
+            payment_data.get_creds_identifier(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
+
+        if check_eligibility {
+            let transaction_data = core_routing::PaymentsDslInput::new(
+                payment_data.get_setup_mandate(),
+                payment_data.get_payment_attempt(),
+                payment_data.get_payment_intent(),
+                payment_data.get_payment_method_data(),
+                payment_data.get_address(),
+                payment_data.get_recurring_details(),
+                payment_data.get_currency(),
+            );
+
+            connectors = routing::perform_eligibility_analysis_with_fallback(
+                &state,
+                key_store,
+                connectors,
+                &TransactionData::Payment(transaction_data),
+                eligible_connectors,
+                business_profile,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
+        }
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    conn.merchant_connector_id,
+                )
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        return decide_multiplex_connector_for_normal_or_recurring_payment(
+            &state,
+            payment_data,
+            routing_data,
+            connector_data,
+            mandate_type,
+            business_profile.is_connector_agnostic_mit_enabled,
+            business_profile.is_network_tokenization_enabled,
+        )
+        .await;
+    }
+
+    let new_pd = payment_data.clone();
+    let transaction_data = core_routing::PaymentsDslInput::new(
+        new_pd.get_setup_mandate(),
+        new_pd.get_payment_attempt(),
+        new_pd.get_payment_intent(),
+        new_pd.get_payment_method_data(),
+        new_pd.get_address(),
+        new_pd.get_recurring_details(),
+        new_pd.get_currency(),
+    );
+
+    route_connector_v2_for_payments(
+        &state,
+        merchant_account,
+        business_profile,
+        key_store,
+        payment_data,
+        transaction_data,
+        routing_data,
+        eligible_connectors,
+        mandate_type,
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -6625,11 +6961,161 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     connectors: Vec<api::ConnectorData>,
     mandate_type: Option<api::MandateTransactionType>,
     is_connector_agnostic_mit_enabled: Option<bool>,
+    is_network_tokenization_enabled: bool,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    todo!()
+    // todo!();
+    match (
+        payment_data.get_payment_intent().setup_future_usage,
+        payment_data.get_token_data().is_some(),
+        payment_data.get_recurring_details().as_ref(),
+        payment_data.get_payment_intent().customer_present.clone(),
+        mandate_type,
+    ) {
+        (
+            storage_enums::FutureUsage::OffSession,
+            true,
+            None,
+            common_enums::PresenceOfCustomerDuringPayment::Absent,
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        )|(
+            // S2S call (MIT)
+            _,
+            false,
+            Some(RecurringDetails::PaymentMethodId(_)),
+            common_enums::PresenceOfCustomerDuringPayment::Absent,
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        )
+        |
+        // Network token id flow
+        (_, true, None, common_enums::PresenceOfCustomerDuringPayment::Absent, _)  => {
+            logger::debug!("performing routing for token-based MIT flow");
+
+            let payment_method_info = payment_data
+                .get_payment_method_info()
+                .get_required_value("payment_method_info")?
+                .clone();
+
+            //fetch connectors that support ntid flow
+            let ntid_supported_connectors = &state
+                .conf
+                .network_transaction_id_supported_connectors
+                .connector_list;
+            //filered connectors list with ntid_supported_connectors
+            let filtered_ntid_supported_connectors =
+                filter_ntid_supported_connectors(connectors.clone(), ntid_supported_connectors);
+
+            //fetch connectors that support network tokenization flow
+            let network_tokenization_supported_connectors = &state
+                .conf
+                .network_tokenization_supported_connectors
+                .connector_list;
+            //filered connectors list with ntid_supported_connectors and network_tokenization_supported_connectors
+            let filtered_nt_supported_connectors = filter_network_tokenization_supported_connectors(
+                filtered_ntid_supported_connectors,
+                network_tokenization_supported_connectors,
+            );
+
+            let action_type = decide_action_type(
+                state,
+                is_connector_agnostic_mit_enabled,
+                is_network_tokenization_enabled,
+                &payment_method_info,
+                filtered_nt_supported_connectors.clone(),
+            )
+            .await;
+
+            match action_type {
+                Some(ActionType::NetworkTokenWithNetworkTransactionId(nt_data)) => {
+                    logger::info!(
+                        "using network_tokenization with network_transaction_id for MIT flow"
+                    );
+
+                    let mandate_reference_id =
+                        Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
+                            payments_api::NetworkTokenWithNTIRef {
+                                network_transaction_id: nt_data.network_transaction_id.to_string(),
+                                token_exp_month: nt_data.token_exp_month,
+                                token_exp_year: nt_data.token_exp_year,
+                            },
+                        ));
+                    let chosen_connector_data = filtered_nt_supported_connectors
+                        .first()
+                        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                        .attach_printable(
+                            "no eligible connector found for token-based MIT payment",
+                        )?;
+
+                    routing_data.routed_through =
+                        Some(chosen_connector_data.connector_name.to_string());
+
+                    routing_data
+                        .merchant_connector_id
+                        .clone_from(&chosen_connector_data.merchant_connector_id);
+
+                    payment_data.set_mandate_id(payments_api::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id,
+                    });
+
+                    Ok(ConnectorCallType::PreDetermined(
+                        chosen_connector_data.clone(),
+                    ))
+                }
+                None => {
+                    decide_connector_for_normal_or_recurring_payment(
+                        state,
+                        payment_data,
+                        routing_data,
+                        connectors,
+                        is_connector_agnostic_mit_enabled,
+                        &payment_method_info,
+                    )
+                    .await
+                }
+            }
+        }
+        (
+            _,
+            false,
+            Some(RecurringDetails::ProcessorPaymentToken(_token)),
+            common_enums::PresenceOfCustomerDuringPayment::Absent,
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        ) => {
+            if let Some(connector) = connectors.first() {
+                routing_data.routed_through = Some(connector.connector_name.clone().to_string());
+                routing_data
+                    .merchant_connector_id
+                    .clone_from(&connector.merchant_connector_id);
+                Ok(ConnectorCallType::PreDetermined(api::ConnectorData {
+                    connector: connector.connector.clone(),
+                    connector_name: connector.connector_name,
+                    get_token: connector.get_token.clone(),
+                    merchant_connector_id: connector.merchant_connector_id.clone(),
+                }))
+            } else {
+                logger::error!("no eligible connector found for the ppt_mandate payment");
+                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
+            }
+        }
+        _ => {
+            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+
+            let first_choice = connectors
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                .attach_printable("no eligible connector found for payment")?
+                .clone();
+
+            routing_data.routed_through = Some(first_choice.connector_name.to_string());
+
+            routing_data.merchant_connector_id = first_choice.merchant_connector_id;
+
+            Ok(ConnectorCallType::Retryable(connectors))
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -6654,6 +7140,7 @@ where
         mandate_type,
     ) {
         (
+            // saved card payment but with mandate details
             Some(storage_enums::FutureUsage::OffSession),
             Some(_),
             None,
@@ -6661,13 +7148,17 @@ where
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
         | (
+            // S2S call (MIT)
             None,
             None,
             Some(RecurringDetails::PaymentMethodId(_)),
             Some(true),
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
-        | (None, Some(_), None, Some(true), _) => {
+        |
+        // Network token id flow
+        (None, Some(_), None, Some(true), _) => {
+            // MIT (off session)
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
@@ -6777,7 +7268,6 @@ where
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
             }
         }
-
         _ => {
             helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
@@ -6809,7 +7299,112 @@ pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    todo!()
+    let connector_common_mandate_details = payment_method_info
+        .get_common_mandate_reference()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get the common mandate reference")?;
+
+    let connector_mandate_details = connector_common_mandate_details.payments;
+
+    let mut connector_choice = None;
+
+    for connector_data in connectors {
+        let merchant_connector_id = connector_data
+            .merchant_connector_id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to find the merchant connector id")?;
+        if connector_mandate_details
+            .clone()
+            .map(|connector_mandate_details| {
+                connector_mandate_details.contains_key(merchant_connector_id)
+            })
+            .unwrap_or(false)
+        {
+            logger::info!("using connector_mandate_id for MIT flow");
+            if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
+                if let Some(mandate_reference_record) = connector_mandate_details.clone()
+                        .get_required_value("connector_mandate_details")
+                            .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                            .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
+                            .get(merchant_connector_id)
+                        {
+                            common_utils::fp_utils::when(
+                                mandate_reference_record
+                                    .original_payment_authorized_currency
+                                    .map(|mandate_currency| mandate_currency != payment_data.get_currency())
+                                    .unwrap_or(false),
+                                || {
+                                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                                        reason: "cross currency mandates not supported".into()
+                                    }))
+                                },
+                            )?;
+                            let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
+                                api_models::payments::ConnectorMandateReferenceId::new(
+                                    Some(mandate_reference_record.connector_token.clone()),  // connector_mandate_id
+                                    Some(payment_method_info.get_id().get_string_repr().to_string()),                  // payment_method_id
+                                    None,                                                        // update_history
+                                    mandate_reference_record.metadata.clone(),           // mandate_metadata
+                                    mandate_reference_record.connector_token_request_reference_id.clone(), // connector_mandate_request_reference_id
+                                )
+                            ));
+                            payment_data.set_recurring_mandate_payment_data(
+                                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                                    payment_method_type: mandate_reference_record
+                                        .payment_method_subtype,
+                                    original_payment_authorized_amount: mandate_reference_record
+                                        .original_payment_authorized_amount.map(|amount| amount.get_amount_as_i64()),
+                                    original_payment_authorized_currency: mandate_reference_record
+                                        .original_payment_authorized_currency,
+                                    mandate_metadata: mandate_reference_record
+                                        .metadata.clone()
+                                });
+                            connector_choice = Some((connector_data, mandate_reference_id.clone()));
+                            break;
+                        }
+            }
+        } else if is_network_transaction_id_flow(
+            state,
+            is_connector_agnostic_mit_enabled,
+            connector_data.connector_name,
+            payment_method_info,
+        ) {
+            logger::info!("using network_transaction_id for MIT flow");
+            let network_transaction_id = payment_method_info
+                .network_transaction_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch the network transaction id")?;
+
+            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
+                network_transaction_id.to_string(),
+            ));
+
+            connector_choice = Some((connector_data, mandate_reference_id.clone()));
+            break;
+        } else {
+            continue;
+        }
+    }
+
+    let (chosen_connector_data, mandate_reference_id) = connector_choice
+        .get_required_value("connector_choice")
+        .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("no eligible connector found for token-based MIT payment")?;
+
+    routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
+
+    routing_data
+        .merchant_connector_id
+        .clone_from(&chosen_connector_data.merchant_connector_id);
+
+    payment_data.set_mandate_id(payments_api::MandateIds {
+        mandate_id: None,
+        mandate_reference_id,
+    });
+
+    Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
 }
 
 #[cfg(all(
@@ -6899,6 +7494,7 @@ where
             connector_data.connector_name,
             payment_method_info,
         ) {
+            // use network transaction token to make mandate across connectors
             logger::info!("using network_transaction_id for MIT flow");
             let network_transaction_id = payment_method_info
                 .network_transaction_id
@@ -6974,7 +7570,7 @@ pub fn filter_network_tokenization_supported_connectors(
         .collect()
 }
 
-#[cfg(feature = "v1")]
+// #[cfg(feature = "v1")]
 pub async fn decide_action_type(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
@@ -7219,6 +7815,151 @@ where
         final_result: final_list,
         routing_result: result,
     })
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn route_connector_v2_for_payments<F, D>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    transaction_data: core_routing::PaymentsDslInput<'_>,
+    routing_data: &mut storage::RoutingData,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<ConnectorCallType>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let routing_algorithm_id = business_profile.routing_algorithm_id.clone();
+
+    let connectors = routing::perform_static_routing_v1(
+        state,
+        merchant_account.get_id(),
+        routing_algorithm_id.as_ref(),
+        business_profile,
+        &TransactionData::Payment(transaction_data.clone()),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let connectors = routing::perform_eligibility_analysis_with_fallback(
+        &state.clone(),
+        key_store,
+        connectors,
+        &TransactionData::Payment(transaction_data),
+        eligible_connectors,
+        business_profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed eligibility analysis and fallback")?;
+
+    // dynamic success based connector selection
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let connectors = {
+        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+                .parse_value("DynamicRoutingAlgorithmRef")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
+            let dynamic_split = api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Dynamic,
+                split: dynamic_routing_config
+                    .dynamic_routing_volume_split
+                    .unwrap_or_default(),
+            };
+            let static_split: api_models::routing::RoutingVolumeSplit =
+                api_models::routing::RoutingVolumeSplit {
+                    routing_type: api_models::routing::RoutingType::Static,
+                    split: consts::DYNAMIC_ROUTING_MAX_VOLUME
+                        - dynamic_routing_config
+                            .dynamic_routing_volume_split
+                            .unwrap_or_default(),
+                };
+            let volume_split_vec = vec![dynamic_split, static_split];
+            let routing_choice =
+                routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to perform volume split on routing type")?;
+
+            if routing_choice.routing_type.is_dynamic_routing() {
+                let dynamic_routing_config_params_interpolator =
+                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
+                        payment_data.get_payment_attempt().payment_method,
+                        payment_data.get_payment_attempt().payment_method_type,
+                        payment_data.get_payment_attempt().authentication_type,
+                        payment_data.get_payment_attempt().currency,
+                        payment_data
+                            .get_billing_address()
+                            .and_then(|address| address.address)
+                            .and_then(|address| address.country),
+                        payment_data
+                            .get_payment_attempt()
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card"))
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card_network"))
+                            .and_then(|network| network.as_str())
+                            .map(|network| network.to_string()),
+                        payment_data
+                            .get_payment_attempt()
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card"))
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card_isin"))
+                            .and_then(|card_isin| card_isin.as_str())
+                            .map(|card_isin| card_isin.to_string()),
+                    );
+
+                routing::perform_dynamic_routing(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    dynamic_routing_config_params_interpolator,
+                )
+                .await
+                .map_err(|e| logger::error!(dynamic_routing_error=?e))
+                .unwrap_or(connectors)
+            } else {
+                connectors
+            }
+        } else {
+            connectors
+        }
+    };
+
+    let connector_data = connectors
+        .into_iter()
+        .map(|conn| {
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &conn.connector.to_string(),
+                api::GetToken::Connector,
+                conn.merchant_connector_id,
+            )
+        })
+        .collect::<CustomResult<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    decide_multiplex_connector_for_normal_or_recurring_payment(
+        state,
+        payment_data,
+        routing_data,
+        connector_data,
+        mandate_type,
+        business_profile.is_connector_agnostic_mit_enabled,
+        business_profile.is_network_tokenization_enabled,
+    )
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -8082,6 +8823,13 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         straight_through_algorithm: serde_json::Value,
     );
+
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    );
+
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 
     #[cfg(feature = "v1")]
@@ -8481,6 +9229,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
@@ -8697,6 +9451,13 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
@@ -8915,6 +9676,13 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
@@ -9134,6 +9902,13 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }

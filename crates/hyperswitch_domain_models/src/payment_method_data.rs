@@ -1,3 +1,6 @@
+#[cfg(feature = "v2")]
+use std::str::FromStr;
+
 use api_models::{
     mandates,
     payment_methods::{self},
@@ -14,6 +17,7 @@ use common_utils::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
     pii::{self, Email},
+    types as common_types,
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -89,8 +93,8 @@ pub struct Card {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<common_types::NameType>,
+    pub card_holder_name: Option<common_types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -103,8 +107,8 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<common_types::NameType>,
+    pub card_holder_name: Option<common_types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -117,8 +121,8 @@ pub struct CardDetail {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<common_types::NameType>,
+    pub card_holder_name: Option<common_types::NameType>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -414,7 +418,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
-        card_holder_name: Option<common_utils::types::NameType>,
+        card_holder_name: Option<common_types::NameType>,
     },
     Bizum {},
     Blik {
@@ -557,7 +561,7 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_types::NameType>,
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
@@ -569,25 +573,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<common_utils::types::NameType>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        card_holder_name: Option<common_types::NameType>,
+        bank_account_holder_name: Option<common_types::NameType>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<common_types::NameType>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<common_types::NameType>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<common_types::NameType>,
     },
 }
 
@@ -643,7 +647,7 @@ pub struct NetworkTokenData {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<common_types::NameType>,
     pub eci: Option<String>,
 }
 
@@ -1561,10 +1565,10 @@ pub struct TokenizedCardValue1 {
     pub card_number: String,
     pub exp_year: String,
     pub exp_month: String,
-    pub nickname: Option<common_utils::types::NameType>,
+    pub nickname: Option<common_types::NameType>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<common_types::NameType>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1872,6 +1876,10 @@ fn saved_in_locker_default() -> bool {
     true
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -1889,6 +1897,50 @@ pub struct CardDetailsPaymentMethod {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CardDetailsPaymentMethod {
+    pub last4_digits: Option<String>,
+    pub issuer_country: Option<String>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
+    pub nick_name: Option<common_types::NameType>,
+    pub card_holder_name: Option<common_types::NameType>,
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    #[serde(default = "saved_in_locker_default")]
+    pub saved_to_locker: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl CardDetailsPaymentMethod {
+    pub fn to_card_details_from_locker(self) -> payment_methods::CardDetailFromLocker {
+        payment_methods::CardDetailFromLocker {
+            card_number: None,
+            card_holder_name: self.card_holder_name,
+            card_issuer: self.card_issuer,
+            card_network: self.card_network,
+            card_type: self.card_type,
+            issuer_country: self
+                .issuer_country
+                .as_ref()
+                .map(|c| api_enums::CountryAlpha2::from_str(c))
+                .transpose()
+                .ok()
+                .flatten(),
+            last4_digits: self.last4_digits,
+            expiry_month: self.expiry_month,
+            expiry_year: self.expiry_year,
+            card_fingerprint: None,
+            nick_name: self.nick_name,
+            card_isin: self.card_isin,
+            saved_to_locker: self.saved_to_locker,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
         Self {
@@ -1896,8 +1948,8 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),
-            card_holder_name: item.card_holder_name.map(From::from),
-            nick_name: item.nick_name.map(From::from),
+            card_holder_name: item.card_holder_name,
+            nick_name: item.nick_name,
             card_isin: None,
             card_issuer: item.card_issuer,
             card_network: item.card_network,
