@@ -1162,8 +1162,8 @@ pub struct CtpServiceDetails {
     /// session transaction flow id
     pub x_src_flow_id: Option<String>,
     /// provider Eg: Visa, Mastercard
-    #[schema(value_type = CtpServiceProvider)]
-    pub provider: api_enums::CtpServiceProvider,
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<api_enums::CtpServiceProvider>,
     /// Encrypted payload
     #[schema(value_type = Option<String>)]
     pub encypted_payload: Option<Secret<String>>,
@@ -1171,7 +1171,7 @@ pub struct CtpServiceDetails {
 
 impl CtpServiceDetails {
     pub fn is_network_confirmation_call_required(&self) -> bool {
-        self.provider == api_enums::CtpServiceProvider::Mastercard
+        self.provider == Some(api_enums::CtpServiceProvider::Mastercard)
     }
 }
 
