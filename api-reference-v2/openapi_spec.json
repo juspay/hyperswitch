@@ -9816,7 +9816,7 @@
           },
           "network_error_message": {
             "type": "string",
-            "description": "A short string indicating how to proceed with an network error if they provide one.",
+            "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
             "nullable": true
           }
         }
