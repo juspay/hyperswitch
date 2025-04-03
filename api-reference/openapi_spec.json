@@ -5342,7 +5342,7 @@
                       "refunds"
                     ],
                     "event_types": [
-                      "payments_succeeded"
+                      "payment_succeeded"
                     ],
                     "is_delivered": true,
                     "limit": 5,
@@ -5400,7 +5400,7 @@
                       "refunds"
                     ],
                     "event_types": [
-                      "payments_succeeded"
+                      "payment_succeeded"
                     ],
                     "is_delivered": true,
                     "limit": 5,

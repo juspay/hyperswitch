@@ -32,11 +32,9 @@ pub struct EventListConstraints {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 
     /// Filter events by their class.
-    #[serde(default)]
     pub event_classes: Option<HashSet<EventClass>>,
 
     /// Filter events by their type.
-    #[serde(default)]
     pub event_types: Option<HashSet<EventType>>,
     /// Filter all events by `is_overall_delivery_successful` field of the event.
     pub is_delivered: Option<bool>,

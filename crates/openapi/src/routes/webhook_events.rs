@@ -24,7 +24,7 @@
                     "object_id": "{{object_id}}",
                     "profile_id": "{{profile_id}}",
                     "event_classes": ["payments", "refunds"],
-                    "event_types": ["payments_succeeded"],
+                    "event_types": ["payment_succeeded"],
                     "is_delivered": true
                 })
             )),
@@ -58,7 +58,7 @@ pub fn list_initial_webhook_delivery_attempts() {}
                     "object_id": "{{object_id}}",
                     "profile_id": "{{profile_id}}",
                     "event_classes": ["payments", "refunds"],
-                    "event_types": ["payments_succeeded"],
+                    "event_types": ["payment_succeeded"],
                     "is_delivered": true
                 })
             )),

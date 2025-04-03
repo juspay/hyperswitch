@@ -89,7 +89,7 @@ pub async fn list_initial_delivery_attempts(
             let event_classes = event_classes.unwrap_or(HashSet::new());
             updated_event_types = event_types.unwrap_or(HashSet::new());
             if !event_classes.is_empty() {
-                updated_event_types = validate_event_type(event_classes, &mut updated_event_types).await?;
+                updated_event_types = finalize_event_types(event_classes, updated_event_types).await?;
             }
 
             fp_utils::when(!created_after.zip(created_before).map(|(created_after,created_before)| created_after<=created_before).unwrap_or(true), || {
@@ -400,11 +400,17 @@ async fn get_account_and_key_store(
     }
 }
 
-async fn validate_event_type(
+async fn finalize_event_types(
     event_classes: HashSet<common_enums::EventClass>,
-    event_types: &mut HashSet<common_enums::EventType>,
+    mut event_types: HashSet<common_enums::EventType>,
 ) -> CustomResult<HashSet<common_enums::EventType>, errors::ApiErrorResponse> {
-    // Creates a set of possible event types based on the event classes.
+    // Examples:
+    // 1. event_classes = ["payments", "refunds"], event_types = ["payment_succeeded"]
+    // 2. event_classes = ["refunds"], event_types = ["payment_succeeded"]
+
+    // Create possible_event_types based on event_classes
+    // Example 1: possible_event_types = ["payment_*", "refund_*"]
+    // Example 2: possible_event_types = ["refund_*"]
     let possible_event_types = event_classes
         .clone()
         .into_iter()
@@ -415,7 +421,9 @@ async fn validate_event_type(
         return Ok(possible_event_types);
     }
 
-    // Iterate over the event_classes to extend the event_types if they are disjoint.
+    // Extend event_types if disjoint with event_classes
+    // Example 1: event_types = ["payment_succeeded", "refund_*"], is_disjoint is used to extend "refund_*" and ignore "payment_*".
+    // Example 2: event_types = ["payment_succeeded", "refund_*"], is_disjoint is only used to extend "refund_*".
     event_classes.into_iter().for_each(|class| {
         let valid_event_types = class.event_types();
         if event_types.is_disjoint(&valid_event_types) {
@@ -423,11 +431,13 @@ async fn validate_event_type(
         }
     });
 
-    // To check if the event_types are a valid subset of event_classes.
+    // Validate event_types is a subset of possible_event_types
+    // Example 1: event_types is a subset of possible_event_types (valid)
+    // Example 2: event_types is not a subset of possible_event_types (error due to "payment_succeeded")
     if !event_types.is_subset(&possible_event_types) {
         return Err(error_stack::report!(
             errors::ApiErrorResponse::InvalidRequestData {
-                message: "`event_type` must be a subset of `event_class`".to_string(),
+                message: "`event_types` must be a subset of `event_classes`".to_string(),
             }
         ));
     }
