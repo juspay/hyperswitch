@@ -6960,6 +6960,7 @@ name = "scheduler"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "common_types",
  "common_utils",
  "diesel_models",
  "error-stack",
