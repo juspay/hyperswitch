@@ -456,13 +456,12 @@ async fn insert_metadata(
             }
             metadata
         }
-        types::MetaData::ProdIntent(data) => {
+        types::MetaData::ProdIntent(mut data) => {
             if let Some(poc_email) = &data.poc_email {
                 let inner_poc_email = poc_email.peek().as_str();
                 pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
-            let mut data = data;
             if data.product_type.is_none() {
                 data.product_type = Some(DEFAULT_PRODUCT_TYPE);
             }

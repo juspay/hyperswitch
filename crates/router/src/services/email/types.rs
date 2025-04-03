@@ -600,7 +600,7 @@ impl EmailData for BizEmailProd {
             legal_business_name: self.legal_business_name.clone(),
             business_location: self.business_location.clone(),
             business_website: self.business_website.clone(),
-            product_type: self.product_type.clone(),
+            product_type: self.product_type,
         });
 
         Ok(EmailContents {
