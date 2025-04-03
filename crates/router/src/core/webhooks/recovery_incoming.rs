@@ -57,33 +57,33 @@ pub async fn recovery_incoming_webhook_flow(
     })?;
 
     let connector = api_models::enums::Connector::from_str(connector_name)
-    .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
-    .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+        .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-let billing_connectors_with_payment_sync_call = &state.conf.billing_connectors_payment_sync;
+    let billing_connectors_with_payment_sync_call = &state.conf.billing_connectors_payment_sync;
 
-let should_billing_connector_payment_api_called = billing_connectors_with_payment_sync_call
-    .billing_connectors_which_require_payment_sync
-    .contains(&connector);
+    let should_billing_connector_payment_api_called = billing_connectors_with_payment_sync_call
+        .billing_connectors_which_require_payment_sync
+        .contains(&connector);
 
-let billing_connector_payment_details =
-    BillingConnectorPaymentsSyncResponseData::get_billing_connector_payment_details(
-        should_billing_connector_payment_api_called,
-        &state,
-        &merchant_account,
-        &billing_connector_account,
-        connector_name,
-        object_ref_id,
-    )
-    .await?;
+    let billing_connector_payment_details =
+        BillingConnectorPaymentsSyncResponseData::get_billing_connector_payment_details(
+            should_billing_connector_payment_api_called,
+            &state,
+            &merchant_account,
+            &billing_connector_account,
+            connector_name,
+            object_ref_id,
+        )
+        .await?;
 
-// Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
+    // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
 
-let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
-    connector_enum,
-    request_details,
-    billing_connector_payment_details.as_ref(),
-)?;
+    let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
+        connector_enum,
+        request_details,
+        billing_connector_payment_details.as_ref(),
+    )?;
 
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
@@ -109,9 +109,10 @@ let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
         })
         .await?;
 
-        let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
+    let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
 
-        let payment_attempt_with_recovery_intent = RevenueRecoveryAttempt::get_recovery_payment_attempt(
+    let payment_attempt_with_recovery_intent =
+        RevenueRecoveryAttempt::get_recovery_payment_attempt(
             is_event_recovery_transaction_event,
             &billing_connector_account,
             &state,
@@ -150,17 +151,17 @@ let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
 
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
-            revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
-                handle_schedule_failed_payment(
-                    intent_retry_count,
-                    mca_retry_threshold,
-                    &state,
-                    &merchant_account,
-                    &payment_attempt_with_recovery_intent,
-                    &business_profile,
-                )
-                .await
-            }
+        revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
+            handle_schedule_failed_payment(
+                intent_retry_count,
+                mca_retry_threshold,
+                &state,
+                &merchant_account,
+                &payment_attempt_with_recovery_intent,
+                &business_profile,
+            )
+            .await
+        }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
             // Need to add recovery stop flow for this scenario
             router_env::logger::info!("Payment has been succeeded via external system");
@@ -188,13 +189,16 @@ let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
 }
 
 async fn handle_schedule_failed_payment(
-    intent_retry_count: u16, 
+    intent_retry_count: u16,
     mca_retry_threshold: u16,
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    payment_attempt_with_recovery_intent: &(Option<revenue_recovery::RecoveryPaymentAttempt>, revenue_recovery::RecoveryPaymentIntent),
+    payment_attempt_with_recovery_intent: &(
+        Option<revenue_recovery::RecoveryPaymentAttempt>,
+        revenue_recovery::RecoveryPaymentIntent,
+    ),
     business_profile: &domain::Profile,
-) ->CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError>  {
+) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     match intent_retry_count <= mca_retry_threshold {
         true => {
             router_env::logger::error!(
@@ -590,16 +594,20 @@ impl RevenueRecoveryAttempt {
         merchant_account: &domain::MerchantAccount,
         business_profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
-    ) -> CustomResult<(Option<revenue_recovery::RecoveryPaymentAttempt>,revenue_recovery::RecoveryPaymentIntent), errors::RevenueRecoveryError>
-    {
-
+    ) -> CustomResult<
+        (
+            Option<revenue_recovery::RecoveryPaymentAttempt>,
+            revenue_recovery::RecoveryPaymentIntent,
+        ),
+        errors::RevenueRecoveryError,
+    > {
         let payment_attempt_with_recovery_intent = match is_recovery_transaction_event {
             true => {
                 let invoice_transaction_details = Self::get_recovery_invoice_transaction_details(
-                                connector_enum,
-                                request_details,
-                                billing_connector_payment_details,
-                            )?;
+                    connector_enum,
+                    request_details,
+                    billing_connector_payment_details,
+                )?;
 
                 // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
                 let payment_merchant_connector_account = invoice_transaction_details
@@ -609,7 +617,7 @@ impl RevenueRecoveryAttempt {
                         &billing_connector_account,
                     )
                     .await?;
-    
+
                 let (payment_attempt, updated_payment_intent) = invoice_transaction_details
                     .get_payment_attempt(
                         &state,
@@ -638,14 +646,14 @@ impl RevenueRecoveryAttempt {
                     .await?;
                 (Some(payment_attempt), updated_payment_intent)
             }
-    
+
             false => (None, payment_intent.clone()),
         };
 
         Ok(payment_attempt_with_recovery_intent)
     }
-    
-        async fn insert_execute_pcr_task(
+
+    async fn insert_execute_pcr_task(
         db: &dyn StorageInterface,
         merchant_id: id_type::MerchantId,
         payment_intent: revenue_recovery::RecoveryPaymentIntent,
