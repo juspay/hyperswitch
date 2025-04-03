@@ -17272,7 +17272,6 @@
           "status",
           "amount",
           "customer_id",
-          "client_secret",
           "created"
         ],
         "properties": {
@@ -17301,10 +17300,6 @@
             "description": "The connector used for the payment",
             "example": "stripe",
             "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification."
           },
           "created": {
             "type": "string",
