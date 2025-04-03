@@ -402,5 +402,38 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulCardDetails,
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            code: "IR_00",
+            message: "Setup Mandate flow for Braintree is not implemented",
+          },
+        },
+      },
+    },
   },
 };
