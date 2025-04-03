@@ -134,10 +134,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             bank_code: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.bank_code.clone()),
-            nick_name: card_from_locker
-                .nick_name
-                .as_ref()
-                .map(|nick_name| Secret::new(nick_name.clone())),
+            nick_name: card_from_locker.nick_name.clone(),
             card_holder_name: card_from_locker.name_on_card.clone(),
             card_issuer: optional_card_info
                 .as_ref()
@@ -282,7 +279,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             )
             .await
             .map_err(|err| match err.current_context() {
-                storage_impl::errors::StorageError::DatabaseError(err)
+                errors::StorageError::DatabaseError(err)
                     if matches!(
                         err.current_context(),
                         diesel_models::errors::DatabaseError::NotFound
@@ -292,7 +289,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                         message: "Invalid payment_method_id".into(),
                     })
                 }
-                storage_impl::errors::StorageError::ValueNotFound(_) => {
+                errors::StorageError::ValueNotFound(_) => {
                     report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payment_method_id".to_string(),
                     })

@@ -537,6 +537,7 @@ async fn get_tracker_for_sync<
         service_details: None,
         card_testing_guard_data: None,
         vault_operation: None,
+        threeds_method_comp_ind: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {
@@ -664,7 +665,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .await?;
             }
         }
-        error_stack::Result::<_, errors::DataStorageError>::Ok((pi, pa))
+        error_stack::Result::<_, errors::StorageError>::Ok((pi, pa))
     };
 
     get_pi_pa()

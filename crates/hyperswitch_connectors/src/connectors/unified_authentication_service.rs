@@ -149,6 +149,8 @@ impl ConnectorCommon for UnifiedAuthenticationService {
             reason: Some(response.error),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -330,10 +332,11 @@ impl
             unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
                 amount, req,
             ));
-        let connector_req =
-            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
-                &connector_router_data,
-            )?;
+
+        let connector_req = unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
+            &connector_router_data,
+        )?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

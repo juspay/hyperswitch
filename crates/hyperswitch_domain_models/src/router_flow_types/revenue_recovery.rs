@@ -1,2 +1,4 @@
 #[derive(Debug, Clone)]
-pub struct GetAdditionalRevenueRecoveryDetails;
+pub struct BillingConnectorPaymentsSync;
+#[derive(Debug, Clone)]
+pub struct RecoveryRecordBack;

@@ -230,6 +230,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::CtpVisa => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "ctp visa is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::CtpMastercard => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "ctp mastercard is not a routable connector".to_string(),
@@ -242,11 +247,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
+            // api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Forte => Self::Forte,
-            // api_enums::Connector::Getnet => Self::Getnet,
+            api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
@@ -255,7 +261,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                     message: "gpayments is not a routable connector".to_string(),
                 })?
             }
-            // api_enums::Connector::Hipay => Self::Hipay,
+            api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Inespay => Self::Inespay,
@@ -296,8 +302,8 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Razorpay => Self::Razorpay,
-            // api_enums::Connector::Recurly => Self::Recurly,
-            // api_enums::Connector::Redsys => Self::Redsys,
+            api_enums::Connector::Recurly => Self::Recurly,
+            api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -312,7 +318,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
-            // api_enums::Connector::Stripebilling => Self::Stripebilling,
+            api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
             api_enums::Connector::Trustpay => Self::Trustpay,
@@ -552,6 +558,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::LocalBankTransfer
+            | api_enums::PaymentMethodType::InstantBankTransfer
+            | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -763,6 +771,16 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
         {
             None
         } else {
+            let first_name = address
+                .first_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
+            let last_name = address
+                .last_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             Some(hyperswitch_domain_models::address::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -771,8 +789,8 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 line3: address.line3.clone().map(Encryptable::into_inner),
                 state: address.state.clone().map(Encryptable::into_inner),
                 zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
+                first_name,
+                last_name,
             })
         };
 
@@ -809,6 +827,16 @@ impl ForeignFrom<domain::Address> for api_types::Address {
         {
             None
         } else {
+            let first_name = address
+                .first_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
+            let last_name = address
+                .last_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .map(common_utils::types::NameType::get_unchecked_from_secret);
             Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -817,8 +845,8 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 line3: address.line3.clone().map(Encryptable::into_inner),
                 state: address.state.clone().map(Encryptable::into_inner),
                 zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
+                first_name,
+                last_name,
             })
         };
 
@@ -1438,7 +1466,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
         match value {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
-            api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+            api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
         }
     }
@@ -1783,6 +1811,16 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
 
 impl From<domain::Address> for payments::AddressDetails {
     fn from(addr: domain::Address) -> Self {
+        let first_name = addr
+            .first_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
+        let last_name = addr
+            .last_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
         Self {
             city: addr.city,
             country: addr.country,
@@ -1791,8 +1829,8 @@ impl From<domain::Address> for payments::AddressDetails {
             line3: addr.line3.map(Encryptable::into_inner),
             zip: addr.zip.map(Encryptable::into_inner),
             state: addr.state.map(Encryptable::into_inner),
-            first_name: addr.first_name.map(Encryptable::into_inner),
-            last_name: addr.last_name.map(Encryptable::into_inner),
+            first_name,
+            last_name,
         }
     }
 }
@@ -1928,6 +1966,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 created_before: item.created_before,
                 limit: item.limit.map(i64::from),
                 offset: item.offset.map(i64::from),
+                is_delivered: item.is_delivered,
             }),
         }
     }
@@ -1963,7 +2002,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             object_id: item.primary_object_id,
             event_type: item.event_type,
             event_class: item.event_class,
-            is_delivery_successful: item.is_webhook_notified,
+            is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
             created: item.created_at,
         })
@@ -2016,6 +2055,7 @@ impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }
@@ -2027,6 +2067,7 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }
@@ -2174,6 +2215,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text_colour: item.payment_button_text_colour,
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
+            enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
         }
     }
 }
@@ -2204,6 +2246,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_button_text_colour: item.payment_button_text_colour,
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
+            enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
         }
     }
 }

@@ -7,10 +7,8 @@ use common_utils::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    network_tokenization as nt_domain_types, router_request_types as domain_request_types,
-};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_domain_models::router_request_types as domain_request_types;
+use masking::Secret;
 use router_env::logger;
 
 use super::migration;
@@ -21,7 +19,7 @@ use crate::{
     },
     errors::{self, RouterResult},
     services,
-    types::{api, domain},
+    types::{api, domain, payment_methods as pm_types},
     SessionState,
 };
 
@@ -137,10 +135,7 @@ pub async fn tokenize_cards(
 }
 
 // Data types
-type NetworkTokenizationResponse = (
-    nt_domain_types::CardNetworkTokenResponsePayload,
-    Option<String>,
-);
+type NetworkTokenizationResponse = (pm_types::CardNetworkTokenResponsePayload, Option<String>);
 
 pub struct StoreLockerResponse {
     pub store_card_resp: pm_transformers::StoreCardRespPayload,
@@ -162,7 +157,7 @@ pub struct NetworkTokenizationBuilder<'a, S: State> {
     pub card_cvc: Option<Secret<String>>,
 
     /// Network token details
-    pub network_token: Option<&'a nt_domain_types::CardNetworkTokenResponsePayload>,
+    pub network_token: Option<&'a pm_types::CardNetworkTokenResponsePayload>,
 
     /// Stored card details
     pub stored_card: Option<&'a pm_transformers::StoreCardRespPayload>,
@@ -239,8 +234,8 @@ pub trait NetworkTokenizationProcess<'a, D> {
         &self,
         network_token: &NetworkTokenizationResponse,
         customer_id: &id_type::CustomerId,
-        card_holder_name: Option<Secret<String>>,
-        nick_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
+        nick_name: Option<common_utils::types::NameType>,
     ) -> RouterResult<pm_transformers::StoreCardRespPayload>;
 }
 
@@ -391,8 +386,8 @@ where
         &self,
         network_token: &NetworkTokenizationResponse,
         customer_id: &id_type::CustomerId,
-        card_holder_name: Option<Secret<String>>,
-        nick_name: Option<Secret<String>>,
+        card_holder_name: Option<common_utils::types::NameType>,
+        nick_name: Option<common_utils::types::NameType>,
     ) -> RouterResult<pm_transformers::StoreCardRespPayload> {
         let network_token = &network_token.0;
         let merchant_id = self.merchant_account.get_id();
@@ -407,7 +402,7 @@ where
                     card_brand: Some(network_token.card_brand.to_string()),
                     card_isin: Some(network_token.token_isin.clone()),
                     name_on_card: card_holder_name,
-                    nick_name: nick_name.map(|nick_name| nick_name.expose()),
+                    nick_name: nick_name.clone(),
                 },
                 requestor_card_reference: None,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
