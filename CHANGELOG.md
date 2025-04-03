@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix7
+
+### Miscellaneous Tasks
+
+- **dashboard:** Update dashboard toml ([#7707](https://github.com/juspay/hyperswitch/pull/7707)) ([`83f7466`](https://github.com/juspay/hyperswitch/commit/83f7466d0516d80be793e7de42eb18c43fd3c998))
+
+- - -
+
 ## 2025.02.10.0-hotfix6
 
 ### Bug Fixes
