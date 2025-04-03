@@ -49,7 +49,6 @@ use hyperswitch_interfaces::{
     api::{PayoutFulfill, Payouts},
     types::PayoutFulfillType,
 };
-
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::hmac;
 #[cfg(feature = "payouts")]
