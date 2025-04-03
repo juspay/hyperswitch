@@ -346,6 +346,14 @@ pub struct ErrorDetails {
     /// This can be relied upon for common error code across all connectors
     /// If there is translation available, message will be translated to the requested language
     pub unified_message: Option<String>,
+    /// This field can be returned for both approved and refused Mastercard payments.
+    /// This code provides additional information about the type of transaction or the reason why the payment failed.
+    /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    pub network_advice_code: Option<String>,
+    /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    pub network_decline_code: Option<String>,
+    /// A short string indicating how to proceed with an network error if they provide one.
+    pub network_error_message: Option<String>,
 }
 
 /// Domain model for the payment attempt.
@@ -2169,6 +2177,15 @@ impl behaviour::Conversion for PaymentAttempt {
             capture_before: None,
             charges,
             feature_metadata,
+            network_advice_code: error
+                .as_ref()
+                .and_then(|details| details.network_advice_code.clone()),
+            network_decline_code: error
+                .as_ref()
+                .and_then(|details| details.network_decline_code.clone()),
+            network_error_message: error
+                .as_ref()
+                .and_then(|details| details.network_error_message.clone()),
         })
     }
 
@@ -2233,6 +2250,9 @@ impl behaviour::Conversion for PaymentAttempt {
                     reason: storage_model.error_reason,
                     unified_code: storage_model.unified_code,
                     unified_message: storage_model.unified_message,
+                    network_advice_code: storage_model.network_advice_code,
+                    network_decline_code: storage_model.network_decline_code,
+                    network_error_message: storage_model.network_error_message,
                 });
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
@@ -2418,6 +2438,15 @@ impl behaviour::Conversion for PaymentAttempt {
             capture_before: None,
             feature_metadata: feature_metadata.as_ref().map(From::from),
             connector,
+            network_advice_code: error_details
+                .as_ref()
+                .and_then(|details| details.network_advice_code.clone()),
+            network_decline_code: error_details
+                .as_ref()
+                .and_then(|details| details.network_decline_code.clone()),
+            network_error_message: error_details
+                .as_ref()
+                .and_then(|details| details.network_error_message.clone()),
         })
     }
 }
@@ -2452,6 +2481,9 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_token_details: None,
                 authentication_type: Some(authentication_type),
                 feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2479,6 +2511,9 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_token_details: None,
                 authentication_type: None,
                 feature_metadata: None,
+                network_advice_code: error.network_advice_code,
+                network_decline_code: error.network_decline_code,
+                network_error_message: error.network_error_message,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
@@ -2511,6 +2546,9 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_token_details,
                     authentication_type: None,
                     feature_metadata: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2537,6 +2575,9 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_token_details: None,
                 authentication_type: None,
                 feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2562,6 +2603,9 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_token_details: None,
                 authentication_type: None,
                 feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2586,6 +2630,9 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_token_details: None,
                 authentication_type: None,
                 feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             },
         }
     }

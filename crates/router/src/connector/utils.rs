@@ -2622,8 +2622,9 @@ impl
             status_code: http_code,
             attempt_status,
             connector_transaction_id,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }
