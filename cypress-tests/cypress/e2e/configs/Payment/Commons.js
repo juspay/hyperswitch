@@ -53,6 +53,16 @@ const multiUseMandateData = {
   },
 };
 
+const validName = {
+  first_name: "Sakil",
+  last_name: "Mostak",
+};
+
+const invalidName = {
+  first_name: "S@k!l",
+  last_name: "M*st@k",
+};
+
 export const cardRequiredField = {
   "payment_method_data.card.card_number": {
     required_field: "payment_method_data.card.card_number",
@@ -1582,8 +1592,7 @@ export const connectorDetails = {
             state: "California",
             zip: "94122",
             country: "US",
-            first_name: "Sakil",
-            last_name: "L'Mostak",
+            ...validName,
           },
         },
       },
@@ -1604,8 +1613,7 @@ export const connectorDetails = {
             state: "California",
             zip: "94122",
             country: "US",
-            first_name: "S@k!l",
-            last_name: "M*st@k",
+            ...invalidName,
           },
         },
       },

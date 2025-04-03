@@ -21,8 +21,6 @@ describe("Name Validation Test", () => {
         "name_validation"
       ]["HappyCase"];
 
-      console.log("cur_data", data);
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
