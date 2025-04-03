@@ -476,6 +476,7 @@ pub enum PaymentAttemptUpdate {
         order_tax_amount: Option<MinorUnit>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<storage_enums::CardDiscovery>,
+        surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -2323,6 +2324,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount,
                 connector_mandate_detail,
                 card_discovery,
+                surcharge_algorithm_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2380,7 +2382,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                surcharge_algorithm_id: None,
+                surcharge_algorithm_id,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
