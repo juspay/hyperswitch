@@ -299,7 +299,25 @@ pub struct StripebillingWebhookObject {
     pub charge: String,
     pub customer_address: Option<StripebillingCustomerAddress>,
     pub attempt_count : u8,
-    
+    pub lines : StripebillingWebhookLinesObject   
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesObject {
+    data : Vec<StripebillingWebhookLinesData>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesData {
+    period: StripebillingWebhookLineDataPeriod
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLineDataPeriod{
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    end : PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    start: PrimitiveDateTime
 }
 
 #[derive(Serialize,Deserialize,Debug)]
