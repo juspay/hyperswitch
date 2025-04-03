@@ -435,5 +435,25 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentMethodIdMandate3DSManualCapture: {
+      // Configs: {
+      //   TRIGGER_SKIP: true,
+      // },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
 };
