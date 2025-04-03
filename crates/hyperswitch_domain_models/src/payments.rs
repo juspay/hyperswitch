@@ -515,23 +515,6 @@ impl PaymentIntent {
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
 
-    // Check if the client secret is associated with the payment and if it has been expire
-
-    // pub fn validate_client_secret(
-    //     &self,
-    //     client_secret: &common_utils::types::ClientSecret,
-    // ) -> Result<(), errors::api_error_response::ApiErrorResponse> {
-    //     common_utils::fp_utils::when(self.client_secret != *client_secret, || {
-    //         Err(errors::api_error_response::ApiErrorResponse::ClientSecretInvalid)
-    //     })?;
-
-    //     common_utils::fp_utils::when(self.session_expiry < common_utils::date_time::now(), || {
-    //         Err(errors::api_error_response::ApiErrorResponse::ClientSecretExpired)
-    //     })?;
-
-    //     Ok(())
-    // }
-
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
         merchant_account: &merchant_account::MerchantAccount,

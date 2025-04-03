@@ -142,7 +142,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
             .client_secret
             .as_ref()
             .get_required_value("client_secret header")?;
-        // payment_intent.validate_client_secret(client_secret)?;
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,

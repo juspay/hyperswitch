@@ -1663,7 +1663,6 @@ where
             amount,
             customer_id: payment_intent.customer_id.clone(),
             connector: Some(connector),
-            client_secret: None,
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
@@ -1761,7 +1760,6 @@ where
                 .cloned()
                 .map(From::from),
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
-            client_secret: None,
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: self

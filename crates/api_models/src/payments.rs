@@ -5558,10 +5558,6 @@ pub struct PaymentsResponse {
     #[schema(example = "stripe")]
     pub connector: Option<String>,
 
-    /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: Option<Secret<String>>,
-
     /// Time when the payment was created
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
