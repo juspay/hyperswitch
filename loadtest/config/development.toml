@@ -530,3 +530,6 @@ sts_role_session_name = ""
 [temp_locker_enable_config]
 paybox = { payment_method = "card" }
 redsys = { payment_method = "card" }
+
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling"
