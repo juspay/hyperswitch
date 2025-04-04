@@ -225,6 +225,8 @@ diesel::table! {
         active_surcharge_algorithm_id -> Nullable<Varchar>,
         is_debit_routing_enabled -> Bool,
         merchant_business_country -> Nullable<CountryAlpha2>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -476,6 +478,7 @@ diesel::table! {
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
         metadata -> Nullable<Jsonb>,
+        is_overall_delivery_successful -> Nullable<Bool>,
     }
 }
 
@@ -789,6 +792,8 @@ diesel::table! {
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
         version -> ApiVersion,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
