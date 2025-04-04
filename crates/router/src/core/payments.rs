@@ -1461,9 +1461,8 @@ pub fn find_connector_with_networks(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
 ) -> Option<(api::ConnectorData, enums::CardNetwork)> {
     connectors.find_map(|connector| {
-        connector.local_networks.as_ref()
-            .and_then(|local_networks| local_networks.first().cloned())
-            .map(|first_network| (connector.connector_data, first_network))
+        connector.network
+            .map(|network| (connector.connector_data, network))
     })
 }
 
@@ -6239,6 +6238,7 @@ where
     if debit_routing_output.is_none() {
         debit_routing_output = connector;
         is_debit_routing_performed = false;
+        logger::info!("Debit routing is not performed, returning static routing output");
     }
 
     Ok((debit_routing_output, is_debit_routing_performed))
@@ -6259,19 +6259,29 @@ where
 {
     if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
         logger::debug!("Chosen connector is supported for debit routing");
+
         let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data, acquirer_country).await?;
-        
-        if let Some(local_networks) = get_connector_supported_debit_networks(
-            debit_routing_config, 
-            connector_data.connector_data.connector_name, 
-            fee_sorted_debit_networks
-        ) {
-            return Some(ConnectorCallType::PreDetermined(api::ConnectorRoutingData {
-                connector_data: connector_data.connector_data.clone(),
-                local_networks: Some(local_networks),
-            }));
+
+        let mut valid_connectors = Vec::new();
+
+        for network in fee_sorted_debit_networks {
+            if let Some(local_networks) = check_connector_support_for_network(
+                debit_routing_config, 
+                connector_data.connector_data.connector_name, 
+                &network
+            ) {
+                valid_connectors.push(api::ConnectorRoutingData {
+                    connector_data: connector_data.connector_data.clone(),
+                    network: Some(local_networks),
+                });
+            } 
+        }
+
+        if !valid_connectors.is_empty() {
+            return Some(ConnectorCallType::Retryable(valid_connectors));
         }
     }
+
     None
 }
 
@@ -6294,15 +6304,17 @@ where
         if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
             let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data, acquirer_country).await?;
             
-            if let Some(local_networks) = get_connector_supported_debit_networks(
-                debit_routing_config,
-                connector_data.connector_data.connector_name,
-                fee_sorted_debit_networks
-            ) {
-                supported_connectors.push(api::ConnectorRoutingData {
-                    connector_data: connector_data.connector_data.clone(),
-                    local_networks: Some(local_networks),
-                });
+            for network in fee_sorted_debit_networks {
+                if let Some(valid_network) = check_connector_support_for_network(
+                    debit_routing_config,
+                    connector_data.connector_data.connector_name,
+                    &network,
+                ) {
+                    supported_connectors.push(api::ConnectorRoutingData {
+                        connector_data: connector_data.connector_data.clone(),
+                        network: Some(valid_network),
+                    });
+                }
             }
         }
     }
@@ -6314,24 +6326,19 @@ where
     }
 }
 
-
-fn get_connector_supported_debit_networks(
+fn check_connector_support_for_network(
     debit_routing_config: &settings::DebitRoutingConfig,
     connector_name: enums::Connector,
-    fee_sorted_debit_networks: Vec<enums::CardNetwork>,
-) -> Option<Vec<enums::CardNetwork>> {
+    network: &enums::CardNetwork,
+) -> Option<enums::CardNetwork> {
     debit_routing_config
         .connector_supported_debit_networks
         .get(&connector_name)
-        .map(|supported_networks| {
-            fee_sorted_debit_networks
-                .iter()
-                .filter(|network| supported_networks.contains(*network))
-                .cloned()
-                .collect::<Vec<_>>()
+        .and_then(|supported_networks| {
+            (supported_networks.contains(network) || network.is_global_network())
+                .then(|| network.clone())
         })
 }
-
 
 async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
     state: &SessionState,

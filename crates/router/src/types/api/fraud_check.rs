@@ -32,7 +32,7 @@ pub enum ConnectorCallType {
 #[derive(Clone)]
 pub struct ConnectorRoutingData {
     pub connector_data: ConnectorData,
-    pub local_networks: Option<Vec<enums::CardNetwork>>,
+    pub network: Option<enums::CardNetwork>,
 }
 
 impl FraudCheckConnectorData {

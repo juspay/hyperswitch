@@ -926,7 +926,7 @@ supported_connectors = "adyen"
 
 fraud_check_fee = 0.01
 [debit_routing_config.connector_supported_debit_networks]
-adyen = "star,pulse,accel,nyce"
+adyen = "Star,Pulse,Accel,Nyce"
 
 [debit_routing_config.network_fee]
 visa = { percentage = 0.1375, fixed_amount = 0.020 }

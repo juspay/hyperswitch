@@ -123,7 +123,7 @@ impl From<ConnectorData> for ConnectorRoutingData {
     fn from(connector_data: ConnectorData) -> Self {
         Self {
             connector_data,
-            local_networks: None,
+            network: None,
         }
     }
 }

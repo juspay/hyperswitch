@@ -2241,6 +2241,29 @@ pub enum CardNetwork {
     Nyce,
 }
 
+impl CardNetwork {
+    pub fn is_global_network(&self) -> bool {
+        match self {
+            Self::Interac
+            | Self::Star
+            | Self::Pulse
+            | Self::Accel
+            | Self::Nyce 
+            | Self::CartesBancaires => false,
+
+            Self::Visa
+            | Self::Mastercard
+            | Self::AmericanExpress
+            | Self::JCB
+            | Self::DinersClub
+            | Self::Discover
+            | Self::UnionPay
+            | Self::RuPay
+            | Self::Maestro => true,
+        }
+    }
+}
+
 /// Stage of the dispute
 #[derive(
     Clone,
