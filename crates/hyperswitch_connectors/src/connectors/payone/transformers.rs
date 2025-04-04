@@ -2,31 +2,36 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use cards::CardNumber;
+#[cfg(feature = "payouts")]
+use common_enums::{PayoutStatus, PayoutType};
 use common_utils::types::MinorUnit;
 #[cfg(feature = "payouts")]
+use common_utils::{ext_traits::OptionExt, transformers::ForeignFrom};
+#[cfg(feature = "payouts")]
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::PoFulfill,
+    types::{PayoutsResponseData, PayoutsRouterData},
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
-
-use crate::connector::{
-    utils,
-    utils::{get_unimplemented_payment_method_error_message, CardIssuer},
-};
 
 #[cfg(feature = "payouts")]
-type Error = error_stack::Report<errors::ConnectorError>;
-
+use crate::utils::CardData as _;
+use crate::utils::{
+    get_unimplemented_payment_method_error_message, CardIssuer, ErrorCodeAndMessage,
+};
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{CardData, PayoutsData, RouterData},
-    core::errors,
-    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
-    utils::OptionExt,
+    types::PayoutsResponseRouterData,
+    utils::{PayoutsData, RouterData},
 };
-#[cfg(not(feature = "payouts"))]
-use crate::{core::errors, types};
-
+#[cfg(feature = "payouts")]
+type Error = error_stack::Report<ConnectorError>;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 pub struct PayoneRouterData<T> {
     pub amount: MinorUnit,
     pub router_data: T,
@@ -54,7 +59,7 @@ pub struct SubError {
     pub http_status_code: u16,
 }
 
-impl From<SubError> for utils::ErrorCodeAndMessage {
+impl From<SubError> for ErrorCodeAndMessage {
     fn from(error: SubError) -> Self {
         Self {
             error_code: error.code.to_string(),
@@ -69,11 +74,11 @@ pub struct PayoneAuthType {
     pub api_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayoneAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+impl TryFrom<&ConnectorAuthType> for PayoneAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -82,7 +87,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayoneAuthType {
                 merchant_account: key1.to_owned(),
                 api_secret: api_secret.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+            _ => Err(ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -121,60 +126,54 @@ pub struct Card {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
-    for PayonePayoutFulfillRequest
-{
+impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFulfillRequest {
     type Error = Error;
     fn try_from(
-        item: PayoneRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+        item: PayoneRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         let payout_type = request.get_payout_type()?;
         match payout_type {
-            storage_enums::PayoutType::Card => {
+            PayoutType::Card => {
                 let amount_of_money: AmountOfMoney = AmountOfMoney {
                     amount: item.amount,
                     currency_code: item.router_data.request.destination_currency.to_string(),
                 };
-                let card_payout_method_specific_input = match item
-                    .router_data
-                    .get_payout_method_data()?
-                {
-                    PayoutMethodData::Card(card_data) => CardPayoutMethodSpecificInput {
-                        card: Card {
-                            card_number: card_data.card_number.clone(),
-                            card_holder_name: card_data
-                                .card_holder_name
-                                .clone()
-                                .get_required_value("card_holder_name")
-                                .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "payout_method_data.card.holder_name",
-                                })?,
-                            expiry_date: card_data
-                                .get_card_expiry_month_year_2_digit_with_delimiter(
-                                    "".to_string(),
-                                )?,
+                let card_payout_method_specific_input =
+                    match item.router_data.get_payout_method_data()? {
+                        PayoutMethodData::Card(card_data) => CardPayoutMethodSpecificInput {
+                            card: Card {
+                                card_number: card_data.card_number.clone(),
+                                card_holder_name: card_data
+                                    .card_holder_name
+                                    .clone()
+                                    .get_required_value("card_holder_name")
+                                    .change_context(ConnectorError::MissingRequiredField {
+                                        field_name: "payout_method_data.card.holder_name",
+                                    })?,
+                                expiry_date: card_data
+                                    .get_card_expiry_month_year_2_digit_with_delimiter(
+                                        "".to_string(),
+                                    )?,
+                            },
+                            payment_product_id: PaymentProductId::try_from(
+                                card_data.get_card_issuer()?,
+                            )?,
                         },
-                        payment_product_id: PaymentProductId::try_from(
-                            card_data.get_card_issuer()?,
-                        )?,
-                    },
-                    PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            get_unimplemented_payment_method_error_message("Payone"),
-                        ))?
-                    }
-                };
+                        PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                            Err(ConnectorError::NotImplemented(
+                                get_unimplemented_payment_method_error_message("Payone"),
+                            ))?
+                        }
+                    };
                 Ok(Self {
                     amount_of_money,
                     card_payout_method_specific_input,
                 })
             }
-            storage_enums::PayoutType::Wallet | storage_enums::PayoutType::Bank => {
-                Err(errors::ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("Payone"),
-                ))?
-            }
+            PayoutType::Wallet | PayoutType::Bank => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payone"),
+            ))?,
         }
     }
 }
@@ -187,7 +186,7 @@ pub enum PaymentProductId {
 }
 
 impl TryFrom<CardIssuer> for PaymentProductId {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
         match issuer {
             CardIssuer::Master => Ok(Self::MasterCard),
@@ -197,7 +196,7 @@ impl TryFrom<CardIssuer> for PaymentProductId {
             | CardIssuer::Discover
             | CardIssuer::DinersClub
             | CardIssuer::JCB
-            | CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
+            | CardIssuer::CarteBlanche => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("payone"),
             )
             .into()),
@@ -237,7 +236,7 @@ pub struct PayoutOutput {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<PayoneStatus> for storage_enums::PayoutStatus {
+impl ForeignFrom<PayoneStatus> for PayoutStatus {
     fn foreign_from(payone_status: PayoneStatus) -> Self {
         match payone_status {
             PayoneStatus::AccountCredited => Self::Success,
@@ -251,18 +250,18 @@ impl ForeignFrom<PayoneStatus> for storage_enums::PayoutStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>>
-    for types::PayoutsRouterData<F>
+impl<F> TryFrom<PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>>
+    for PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>,
+        item: PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>,
     ) -> Result<Self, Self::Error> {
         let response: PayonePayoutFulfillResponse = item.response;
 
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::foreign_from(response.status)),
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::foreign_from(response.status)),
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
