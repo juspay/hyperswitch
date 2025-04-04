@@ -17,12 +17,12 @@ pub async fn link_token_create(
 ) -> impl Responder {
     let payload = json_payload.into_inner();
     let flow = Flow::PmAuthLinkTokenCreate;
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
     let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
         req.headers(),
         &payload,
-        api_auth_config,
+        api_auth,
     ) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
@@ -64,12 +64,12 @@ pub async fn exchange_token(
 ) -> impl Responder {
     let payload = json_payload.into_inner();
     let flow = Flow::PmAuthExchangeToken;
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
     let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
         req.headers(),
         &payload,
-        api_auth_config,
+        api_auth,
     ) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),

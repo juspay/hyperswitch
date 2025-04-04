@@ -349,7 +349,7 @@ where
     ) -> RouterResult<(T, AuthenticationType)>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ApiKeyAuth {
     pub is_connected_allowed: bool,
     pub is_platform_allowed: bool,
@@ -362,12 +362,6 @@ impl GetAuthType for ApiKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
         detached::PayloadType::ApiKey
     }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct ApiKeyAuthConfig {
-    pub is_connected_allowed: bool,
-    pub is_platform_allowed: bool,
 }
 
 //
@@ -492,8 +486,10 @@ where
         };
 
         if platform_merchant_account.is_some() && !self.is_platform_allowed {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                .attach_printable("Platform not authorized to access the resource");
+            return Err(report!(
+                errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+            ))
+            .attach_printable("Platform not authorized to access the resource");
         }
 
         let key_store = if platform_merchant_account.is_some() {
@@ -616,8 +612,10 @@ where
         };
 
         if platform_merchant_account.is_some() && !self.is_platform_allowed {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                .attach_printable("Platform not authorized to access the resource");
+            return Err(report!(
+                errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+            ))
+            .attach_printable("Platform not authorized to access the resource");
         }
 
         let key_store = if platform_merchant_account.is_some() {
@@ -2038,8 +2036,10 @@ where
         };
 
         if platform_merchant_account.is_some() && !self.is_platform_allowed {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                .attach_printable("Platform not authorized to access the resource");
+            return Err(report!(
+                errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+            ))
+            .attach_printable("Platform not authorized to access the resource");
         }
 
         let key_store = if platform_merchant_account.is_some() {
@@ -3618,7 +3618,7 @@ impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
 
 pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
-    api_auth_config: ApiKeyAuthConfig,
+    api_auth: ApiKeyAuth,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
     api::AuthFlow,
@@ -3631,19 +3631,13 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
             api::AuthFlow::Client,
         ));
     }
-    Ok((
-        Box::new(HeaderAuth(ApiKeyAuth {
-            is_connected_allowed: api_auth_config.is_connected_allowed,
-            is_platform_allowed: api_auth_config.is_platform_allowed,
-        })),
-        api::AuthFlow::Merchant,
-    ))
+    Ok((Box::new(HeaderAuth(api_auth)), api::AuthFlow::Merchant))
 }
 
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
-    api_auth_config: ApiKeyAuthConfig,
+    api_auth: ApiKeyAuth,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
@@ -3673,20 +3667,14 @@ where
         }
         .into());
     }
-    Ok((
-        Box::new(HeaderAuth(ApiKeyAuth {
-            is_connected_allowed: api_auth_config.is_connected_allowed,
-            is_platform_allowed: api_auth_config.is_platform_allowed,
-        })),
-        api::AuthFlow::Merchant,
-    ))
+    Ok((Box::new(HeaderAuth(api_auth)), api::AuthFlow::Merchant))
 }
 
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
     payload: Option<&impl ClientSecretFetch>,
-    api_auth_config: ApiKeyAuthConfig,
+    api_auth: ApiKeyAuth,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
@@ -3704,17 +3692,13 @@ where
         Ok((Box::new(EphemeralKeyAuth), api::AuthFlow::Client, true))
     } else if is_merchant_flow {
         Ok((
-            Box::new(HeaderAuth(ApiKeyAuth {
-                is_connected_allowed: api_auth_config.is_connected_allowed,
-                is_platform_allowed: api_auth_config.is_platform_allowed,
-            })),
+            Box::new(HeaderAuth(api_auth)),
             api::AuthFlow::Merchant,
             false,
         ))
     } else {
         let payload = payload.get_required_value("ClientSecretFetch")?;
-        let (auth, auth_flow) =
-            check_client_secret_and_get_auth(headers, payload, api_auth_config)?;
+        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload, api_auth)?;
         Ok((auth, auth_flow, false))
     }
 }
@@ -3722,15 +3706,12 @@ where
 #[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
-    api_auth_config: ApiKeyAuthConfig,
+    api_auth: ApiKeyAuth,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
-        Ok(Box::new(HeaderAuth(ApiKeyAuth {
-            is_connected_allowed: api_auth_config.is_connected_allowed,
-            is_platform_allowed: api_auth_config.is_platform_allowed,
-        })))
+        Ok(Box::new(HeaderAuth(api_auth)))
     } else {
         Ok(Box::new(EphemeralKeyAuth))
     }

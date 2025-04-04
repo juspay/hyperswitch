@@ -85,8 +85,8 @@ pub async fn customers_retrieve(
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        let api_auth_config = auth::ApiKeyAuthConfig::default();
-        match auth::is_ephemeral_auth(req.headers(), api_auth_config) {
+        let api_auth = auth::ApiKeyAuth::default();
+        match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         }

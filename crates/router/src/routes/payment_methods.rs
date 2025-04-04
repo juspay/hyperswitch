@@ -395,13 +395,13 @@ pub async fn save_payment_method_api(
     let flow = Flow::PaymentMethodSave;
     let payload = json_payload.into_inner();
     let pm_id = path.into_inner();
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
-            Ok((auth, _auth_flow)) => (auth, _auth_flow),
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
+    {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -432,13 +432,13 @@ pub async fn list_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
-            Ok((auth, _auth_flow)) => (auth, _auth_flow),
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
+    {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -493,9 +493,9 @@ pub async fn list_customer_payment_method_api(
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth_config) {
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -558,19 +558,15 @@ pub async fn list_customer_payment_method_api_client(
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
     let api_key = auth::get_api_key(req.headers()).ok();
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _, is_ephemeral_auth) = match auth::get_ephemeral_or_other_auth(
-        req.headers(),
-        false,
-        Some(&payload),
-        api_auth_config,
-    )
-    .await
-    {
-        Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
+    let (auth, _, is_ephemeral_auth) =
+        match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
+            .await
+        {
+            Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
 
     Box::pin(api::server_wrap(
         flow,
@@ -777,13 +773,13 @@ pub async fn payment_method_update_api(
     let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth_config) {
-            Ok((auth, _auth_flow)) => (auth, _auth_flow),
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
+    {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -819,9 +815,9 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth_config) {
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };
@@ -892,9 +888,9 @@ pub async fn default_payment_method_set_api(
     let payload = path.into_inner();
     let pc = payload.clone();
     let customer_id = &pc.customer_id;
-    let api_auth_config = auth::ApiKeyAuthConfig::default();
+    let api_auth = auth::ApiKeyAuth::default();
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth_config) {
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(err),
     };

@@ -47,8 +47,8 @@ pub async fn refunds_create(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
@@ -113,8 +113,8 @@ pub async fn refunds_retrieve(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -169,8 +169,8 @@ pub async fn refunds_retrieve_with_body(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -214,8 +214,8 @@ pub async fn refunds_update(
             refund_update_core(state, auth.merchant_account, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -253,8 +253,8 @@ pub async fn refunds_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -303,8 +303,8 @@ pub async fn refunds_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -348,8 +348,8 @@ pub async fn refunds_filter_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -388,8 +388,8 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -435,8 +435,8 @@ pub async fn get_refunds_filters_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
@@ -467,8 +467,8 @@ pub async fn get_refunds_aggregates(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
@@ -527,8 +527,8 @@ pub async fn get_refunds_aggregate_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: true,
-                is_platform_allowed: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
