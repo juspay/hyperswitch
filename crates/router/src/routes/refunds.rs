@@ -12,6 +12,36 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
 };
+
+#[cfg(feature = "v2")]
+/// A private module to hold internal types to be used in route handlers.
+/// This is because we will need to implement certain traits on these types which will have the resource id
+/// But the api payload will not contain the resource id
+/// So these types can hold the resource id along with actual api payload, on which api event and locking action traits can be implemented
+mod internal_payload_types {
+    use super::*;
+
+    // Serialize is implemented because of api events
+    #[derive(Debug, serde::Serialize)]
+    pub struct RefundsGenericRequestWithResourceId<T: serde::Serialize> {
+        pub global_refund_id: common_utils::id_type::GlobalRefundId,
+        pub payment_id: Option<common_utils::id_type::GlobalPaymentId>,
+        #[serde(flatten)]
+        pub payload: T,
+    }
+
+    impl<T: serde::Serialize> common_utils::events::ApiEventMetric
+        for RefundsGenericRequestWithResourceId<T>
+    {
+        fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+            let refund_id = self.global_refund_id.clone();
+            self.payment_id
+                .clone()
+                .map(|payment_id| common_utils::events::ApiEventsType::Refund { payment_id, refund_id })
+        }
+    }
+}
+
 /// Refunds - Create
 ///
 /// To create a refund against an already processed payment
@@ -261,6 +291,55 @@ pub async fn refunds_update(
             is_connected_allowed: false,
             is_platform_allowed: false,
         }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+/// Refunds - Update
+///
+/// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields or updating merchant reference id.
+#[utoipa::path(
+    post,
+    path = "/refunds/{refund_id}",
+    params(
+        ("refund_id" = String, Path, description = "The identifier for refund")
+    ),
+    request_body=RefundUpdateRequest,
+    responses(
+        (status = 200, description = "Refund updated", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Refunds",
+    operation_id = "Update a Refund",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
+// #[post("/{id}")]
+pub async fn refunds_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<refunds::RefundUpdateRequest>,
+    path: web::Path<common_utils::id_type::GlobalRefundId>,
+) -> HttpResponse {
+    let flow = Flow::RefundsUpdate;
+
+    let global_refund_id = path.into_inner();
+    let internal_payload = internal_payload_types::RefundsGenericRequestWithResourceId{
+        global_refund_id: global_refund_id.clone(),
+        payment_id: None,
+        payload: json_payload.into_inner()
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            refund_update_core(state, auth.merchant_account, req.payload,global_refund_id.clone())
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

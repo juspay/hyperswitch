@@ -444,6 +444,44 @@ where
     request.check_integrity(request, connector_refund_id.to_owned())
 }
 
+// ********************************************** REFUND UPDATE **********************************************
+
+pub async fn refund_update_core(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    req: refunds::RefundUpdateRequest,
+    global_refund_id: common_utils::id_type::GlobalRefundId
+) -> RouterResponse<refunds::RefundResponse> {
+    let db = state.store.as_ref();
+    let refund = db
+        .find_refund_by_id(
+            &global_refund_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let response = db
+        .update_refund(
+            refund,
+            storage::RefundUpdate::MerchantTriggeredUpdate {
+                metadata: req.metadata,
+                reason: req.reason,
+                merchant_reference_id: req.merchant_reference_id,
+                updated_by: merchant_account.storage_scheme.to_string(),
+            },
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Unable to update refund with refund_id: {}", global_refund_id.get_string_repr())
+        })?;
+    
+    refunds::RefundResponse::foreign_try_from(response)
+        .map(services::ApplicationResponse::Json)
+}
+
 // ********************************************** VALIDATIONS **********************************************
 
 #[instrument(skip_all)]
