@@ -1073,8 +1073,7 @@ static DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
 };
 
-static DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Deutschebank {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

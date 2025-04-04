@@ -1407,8 +1407,7 @@ static WELLSFARGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
 };
 
-static WELLSFARGO_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static WELLSFARGO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Wellsfargo {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

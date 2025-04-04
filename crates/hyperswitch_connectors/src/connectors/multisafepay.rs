@@ -676,8 +676,7 @@ static MULTISAFEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Multisafepay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
