@@ -1172,10 +1172,7 @@ impl Refunds {
 
         route = route
             .service(web::resource("").route(web::post().to(refunds::refunds_create)))
-            .service(
-                web::resource("/{id}")
-                    .route(web::put().to(refunds::refunds_update)),
-            );
+            .service(web::resource("/{id}").route(web::put().to(refunds::refunds_update)));
 
         route
     }

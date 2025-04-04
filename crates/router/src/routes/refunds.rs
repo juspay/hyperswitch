@@ -37,7 +37,10 @@ mod internal_payload_types {
             let refund_id = self.global_refund_id.clone();
             self.payment_id
                 .clone()
-                .map(|payment_id| common_utils::events::ApiEventsType::Refund { payment_id, refund_id })
+                .map(|payment_id| common_utils::events::ApiEventsType::Refund {
+                    payment_id,
+                    refund_id,
+                })
         }
     }
 }
@@ -325,10 +328,10 @@ pub async fn refunds_update(
     let flow = Flow::RefundsUpdate;
 
     let global_refund_id = path.into_inner();
-    let internal_payload = internal_payload_types::RefundsGenericRequestWithResourceId{
+    let internal_payload = internal_payload_types::RefundsGenericRequestWithResourceId {
         global_refund_id: global_refund_id.clone(),
         payment_id: None,
-        payload: json_payload.into_inner()
+        payload: json_payload.into_inner(),
     };
 
     Box::pin(api::server_wrap(
@@ -337,7 +340,12 @@ pub async fn refunds_update(
         &req,
         internal_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_update_core(state, auth.merchant_account, req.payload,global_refund_id.clone())
+            refund_update_core(
+                state,
+                auth.merchant_account,
+                req.payload,
+                global_refund_id.clone(),
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,

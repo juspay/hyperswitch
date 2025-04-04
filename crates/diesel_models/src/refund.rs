@@ -366,8 +366,9 @@ impl RefundUpdateInternal {
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 impl RefundUpdateInternal {
     pub fn create_refund(self, source: Refund) -> Refund {
-        
-        let merchant_reference_id = self.merchant_reference_id.unwrap_or(source.merchant_reference_id);
+        let merchant_reference_id = self
+            .merchant_reference_id
+            .unwrap_or(source.merchant_reference_id);
         Refund {
             merchant_reference_id,
             connector_refund_id: self.connector_refund_id,
@@ -630,7 +631,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
-                merchant_reference_id: None
+                merchant_reference_id: None,
             },
         }
     }
