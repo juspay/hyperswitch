@@ -32,6 +32,7 @@ ENV RUST_BACKTRACE="short"
 
 COPY . .
 RUN cargo build \
+    --release \
     --no-default-features \
     --features release \
     --features ${VERSION_FEATURE_SET} \
