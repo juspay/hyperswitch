@@ -1010,25 +1010,28 @@ impl AnalyticsProvider {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(tag = "source")]
-#[serde(rename_all = "lowercase")]
+#[serde(tag = "source", rename_all = "lowercase")]
 pub enum AnalyticsConfig {
     Sqlx {
         sqlx: Database,
+        #[serde(default)]
         forex_enabled: bool,
     },
     Clickhouse {
         clickhouse: ClickhouseConfig,
+        #[serde(default)]
         forex_enabled: bool,
     },
     CombinedCkh {
         sqlx: Database,
         clickhouse: ClickhouseConfig,
+        #[serde(default)]
         forex_enabled: bool,
     },
     CombinedSqlx {
         sqlx: Database,
         clickhouse: ClickhouseConfig,
+        #[serde(default)]
         forex_enabled: bool,
     },
 }
