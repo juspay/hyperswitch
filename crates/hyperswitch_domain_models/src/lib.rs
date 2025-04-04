@@ -623,6 +623,9 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             reason: Some(error.message.clone()),
             unified_code: None,
             unified_message: None,
+            network_advice_code: error.network_advice_code.clone(),
+            network_decline_code: error.network_decline_code.clone(),
+            network_error_message: error.network_error_message.clone(),
         }
     }
 }
