@@ -33,6 +33,7 @@ pub struct CoBadgedCardInfo {
 
 pub struct CoBadgedCardInfoResponse {
     pub card_networks: Vec<enums::CardNetwork>,
+    pub issuer_country: enums::CountryAlpha2,
     pub regulated: bool,
     pub regulated_name: Option<String>,
 }

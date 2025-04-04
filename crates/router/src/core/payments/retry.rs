@@ -34,7 +34,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
-    mut connectors: IntoIter<api::ConnectorData>,
+    mut connector_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
@@ -135,7 +135,7 @@ where
                         break;
                     }
 
-                    if connectors.len() == 0 {
+                    if connector_routing_data.len() == 0 {
                         logger::info!("connectors exhausted for auto_retry payment");
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         break;
@@ -157,7 +157,7 @@ where
                         // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
                         original_connector_data.clone()
                     } else {
-                        super::get_connector_data(&mut connectors)?
+                        super::get_connector_data(&mut connector_routing_data)?.connector_data
                     };
 
                     router_data = do_retry(

@@ -23,7 +23,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
-    mut connectors: IntoIter<api::ConnectorData>,
+    mut connectors_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
@@ -54,13 +54,13 @@ pub async fn do_gsm_multiple_connector_actions(
                     break;
                 }
 
-                if connectors.len() == 0 {
+                if connectors_routing_data.len() == 0 {
                     logger::info!("connectors exhausted for auto_retry payout");
                     metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     break;
                 }
 
-                connector = super::get_next_connector(&mut connectors)?;
+                connector = super::get_next_connector(&mut connectors_routing_data)?.connector_data;
 
                 Box::pin(do_retry(
                     &state.clone(),

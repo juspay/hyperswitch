@@ -439,7 +439,7 @@ where
 
     track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
         .await
-        .change_context(errors::DatabaseError::NotFound)
+        .change_context(errors::DatabaseError::Others)
         .attach_printable("Error filtering records by predicate")
 }
 
