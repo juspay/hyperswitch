@@ -298,33 +298,33 @@ pub struct StripebillingWebhookObject {
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
     pub customer_address: Option<StripebillingCustomerAddress>,
-    pub attempt_count : u8,
-    pub lines : StripebillingWebhookLinesObject   
+    pub attempt_count: u8,
+    pub lines: StripebillingWebhookLinesObject,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StripebillingWebhookLinesObject {
-    data : Vec<StripebillingWebhookLinesData>
+    data: Vec<StripebillingWebhookLinesData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StripebillingWebhookLinesData {
-    period: StripebillingWebhookLineDataPeriod
+    period: StripebillingWebhookLineDataPeriod,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StripebillingWebhookLineDataPeriod{
+pub struct StripebillingWebhookLineDataPeriod {
     #[serde(with = "common_utils::custom_serde::timestamp")]
-    end : PrimitiveDateTime,
+    end: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::timestamp")]
-    start: PrimitiveDateTime
+    start: PrimitiveDateTime,
 }
 
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct StripebillingCustomerAddress {
-    pub city : Option<String>,
-    pub state : Option<String>,
-    pub country : Option<common_enums::CountryAlpha2>
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
