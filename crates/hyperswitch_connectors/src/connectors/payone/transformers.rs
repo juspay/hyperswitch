@@ -147,7 +147,6 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                                 card_holder_name: card_data
                                     .card_holder_name
                                     .clone()
-                                    .map(From::from)
                                     .get_required_value("card_holder_name")
                                     .change_context(ConnectorError::MissingRequiredField {
                                         field_name: "payout_method_data.card.holder_name",

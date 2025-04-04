@@ -1937,8 +1937,8 @@ fn get_shopper_name(
 ) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
-        first_name: billing.and_then(|a| a.first_name.clone().map(From::from)),
-        last_name: billing.and_then(|a| a.last_name.clone().map(From::from)),
+        first_name: billing.and_then(|a| a.first_name.clone()),
+        last_name: billing.and_then(|a| a.last_name.clone()),
     })
 }
 
@@ -2232,7 +2232,6 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         holder_name: paze_decrypted_data
                             .billing_address
                             .name
-                            .map(From::from)
                             .or(item.get_optional_billing_full_name()),
                         brand: Some(paze_decrypted_data.payment_card_network.clone())
                             .and_then(get_adyen_card_network),
@@ -5141,7 +5140,6 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
                 holder_name: card
                     .card_holder_name
                     .clone()
-                    .map(From::from)
                     .get_required_value("card_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data.card.holder_name",
