@@ -1869,6 +1869,8 @@ impl PaymentMethodType {
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
             Self::ClassicReward => "Classic Reward",
+            #[cfg(feature = "v2")]
+            Self::Card => "Card",
             Self::Credit => "Credit Card",
             Self::CryptoCurrency => "Crypto",
             Self::Cashapp => "Cash App",
