@@ -3,6 +3,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
+import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
@@ -35,6 +36,7 @@ const connectorDetails = {
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
+  braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
@@ -319,7 +321,7 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: ["fiuu", "paypal"],
+    CONNECTOR_AGNOSTIC_NTID: ["braintree", "fiuu", "paypal"],
     // Add more exclusion lists
   },
 
