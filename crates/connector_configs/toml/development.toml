@@ -5766,6 +5766,12 @@ placeholder="Enter Merchant Country Code"
 required=true
 type="Text"
 
+[ctp_visa.metadata.dpa_client_id]
+name="dpa_client_id"
+label="DPA Client ID"
+placeholder="Enter DPA Client ID"
+type="Text"
+
 [redsys]
 [[redsys.credit]]
   payment_method_type = "Mastercard"

@@ -8165,6 +8165,10 @@ pub struct ClickToPaySessionResponse {
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Email>,
     pub phone_country_code: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<api_enums::CtpServiceProvider>,
+    pub dpa_client_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
