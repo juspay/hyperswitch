@@ -128,6 +128,7 @@ pub struct RefundsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundUpdateRequest {
@@ -140,6 +141,28 @@ pub struct RefundUpdateRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundUpdateRequest {
+    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
+    #[schema(max_length = 255, example = "Customer returned the product")]
+    pub reason: Option<String>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Unique Identifier for the Refund given by the Merchant.
+    #[schema(
+        max_length = 64,
+        min_length = 1,
+        example = "ref_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
