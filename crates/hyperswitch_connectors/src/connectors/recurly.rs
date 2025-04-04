@@ -1,6 +1,5 @@
 pub mod transformers;
 
-
 use base64::Engine;
 use common_utils::{
     consts,
@@ -163,7 +162,11 @@ impl ConnectorCommon for Recurly {
         Ok(vec![
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Basic {}", consts::BASE64_ENGINE.encode(auth.api_key.peek())).into_masked(),
+                format!(
+                    "Basic {}",
+                    consts::BASE64_ENGINE.encode(auth.api_key.peek())
+                )
+                .into_masked(),
             ),
             (
                 headers::ACCEPT.to_string(),
