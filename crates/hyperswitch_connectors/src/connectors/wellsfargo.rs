@@ -1427,6 +1427,6 @@ impl ConnectorSpecifications for Wellsfargo {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*WELLSFARGO_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&WELLSFARGO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

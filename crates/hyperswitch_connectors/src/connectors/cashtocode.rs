@@ -503,6 +503,6 @@ impl ConnectorSpecifications for Cashtocode {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

@@ -688,6 +688,6 @@ impl ConnectorSpecifications for Multisafepay {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

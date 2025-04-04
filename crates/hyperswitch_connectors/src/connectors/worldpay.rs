@@ -1348,6 +1348,6 @@ impl ConnectorSpecifications for Worldpay {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*WORLDPAY_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&WORLDPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

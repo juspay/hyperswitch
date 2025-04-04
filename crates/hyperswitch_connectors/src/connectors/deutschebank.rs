@@ -1088,6 +1088,6 @@ impl ConnectorSpecifications for Deutschebank {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
