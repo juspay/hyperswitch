@@ -46,6 +46,9 @@ FROM debian:bookworm
 ARG CONFIG_DIR=/local/config
 ARG BIN_DIR=/local/bin
 
+# Copy this required fields config file
+COPY --from=builder /router/config/payment_required_fields_v2.toml ${CONFIG_DIR}/payment_required_fields_v2.toml
+
 # RUN_ENV decides the corresponding config file to be used
 ARG RUN_ENV=sandbox
 
