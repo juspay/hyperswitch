@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use common_utils::{pii::Email, types::SemanticVersion};
 use hyperswitch_connectors::utils::AddressDetailsData;
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
+use unidecode::unidecode;
 
 use crate::{connector::utils::PhoneDetailsData, errors, types::api::MessageCategory};
 
@@ -823,9 +825,11 @@ impl
                 .clone()
                 .map(PhoneNumber::try_from)
                 .transpose()?,
-            cardholder_name: billing_address
-                .address
-                .and_then(|address| address.get_optional_full_name()),
+            cardholder_name: billing_address.address.and_then(|address| {
+                address
+                    .get_optional_full_name()
+                    .map(|name| masking::Secret::new(unidecode(&name.expose())))
+            }),
             ship_addr_city: shipping_address
                 .as_ref()
                 .and_then(|shipping_add| shipping_add.address.as_ref())

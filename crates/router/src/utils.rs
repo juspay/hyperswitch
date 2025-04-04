@@ -780,8 +780,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone().map(From::from),
-                    last_name: address_details.last_name.clone().map(From::from),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -842,8 +842,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone().map(From::from),
-                    last_name: address_details.last_name.clone().map(From::from),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -916,8 +916,8 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone().map(From::from),
-                    last_name: address_details.last_name.clone().map(From::from),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -977,8 +977,8 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone().map(From::from),
-                    last_name: address_details.last_name.clone().map(From::from),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
