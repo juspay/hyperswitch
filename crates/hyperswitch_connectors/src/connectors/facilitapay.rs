@@ -41,15 +41,15 @@ use hyperswitch_interfaces::{
 };
 use masking::{Mask, PeekInterface};
 use requests::{
-    AddressState, FacilitapayAuthRequest, FacilitapayPaymentsRequest, FacilitapayRefundRequest,
+    FacilitapayAuthRequest, FacilitapayPaymentsRequest, FacilitapayRefundRequest,
     FacilitapayRouterData,
 };
 use responses::{
     FacilitapayAuthResponse, FacilitapayErrorResponse, FacilitapayPaymentsResponse,
     FacilitapayRefundResponse,
 };
-// use transformers as facilitapay;
 
+// use transformers as facilitapay;
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},

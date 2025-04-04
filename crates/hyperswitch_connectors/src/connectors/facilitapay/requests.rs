@@ -1,7 +1,7 @@
 use common_enums::CountryAlpha2;
 use common_utils::{pii, types::StringMajorUnit};
 use masking::Secret;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 pub struct FacilitapayRouterData<T> {

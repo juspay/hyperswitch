@@ -75,7 +75,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                             value: item.amount.clone(),
                             use_dynamic_pix: true,
                             // Format: YYYY-MM-DDThh:mm:ssZ
-                            dynamic_pix_expires_at: pix_qr_expiry.clone().ok_or(
+                            dynamic_pix_expires_at: pix_qr_expiry.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
                                     field_name: "pix_qr_expiry",
                                 },
