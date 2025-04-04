@@ -12,9 +12,9 @@ use common_utils::{
     self,
     crypto::Encryptable,
     encryption::Encryption,
-    errors::CustomResult,
+    errors::{CustomResult, ValidationError, ParsingError},
     ext_traits::ValueExt,
-    id_type, pii,
+    id_type::{self, CustomerId}, pii,
     types::{keymanager::ToEncryptable, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
@@ -650,6 +650,25 @@ impl PaymentIntent {
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
         self.feature_metadata.clone()
     }
+
+    pub fn get_optional_customer_id(&self) -> CustomResult<Option<CustomerId>, ValidationError> {
+        self
+            .customer_id
+            .as_ref()
+            .map(|customer_id| CustomerId::try_from(customer_id.clone()))
+            .transpose()
+    }
+
+    pub fn get_optional_connector_metadata(&self) -> CustomResult<Option<api_models::payments::ConnectorMetadata>, ParsingError>{
+        self
+            .connector_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+            })
+            .transpose()
+    }
+
 }
 
 #[cfg(feature = "v1")]

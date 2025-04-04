@@ -301,25 +301,14 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
     let capture_method = payment_intent.capture_method;
 
-    let customer_id = payment_intent
-        .customer_id
-        .as_ref()
-        .map(|customer_id| common_utils::id_type::CustomerId::try_from(customer_id.clone()))
-        .transpose()
+    let customer_id = payment_intent.get_optional_customer_id()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
-
+        .attach_printable("Failed to get optional customer id")?;
+        
     let braintree_metadata = payment_intent
-        .connector_metadata
-        .clone()
-        .map(|cm| {
-            cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed parsing ConnectorMetadata")
-        })
-        .transpose()?
+        .get_optional_connector_metadata()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed parsing ConnectorMetadata")?
         .and_then(|cm| cm.braintree);
 
     let merchant_account_id = braintree_metadata

@@ -1,19 +1,18 @@
 use std::str::FromStr;
-
 use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{
     id_type,
     types::{ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data::ErrorResponse;
+use hyperswitch_domain_models::router_data::{ErrorResponse, RouterData};
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
 
 use crate::{
     consts,
     core::{
-        errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, StorageErrorExt},
         payments::{self, access_token, helpers},
         utils::{self as core_utils, refunds_validator},
     },
@@ -36,11 +35,9 @@ pub async fn refund_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundsCreateRequest,
-) -> RouterResponse<refunds::RefundResponse> {
+) -> errors::RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
-    let (merchant_id, payment_intent, payment_attempt, amount);
-
-    merchant_id = merchant_account.get_id();
+    let (payment_intent, payment_attempt, amount);
 
     payment_intent = db
         .find_payment_intent_by_id(
@@ -92,7 +89,7 @@ pub async fn refund_create_core(
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
     let global_refund_id =
-        common_utils::id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
+        id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
 
     tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
@@ -119,7 +116,7 @@ pub async fn trigger_refund_to_gateway(
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-) -> RouterResult<storage::Refund> {
+) -> errors::RouterResult<storage::Refund> {
     let db = &*state.store;
 
     let mca_id = payment_attempt
@@ -175,7 +172,46 @@ pub async fn trigger_refund_to_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+    let router_data_res = fetch_router_data_response(state, &connector, add_access_token_result,router_data)
+        .await;
+
+    let refund_update = get_refund_update_object(state, &connector, &storage_scheme, merchant_account,router_data_res).await;
+
+    // Need to implement refunds outgoing webhooks here.
+
+    match refund_update {
+        Some(refund_update) => {
+            state
+                .store
+                .update_refund(
+                    refund.to_owned(),
+                    refund_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed while updating refund: refund_id: {}",
+                        refund.id.get_string_repr()
+                    )
+                })
+        }
+        None => {
+            Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable("Failed to execute refund update")
+        }
+    }
+}
+
+async fn fetch_router_data_response(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    add_access_token_result: types::AddAccessTokenResult,
+    router_data: RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>,
+) -> Result<RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>, error_stack::Report<errors::ConnectorError>>{
+
+    if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
         let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
@@ -191,198 +227,212 @@ pub async fn trigger_refund_to_gateway(
             None,
         )
         .await;
-        let option_refund_error_update =
-            router_data_res
-                .as_ref()
-                .err()
-                .and_then(|error| match error.current_context() {
-                    errors::ConnectorError::NotImplemented(message) => {
-                        Some(storage::RefundUpdate::ErrorUpdate {
-                            refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(
-                                errors::ConnectorError::NotImplemented(message.to_owned())
-                                    .to_string(),
-                            ),
-                            refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
-                            updated_by: storage_scheme.to_string(),
-                            connector_refund_id: None,
-                            processor_refund_data: None,
-                            unified_code: None,
-                            unified_message: None,
-                        })
-                    }
-                    errors::ConnectorError::NotSupported { message, connector } => {
-                        Some(storage::RefundUpdate::ErrorUpdate {
-                            refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(format!(
-                                "{message} is not supported by {connector}"
-                            )),
-                            refund_error_code: Some("NOT_SUPPORTED".to_string()),
-                            updated_by: storage_scheme.to_string(),
-                            connector_refund_id: None,
-                            processor_refund_data: None,
-                            unified_code: None,
-                            unified_message: None,
-                        })
-                    }
-                    _ => None,
-                });
-        // Update the refund status as failure if connector_error is NotImplemented
-        if let Some(refund_error_update) = option_refund_error_update {
-            state
-                .store
-                .update_refund(
-                    refund.to_owned(),
-                    refund_error_update,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed while updating refund: refund_id: {}",
-                        refund.id.get_string_repr()
-                    )
-                })?;
-        }
-        let mut refund_router_data_res = router_data_res.to_refund_failed_response()?;
-        // Initiating Integrity check
-        let integrity_result = check_refund_integrity(
-            &refund_router_data_res.request,
-            &refund_router_data_res.response,
-        );
-        refund_router_data_res.integrity_check = integrity_result;
-        refund_router_data_res
+
+        router_data_res
     } else {
-        router_data
-    };
+        Ok(router_data)
+    }
+}
 
-    let refund_update = match router_data_res.response {
-        Err(err) => {
-            let option_gsm = helpers::get_gsm_record(
-                state,
-                Some(err.code.clone()),
-                Some(err.message.clone()),
-                connector.connector_name.to_string(),
-                consts::REFUND_FLOW_STR.to_string(),
-            )
-            .await;
-            // Note: Some connectors do not have a separate list of refund errors
-            // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
-            // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
-            let option_gsm = if option_gsm.is_none() {
-                helpers::get_gsm_record(
-                    state,
-                    Some(err.code.clone()),
-                    Some(err.message.clone()),
-                    connector.connector_name.to_string(),
-                    consts::AUTHORIZE_FLOW_STR.to_string(),
-                )
-                .await
-            } else {
-                option_gsm
-            };
-
-            let gsm_unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
-            let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
-
-            let (unified_code, unified_message) = if let Some((code, message)) =
-                gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
-            {
-                (code.to_owned(), message.to_owned())
-            } else {
-                (
-                    consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
-                    consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
-                )
-            };
-
-            storage::RefundUpdate::ErrorUpdate {
-                refund_status: Some(enums::RefundStatus::Failure),
-                refund_error_message: err.reason.or(Some(err.message)),
-                refund_error_code: Some(err.code),
-                updated_by: storage_scheme.to_string(),
-                connector_refund_id: None,
-                processor_refund_data: None,
-                unified_code: Some(unified_code),
-                unified_message: Some(unified_message),
-            }
-        }
-        Ok(response) => {
-            // match on connector integrity checks
-            match router_data_res.integrity_check.clone() {
+async fn get_refund_update_object(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    storage_scheme: &enums::MerchantStorageScheme,
+    merchant_account: &domain::MerchantAccount,
+    router_data_response: Result<RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>, error_stack::Report<errors::ConnectorError>>,
+) -> Option<storage::RefundUpdate> {
+    match router_data_response {
+        Err(err) => Option::<storage::RefundUpdate>::foreign_from((err.current_context(), &storage_scheme)),
+        Ok( response ) => {
+            let response = perform_integrity_check(response);
+            match response.response.clone() {
                 Err(err) => {
-                    let (refund_connector_transaction_id, processor_refund_data) =
-                        err.connector_transaction_id.map_or((None, None), |txn_id| {
-                            let (refund_id, refund_data) =
-                                ConnectorTransactionId::form_id_and_data(txn_id);
-                            (Some(refund_id), refund_data)
-                        });
-                    metrics::INTEGRITY_CHECK_FAILED.add(
-                        1,
-                        router_env::metric_attributes!(
-                            ("connector", connector.connector_name.to_string()),
-                            ("merchant_id", merchant_account.get_id().clone()),
-                        ),
-                    );
-                    storage::RefundUpdate::ErrorUpdate {
-                        refund_status: Some(enums::RefundStatus::ManualReview),
-                        refund_error_message: Some(format!(
-                            "Integrity Check Failed! as data mismatched for fields {}",
-                            err.field_names
-                        )),
-                        refund_error_code: Some("IE".to_string()),
-                        updated_by: storage_scheme.to_string(),
-                        connector_refund_id: refund_connector_transaction_id,
-                        processor_refund_data,
-                        unified_code: None,
-                        unified_message: None,
-                    }
+                    get_connector_error_refund_update(
+                        state,
+                        err,
+                        connector,
+                        &storage_scheme
+                    )
+                    .await
                 }
-                Ok(()) => {
-                    if response.refund_status == diesel_models::enums::RefundStatus::Success {
-                        metrics::SUCCESSFUL_REFUND.add(
-                            1,
-                            router_env::metric_attributes!((
-                                "connector",
-                                connector.connector_name.to_string(),
-                            )),
-                        )
-                    }
-                    let (connector_refund_id, processor_refund_data) =
-                        ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
-                    storage::RefundUpdate::Update {
-                        connector_refund_id,
-                        refund_status: response.refund_status,
-                        sent_to_gateway: true,
-                        refund_error_message: None,
-                        refund_arn: "".to_string(),
-                        updated_by: storage_scheme.to_string(),
-                        processor_refund_data,
-                    }
+                Ok(refund_response_data) => {
+                    get_refund_update_for_refund_response_data(
+                        response,
+                        connector,
+                        refund_response_data,
+                        storage_scheme,
+                        merchant_account
+                    )
                 }
             }
         }
-    };
+    }
+}
 
-    let response = state
-        .store
-        .update_refund(
-            refund.to_owned(),
-            refund_update,
-            merchant_account.storage_scheme,
+async fn get_connector_error_refund_update(
+    state: &SessionState,
+    err: ErrorResponse,
+    connector: &api::ConnectorData,
+    storage_scheme: &enums::MerchantStorageScheme
+) -> Option<storage::RefundUpdate> {
+    let option_gsm = helpers::get_gsm_record(
+        state,
+        Some(err.code.clone()),
+        Some(err.message.clone()),
+        connector.connector_name.to_string(),
+        consts::REFUND_FLOW_STR.to_string(),
+    )
+    .await;
+    // Note: Some connectors do not have a separate list of refund errors
+    // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
+    // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
+    let option_gsm = if option_gsm.is_none() {
+        helpers::get_gsm_record(
+            state,
+            Some(err.code.clone()),
+            Some(err.message.clone()),
+            connector.connector_name.to_string(),
+            consts::AUTHORIZE_FLOW_STR.to_string(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating refund: refund_id: {}",
-                refund.id.get_string_repr()
-            )
-        })?;
+    } else {
+        option_gsm
+    };
 
-    // Need to implement refunds outgoing webhooks here.
-    Ok(response)
+    let gsm_unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+    let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+
+    let (unified_code, unified_message) = match gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref()) {
+        Some((code, message)) => (code.to_owned(), message.to_owned()),
+        None => {
+            (
+                consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+            )
+       }
+    };
+
+    Some(storage::RefundUpdate::ErrorUpdate {
+        refund_status: Some(enums::RefundStatus::Failure),
+        refund_error_message: err.reason.or(Some(err.message)),
+        refund_error_code: Some(err.code),
+        updated_by: storage_scheme.to_string(),
+        connector_refund_id: None,
+        processor_refund_data: None,
+        unified_code: Some(unified_code),
+        unified_message: Some(unified_message),
+    })
+}
+
+pub fn get_refund_update_for_refund_response_data(
+    router_data: RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>,
+    connector: &api::ConnectorData,
+    refund_response_data: types::RefundsResponseData,
+    storage_scheme: &enums::MerchantStorageScheme,
+    merchant_account: &domain::MerchantAccount,
+) -> Option<storage::RefundUpdate> {
+    // match on connector integrity checks
+    match router_data.integrity_check.clone() {
+        Err(err) => {
+            let (refund_connector_transaction_id, processor_refund_data) =
+                err.connector_transaction_id.map_or((None, None), |txn_id| {
+                    let (refund_id, refund_data) =
+                        ConnectorTransactionId::form_id_and_data(txn_id);
+                    (Some(refund_id), refund_data)
+                });
+            metrics::INTEGRITY_CHECK_FAILED.add(
+                1,
+                router_env::metric_attributes!(
+                    ("connector", connector.connector_name.to_string()),
+                    ("merchant_id", merchant_account.get_id().clone()),
+                ),
+            );
+            Some(storage::RefundUpdate::ErrorUpdate {
+                refund_status: Some(enums::RefundStatus::ManualReview),
+                refund_error_message: Some(format!(
+                    "Integrity Check Failed! as data mismatched for fields {}",
+                    err.field_names
+                )),
+                refund_error_code: Some("IE".to_string()),
+                updated_by: storage_scheme.to_string(),
+                connector_refund_id: refund_connector_transaction_id,
+                processor_refund_data,
+                unified_code: None,
+                unified_message: None,
+            })
+        }
+        Ok(()) => {
+            if refund_response_data.refund_status == diesel_models::enums::RefundStatus::Success {
+                metrics::SUCCESSFUL_REFUND.add(
+                    1,
+                    router_env::metric_attributes!((
+                        "connector",
+                        connector.connector_name.to_string(),
+                    )),
+                )
+            }
+            let (connector_refund_id, processor_refund_data) =
+                ConnectorTransactionId::form_id_and_data(refund_response_data.connector_refund_id);
+            Some(storage::RefundUpdate::Update {
+                connector_refund_id,
+                refund_status: refund_response_data.refund_status,
+                sent_to_gateway: true,
+                refund_error_message: None,
+                refund_arn: "".to_string(),
+                updated_by: storage_scheme.to_string(),
+                processor_refund_data,
+            })
+        }
+    }
+}
+
+pub fn perform_integrity_check(
+    mut router_data: RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>
+) -> RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>{
+    // Initiating Integrity check
+    let integrity_result = check_refund_integrity(
+        &router_data.request,
+        &router_data.response,
+    );
+    router_data.integrity_check = integrity_result;
+    router_data
+}
+
+impl ForeignFrom<(&errors::ConnectorError, &enums::MerchantStorageScheme)> for Option<storage::RefundUpdate> {
+    fn foreign_from((from, storage_scheme) : (&errors::ConnectorError, &enums::MerchantStorageScheme)) -> Self {
+        match from {
+            errors::ConnectorError::NotImplemented(message) => {
+                Some(storage::RefundUpdate::ErrorUpdate {
+                    refund_status: Some(enums::RefundStatus::Failure),
+                    refund_error_message: Some(
+                        errors::ConnectorError::NotImplemented(message.to_owned())
+                            .to_string(),
+                    ),
+                    refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                    updated_by: storage_scheme.to_string(),
+                    connector_refund_id: None,
+                    processor_refund_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                })
+            }
+            errors::ConnectorError::NotSupported { message, connector } => {
+                Some(storage::RefundUpdate::ErrorUpdate {
+                    refund_status: Some(enums::RefundStatus::Failure),
+                    refund_error_message: Some(format!(
+                        "{message} is not supported by {connector}"
+                    )),
+                    refund_error_code: Some("NOT_SUPPORTED".to_string()),
+                    updated_by: storage_scheme.to_string(),
+                    connector_refund_id: None,
+                    processor_refund_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                })
+            }
+            _ => None,
+        }
+    }
 }
 
 pub fn check_refund_integrity<T, Request>(
@@ -413,8 +463,8 @@ pub async fn validate_and_create_refund(
     payment_intent: &storage::PaymentIntent,
     refund_amount: MinorUnit,
     req: refunds::RefundsCreateRequest,
-    global_refund_id: common_utils::id_type::GlobalRefundId,
-) -> RouterResult<refunds::RefundResponse> {
+    global_refund_id: id_type::GlobalRefundId,
+) -> errors::RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
     let refund_type = req.refund_type.unwrap_or_default();
@@ -538,25 +588,25 @@ pub async fn validate_and_create_refund(
             if err.current_context().is_db_unique_violation() {
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
-                return Err(err)
+                Err(err)
                     .change_context(errors::ApiErrorResponse::RefundNotFound)
-                    .attach_printable("Inserting Refund failed");
+                    .attach_printable("Inserting Refund failed")?
             }
         }
     };
-    let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
-        (refund.unified_code.clone(), refund.unified_message.clone())
-    {
-        helpers::get_unified_translation(
-            state,
-            unified_code,
-            unified_message.clone(),
-            state.locale.to_string(),
-        )
-        .await
-        .or(Some(unified_message))
-    } else {
-        refund.unified_message
+
+    let unified_translated_message = match (refund.unified_code.clone(), refund.unified_message.clone()) {
+        (Some(unified_code), Some(unified_message)) => {
+            helpers::get_unified_translation(
+                state,
+                unified_code,
+                unified_message.clone(),
+                state.locale.to_string(),
+            )
+            .await
+            .or(Some(unified_message))
+        }
+        _ => refund.unified_message,
     };
 
     let refund = storage::Refund {
@@ -629,7 +679,7 @@ pub async fn schedule_refund_execution(
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-) -> RouterResult<storage::Refund> {
+) -> errors::RouterResult<storage::Refund> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
@@ -726,7 +776,7 @@ pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
     runner: storage::ProcessTrackerRunner,
-) -> RouterResult<storage::ProcessTracker> {
+) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
     let tag = ["REFUND"];
@@ -763,7 +813,7 @@ pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
     runner: storage::ProcessTrackerRunner,
-) -> RouterResult<storage::ProcessTracker> {
+) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
     let schedule_time = common_utils::date_time::now();
