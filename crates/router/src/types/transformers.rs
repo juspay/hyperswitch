@@ -230,6 +230,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::CtpVisa => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "ctp visa is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::CtpMastercard => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "ctp mastercard is not a routable connector".to_string(),
@@ -242,6 +247,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
+            // api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
@@ -312,7 +318,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
-            // api_enums::Connector::Stripebilling => Self::Stripebilling,
+            api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
             api_enums::Connector::Trustpay => Self::Trustpay,
@@ -552,6 +558,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::LocalBankTransfer
+            | api_enums::PaymentMethodType::InstantBankTransfer
+            | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -1438,7 +1446,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
         match value {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
-            api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+            api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
         }
     }
@@ -1928,6 +1936,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 created_before: item.created_before,
                 limit: item.limit.map(i64::from),
                 offset: item.offset.map(i64::from),
+                is_delivered: item.is_delivered,
             }),
         }
     }
@@ -1963,7 +1972,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             object_id: item.primary_object_id,
             event_type: item.event_type,
             event_class: item.event_class,
-            is_delivery_successful: item.is_webhook_notified,
+            is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
             created: item.created_at,
         })
@@ -2016,6 +2025,7 @@ impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }
@@ -2027,6 +2037,7 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
+            three_ds_requestor_app_url: item.three_ds_requestor_app_url,
         }
     }
 }

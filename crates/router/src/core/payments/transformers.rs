@@ -29,7 +29,6 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
-    connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -285,7 +284,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         session_token: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
-        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+        payment_method_type: payment_data.payment_attempt.payment_method_subtype,
         router_return_url: Some(router_return_url),
         webhook_url,
         complete_authorize_url,
@@ -608,7 +607,7 @@ pub async fn construct_router_data_for_psync<'a>(
         capture_method: Some(payment_intent.capture_method),
         connector_meta: attempt.connector_metadata.clone().expose_option(),
         sync_type: types::SyncRequestType::SinglePaymentSync,
-        payment_method_type: Some(attempt.payment_method_subtype),
+        payment_method_type: attempt.payment_method_subtype,
         currency: payment_intent.amount_details.currency,
         // TODO: Get the charges object from feature metadata
         split_payments: None,
@@ -949,7 +948,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         email,
         customer_name: None,
         return_url: Some(router_return_url),
-        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+        payment_method_type: payment_data.payment_attempt.payment_method_subtype,
         request_incremental_authorization: matches!(
             payment_data
                 .payment_intent
@@ -1667,7 +1666,7 @@ where
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
-            payment_method_subtype: Some(payment_attempt.payment_method_subtype),
+            payment_method_subtype: payment_attempt.payment_method_subtype,
             next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
@@ -1771,7 +1770,7 @@ where
             payment_method_subtype: self
                 .payment_attempt
                 .as_ref()
-                .map(|attempt| attempt.payment_method_subtype),
+                .and_then(|attempt| attempt.payment_method_subtype),
             connector_transaction_id: self
                 .payment_attempt
                 .as_ref()
@@ -2898,7 +2897,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             )),
             created: pi.created_at,
             payment_method_type: pa.as_ref().and_then(|p| p.payment_method_type.into()),
-            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype.into()),
+            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype),
             connector: pa.as_ref().and_then(|p| p.connector.clone()),
             merchant_connector_id: pa.as_ref().and_then(|p| p.merchant_connector_id.clone()),
             customer: None,
@@ -3375,72 +3374,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         })
-    }
-}
-
-impl ConnectorTransactionId for Helcim {
-    #[cfg(feature = "v1")]
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        if payment_attempt.get_connector_payment_id().is_none() {
-            let metadata =
-                Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
-            metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
-        } else {
-            Ok(payment_attempt
-                .get_connector_payment_id()
-                .map(ToString::to_string))
-        }
-    }
-
-    #[cfg(feature = "v2")]
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        if payment_attempt.get_connector_payment_id().is_none() {
-            let metadata = Self::connector_transaction_id(
-                self,
-                payment_attempt
-                    .connector_metadata
-                    .as_ref()
-                    .map(|connector_metadata| connector_metadata.peek()),
-            );
-            metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
-        } else {
-            Ok(payment_attempt
-                .get_connector_payment_id()
-                .map(ToString::to_string))
-        }
-    }
-}
-
-impl ConnectorTransactionId for Nexinets {
-    #[cfg(feature = "v1")]
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let metadata =
-            Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
-        metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
-    }
-
-    #[cfg(feature = "v2")]
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let metadata = Self::connector_transaction_id(
-            self,
-            payment_attempt
-                .connector_metadata
-                .as_ref()
-                .map(|connector_metadata| connector_metadata.peek()),
-        );
-        metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
     }
 }
 
@@ -4510,6 +4443,9 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
             message: error_details.message.to_owned(),
             unified_code: error_details.unified_code.clone(),
             unified_message: error_details.unified_message.clone(),
+            network_advice_code: error_details.network_advice_code.clone(),
+            network_decline_code: error_details.network_decline_code.clone(),
+            network_error_message: error_details.network_error_message.clone(),
         }
     }
 }

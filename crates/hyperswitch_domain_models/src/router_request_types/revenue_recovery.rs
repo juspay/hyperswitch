@@ -1,9 +1,9 @@
 use common_enums::enums;
 
 #[derive(Debug, Clone)]
-pub struct GetAdditionalRevenueRecoveryRequestData {
-    /// unique id for making additional revenue recovery call
-    pub additional_revenue_recovery_id: String,
+pub struct BillingConnectorPaymentsSyncRequest {
+    /// unique id for making billing connector psync call
+    pub billing_connector_psync_id: String,
 }
 
 #[derive(Debug, Clone)]

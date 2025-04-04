@@ -1162,7 +1162,17 @@ pub struct CtpServiceDetails {
     /// session transaction flow id
     pub x_src_flow_id: Option<String>,
     /// provider Eg: Visa, Mastercard
-    pub provider: Option<String>,
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<api_enums::CtpServiceProvider>,
+    /// Encrypted payload
+    #[schema(value_type = Option<String>)]
+    pub encypted_payload: Option<Secret<String>>,
+}
+
+impl CtpServiceDetails {
+    pub fn is_network_confirmation_call_required(&self) -> bool {
+        self.provider == Some(api_enums::CtpServiceProvider::Mastercard)
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -2717,7 +2727,7 @@ impl GetPaymentMethodType for BankTransferData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankTransfer { .. } => api_enums::PaymentMethodType::Ach,
-            Self::SepaBankTransfer { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::SepaBankTransfer { .. } => api_enums::PaymentMethodType::SepaBankTransfer,
             Self::BacsBankTransfer { .. } => api_enums::PaymentMethodType::Bacs,
             Self::MultibancoBankTransfer { .. } => api_enums::PaymentMethodType::Multibanco,
             Self::PermataBankTransfer { .. } => api_enums::PaymentMethodType::PermataBankTransfer,
@@ -2730,6 +2740,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
+            Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
         }
     }
 }
@@ -3386,6 +3397,7 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+    InstantBankTransfer {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3453,7 +3465,10 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     email: details.email.clone(),
                 })
             }
-            Self::LocalBankTransfer { .. } | Self::Pix { .. } | Self::Pse {} => None,
+            Self::LocalBankTransfer { .. }
+            | Self::Pix { .. }
+            | Self::Pse {}
+            | Self::InstantBankTransfer {} => None,
         }
     }
 }
@@ -5232,8 +5247,8 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
@@ -5401,8 +5416,8 @@ pub struct PaymentsRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
@@ -5502,6 +5517,14 @@ pub struct ErrorDetails {
     /// The unified error message across all connectors.
     /// If there is a translation available, this will have the translated message
     pub unified_message: Option<String>,
+    /// This field can be returned for both approved and refused Mastercard payments.
+    /// This code provides additional information about the type of transaction or the reason why the payment failed.
+    /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    pub network_advice_code: Option<String>,
+    /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    pub network_decline_code: Option<String>,
+    /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    pub network_error_message: Option<String>,
 }
 
 /// Token information that can be used to initiate transactions by the merchant.
@@ -7506,6 +7529,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_signed_content: Option<String>,
     /// Three DS Requestor URL
     pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
+    pub three_ds_requestor_app_url: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -8140,6 +8165,10 @@ pub struct ClickToPaySessionResponse {
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Email>,
     pub phone_country_code: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<api_enums::CtpServiceProvider>,
+    pub dpa_client_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -8477,7 +8506,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub payment_method_type: common_enums::PaymentMethod,
     /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
@@ -8558,7 +8587,7 @@ pub struct PaymentsAttemptRecordRequest {
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The payment instrument data to be used for the payment attempt.
     pub payment_method_data: Option<PaymentMethodDataRequest>,
@@ -8592,4 +8621,12 @@ pub struct RecordAttemptErrorDetails {
     pub code: String,
     /// error message sent by billing connector.
     pub message: String,
+    /// This field can be returned for both approved and refused Mastercard payments.
+    /// This code provides additional information about the type of transaction or the reason why the payment failed.
+    /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    pub network_advice_code: Option<String>,
+    /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    pub network_decline_code: Option<String>,
+    /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    pub network_error_message: Option<String>,
 }

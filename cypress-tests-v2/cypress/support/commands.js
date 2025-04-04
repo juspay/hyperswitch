@@ -310,7 +310,7 @@ Cypress.Commands.add(
   "businessProfileCreateCall",
   (businessProfileCreateBody, globalState) => {
     // Define the necessary variables and constants
-    const api_key = globalState.get("adminApiKey");
+    const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     const merchant_id = globalState.get("merchantId");
     const url = `${base_url}/v2/profiles`;
@@ -353,7 +353,7 @@ Cypress.Commands.add(
 );
 Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
   // Define the necessary variables and constants
-  const api_key = globalState.get("adminApiKey");
+  const api_key = globalState.get("apiKey");
   const base_url = globalState.get("baseUrl");
   const merchant_id = globalState.get("merchantId");
   const profile_id = globalState.get("profileId");
@@ -395,7 +395,7 @@ Cypress.Commands.add(
   "businessProfileUpdateCall",
   (businessProfileUpdateBody, globalState) => {
     // Define the necessary variables and constants
-    const api_key = globalState.get("adminApiKey");
+    const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     const merchant_id = globalState.get("merchantId");
     const profile_id = globalState.get("profileId");

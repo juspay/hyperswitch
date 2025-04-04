@@ -179,7 +179,7 @@ where
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError>;
 
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
@@ -240,7 +240,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_connector(
                 &conn,
                 merchant_id,
@@ -291,7 +291,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_profile_id_connector_name(
                 &conn,
                 profile_id,
@@ -345,7 +345,7 @@ impl MerchantConnectorAccountInterface for Store {
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector_name(
             &conn,
             merchant_id,
@@ -381,7 +381,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
                 &conn,
                 merchant_id,
@@ -436,7 +436,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_id(&conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -483,7 +483,7 @@ impl MerchantConnectorAccountInterface for Store {
         t: domain::MerchantConnectorAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         t.construct_new()
             .await
             .change_context(errors::StorageError::EncryptionError)?
@@ -510,7 +510,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
 
         storage::MerchantConnectorAccount::list_enabled_by_profile_id(
             &conn,
@@ -544,9 +544,14 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
+        let conn = connection::pg_accounts_connection_read(self).await?;
+        let merchant_connector_account_vec =
+            storage::MerchantConnectorAccount::find_by_merchant_id(
+                &conn,
+                merchant_id,
+                get_disabled,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
@@ -564,7 +569,10 @@ impl MerchantConnectorAccountInterface for Store {
                 }
                 Ok(output)
             })
-            .await
+            .await?;
+        Ok(domain::MerchantConnectorAccounts::new(
+            merchant_connector_account_vec,
+        ))
     }
 
     #[instrument(skip_all)]
@@ -575,7 +583,7 @@ impl MerchantConnectorAccountInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::MerchantConnectorAccount::list_by_profile_id(&conn, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -605,7 +613,7 @@ impl MerchantConnectorAccountInterface for Store {
             storage::MerchantConnectorAccountUpdateInternal,
         )>,
     ) -> CustomResult<(), errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
 
         async fn update_call(
             connection: &diesel_models::PgPooledConn,
@@ -723,7 +731,7 @@ impl MerchantConnectorAccountInterface for Store {
         let _merchant_connector_id = this.merchant_connector_id.clone();
 
         let update_call = || async {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = connection::pg_accounts_connection_write(self).await?;
             Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
@@ -803,7 +811,7 @@ impl MerchantConnectorAccountInterface for Store {
         let _merchant_connector_id = this.get_id().clone();
 
         let update_call = || async {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = connection::pg_accounts_connection_write(self).await?;
             Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
@@ -871,7 +879,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         let delete_call = || async {
             storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
                 &conn,
@@ -946,7 +954,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         let delete_call = || async {
             storage::MerchantConnectorAccount::delete_by_id(&conn, id)
                 .await
@@ -1232,7 +1240,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_account_details: t.connector_account_details.into(),
             test_mode: t.test_mode,
             disabled: t.disabled,
-            merchant_connector_id: t.merchant_connector_id,
+            merchant_connector_id: t.merchant_connector_id.clone(),
+            id: Some(t.merchant_connector_id),
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
             frm_configs: None,
@@ -1314,7 +1323,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
         let accounts = self
             .merchant_connector_accounts
             .lock()
@@ -1343,7 +1352,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .change_context(errors::StorageError::DecryptionError)?,
             )
         }
-        Ok(output)
+        Ok(domain::MerchantConnectorAccounts::new(output))
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
@@ -1672,7 +1681,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)
@@ -1850,7 +1859,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             feature_metadata: None,
         };
 
