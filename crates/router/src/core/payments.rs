@@ -2041,9 +2041,6 @@ pub(crate) async fn payments_create_and_confirm_intent(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unexpected response from payments core")?;
 
-    // Adding client secret to ensure client secret validation passes during confirm intent step
-    // header_payload.client_secret = Some(create_intent_response.client_secret.clone());
-
     let payload = payments_api::PaymentsConfirmIntentRequest::from(&request);
 
     let confirm_intent_response = decide_authorize_or_setup_intent_flow(
