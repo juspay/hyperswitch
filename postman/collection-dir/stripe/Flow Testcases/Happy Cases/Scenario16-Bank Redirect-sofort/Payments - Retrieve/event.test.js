@@ -60,12 +60,32 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "requires_customer_action" for "status"
+// Response body should have value "failed" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments:id - Content check if value for 'status' matches 'requires_customer_action'",
+    "[POST]::/payments:id - Content check if value for 'status' matches 'failed'",
     function () {
-      pm.expect(jsonData.status).to.eql("requires_customer_action");
+      pm.expect(jsonData.status).to.eql("failed");
+    },
+  );
+}
+
+// Response body should have value "payment_method_not_available" for "error_code"
+if (jsonData?.error_code) {
+  pm.test(
+    "[POST]::/payments/:id/confirm - Content check if value for 'error_code' matches 'payment_method_not_available'",
+    function () {
+      pm.expect(jsonData.error_code).to.eql("payment_method_not_available");
+    },
+  );
+}
+
+// Response body should have value "Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort" for "error_message"
+if (jsonData?.error_message) {
+  pm.test(
+    "[POST]::/payments/:id/confirm - Content check if value for 'error_message' matches 'Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort'",
+    function () {
+      pm.expect(jsonData.error_message).to.eql("Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort");
     },
   );
 }
